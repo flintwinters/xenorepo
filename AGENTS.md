@@ -1,0 +1,62 @@
+# Centralized App Tooling Laboratory
+
+## 1. Guiding motivation
+
+This iteration treats centralized tooling as the primary product. Individual
+apps are experiments and proving grounds for an impeccable scripting framework
+that manages their complete lifecycle: planning, creation, startup, building,
+validation, testing, and maintenance.
+
+Optimize first for a coherent developer experience, deterministic behavior,
+and reusable automation. App work should expose requirements for the framework;
+it should not accumulate one-off scripts or workflows. Promote every proven
+operation into shared tooling so each new app becomes easier to understand and
+manage than the last.
+
+Prefer short feedback loops, strict contracts, portable state, reproducible
+checks, and actionable diagnostics. Observability is part of correctness: fail
+early, exit nonzero, identify the cause with evidence, and never report success
+before the requested outcome is proved.
+
+## 2. Architecture and invariants
+
+- `manage.py` is the sole routine entrypoint and the repository's primary
+  interface. Every recurring workflow belongs behind a clear, discoverable
+  command implemented with Typer and presented with Rich.
+- Central tooling owns planning, scaffolding, discovery, startup, shutdown,
+  building, validation, testing, and status reporting. Apps declare facts and
+  capabilities; they do not duplicate lifecycle orchestration.
+- App definitions are declarative, typed, and capability-driven. Tooling must
+  discover behavior from metadata rather than hard-coded app names or implicit
+  directory knowledge.
+- Framework code is modular and DRY. Reuse existing functions and modules before
+  adding machinery, and promote an abstraction only after concrete app work has
+  demonstrated the shared boundary.
+- Operations are deterministic, composable, and reversible where practical.
+  Generated artifacts record their inputs, state is explicit, and partial
+  failures produce useful recovery instructions.
+- Validation is layered but centrally orchestrated. Maintain project-specific
+  testing infrastructure and expose every routine check through `manage.py`;
+  do not add ad-hoc test commands or scripts.
+- Lifecycle operations fail early, hard, and visibly. Check preconditions before
+  mutation, prove stable readiness before success, preserve relevant process
+  output, and report cleanup failures without hiding the original error.
+- Test directly in the repository. Ignored runtime and test state belongs in
+  `.state/`, never `/tmp`.
+- Keep source files below 600 lines and cyclomatic complexity at or below 8.
+  Prefer small modules with explicit responsibilities and strict interfaces.
+- Apps remain independent product experiments. They may share central tooling,
+  contracts, and learned patterns, but not application source or build artifacts.
+
+## 3. Current tasks
+
+1. Inventory the existing repository and identify reusable lifecycle tooling,
+   duplicated workflows, app-specific assumptions, and obsolete architecture.
+2. Define the scripting framework's command model, typed app metadata, module
+   boundaries, diagnostics, and test strategy before expanding app features.
+3. Establish `manage.py` as the obvious root entrypoint with discoverable
+   commands and deterministic validation of repository and app configuration.
+4. Migrate lifecycle operations into the central framework one verified logical
+   checkpoint at a time, committing each checkpoint with a detailed message.
+5. Use a minimal representative app to prove each framework capability and feed
+   discovered requirements back into shared tooling.

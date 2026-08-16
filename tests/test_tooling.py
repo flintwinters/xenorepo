@@ -5,10 +5,11 @@ from tooling.lifecycle import build_app, validate_app, validate_dist
 
 
 class RepositoryAppTests(unittest.TestCase):
-    def test_app_catalog_has_unique_names(self) -> None:
+    def test_app_catalog_is_nonempty_and_has_unique_names(self) -> None:
         apps = discover_apps()
         names = [app.name for app in apps]
 
+        self.assertTrue(apps, "the repository must contain at least one managed app")
         self.assertEqual(len(names), len(set(names)), "managed app names must be unique")
         for definition in apps:
             with self.subTest(app=definition.name):
@@ -52,6 +53,18 @@ class RepositoryAppTests(unittest.TestCase):
                 self.assertIn("<script>", document)
                 self.assertNotIn('src="', document)
                 self.assertNotIn('href="', document)
+
+    def test_calculator_preserves_visible_work_across_reload(self) -> None:
+        build_app(get_app("calculator"))
+        document = get_app("calculator").dist_directory.joinpath("index.html").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('storageKey="calc98-state-v1"', document)
+        self.assertIn("localStorage.setItem(storageKey", document)
+        self.assertIn("localStorage.getItem(storageKey)", document)
+        self.assertIn("ledger.unshift", document)
+
 
 if __name__ == "__main__":
     unittest.main()

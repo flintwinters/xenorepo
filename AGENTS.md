@@ -18,6 +18,8 @@ checks, and actionable diagnostics. Observability is part of correctness: fail
 early, exit nonzero, identify the cause with evidence, and never report success
 before the requested outcome is proved.
 
+When a systemic issue, which may occur more than once, is found, routinize protections against it with scripts orchestrated by manage.py
+
 ## 2. Architecture and invariants
 
 - `manage.py` is the sole routine entrypoint and the repository's primary
@@ -55,8 +57,7 @@ before the requested outcome is proved.
 
 ## 3. Current tasks
 
-1. Keep the app catalog empty until the next proving-ground experiment is selected.
-2. Add centrally orchestrated browser testing to `manage.py` when an app again
-   requires interaction and responsive-layout coverage.
-3. Continue implementing lifecycle operations one verified logical checkpoint
+1. Add centrally orchestrated browser testing to `manage.py` for interaction
+   and responsive-layout coverage.
+2. Continue implementing lifecycle operations one verified logical checkpoint
    at a time, committing each checkpoint with a detailed message.

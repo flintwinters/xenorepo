@@ -81,8 +81,14 @@ class RpsTests(unittest.TestCase):
             "@media(max-width:850px)", "@media(max-width:590px)"):
             with self.subTest(marker=marker):
                 self.assertIn(marker, document)
-        for forbidden in ("radial-gradient", "border-radius", "@keyframes",
-            "animation:", "transition:"):
+        for marker in ("@keyframes queue-scan", "@keyframes reveal-in",
+            "animation:selection-lock", "animation:reveal-in",
+            "animation:win-flash", "animation:loss-shake",
+            "@media(prefers-reduced-motion:reduce)", "function replay(",
+            'classList.toggle("searching"'):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, document)
+        for forbidden in ("radial-gradient", "border-radius"):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, document)
         opponent = document.index('id="opponent-strip"')

@@ -73,6 +73,8 @@ class RpsTests(unittest.TestCase):
             'MATCH LOST', 'OPPONENT READY · YOUR THROW',
             'MATCHMAKING · SEARCHING FOR OPPONENT', 'classList.toggle("ready"',
             'CONNECTION LOST · RECONNECTING',
+            'signal-search', 'signal-active', 'signal-locked', 'signal-ready',
+            'signal-win', 'signal-loss', 'signal-tie', '--signal:',
             "@media(max-width:850px)", "@media(max-width:590px)"):
             with self.subTest(marker=marker):
                 self.assertIn(marker, document)

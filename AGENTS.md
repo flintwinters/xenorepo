@@ -82,5 +82,5 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 
 ## 3. Current tasks
 
-- Maximize RPS social state feedback across matchmaking, match start, opponent
-  readiness, throw confirmation, round resolution, and final match outcomes.
+- Make RPS match state legible without text through a large, bright, arena-wide
+  signal system for search, play, lock, readiness, results, and disconnection.

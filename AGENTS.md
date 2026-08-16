@@ -29,9 +29,9 @@ before the requested outcome is proved.
 - App definitions are declarative, typed, and capability-driven. Tooling must
   discover behavior from metadata rather than hard-coded app names or implicit
   directory knowledge.
-- Framework code is modular and DRY. Reuse existing functions and modules before
-  adding machinery, and promote an abstraction only after concrete app work has
-  demonstrated the shared boundary.
+- Framework code is modular and DRY. Build shared functions and modules around
+  clear responsibilities, and promote an abstraction only after concrete app
+  work has demonstrated the shared boundary.
 - Operations are deterministic, composable, and reversible where practical.
   Generated artifacts record their inputs, state is explicit, and partial
   failures produce useful recovery instructions.
@@ -50,13 +50,11 @@ before the requested outcome is proved.
 
 ## 3. Current tasks
 
-1. Inventory the existing repository and identify reusable lifecycle tooling,
-   duplicated workflows, app-specific assumptions, and obsolete architecture.
-2. Define the scripting framework's command model, typed app metadata, module
+1. Define the scripting framework's command model, typed app metadata, module
    boundaries, diagnostics, and test strategy before expanding app features.
-3. Establish `manage.py` as the obvious root entrypoint with discoverable
+2. Establish `manage.py` as the obvious root entrypoint with discoverable
    commands and deterministic validation of repository and app configuration.
-4. Migrate lifecycle operations into the central framework one verified logical
+3. Implement lifecycle operations in the central framework one verified logical
    checkpoint at a time, committing each checkpoint with a detailed message.
-5. Use a minimal representative app to prove each framework capability and feed
-   discovered requirements back into shared tooling.
+4. Create a minimal representative app to prove each framework capability and
+   feed discovered requirements back into shared tooling.

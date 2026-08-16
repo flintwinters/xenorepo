@@ -55,8 +55,8 @@ before the requested outcome is proved.
 
 ## 3. Current tasks
 
-1. Exercise the rebuilt calculator across desktop and narrow viewport topology.
-2. Add centrally orchestrated browser testing to `manage.py` for interaction
-   and responsive-layout coverage.
+1. Keep the app catalog empty until the next proving-ground experiment is selected.
+2. Add centrally orchestrated browser testing to `manage.py` when an app again
+   requires interaction and responsive-layout coverage.
 3. Continue implementing lifecycle operations one verified logical checkpoint
    at a time, committing each checkpoint with a detailed message.

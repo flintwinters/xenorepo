@@ -1,6 +1,0 @@
-name = "calculator"
-title = "Calculation Control"
-module = "apps.calculator.server"
-
-[frontend]
-format = "document"

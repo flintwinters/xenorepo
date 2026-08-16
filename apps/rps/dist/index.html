@@ -1,11 +1,111 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Rock Paper Scissors</title><style>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="tooling-shell" content="console">
+<title>Rock Paper Scissors</title>
+<style>
+/* tooling.frontend: console shell */
+:root {
+  color-scheme: dark;
+  --bg: #1d2021;
+  --panel: #282828;
+  --well: #181a1b;
+  --line: #504945;
+  --hi: #665c54;
+  --fg: #ebdbb2;
+  --muted: #a89984;
+  --red: #fb4934;
+  --green: #b8bb26;
+  --yellow: #fabd2f;
+  --blue: #83a598;
+  --purple: #d3869b;
+  --aqua: #8ec07c;
+  --orange: #fe8019;
+  font: 12px/1.3 "Courier New", monospace;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; background: var(--bg); color: var(--fg); }
+button, input, textarea, select { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible,
+.key:focus-visible, .tab:focus-visible {
+  outline: 2px solid var(--yellow);
+  outline-offset: 1px;
+}
+.utility, .status, .rail {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 2px 6px;
+  background: linear-gradient(#3c3836, #282828);
+  border-bottom: 1px solid #101112;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.brand { color: var(--yellow); font-weight: bold; letter-spacing: .08em; }
+.pane { min-width: 0; min-height: 0; overflow: hidden; background: var(--panel); }
+.pane-body { min-height: 0; overflow: auto; }
+.pane-title, .title {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 22px;
+  margin: 0;
+  padding-right: 7px;
+  color: #1d2021;
+  font-size: 12px;
+  font-weight: bold;
+  background: linear-gradient(#83a598, #5f7f75);
+  border-top: 1px solid #b7cfca;
+  border-bottom: 2px solid #354a44;
+  box-shadow: 0 2px 2px #111;
+}
+.index, .plaque {
+  align-self: stretch;
+  display: grid;
+  place-items: center;
+  min-width: 25px;
+  padding: 0 5px;
+  color: var(--fg);
+  background: var(--panel);
+  border-right: 1px solid #111;
+}
+.key, button {
+  min-height: 20px;
+  padding: 1px 8px;
+  color: var(--fg);
+  background: linear-gradient(#3c3836, #282828);
+  border: 1px solid #111;
+  border-top-color: #7c6f64;
+  border-left-color: #665c54;
+  box-shadow: inset -1px -1px #1d2021, 0 2px #101112;
+  cursor: pointer;
+}
+.key:active, button:active, .key.pressed {
+  transform: translateY(1px);
+  box-shadow: inset 1px 1px #101112;
+}
+.key:disabled, button:disabled { color: #665c54; cursor: not-allowed; }
+@media (max-width: 620px) {
+  .utility .context, .rail .low, .status .hint { display: none; }
+}
+</style>
+<style>
+/* app-owned styles */
 :root{color-scheme:dark;--bg:#1d2021;--panel:#282828;--well:#181a1b;--line:#504945;--fg:#ebdbb2;--muted:#a89984;--red:#fb4934;--green:#b8bb26;--yellow:#fabd2f;--blue:#83a598;--purple:#d3869b;--aqua:#8ec07c;--orange:#fe8019;font:12px/1.3 "Courier New",monospace}*{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--bg);color:var(--fg)}button,input{font:inherit;color:inherit}.key{padding:4px 9px;color:var(--fg);background:#3c3836;border:1px solid #111;cursor:pointer}.key:disabled{color:#665c54}.key:focus-visible,input:focus-visible{outline:2px solid var(--yellow)}
 .landing{min-height:100%;display:grid;place-items:center;padding:24px;background:var(--well)}[hidden]{display:none!important}.landing-card{width:min(700px,100%);background:var(--panel);border:1px solid var(--line);box-shadow:0 12px 30px #000}.landing h1{margin:0;padding:24px;text-align:center;color:var(--yellow);font-size:30px;letter-spacing:.12em;border-bottom:1px solid var(--line)}.play-form{display:grid;grid-template-columns:1fr 180px;gap:10px;padding:18px}.play-form label{display:grid;gap:4px;color:var(--muted)}input{width:100%;height:40px;padding:6px;background:var(--well);border:1px solid var(--line)}.play{font-size:24px;font-weight:bold;color:#1d2021;background:var(--green)}.landing-stats{display:flex;gap:18px;padding:0 18px 14px;color:var(--muted)}.landing-stats strong{color:var(--aqua)}
 .public-title{padding:7px;color:var(--yellow);border-top:1px solid var(--line)}.public-list{margin:0;padding:0;list-style:none}.public-list li{display:grid;grid-template-columns:1fr auto;align-items:center;gap:8px;padding:7px;border-top:1px solid var(--line)}.match-player{display:flex;justify-content:space-between;gap:10px;color:var(--aqua)}.match-player span:last-child{color:var(--yellow)}.match-meta,.activity{color:var(--muted);font-size:10px}.activity{padding:6px;border-bottom:1px solid var(--line)}.message{padding:5px 7px;color:var(--muted);border-top:1px solid var(--line)}.message.error{color:var(--red)}
 .frame{height:100%;display:grid;grid-template-rows:28px 1fr;background:#111}.utility{display:flex;align-items:center;gap:8px;padding:3px 6px;background:#32302f}.brand{color:var(--yellow);font-weight:bold}.utility .key{margin-left:auto}.link{color:var(--green)}.link.offline{color:var(--red)}.mosaic{min-height:0;display:grid;grid-template-columns:190px 1fr;grid-template-rows:1fr 164px;gap:1px}.pane{min-height:0;display:grid;grid-template-rows:22px 1fr;overflow:hidden;background:var(--panel)}.pane-title{display:flex;align-items:center;gap:6px;margin:0;padding-right:6px;color:#1d2021;font-size:12px;background:var(--blue)}.green{background:var(--green)}.purple{background:var(--purple)}.index{align-self:stretch;display:grid;place-items:center;min-width:25px;color:var(--fg);background:#282828}.title-meta{margin-left:auto}.pane-body{overflow:auto}.arena-index{grid-row:1/3}.battle,.ledger{grid-column:2}.ledger{grid-row:2}.metrics{display:grid;grid-template-columns:1fr auto;margin:0}.metrics dt,.metrics dd{margin:0;padding:5px;border-bottom:1px solid var(--line)}.metrics dt{color:var(--muted)}.metrics dd{color:var(--aqua)}
 .battle-body{height:100%;display:grid;grid-template-rows:42px 1fr auto 24px 42px}.player-strip{display:flex;align-items:center;justify-content:space-between;padding:6px 9px}.opponent{border-bottom:1px solid var(--line)}.you{border-top:1px solid var(--line);background:#32302f}.label{color:var(--muted)}.name{color:var(--aqua);font-size:14px;font-weight:bold}.streak{color:var(--yellow)}.instrument{display:grid;grid-template-columns:82px 1fr;min-height:0;background:var(--well)}.timer,.standby{display:grid;place-items:center;align-content:center}.timer{border-right:1px solid var(--line)}.clock{color:var(--yellow);font-size:34px}.clock.low{color:var(--red)}.round{color:var(--muted)}.result{display:grid;grid-template-columns:1fr 76px 1fr;align-items:center;text-align:center}.pick{color:var(--orange);font-size:24px}.outcome{color:var(--yellow)}.throws{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;padding:7px}.throw{display:grid;grid-template-columns:20px 1fr auto;align-items:center;text-align:left}.throw.selected{color:var(--aqua)}.shortcut{color:var(--muted);font-size:10px}table{width:100%;border-collapse:collapse;table-layout:fixed}th,td{height:24px;padding:3px 7px;border:1px solid var(--line);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}th{position:sticky;top:0;background:#32302f;color:var(--muted);font-weight:normal}.empty td{text-align:center;color:var(--muted)}
 @media(max-width:850px){.mosaic{grid-template-columns:170px 1fr}}@media(max-width:590px){.landing{padding:10px}.play-form{grid-template-columns:1fr}.mosaic{grid-template-columns:1fr;grid-template-rows:180px 1fr 148px;overflow:auto}.arena-index,.battle,.ledger{grid-column:1}.arena-index{grid-row:1}.battle{grid-row:2}.ledger{grid-row:3}.shortcut{display:none}}
-</style></head><body>
+</style>
+</head>
+<body>
 <section class="landing" id="landing"><div class="landing-card"><h1>Rock Paper Scissors</h1><form class="play-form" id="play-form"><label>DISPLAY NAME<input id="nickname" minlength="2" maxlength="24" required autocomplete="nickname"></label><button class="key play" id="play" disabled>PLAY</button></form><div class="landing-stats"><span><strong id="landing-online">0</strong> ONLINE</span><span><strong id="landing-active">0</strong> MATCHES</span></div><div class="public-title">ONGOING MATCHES</div><ul class="public-list" id="landing-matches"><li>NO ACTIVE MATCHES</li></ul><div class="message" id="landing-message" role="status">CONNECTING</div></div></section>
 <main class="frame" id="arena-view" hidden><header class="utility"><span class="brand">Rock Paper Scissors</span><button class="key" id="queue" disabled>JOIN QUEUE</button><span class="link offline" id="link">● OFFLINE</span></header><section class="mosaic">
 <aside class="pane arena-index"><h2 class="pane-title"><span class="index">01</span>ARENA</h2><div class="pane-body"><dl class="metrics"><dt>VISITORS</dt><dd id="online">0</dd><dt>QUEUE</dt><dd id="queue-size">0</dd><dt>ACTIVE</dt><dd id="active-count">0</dd></dl><div class="public-title">TOP MATCHES</div><ul class="public-list" id="top-matches"><li>NO ACTIVE MATCHES</li></ul><div class="public-title">RECENT</div><div id="recent-results"><div class="activity">NO RESULTS</div></div></div></aside>
@@ -19,4 +119,17 @@ function spectator(d){showArena();mode="spectating";submitted=true;watched=d.mat
 function reveal(d){clearInterval(timer);submitted=true;const values=Object.values(d.throws),mine=d.throws[player.id]||values[0],theirs=d.throws[player.id]?Object.entries(d.throws).find(([id])=>id!==player.id)[1]:values[1],result=d.outcome==="tie"?"TIE":watched?"DECISIVE":d.winner_id===player.id?"WIN":"LOSS";text("your-pick",icons[mine]);text("their-pick",icons[theirs]);text("outcome",result);$("standby").hidden=true;$("result").hidden=false;if(d.outcome==="tie")ties++;text("ties",`TIES ${ties} / 5`);rounds.unshift({round:d.round,mine:mine.toUpperCase(),theirs:theirs.toUpperCase(),result});renderLedger()}
 function playerView(p){player=p;text("your-name",p.nickname);text("your-streak",p.competitive_streak||0);$("nickname").value=p.nickname}function apply(d){if(d.type==="session")playerView(d.player);else if(d.type==="arena_snapshot")arena(d);else if(d.type==="queue_state"){mode=d.queued?"queued":"idle";if(d.queued)showArena()}else if(d.type==="match_assignment")match(d);else if(d.type==="round_state")round(d);else if(d.type==="spectator_state")spectator(d);else if(d.type==="round_reveal")reveal(d);else if(d.type==="match_result"){mode="complete";if(d.player)playerView(d.player);text("round","FINAL");text("message",d.outcome==="draw"?"MATCH DRAWN":d.winner_id===player.id?"MATCH WON":"MATCH COMPLETE")}else if(d.type==="error")fail(d.message);controls()}async function request(path,opt){const r=await fetch(path,opt),body=await r.json();if(!r.ok)throw Error(body.error||"REQUEST FAILED");return body}
 async function connect(){try{playerView(await request("/api/session"));socket=new WebSocket(`${location.protocol==="https:"?"wss":"ws"}://${location.host}/ws`);socket.onopen=()=>{$("link").classList.remove("offline");text("link","● ONLINE");text("landing-message","READY");$("play").disabled=false;controls()};socket.onmessage=e=>{try{apply(JSON.parse(e.data))}catch{fail("INVALID SERVER MESSAGE")}};socket.onclose=()=>{text("link","● RECONNECTING");$("play").disabled=true;setTimeout(connect,2000)}}catch(e){fail(e.message);setTimeout(connect,2000)}}
-$("play-form").onsubmit=async e=>{e.preventDefault();try{playerView(await request("/api/session",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({nickname:$("nickname").value})}));showArena();mode="queued";controls();send("queue_join")}catch(error){fail(error.message)}};$("queue").onclick=()=>send(mode==="queued"?"queue_leave":"queue_join");function watch(e){const b=e.target.closest("[data-watch]");if(b){showArena();send("spectate",{match_id:b.dataset.watch})}}$("top-matches").onclick=watch;$("landing-matches").onclick=watch;buttons.forEach(b=>b.onclick=()=>{submitted=true;b.classList.add("selected");controls();send("throw",{selection:b.dataset.throw})});document.addEventListener("keydown",e=>{if(e.repeat||e.target.tagName==="INPUT")return;const pick={1:"rock",r:"rock",2:"paper",p:"paper",3:"scissors",s:"scissors"}[e.key.toLowerCase()];if(pick)document.querySelector(`[data-throw=${pick}]`).click()});renderLedger();connect()})();</script></body></html>
+$("play-form").onsubmit=async e=>{e.preventDefault();try{playerView(await request("/api/session",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({nickname:$("nickname").value})}));showArena();mode="queued";controls();send("queue_join")}catch(error){fail(error.message)}};$("queue").onclick=()=>send(mode==="queued"?"queue_leave":"queue_join");function watch(e){const b=e.target.closest("[data-watch]");if(b){showArena();send("spectate",{match_id:b.dataset.watch})}}$("top-matches").onclick=watch;$("landing-matches").onclick=watch;buttons.forEach(b=>b.onclick=()=>{submitted=true;b.classList.add("selected");controls();send("throw",{selection:b.dataset.throw})});document.addEventListener("keydown",e=>{if(e.repeat||e.target.tagName==="INPUT")return;const pick={1:"rock",r:"rock",2:"paper",p:"paper",3:"scissors",s:"scissors"}[e.key.toLowerCase()];if(pick)document.querySelector(`[data-throw=${pick}]`).click()});renderLedger();connect()})();</script>
+<script>
+(()=>{"use strict";const $=id=>document.getElementById(id),buttons=[...document.querySelectorAll("[data-throw]")],icons={rock:"●",paper:"▰",scissors:"✕"};let socket,player={},mode="idle",submitted=false,ties=0,timer,rounds=[],watched=null;const text=(id,v)=>$(id).textContent=v??"——";function showArena(){$("landing").hidden=true;$("arena-view").hidden=false}function fail(v){const id=$("landing").hidden?"message":"landing-message";text(id,v);$(id).classList.add("error")}function send(type,data={}){if(socket?.readyState!==1)return fail("CONNECTION LOST");socket.send(JSON.stringify({type,client_id:crypto.randomUUID(),...data}))}function controls(){buttons.forEach(b=>b.disabled=mode!=="match"||submitted);$("queue").disabled=socket?.readyState!==1||mode==="match"||mode==="spectating";text("queue",mode==="queued"?"LEAVE QUEUE":"JOIN QUEUE")}
+function matchList(node,matches){node.replaceChildren();if(!matches.length){const li=document.createElement("li");li.textContent="NO ACTIVE MATCHES";node.append(li)}matches.forEach(match=>{const li=document.createElement("li"),players=document.createElement("div"),watch=document.createElement("button");match.participants.forEach(p=>{const row=document.createElement("div");row.className="match-player";const name=document.createElement("span"),streak=document.createElement("span");name.textContent=p.nickname;streak.textContent=`STREAK ${p.competitive_streak}`;row.append(name,streak);players.append(row)});const meta=document.createElement("div");meta.className="match-meta";meta.textContent=`${match.ranked?"RANKED":"UNRANKED"} · ${match.spectator_count} VIEWING`;players.append(meta);watch.className="key";watch.dataset.watch=match.match_id;watch.textContent="WATCH";li.append(players,watch);node.append(li)})}
+function arena(d){[ ["online",d.visitors],["queue-size",d.queue_size],["active-count",d.active_matches],["landing-online",d.visitors],["landing-active",d.active_matches] ].forEach(x=>text(...x));matchList($("top-matches"),d.top_matches);matchList($("landing-matches"),d.top_matches);const recent=$("recent-results");recent.replaceChildren();d.recent_results.forEach(r=>{const e=document.createElement("div"),winner=r.participants.find(p=>p.id===r.winner_id);e.className="activity";e.textContent=`${r.outcome.toUpperCase()} · ${winner?.nickname||"DRAW"}`;recent.append(e)})}
+function clock(deadline){clearInterval(timer);const end=Date.parse(deadline),tick=()=>{const n=Math.max(0,Math.ceil((end-Date.now())/1000));text("clock",n);$("clock").classList.toggle("low",n<=3);if(!n)clearInterval(timer)};tick();timer=setInterval(tick,200)}function renderLedger(){const body=$("round-log");body.replaceChildren();if(!rounds.length){const row=body.insertRow(),cell=row.insertCell();row.className="empty";cell.colSpan=5;cell.textContent="NO RESOLVED ROUNDS"}rounds.forEach((e,i)=>{const row=body.insertRow();[rounds.length-i,e.round,e.mine,e.theirs,e.result].forEach(v=>row.insertCell().textContent=v)});text("ledger-count",`${rounds.length} ENTRIES`)}
+function spectator(d){showArena();mode="spectating";submitted=true;watched=d.match_id;const [a,b]=d.participants;text("opponent-label","PLAYER A");text("you-label","PLAYER B");text("your-name",a.nickname);text("your-streak",a.competitive_streak);text("opponent",b.nickname);text("opponent-streak",b.competitive_streak);text("round",`ROUND ${d.round}`);text("ties",`TIES ${d.tie_count} / 5`);text("message",`SPECTATING · ${d.spectator_count} VIEWING`);rounds=d.revealed_rounds.map(e=>{const v=Object.values(e.throws);return{round:e.round,mine:v[0].toUpperCase(),theirs:v[1].toUpperCase(),result:e.outcome.toUpperCase()}}).reverse();renderLedger();clock(d.deadline);controls()}function match(d){showArena();mode="match";watched=null;ties=0;rounds=[];renderLedger();text("opponent-label","OPPONENT");text("you-label","YOU");text("opponent",d.opponent.nickname);text("opponent-streak",d.opponent.competitive_streak);text("message","MATCH FOUND");controls()}function round(d){showArena();mode="match";submitted=d.submitted;$("result").hidden=true;$("standby").hidden=false;text("round",`ROUND ${d.round}`);text("message",submitted?"THROW LOCKED · WAITING":d.opponent_submitted?"OPPONENT LOCKED · YOUR THROW":"CHOOSE YOUR THROW");clock(d.deadline);controls()}
+function reveal(d){clearInterval(timer);submitted=true;const values=Object.values(d.throws),mine=d.throws[player.id]||values[0],theirs=d.throws[player.id]?Object.entries(d.throws).find(([id])=>id!==player.id)[1]:values[1],result=d.outcome==="tie"?"TIE":watched?"DECISIVE":d.winner_id===player.id?"WIN":"LOSS";text("your-pick",icons[mine]);text("their-pick",icons[theirs]);text("outcome",result);$("standby").hidden=true;$("result").hidden=false;if(d.outcome==="tie")ties++;text("ties",`TIES ${ties} / 5`);rounds.unshift({round:d.round,mine:mine.toUpperCase(),theirs:theirs.toUpperCase(),result});renderLedger()}
+function playerView(p){player=p;text("your-name",p.nickname);text("your-streak",p.competitive_streak||0);$("nickname").value=p.nickname}function apply(d){if(d.type==="session")playerView(d.player);else if(d.type==="arena_snapshot")arena(d);else if(d.type==="queue_state"){mode=d.queued?"queued":"idle";if(d.queued)showArena()}else if(d.type==="match_assignment")match(d);else if(d.type==="round_state")round(d);else if(d.type==="spectator_state")spectator(d);else if(d.type==="round_reveal")reveal(d);else if(d.type==="match_result"){mode="complete";if(d.player)playerView(d.player);text("round","FINAL");text("message",d.outcome==="draw"?"MATCH DRAWN":d.winner_id===player.id?"MATCH WON":"MATCH COMPLETE")}else if(d.type==="error")fail(d.message);controls()}async function request(path,opt){const r=await fetch(path,opt),body=await r.json();if(!r.ok)throw Error(body.error||"REQUEST FAILED");return body}
+async function connect(){try{playerView(await request("/api/session"));socket=new WebSocket(`${location.protocol==="https:"?"wss":"ws"}://${location.host}/ws`);socket.onopen=()=>{$("link").classList.remove("offline");text("link","● ONLINE");text("landing-message","READY");$("play").disabled=false;controls()};socket.onmessage=e=>{try{apply(JSON.parse(e.data))}catch{fail("INVALID SERVER MESSAGE")}};socket.onclose=()=>{text("link","● RECONNECTING");$("play").disabled=true;setTimeout(connect,2000)}}catch(e){fail(e.message);setTimeout(connect,2000)}}
+$("play-form").onsubmit=async e=>{e.preventDefault();try{playerView(await request("/api/session",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({nickname:$("nickname").value})}));showArena();mode="queued";controls();send("queue_join")}catch(error){fail(error.message)}};$("queue").onclick=()=>send(mode==="queued"?"queue_leave":"queue_join");function watch(e){const b=e.target.closest("[data-watch]");if(b){showArena();send("spectate",{match_id:b.dataset.watch})}}$("top-matches").onclick=watch;$("landing-matches").onclick=watch;buttons.forEach(b=>b.onclick=()=>{submitted=true;b.classList.add("selected");controls();send("throw",{selection:b.dataset.throw})});document.addEventListener("keydown",e=>{if(e.repeat||e.target.tagName==="INPUT")return;const pick={1:"rock",r:"rock",2:"paper",p:"paper",3:"scissors",s:"scissors"}[e.key.toLowerCase()];if(pick)document.querySelector(`[data-throw=${pick}]`).click()});renderLedger();connect()})();
+</script>
+</body>
+</html>

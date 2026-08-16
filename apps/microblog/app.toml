@@ -5,3 +5,4 @@ capabilities = ["database"]
 
 [frontend]
 format = "document"
+shell = "console"

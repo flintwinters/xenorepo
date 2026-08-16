@@ -20,6 +20,7 @@ class AppDefinition:
     directory: Path
     module: str
     frontend_format: str
+    frontend_shell: str | None
     capabilities: frozenset[str]
 
     @property
@@ -46,11 +47,28 @@ def load_app(directory: Path) -> AppDefinition:
         raise AppDefinitionError(
             f"app name {data['name']!r} must match directory {directory.name!r}"
         )
-    frontend_format = data.get("frontend", {}).get("format", "typescript")
+    frontend = data.get("frontend", {})
+    if not isinstance(frontend, dict):
+        raise AppDefinitionError(f"{metadata_path.relative_to(ROOT)} frontend must be a table")
+    frontend_format = frontend.get("format", "typescript")
     if frontend_format not in {"typescript", "document"}:
         raise AppDefinitionError(
             f"{metadata_path.relative_to(ROOT)} has unsupported frontend format: "
             f"{frontend_format!r}"
+        )
+    frontend_shell = frontend.get("shell")
+    if frontend_shell is not None and frontend_shell not in {"console"}:
+        raise AppDefinitionError(
+            f"{metadata_path.relative_to(ROOT)} has unsupported frontend shell: "
+            f"{frontend_shell!r}"
+        )
+    if frontend_format == "document" and frontend_shell is None:
+        raise AppDefinitionError(
+            f"{metadata_path.relative_to(ROOT)} document frontend must declare a shell"
+        )
+    if frontend_format != "document" and frontend_shell is not None:
+        raise AppDefinitionError(
+            f"{metadata_path.relative_to(ROOT)} shell requires document frontend format"
         )
     declared_capabilities = data.get("capabilities", [])
     if not isinstance(declared_capabilities, list) or not all(
@@ -72,6 +90,7 @@ def load_app(directory: Path) -> AppDefinition:
         directory=directory,
         module=data["module"],
         frontend_format=frontend_format,
+        frontend_shell=frontend_shell,
         capabilities=capabilities,
     )
 

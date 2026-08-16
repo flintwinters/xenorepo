@@ -9,6 +9,7 @@ import subprocess
 from fastapi.routing import APIWebSocketRoute
 
 from tooling.apps import AppDefinition, ROOT
+from tooling.frontend import FrontendCompositionError, compose_document
 
 
 class LifecycleError(RuntimeError):
@@ -25,7 +26,11 @@ def build_app(definition: AppDefinition) -> None:
     if definition.frontend_format == "document":
         source = definition.source_directory / "index.html"
         definition.dist_directory.mkdir(exist_ok=True)
-        shutil.copy2(source, definition.dist_directory / "index.html")
+        try:
+            document = compose_document(source, definition.frontend_shell or "")
+        except FrontendCompositionError as error:
+            raise LifecycleError(str(error)) from error
+        (definition.dist_directory / "index.html").write_text(document, encoding="utf-8")
         return
     compiler = shutil.which("tsc")
     if compiler is None:

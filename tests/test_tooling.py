@@ -2,6 +2,7 @@ import unittest
 from pathlib import Path
 
 from tooling.apps import AppDefinitionError, discover_apps, get_app
+from tooling.frontend import CONSOLE_SHELL, DocumentParts, compose_console
 from tooling.lifecycle import build_app, validate_app, validate_dist
 from tests.support import SocketDouble, run_async
 
@@ -53,8 +54,31 @@ class RepositoryAppTests(unittest.TestCase):
                 )
                 self.assertIn("<style>", document)
                 self.assertIn("<script>", document)
+                self.assertIn('<meta name="tooling-shell" content="console">', document)
+                self.assertIn("/* tooling.frontend: console shell */", document)
                 self.assertNotIn('src="', document)
                 self.assertNotIn('href="', document)
+
+    def test_console_composition_preserves_app_owned_parts(self) -> None:
+        document = compose_console(DocumentParts(
+            title="Control & Monitor",
+            body='<main id="app">READY</main>',
+            styles="#app { color: var(--aqua); }",
+            script='document.title = "READY";',
+        ))
+
+        self.assertIn("/* tooling.frontend: console shell */", document)
+        self.assertIn("--yellow: #fabd2f", CONSOLE_SHELL)
+        self.assertIn("<title>Control &amp; Monitor</title>", document)
+        self.assertIn('<main id="app">READY</main>', document)
+        self.assertIn("#app { color: var(--aqua); }", document)
+        self.assertIn('document.title = "READY";', document)
+
+    def test_document_metadata_declares_the_shared_console_shell(self) -> None:
+        for definition in discover_apps():
+            with self.subTest(app=definition.name):
+                if definition.frontend_format == "document":
+                    self.assertEqual(definition.frontend_shell, "console")
 
     def test_calculator_preserves_visible_work_across_reload(self) -> None:
         build_app(get_app("calculator"))

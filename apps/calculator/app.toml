@@ -4,3 +4,4 @@ module = "apps.calculator.server"
 
 [frontend]
 format = "document"
+shell = "console"

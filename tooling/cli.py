@@ -36,6 +36,43 @@ def _select_app(name: str | None) -> AppDefinition:
     return get_app(name)
 
 
+def _run_bootstrap(command: list[str], recovery: str) -> None:
+    """Run one locked dependency operation with an actionable recovery path."""
+    completed = subprocess.run(command, cwd=ROOT, check=False)
+    if completed.returncode:
+        raise LifecycleError(
+            f"{' '.join(command)} failed ({completed.returncode}). {recovery}"
+        )
+
+
+@app.command()
+def bootstrap() -> None:
+    """Verify Node 22 and restore the locked Python and npm environments."""
+    try:
+        version = subprocess.run(
+            ["node", "--version"], cwd=ROOT, check=False, text=True, capture_output=True
+        )
+    except FileNotFoundError:
+        _fail("Node 22 is required; install Node 22, then run python manage.py bootstrap.")
+        return
+    if version.returncode or not version.stdout.startswith("v22."):
+        actual = version.stdout.strip() or version.stderr.strip() or "not available"
+        _fail(f"Node 22 is required (found {actual}); install Node 22, then rerun bootstrap.")
+        return
+    try:
+        _run_bootstrap(
+            ["uv", "sync", "--locked"],
+            "Restore or update uv.lock with uv lock, then rerun bootstrap.",
+        )
+        _run_bootstrap(
+            ["npm", "ci"],
+            "Verify package-lock.json and npm registry access, then rerun bootstrap.",
+        )
+    except (FileNotFoundError, LifecycleError) as error:
+        _fail(error)
+    console.print(f"[bold green]Bootstrap complete[/] (Node {version.stdout.strip()})")
+
+
 @app.command("list")
 def list_apps() -> None:
     """List applications discovered from declarative metadata."""

@@ -7,6 +7,5 @@ frontend:
       format: lit
       source: frontend/index.ts
       output: index.html
-      shell: console
   routes:
     /: index

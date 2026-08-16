@@ -38,7 +38,7 @@ def _build_lit(definition: AppDefinition, artifact: FrontendArtifact) -> None:
     npm = shutil.which("npm")
     if npm is None:
         raise LifecycleError("npm not found; run python manage.py bootstrap before building Lit pages")
-    bundle = definition.dist_directory / f".{artifact.name}.bundle.js"
+    bundle = definition.dist_directory / f"{artifact.name}.bundle.js"
     source = definition.directory / artifact.source
     _run([npm, "run", "build:lit", "--", str(source.relative_to(ROOT)), str(bundle.relative_to(ROOT))])
     try:
@@ -50,6 +50,7 @@ def _build_lit(definition: AppDefinition, artifact: FrontendArtifact) -> None:
     output.write_text(
         "<!doctype html>\n<html lang=\"en\">\n<head>\n"
         "<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+        "<meta name=\"tooling-shell\" content=\"console\">\n"
         f"<title>{escape(definition.title)}</title>\n</head>\n<body>\n<main id=\"app\"></main>\n"
         f"<script>{script}</script>\n</body>\n</html>\n",
         encoding="utf-8",

@@ -24,18 +24,21 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 
 - `manage.py` is the sole routine entrypoint and the repository's primary
   interface. Every recurring workflow belongs behind a clear, discoverable
-  command implemented with Typer and presented with Rich.
+  command implemented with Typer and presented with Rich.  All apps must be routed thru this cockpit from the start.
 - Central tooling owns planning, scaffolding, discovery, startup, shutdown,
   building, validation, testing, and status reporting. Apps declare facts and
   capabilities; they do not duplicate lifecycle orchestration.
 - App definitions are declarative, typed, and capability-driven. Tooling must
   discover behavior from metadata rather than hard-coded app names or implicit
   directory knowledge.
-- Applications use FastAPI as their sole runtime service. TypeScript frontends
-  are compiled entirely ahead of time into each application's `./dist/`
-  directory, which FastAPI routes and serves directly. Do not run a separate
-  frontend development or production service such as Vite; startup exposes the
-  complete application through one FastAPI service.
+- Applications use FastAPI as their sole runtime service. Server-owned URLs
+  are declared in app YAML and route directly to self-contained artifacts in
+  each application's `./dist/` directory. Do not run a separate frontend
+  development or production service such as Vite; startup exposes the complete
+  application through one FastAPI service.
+- Central Lit UI is the shared frontend direction. New pages use reusable
+  components only from the central Lit UI package; existing apps may remain
+  legacy documents until deliberately migrated.
 - Treat persistence as an implementation detail behind a durable domain
   boundary. Use SQLAlchemy's ORM as the database abstraction layer so
   application behavior, schemas, and lifecycle tooling do not depend on
@@ -79,5 +82,5 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 
 ## 3. Current tasks
 
-- Repair and verify WIRE/98 live synchronization across Starlette worker threads,
-  ensuring streaming generators never yield while holding thread-owned locks.
+- Keep YAML app contracts, server-owned document routes, and the central Lit
+  UI build path deterministic and covered by `manage.py` checks.

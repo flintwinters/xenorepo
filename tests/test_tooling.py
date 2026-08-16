@@ -154,14 +154,22 @@ frontend:
 
     def test_calculator_preserves_visible_work_across_reload(self) -> None:
         build_app(get_app("calculator"))
-        document = get_app("calculator").dist_directory.joinpath("index.html").read_text(
+        definition = get_app("calculator")
+        source = (definition.directory / definition.artifact("index").source).read_text(
             encoding="utf-8"
         )
+        document = definition.dist_directory.joinpath("index.html").read_text(encoding="utf-8")
 
-        self.assertIn('storageKey="calc98-state-v1"', document)
-        self.assertIn("localStorage.setItem(storageKey", document)
-        self.assertIn("localStorage.getItem(storageKey)", document)
-        self.assertIn("ledger.unshift", document)
+        self.assertIn('storageKey = "calc98-state-v1"', source)
+        self.assertIn("localStorage.setItem(storageKey", source)
+        self.assertIn("localStorage.getItem(storageKey)", source)
+        self.assertIn("ledger.unshift", source)
+        self.assertIn("x-console-shell", source)
+        self.assertIn("calc98-state-v1", document)
+        self.assertIn("x-console-shell", document)
+        self.assertIn('<meta name="tooling-shell" content="console">', document)
+        self.assertNotIn('src="', document)
+        self.assertNotIn('href="', document)
 
     def test_chat_persists_history_and_broadcasts_to_every_connection(self) -> None:
         from apps.chat.database import (

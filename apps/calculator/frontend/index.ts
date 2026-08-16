@@ -15,6 +15,7 @@ const storageKey = "calc98-state-v1";
 export function mount(root: HTMLElement): void {
   render(html`
     <style>
+      :root { --line: var(--console-line, #504945); --well: var(--console-well, #181a1b); --red: var(--console-red, #fb4934); --green: var(--console-green, #b8bb26); --yellow: var(--console-accent, #fabd2f); }
       :host, * { box-sizing: border-box; } .frame { height: 100vh; display:grid; grid-template-rows:28px minmax(0,1fr) 24px; }
       .mosaic { min-height:0; display:grid; grid-template-columns:156px minmax(320px,1fr) 210px; grid-template-rows:minmax(290px,62%) minmax(150px,38%); gap:1px; }
       x-console-pane { min-width:0; min-height:0; } .memory {grid-row:1/3}.workspace {grid-column:2}.inspector {grid-column:3}.ledger {grid-column:2/4}

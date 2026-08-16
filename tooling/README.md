@@ -7,11 +7,12 @@ only after more than one app has proved their boundary.
 ## App contract
 
 Each app declares its name, title, importable FastAPI module, capabilities, and
-frontend build inputs in `app.toml`. `python manage.py check` discovers every
-definition, validates its source contract, imports its service, builds its
-browser document, and validates the resulting `dist/` directory. The service
-owns `/`, `/health`, and its domain routes; `/` always serves the app's
-self-contained `dist/index.html`.
+frontend artifacts in `app.yaml`. Artifact source, output, and format are
+independent facts; routes map server-owned URL paths to logical artifact names.
+`python manage.py check` discovers every definition, validates its source
+contract, imports its service, builds its browser documents, and validates the
+resulting `dist/` directory. The service owns `/health`, its declared document
+routes, and its domain routes.
 
 Apps remain product owners. Domain entities, repositories, migrations,
 authentication semantics, and high-level realtime coordinators stay local.
@@ -45,11 +46,13 @@ yielding an event. Tests must include cross-thread publish/wait delivery.
 
 ## Frontend composition
 
-The platform composes each app's semantic body, app-specific CSS, and script
-with the shared console shell at build time. The result is exactly one standalone
-`dist/index.html`: embedded CSS and JavaScript, no external assets, and no
-separate frontend service. Shared tokens and structural chrome belong in the
-composition layer; product-specific semantics and behavior remain app inputs.
+Legacy document artifacts compose their semantic body, CSS, and script with the
+shared console shell at build time. Lit artifacts export `mount(root)` and are
+bundled centrally with esbuild; they import reusable elements only from
+`@xenorepo/lit-ui`. Every artifact is self-contained: embedded CSS and
+JavaScript, no external assets, and no separate frontend service. Use
+`python manage.py bootstrap` to verify Node 22, synchronize locked Python
+dependencies, and run `npm ci` before frontend work.
 
 ## Required verification
 

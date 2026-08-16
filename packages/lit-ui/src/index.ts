@@ -21,7 +21,7 @@ class ConsoleElement extends LitElement {
 export class ConsoleShell extends ConsoleElement {
   static styles = [consoleTokens, css`
     :host { display: grid; min-height: 100%; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--console-bg, #1d2021); }
-    main { min-height: 0; overflow: auto; background: var(--console-panel, #282828); }
+    main { display: grid; min-height: 0; overflow: auto; background: var(--console-panel, #282828); }
   `];
   render() { return html`<header><slot name="header"></slot></header><main><slot></slot></main><footer><slot name="footer"></slot></footer>`; }
 }

@@ -165,7 +165,8 @@ class MicroblogTests(unittest.TestCase):
         document = Path("apps/microblog/frontend/index.html").read_text(encoding="utf-8")
         for marker in ('aria-live="polite"', 'aria-labelledby="feed-title"',
             ":focus-visible", "@media(max-width:620px)", "EventSource", "REFRESH",
-            "maxlength=\"280\""):
+            "maxlength=\"280\"", 'id="authMessage" role="alert"',
+            "REGISTER THIS HANDLE", 'minlength="8"'):
             with self.subTest(marker=marker):
                 self.assertIn(marker, document)
         self.assertNotIn("https://", document)

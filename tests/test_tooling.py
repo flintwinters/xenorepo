@@ -85,7 +85,7 @@ class RepositoryAppTests(unittest.TestCase):
             async def send_text(self, payload: str) -> None:
                 self.events.append(json.loads(payload))
 
-        database = Path("data/test-chat.db")
+        database = Path("apps/chat/data/test-chat.db")
         database.unlink(missing_ok=True)
         self.addCleanup(database.unlink, missing_ok=True)
         database_url = f"sqlite:///{database}"

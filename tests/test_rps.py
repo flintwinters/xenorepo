@@ -77,7 +77,7 @@ class RpsTests(unittest.TestCase):
             'signal-search', 'signal-active', 'signal-locked', 'signal-ready',
             'signal-win', 'signal-loss', 'signal-tie', '--signal:',
             'position:absolute', 'border:7px solid var(--signal)',
-            'icons={rock:"✊",paper:"✋",scissors:"✌"}',
+            'icons={rock:"🪨",paper:"📄",scissors:"✂️"}',
             "@media(max-width:850px)", "@media(max-width:590px)"):
             with self.subTest(marker=marker):
                 self.assertIn(marker, document)

@@ -1,15 +1,16 @@
 """Normalized SQLAlchemy persistence and domain operations for WIRE/98."""
 
 from datetime import datetime, timedelta, timezone
-from pathlib import Path
 from uuid import uuid4
 
 from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, LargeBinary, String, Text
-from sqlalchemy import create_engine, event, func, select
+from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, aliased, mapped_column, sessionmaker
 
 from apps.microblog.auth import PasswordHash, hash_password, normalize_handle, token_digest, verify_password
+from tooling.database import create_session_factory as shared_session_factory
+from tooling.database import sqlite_url
 
 
 SESSION_LIFETIME = timedelta(days=30)
@@ -83,24 +84,8 @@ class LikeEvent(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
 
-def _enable_foreign_keys(connection: object, _record: object) -> None:
-    cursor = connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
-
-
 def create_session_factory(database_url: str) -> sessionmaker[Session]:
-    options = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-    engine = create_engine(database_url, connect_args=options)
-    if options:
-        event.listen(engine, "connect", _enable_foreign_keys)
-    Base.metadata.create_all(engine)
-    return sessionmaker(engine, expire_on_commit=False)
-
-
-def sqlite_url(path: Path) -> str:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    return f"sqlite:///{path}"
+    return shared_session_factory(database_url, Base.metadata)
 
 
 class MicroblogRepository:

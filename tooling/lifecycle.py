@@ -6,6 +6,8 @@ import py_compile
 import shutil
 import subprocess
 
+from fastapi.routing import APIWebSocketRoute
+
 from tooling.apps import AppDefinition, ROOT
 
 
@@ -48,6 +50,10 @@ def validate_app(definition: AppDefinition) -> None:
                 definition.source_directory / "tsconfig.json",
             ]
         )
+    if "database" in definition.capabilities:
+        expected.extend(
+            [definition.directory / "database.py", definition.directory / "data" / "README.md"]
+        )
     missing = [path.relative_to(ROOT) for path in expected if not path.is_file()]
     if missing:
         raise LifecycleError(f"{definition.name} missing files: {', '.join(map(str, missing))}")
@@ -55,6 +61,12 @@ def validate_app(definition: AppDefinition) -> None:
     module = import_module(definition.module)
     if not hasattr(module, "app"):
         raise LifecycleError(f"{definition.module} does not expose a FastAPI 'app'")
+    if "realtime" in definition.capabilities and not any(
+        isinstance(route, APIWebSocketRoute) for route in module.app.routes
+    ):
+        raise LifecycleError(
+            f"{definition.name} declares realtime but exposes no WebSocket route"
+        )
 
 
 def validate_dist(definition: AppDefinition) -> None:

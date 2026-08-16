@@ -1,6 +1,5 @@
 """Single FastAPI runtime for durable anonymous group chat."""
 
-import json
 import os
 from pathlib import Path
 from typing import Any
@@ -10,6 +9,12 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 
 from apps.chat.database import ChatRepository, create_session_factory, sqlite_url
+from tooling.realtime import (
+    ConnectionRegistry,
+    bounded_text,
+    client_provenance,
+    websocket_origin_allowed,
+)
 
 
 DIRECTORY = Path(__file__).parent
@@ -23,52 +28,44 @@ class ConnectionHub:
     """Coordinate ephemeral connections while storage owns durable state."""
 
     def __init__(self) -> None:
-        self.connections: dict[WebSocket, str] = {}
+        self.connections = ConnectionRegistry[str]()
 
     async def connect(self, socket: WebSocket, repository: ChatRepository) -> None:
         await socket.accept()
-        client_host = socket.client.host if socket.client else None
-        session_id = repository.open_session({"client_host": client_host,
-            "user_agent": socket.headers.get("user-agent"), "origin": socket.headers.get("origin")})
-        self.connections[socket] = session_id
+        session_id = repository.open_session(client_provenance(socket))
+        self.connections.register(socket, session_id)
         history = repository.all()
         await socket.send_json({"type": "history", "messages": history})
-        await self.broadcast({"type": "presence", "count": len(self.connections)})
+        await self.broadcast({"type": "presence", "count": len(self.connections)}, repository)
 
     async def disconnect(self, socket: WebSocket, repository: ChatRepository) -> None:
-        session_id = self.connections.pop(socket, None)
+        session_id = self.connections.remove(socket)
         if session_id:
             repository.close_session(session_id)
-        await self.broadcast({"type": "presence", "count": len(self.connections)})
+        await self.broadcast({"type": "presence", "count": len(self.connections)}, repository)
 
     def identify(self, socket: WebSocket, repository: ChatRepository,
         participant_id: str, author: str) -> None:
-        repository.identify(self.connections[socket], participant_id, author)
+        repository.identify(self.connections.context_for(socket), participant_id, author)
 
     async def publish(self, socket: WebSocket, repository: ChatRepository,
         author: str, body: str, client_id: str | None) -> None:
-        message = repository.add(self.connections[socket], author, body, client_id)
+        message = repository.add(self.connections.context_for(socket), author, body, client_id)
         await self.broadcast({"type": "message", "message": message}, repository, int(message["id"]))
 
-    async def broadcast(self, event: dict[str, Any], repository: ChatRepository | None = None,
+    async def broadcast(self, event: dict[str, Any], repository: ChatRepository,
         message_id: int | None = None) -> None:
-        payload = json.dumps(event)
-        stale: list[WebSocket] = []
-        for socket, session_id in tuple(self.connections.items()):
-            try:
-                await socket.send_text(payload)
-                if repository and message_id:
-                    repository.delivered(message_id, session_id)
-            except RuntimeError:
-                stale.append(socket)
-        if stale:
-            for socket in stale:
-                self.connections.pop(socket, None)
+        report = await self.connections.broadcast(event)
+        if message_id:
+            for session_id in report.delivered:
+                repository.delivered(message_id, session_id)
+        for disconnected in report.disconnected:
+            repository.close_session(disconnected.context)
 
 
 def clean_message(payload: dict[str, Any]) -> tuple[str, str, str | None] | None:
-    author = str(payload.get("author", "")).strip()[:MAX_AUTHOR_LENGTH]
-    body = str(payload.get("body", "")).strip()[:MAX_MESSAGE_LENGTH]
+    author = bounded_text(payload.get("author"), MAX_AUTHOR_LENGTH)
+    body = bounded_text(payload.get("body"), MAX_MESSAGE_LENGTH)
     if not author or not body:
         return None
     client_id = str(payload.get("client_message_id", "")) or None
@@ -80,7 +77,7 @@ def clean_identity(payload: dict[str, Any]) -> tuple[str, str] | None:
         participant_id = str(UUID(str(payload.get("participant_id", ""))))
     except ValueError:
         return None
-    author = str(payload.get("author", "")).strip()[:MAX_AUTHOR_LENGTH]
+    author = bounded_text(payload.get("author"), MAX_AUTHOR_LENGTH)
     return (participant_id, author) if author else None
 
 
@@ -100,6 +97,9 @@ def create_app(database_url: str | None = None) -> FastAPI:
 
     @application.websocket("/ws")
     async def live_chat(socket: WebSocket) -> None:
+        if not websocket_origin_allowed(socket):
+            await socket.close(code=1008, reason="Origin is not allowed.")
+            return
         await hub.connect(socket, repository)
         try:
             while True:

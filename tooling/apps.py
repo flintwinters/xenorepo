@@ -20,6 +20,7 @@ class AppDefinition:
     directory: Path
     module: str
     frontend_format: str
+    capabilities: frozenset[str]
 
     @property
     def source_directory(self) -> Path:
@@ -51,12 +52,27 @@ def load_app(directory: Path) -> AppDefinition:
             f"{metadata_path.relative_to(ROOT)} has unsupported frontend format: "
             f"{frontend_format!r}"
         )
+    declared_capabilities = data.get("capabilities", [])
+    if not isinstance(declared_capabilities, list) or not all(
+        isinstance(capability, str) for capability in declared_capabilities
+    ):
+        raise AppDefinitionError(
+            f"{metadata_path.relative_to(ROOT)} capabilities must be a list of strings"
+        )
+    capabilities = frozenset(declared_capabilities)
+    unsupported = capabilities - {"database", "realtime"}
+    if unsupported:
+        raise AppDefinitionError(
+            f"{metadata_path.relative_to(ROOT)} has unsupported capabilities: "
+            f"{', '.join(sorted(unsupported))}"
+        )
     return AppDefinition(
         name=data["name"],
         title=data["title"],
         directory=directory,
         module=data["module"],
         frontend_format=frontend_format,
+        capabilities=capabilities,
     )
 
 

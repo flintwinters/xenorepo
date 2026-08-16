@@ -1,6 +1,7 @@
 name = "microblog"
 title = "WIRE/98"
 module = "apps.microblog.server"
+capabilities = ["database"]
 
 [frontend]
 format = "document"

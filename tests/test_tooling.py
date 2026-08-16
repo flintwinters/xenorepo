@@ -1,10 +1,9 @@
 import unittest
-import asyncio
-import json
 from pathlib import Path
 
 from tooling.apps import AppDefinitionError, discover_apps, get_app
 from tooling.lifecycle import build_app, validate_app, validate_dist
+from tests.support import SocketDouble, run_async
 
 
 class RepositoryAppTests(unittest.TestCase):
@@ -82,21 +81,6 @@ class RepositoryAppTests(unittest.TestCase):
         from apps.chat.server import ConnectionHub
         from sqlalchemy import func, select
 
-        class SocketDouble:
-            def __init__(self) -> None:
-                self.events: list[dict[str, object]] = []
-                self.client = None
-                self.headers: dict[str, str] = {}
-
-            async def accept(self) -> None:
-                pass
-
-            async def send_json(self, event: dict[str, object]) -> None:
-                self.events.append(event)
-
-            async def send_text(self, payload: str) -> None:
-                self.events.append(json.loads(payload))
-
         database = Path("apps/chat/data/test-chat.db")
         database.unlink(missing_ok=True)
         self.addCleanup(database.unlink, missing_ok=True)
@@ -110,11 +94,12 @@ class RepositoryAppTests(unittest.TestCase):
         async def exercise_live_room() -> None:
             await hub.connect(first, repository)  # type: ignore[arg-type]
             await hub.connect(second, repository)  # type: ignore[arg-type]
+            self.assertEqual(first.events[-1], {"type": "presence", "count": 2})
             hub.identify(first, repository, participant_id, "Ada")  # type: ignore[arg-type]
             await hub.publish(first, repository, "Ada", "Hello, room.",
                 "c58ee53e-e44e-4db7-a51f-e53544379a93")  # type: ignore[arg-type]
 
-        asyncio.run(exercise_live_room())
+        run_async(exercise_live_room())
         sent, received = first.events[-1], second.events[-1]
         self.assertEqual(sent, received)
         self.assertEqual(sent["type"], "message")
@@ -125,6 +110,8 @@ class RepositoryAppTests(unittest.TestCase):
         self.addCleanup(restarted_sessions.kw["bind"].dispose)
         restarted = ChatRepository(restarted_sessions)
         self.assertEqual(restarted.all(), [sent["message"]])
+        second.fail_sends = True
+        run_async(hub.broadcast({"type": "probe"}, repository))
         with sessions() as session:
             counts = {
                 model.__tablename__: session.scalar(select(func.count()).select_from(model))
@@ -134,6 +121,11 @@ class RepositoryAppTests(unittest.TestCase):
         self.assertEqual(counts, {"rooms": 1, "participants": 1,
             "participant_aliases": 1, "connection_sessions": 2,
             "chat_messages": 1, "message_deliveries": 2})
+        with sessions() as session:
+            closed_sessions = session.scalars(select(ConnectionSession)
+                .where(ConnectionSession.disconnected_at.is_not(None))).all()
+        self.assertEqual(len(closed_sessions), 1)
+        self.assertEqual(len(hub.connections), 1)
 
     def test_chat_migrates_legacy_messages_without_losing_facts(self) -> None:
         from datetime import datetime, timezone

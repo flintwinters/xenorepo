@@ -1,12 +1,15 @@
 """Normalized, lossless persistence for the anonymous chat domain."""
 
 from datetime import datetime, timezone
-from pathlib import Path
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
-from sqlalchemy import create_engine, event, inspect, select
+from sqlalchemy import inspect, select
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+
+from tooling.database import create_session_factory as shared_session_factory
+from tooling.database import sqlite_url
 
 
 def now() -> datetime:
@@ -99,7 +102,7 @@ def _alias(session: Session, participant: Participant, name: str, at: datetime) 
     return alias
 
 
-def _migrate_legacy(engine: object) -> None:
+def _migrate_legacy(engine: Engine) -> None:
     from sqlalchemy import MetaData, Table
 
     if "messages" not in inspect(engine).get_table_names():
@@ -131,20 +134,8 @@ def _migrate_legacy(engine: object) -> None:
     legacy.drop(engine)
 
 
-def _enable_sqlite_foreign_keys(connection: object, _record: object) -> None:
-    cursor = connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
-
-
 def create_session_factory(database_url: str) -> sessionmaker[Session]:
-    options = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
-    engine = create_engine(database_url, connect_args=options)
-    if options:
-        event.listen(engine, "connect", _enable_sqlite_foreign_keys)
-    Base.metadata.create_all(engine)
-    _migrate_legacy(engine)
-    return sessionmaker(engine, expire_on_commit=False)
+    return shared_session_factory(database_url, Base.metadata, _migrate_legacy)
 
 
 class ChatRepository:
@@ -205,8 +196,3 @@ class ChatRepository:
             timestamp = timestamp.replace(tzinfo=timezone.utc)
         return {"id": message.id, "author": author, "body": message.body,
             "created_at": timestamp.isoformat().replace("+00:00", "Z")}
-
-
-def sqlite_url(path: Path) -> str:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    return f"sqlite:///{path}"

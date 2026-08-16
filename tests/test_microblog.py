@@ -1,5 +1,6 @@
 """Curated domain, API, persistence, and document contracts for WIRE/98."""
 
+from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 import json
 from pathlib import Path
@@ -155,11 +156,16 @@ class MicroblogTests(unittest.TestCase):
     def test_live_feed_announces_each_confirmed_change(self) -> None:
         from apps.microblog.server import ChangeFeed
 
-        changes = ChangeFeed()
+        changes = ChangeFeed(keepalive_seconds=0)
         revision = changes.publish()
-        event = next(changes.events())
+        events = changes.events()
+        event = next(events)
         self.assertEqual(revision, 1)
         self.assertEqual(event, "id: 1\nevent: feed\ndata: 1\n\n")
+        with ThreadPoolExecutor(max_workers=1) as workers:
+            keepalive = workers.submit(next, events).result(timeout=1)
+        self.assertEqual(keepalive, ": keepalive\n\n")
+        events.close()
 
     def test_document_has_operational_responsive_and_accessible_contracts(self) -> None:
         document = Path("apps/microblog/frontend/index.html").read_text(encoding="utf-8")

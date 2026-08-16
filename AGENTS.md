@@ -79,5 +79,5 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 
 ## 3. Current tasks
 
-- Verify WIRE/98 composer keyboard semantics: Enter publishes through the form,
-  while Shift+Enter remains available for intentional multiline posts.
+- Repair and verify WIRE/98 live synchronization across Starlette worker threads,
+  ensuring streaming generators never yield while holding thread-owned locks.

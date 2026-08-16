@@ -33,9 +33,10 @@ class PostInput(BaseModel):
 class ChangeFeed:
     """Wake every connected feed when durable public state changes."""
 
-    def __init__(self) -> None:
+    def __init__(self, keepalive_seconds: float = 20) -> None:
         self.condition = Condition()
         self.revision = 0
+        self.keepalive_seconds = keepalive_seconds
 
     def publish(self) -> int:
         with self.condition:
@@ -48,13 +49,13 @@ class ChangeFeed:
         while True:
             with self.condition:
                 changed = self.condition.wait_for(
-                    lambda: self.revision > revision, timeout=20
+                    lambda: self.revision > revision, timeout=self.keepalive_seconds
                 )
                 if changed:
                     revision = self.revision
-                    yield f"id: {revision}\nevent: feed\ndata: {revision}\n\n"
-                else:
-                    yield ": keepalive\n\n"
+                event = (f"id: {revision}\nevent: feed\ndata: {revision}\n\n"
+                    if changed else ": keepalive\n\n")
+            yield event
 
 
 def error(message: str, status: int) -> JSONResponse:

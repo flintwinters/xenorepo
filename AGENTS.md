@@ -56,7 +56,7 @@ When a systemic issue, which may occur more than once, is found, routinize prote
   mutation, prove stable readiness before success, preserve relevant process
   output, and report cleanup failures without hiding the original error.
 - Test directly in the repository. Ignored runtime and test state belongs in
-  `.state/`, never `/tmp`.
+  the visible `data/` directory, never a hidden directory or `/tmp`.
 - Keep source files below 600 lines and cyclomatic complexity at or below 8.
   Prefer small modules with explicit responsibilities and strict interfaces.
 - Apps remain independent product experiments. They may share central tooling,

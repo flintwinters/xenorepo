@@ -11,7 +11,7 @@ from tooling.realtime import ConnectionRegistry, RealtimeSocket, SendReport, cli
 
 ROUND_TIME = timedelta(seconds=10)
 RECONNECT_TIME = timedelta(seconds=5)
-POST_MATCH_PAUSE = timedelta(milliseconds=200)
+POST_MATCH_PAUSE = timedelta(seconds=1)
 
 
 def permitted_streak_difference(waited_seconds: float) -> int | None:

@@ -6,6 +6,7 @@ import unittest
 
 from sqlalchemy import ForeignKey, Integer, MetaData, Table, Column, text
 from sqlalchemy.exc import IntegrityError
+from starlette.websockets import WebSocketDisconnect
 
 from tests.support import SocketDouble, run_async
 from tooling.apps import discover_apps
@@ -47,7 +48,8 @@ class SharedFrameworkTests(unittest.TestCase):
 
     def test_registry_filters_sends_and_reports_stale_connections(self) -> None:
         registry = ConnectionRegistry[str]()
-        first, second, stale = SocketDouble(), SocketDouble(), SocketDouble(fail_sends=True)
+        first, second = SocketDouble(), SocketDouble()
+        stale = SocketDouble(send_error=WebSocketDisconnect(code=1006))
         registry.register(first, "room-a")
         registry.register(second, "room-b")
         registry.register(stale, "room-a")

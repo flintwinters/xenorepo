@@ -15,11 +15,12 @@ def run_async(operation: Coroutine[Any, Any, Result]) -> Result:
 
 
 class SocketDouble:
-    def __init__(self, *, fail_sends: bool = False) -> None:
+    def __init__(self, *, fail_sends: bool = False, send_error: Exception | None = None) -> None:
         self.events: list[dict[str, Any]] = []
         self.client = SimpleNamespace(host="127.0.0.1")
         self.headers: dict[str, str] = {}
         self.fail_sends = fail_sends
+        self.send_error = send_error
         self.accepted = False
 
     async def accept(self) -> None:
@@ -29,6 +30,8 @@ class SocketDouble:
         self.events.append(event)
 
     async def send_text(self, payload: str) -> None:
+        if self.send_error is not None:
+            raise self.send_error
         if self.fail_sends:
             raise RuntimeError("socket closed")
         self.events.append(json.loads(payload))

@@ -22,7 +22,7 @@ class RealtimeSocket(Protocol):
 class Disconnect(Generic[Context]):
     socket: RealtimeSocket
     context: Context
-    error: RuntimeError
+    error: Exception
 
 
 @dataclass(frozen=True)
@@ -81,7 +81,7 @@ class ConnectionRegistry(Generic[Context]):
             try:
                 await socket.send_text(payload)
                 delivered.append(context)
-            except RuntimeError as error:
+            except Exception as error:
                 if self._connections.get(socket) == context:
                     self._connections.pop(socket)
                 disconnected.append(Disconnect(socket, context, error))

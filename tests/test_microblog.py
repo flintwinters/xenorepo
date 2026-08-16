@@ -166,7 +166,8 @@ class MicroblogTests(unittest.TestCase):
         for marker in ('aria-live="polite"', 'aria-labelledby="feed-title"',
             ":focus-visible", "@media(max-width:620px)", "EventSource", "REFRESH",
             "maxlength=\"280\"", 'id="authMessage" role="alert"',
-            "REGISTER THIS HANDLE", 'minlength="8"'):
+            "REGISTER THIS HANDLE", 'minlength="8"', '!event.shiftKey',
+            '$("postForm").requestSubmit()'):
             with self.subTest(marker=marker):
                 self.assertIn(marker, document)
         self.assertNotIn("https://", document)

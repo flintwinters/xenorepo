@@ -79,5 +79,5 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 
 ## 3. Current tasks
 
-- Flatten WIRE/98 feed cards by removing the per-post gradient while preserving
-  the compact mechanical separation between transmissions.
+- Verify WIRE/98 composer keyboard semantics: Enter publishes through the form,
+  while Shift+Enter remains available for intentional multiline posts.

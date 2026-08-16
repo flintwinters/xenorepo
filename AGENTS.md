@@ -55,11 +55,11 @@ before the requested outcome is proved.
 
 ## 3. Current tasks
 
-1. Exercise the initial calculator vertical slice and refine its interaction
-   model based on real browser use, including keyboard input and history.
-2. Extend typed app metadata only when a second concrete app demonstrates a
-   shared capability boundary.
-3. Add centrally orchestrated browser testing to `manage.py` before expanding
-   the calculator beyond its core arithmetic workflow.
+1. Rebuild the calculator as a fresh representative app, using each concrete
+   requirement to refine the centralized tooling contracts.
+2. Keep the repository valid while no applications are present and ensure the
+   framework reports the empty state clearly.
+3. Add centrally orchestrated browser testing to `manage.py` when the rebuilt
+   calculator first needs end-to-end interaction coverage.
 4. Continue implementing lifecycle operations one verified logical checkpoint
    at a time, committing each checkpoint with a detailed message.

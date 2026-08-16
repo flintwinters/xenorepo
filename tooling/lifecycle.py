@@ -36,7 +36,6 @@ def validate_app(definition: AppDefinition) -> None:
         definition.directory / "server.py",
         definition.source_directory / "index.html",
         definition.source_directory / "styles.css",
-        definition.source_directory / "calculator.ts",
         definition.source_directory / "tsconfig.json",
     )
     missing = [path.relative_to(ROOT) for path in expected if not path.is_file()]
@@ -49,7 +48,7 @@ def validate_app(definition: AppDefinition) -> None:
 
 
 def validate_dist(definition: AppDefinition) -> None:
-    expected = ("index.html", "styles.css", "calculator.js")
+    expected = ("index.html", "styles.css")
     missing = [name for name in expected if not (definition.dist_directory / name).is_file()]
     if missing:
         raise LifecycleError(f"build did not produce: {', '.join(missing)}")

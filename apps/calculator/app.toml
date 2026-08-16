@@ -1,3 +1,0 @@
-name = "calculator"
-title = "Pocket Calculator"
-module = "apps.calculator.server"

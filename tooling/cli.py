@@ -50,8 +50,6 @@ def check() -> None:
     """Validate metadata, sources, imports, and production builds."""
     try:
         definitions = discover_apps()
-        if not definitions:
-            raise LifecycleError("no applications discovered")
         for definition in definitions:
             validate_app(definition)
             build_app(definition)

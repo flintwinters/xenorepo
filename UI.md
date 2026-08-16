@@ -21,3 +21,9 @@ Render charts directly on ruled dark plotting fields with simple luminous marks 
 Make responsive behavior a change in information topology, not a scaled miniature. At broad widths, show a narrow index or navigation pane, the dominant work pane, a narrow contextual inspector, and a broad lower ledger when those regions fit the product. At a middle width, remove the contextual inspector first and let the dominant and lower regions absorb its space while the index remains. At a narrow width, remove the index too, simplify the utility and status rails, and hide low-priority table columns. Preserve a useful vertical pairing of the dominant work area above its ledger or secondary workspace. Horizontal clipping of incidental chrome is preferable to shrinking the entire UI into unreadability, but primary content must remain operable. The document stays fixed to the viewport; only data-heavy pane bodies scroll.
 
 Use semantic landmarks, visible keyboard focus, and real compact interactions. Keep the markup flat: a wrapper must contribute layout, scrolling, clipping, positioning, or unique styling to justify its existence. Deliver a single HTML document with embedded CSS and JavaScript and no external dependencies.
+
+Always ask "is this UI element providing something useful to the user in its current form?" - if not, remove it.
+
+All interactions should have an immediate visual confirmation.  There should be no hidden UI state, a second user should be able to myopically visit a page and pick up exactly where another user left off at any point in time.
+
+

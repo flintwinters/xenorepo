@@ -57,13 +57,13 @@ class RpsTests(unittest.TestCase):
 
     def test_operator_console_document_follows_repository_ui_direction(self) -> None:
         document = Path("apps/rps/frontend/index.html").read_text(encoding="utf-8")
-        for marker in ("grid-template-rows:28px minmax(0,1fr) 24px",
-            'class="utility"', 'class="status"', 'class="mosaic"',
+        for marker in ("grid-template-rows:28px minmax(0,1fr)",
+            'class="utility"', 'class="mosaic"',
             'class="pane arena-index"', 'class="pane battle"',
-            'class="pane inspector"', 'class="pane ledger"',
+            'class="pane ledger"',
             'class="index">01', 'id="round-log"', "position:sticky",
             'id="top-matches"', 'id="recent-results"', 'data-watch',
-            'id="spectator-count"', '"spectator_state"', '"arena_snapshot"',
+            '"spectator_state"', '"arena_snapshot"',
             "function enterMatchmaking()", 'send("queue_join")',
             "@media(max-width:850px)", "@media(max-width:590px)"):
             with self.subTest(marker=marker):
@@ -77,6 +77,10 @@ class RpsTests(unittest.TestCase):
         you = document.index('id="you-strip"')
         self.assertLess(opponent, instrument)
         self.assertLess(instrument, you)
+        for redundant in ('class="pane inspector"', 'class="status"',
+            'PAIRING GAP EXPANDS', '<dt>FORMAT</dt>', 'id="system-clock"'):
+            with self.subTest(redundant=redundant):
+                self.assertNotIn(redundant, document)
 
     def test_all_nine_throw_pairs_have_antisymmetric_results(self) -> None:
         expected = {

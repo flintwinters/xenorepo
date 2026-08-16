@@ -36,6 +36,13 @@ When a systemic issue, which may occur more than once, is found, routinize prote
   directory, which FastAPI routes and serves directly. Do not run a separate
   frontend development or production service such as Vite; startup exposes the
   complete application through one FastAPI service.
+- Treat persistence as an implementation detail behind a durable domain
+  boundary. Use SQLAlchemy's ORM as the database abstraction layer so
+  application behavior, schemas, and lifecycle tooling do not depend on
+  backend-specific SQL or connection APIs. Prefer SQLite as the primary
+  database, especially for demos and local experiments, while designing models,
+  migrations, queries, and transaction boundaries to remain compatible with a
+  future PostgreSQL deployment.
 - Framework code is modular and DRY. Build shared functions and modules around
   clear responsibilities, and promote an abstraction only after concrete app
   work has demonstrated the shared boundary.

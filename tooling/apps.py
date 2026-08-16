@@ -19,6 +19,7 @@ class AppDefinition:
     title: str
     directory: Path
     module: str
+    frontend_format: str
 
     @property
     def source_directory(self) -> Path:
@@ -44,8 +45,18 @@ def load_app(directory: Path) -> AppDefinition:
         raise AppDefinitionError(
             f"app name {data['name']!r} must match directory {directory.name!r}"
         )
+    frontend_format = data.get("frontend", {}).get("format", "typescript")
+    if frontend_format not in {"typescript", "document"}:
+        raise AppDefinitionError(
+            f"{metadata_path.relative_to(ROOT)} has unsupported frontend format: "
+            f"{frontend_format!r}"
+        )
     return AppDefinition(
-        name=data["name"], title=data["title"], directory=directory, module=data["module"]
+        name=data["name"],
+        title=data["title"],
+        directory=directory,
+        module=data["module"],
+        frontend_format=frontend_format,
     )
 
 

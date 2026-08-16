@@ -55,11 +55,8 @@ before the requested outcome is proved.
 
 ## 3. Current tasks
 
-1. Rebuild the calculator as a fresh representative app, using each concrete
-   requirement to refine the centralized tooling contracts.
-2. Keep the repository valid while no applications are present and ensure the
-   framework reports the empty state clearly.
-3. Add centrally orchestrated browser testing to `manage.py` when the rebuilt
-   calculator first needs end-to-end interaction coverage.
-4. Continue implementing lifecycle operations one verified logical checkpoint
+1. Exercise the rebuilt calculator across desktop and narrow viewport topology.
+2. Add centrally orchestrated browser testing to `manage.py` for interaction
+   and responsive-layout coverage.
+3. Continue implementing lifecycle operations one verified logical checkpoint
    at a time, committing each checkpoint with a detailed message.

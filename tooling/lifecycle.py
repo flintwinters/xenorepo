@@ -20,6 +20,11 @@ def _run(command: list[str], cwd: Path = ROOT) -> None:
 
 
 def build_app(definition: AppDefinition) -> None:
+    if definition.frontend_format == "document":
+        source = definition.source_directory / "index.html"
+        definition.dist_directory.mkdir(exist_ok=True)
+        shutil.copy2(source, definition.dist_directory / "index.html")
+        return
     compiler = shutil.which("tsc")
     if compiler is None:
         raise LifecycleError("TypeScript compiler not found; install tsc before building")
@@ -31,13 +36,18 @@ def build_app(definition: AppDefinition) -> None:
 
 
 def validate_app(definition: AppDefinition) -> None:
-    expected = (
+    expected = [
         definition.directory / "app.toml",
         definition.directory / "server.py",
         definition.source_directory / "index.html",
-        definition.source_directory / "styles.css",
-        definition.source_directory / "tsconfig.json",
-    )
+    ]
+    if definition.frontend_format == "typescript":
+        expected.extend(
+            [
+                definition.source_directory / "styles.css",
+                definition.source_directory / "tsconfig.json",
+            ]
+        )
     missing = [path.relative_to(ROOT) for path in expected if not path.is_file()]
     if missing:
         raise LifecycleError(f"{definition.name} missing files: {', '.join(map(str, missing))}")
@@ -48,7 +58,11 @@ def validate_app(definition: AppDefinition) -> None:
 
 
 def validate_dist(definition: AppDefinition) -> None:
-    expected = ("index.html", "styles.css")
+    expected = (
+        ("index.html",)
+        if definition.frontend_format == "document"
+        else ("index.html", "styles.css")
+    )
     missing = [name for name in expected if not (definition.dist_directory / name).is_file()]
     if missing:
         raise LifecycleError(f"build did not produce: {', '.join(missing)}")

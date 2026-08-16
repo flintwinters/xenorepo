@@ -76,3 +76,9 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 - Give every app a README so it can be deployed as a standalone submodule.
 - Do not use hidden folders or hide state or project files.
 - Do not put exposition in UI elements.
+
+## 3. Current tasks
+
+- Verify and refine the WIRE/98 microblog checkpoint: durable accounts,
+  credentials, sessions, posts, like transitions, JSON API, and self-contained
+  responsive interface.

@@ -1,0 +1,6 @@
+name = "microblog"
+title = "WIRE/98"
+module = "apps.microblog.server"
+
+[frontend]
+format = "document"

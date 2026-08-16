@@ -1,64 +1,210 @@
-"""Durable chat storage behind a backend-independent SQLAlchemy boundary."""
+"""Normalized, lossless persistence for the anonymous chat domain."""
 
 from datetime import datetime, timezone
 from pathlib import Path
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from sqlalchemy import DateTime, Integer, String, Text, create_engine, select
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import create_engine, event, inspect, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+
+
+def now() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 class Base(DeclarativeBase):
     pass
 
 
-class Message(Base):
-    __tablename__ = "messages"
-
+class Room(Base):
+    __tablename__ = "rooms"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    author: Mapped[str] = mapped_column(String(40))
-    body: Mapped[str] = mapped_column(Text)
+    slug: Mapped[str] = mapped_column(String(80), unique=True)
+    title: Mapped[str] = mapped_column(String(120))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
-    def as_dict(self) -> dict[str, int | str]:
-        timestamp = self.created_at
-        if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=timezone.utc)
-        return {
-            "id": self.id,
-            "author": self.author,
-            "body": self.body,
-            "created_at": timestamp.isoformat().replace("+00:00", "Z"),
-        }
+
+class Participant(Base):
+    __tablename__ = "participants"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ParticipantAlias(Base):
+    __tablename__ = "participant_aliases"
+    __table_args__ = (UniqueConstraint("participant_id", "display_name"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    participant_id: Mapped[str] = mapped_column(ForeignKey("participants.id"), index=True)
+    display_name: Mapped[str] = mapped_column(String(40), index=True)
+    first_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class ConnectionSession(Base):
+    __tablename__ = "connection_sessions"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), index=True)
+    participant_id: Mapped[str | None] = mapped_column(ForeignKey("participants.id"), index=True)
+    connected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    disconnected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    client_host: Mapped[str | None] = mapped_column(String(255))
+    user_agent: Mapped[str | None] = mapped_column(String(500))
+    origin: Mapped[str | None] = mapped_column(String(500))
+
+
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), index=True)
+    participant_id: Mapped[str] = mapped_column(ForeignKey("participants.id"), index=True)
+    alias_id: Mapped[int] = mapped_column(ForeignKey("participant_aliases.id"), index=True)
+    session_id: Mapped[str] = mapped_column(ForeignKey("connection_sessions.id"), index=True)
+    client_message_id: Mapped[str | None] = mapped_column(String(36), unique=True)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class MessageDelivery(Base):
+    __tablename__ = "message_deliveries"
+    __table_args__ = (UniqueConstraint("message_id", "session_id", "event_type"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    message_id: Mapped[int] = mapped_column(ForeignKey("chat_messages.id"), index=True)
+    session_id: Mapped[str] = mapped_column(ForeignKey("connection_sessions.id"), index=True)
+    event_type: Mapped[str] = mapped_column(String(20))
+    occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+def _room(session: Session) -> Room:
+    room = session.scalar(select(Room).where(Room.slug == "common"))
+    if room is None:
+        room = Room(slug="common", title="Common Room", created_at=now())
+        session.add(room)
+        session.flush()
+    return room
+
+
+def _alias(session: Session, participant: Participant, name: str, at: datetime) -> ParticipantAlias:
+    alias = session.scalar(select(ParticipantAlias).where(
+        ParticipantAlias.participant_id == participant.id,
+        ParticipantAlias.display_name == name,
+    ))
+    if alias is None:
+        alias = ParticipantAlias(participant_id=participant.id, display_name=name, first_used_at=at, last_used_at=at)
+        session.add(alias)
+    else:
+        alias.last_used_at = at
+    session.flush()
+    return alias
+
+
+def _migrate_legacy(engine: object) -> None:
+    from sqlalchemy import MetaData, Table
+
+    if "messages" not in inspect(engine).get_table_names():
+        return
+    legacy = Table("messages", MetaData(), autoload_with=engine)
+    with Session(engine) as session, session.begin():
+        room = _room(session)
+        for row in session.execute(select(legacy).order_by(legacy.c.id)).mappings():
+            at, author = row["created_at"], row["author"]
+            participant_id = str(uuid5(NAMESPACE_URL, f"common-room:legacy:{author}"))
+            participant = session.get(Participant, participant_id)
+            if participant is None:
+                participant = Participant(id=participant_id, first_seen_at=at, last_seen_at=at)
+                session.add(participant)
+            participant.last_seen_at = max(participant.last_seen_at, at)
+            alias = _alias(session, participant, author, at)
+            connection = ConnectionSession(
+                id=str(uuid5(NAMESPACE_URL, f"common-room:legacy-message:{row['id']}")),
+                room_id=room.id, participant_id=participant.id, connected_at=at,
+                disconnected_at=at, client_host=None, user_agent="legacy-import", origin=None,
+            )
+            session.add(connection)
+            session.flush()
+            session.add(ChatMessage(
+                id=row["id"], room_id=room.id, participant_id=participant.id,
+                alias_id=alias.id, session_id=connection.id, client_message_id=None,
+                body=row["body"], created_at=at,
+            ))
+    legacy.drop(engine)
+
+
+def _enable_sqlite_foreign_keys(connection: object, _record: object) -> None:
+    cursor = connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 
 def create_session_factory(database_url: str) -> sessionmaker[Session]:
     options = {"check_same_thread": False} if database_url.startswith("sqlite") else {}
     engine = create_engine(database_url, connect_args=options)
+    if options:
+        event.listen(engine, "connect", _enable_sqlite_foreign_keys)
     Base.metadata.create_all(engine)
+    _migrate_legacy(engine)
     return sessionmaker(engine, expire_on_commit=False)
 
 
-class MessageRepository:
-    """Transaction boundary for the shared chronological message stream."""
-
+class ChatRepository:
     def __init__(self, sessions: sessionmaker[Session]) -> None:
         self.sessions = sessions
 
+    def open_session(self, metadata: dict[str, str | None]) -> str:
+        identifier = str(uuid4())
+        with self.sessions.begin() as session:
+            room = _room(session)
+            session.add(ConnectionSession(id=identifier, room_id=room.id, participant_id=None,
+                connected_at=now(), disconnected_at=None, **metadata))
+        return identifier
+
+    def identify(self, session_id: str, participant_id: str, name: str) -> None:
+        at = now()
+        with self.sessions.begin() as session:
+            participant = session.get(Participant, participant_id)
+            if participant is None:
+                participant = Participant(id=participant_id, first_seen_at=at, last_seen_at=at)
+                session.add(participant)
+            participant.last_seen_at = at
+            _alias(session, participant, name, at)
+            session.get(ConnectionSession, session_id).participant_id = participant.id
+
+    def close_session(self, session_id: str) -> None:
+        with self.sessions.begin() as session:
+            session.get(ConnectionSession, session_id).disconnected_at = now()
+
     def all(self) -> list[dict[str, int | str]]:
         with self.sessions() as session:
-            messages = session.scalars(select(Message).order_by(Message.id)).all()
-            return [message.as_dict() for message in messages]
+            rows = session.execute(select(ChatMessage, ParticipantAlias.display_name)
+                .join(ParticipantAlias).order_by(ChatMessage.id)).all()
+            return [self._serialize(message, alias) for message, alias in rows]
 
-    def add(self, author: str, body: str) -> dict[str, int | str]:
+    def add(self, session_id: str, name: str, body: str, client_id: str | None) -> dict[str, int | str]:
+        at = now()
         with self.sessions.begin() as session:
-            message = Message(
-                author=author,
-                body=body,
-                created_at=datetime.now(timezone.utc),
-            )
+            connection = session.get(ConnectionSession, session_id)
+            participant = session.get(Participant, connection.participant_id)
+            alias = _alias(session, participant, name, at)
+            message = ChatMessage(room_id=connection.room_id, participant_id=participant.id,
+                alias_id=alias.id, session_id=session_id, client_message_id=client_id,
+                body=body, created_at=at)
             session.add(message)
             session.flush()
-            return message.as_dict()
+            return self._serialize(message, alias.display_name)
+
+    def delivered(self, message_id: int, session_id: str) -> None:
+        with self.sessions.begin() as session:
+            session.add(MessageDelivery(message_id=message_id, session_id=session_id,
+                event_type="sent", occurred_at=now()))
+
+    @staticmethod
+    def _serialize(message: ChatMessage, author: str) -> dict[str, int | str]:
+        timestamp = message.created_at
+        if timestamp.tzinfo is None:
+            timestamp = timestamp.replace(tzinfo=timezone.utc)
+        return {"id": message.id, "author": author, "body": message.body,
+            "created_at": timestamp.isoformat().replace("+00:00", "Z")}
 
 
 def sqlite_url(path: Path) -> str:

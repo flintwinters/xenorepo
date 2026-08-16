@@ -69,12 +69,24 @@ class RepositoryAppTests(unittest.TestCase):
         self.assertIn("ledger.unshift", document)
 
     def test_chat_persists_history_and_broadcasts_to_every_connection(self) -> None:
-        from apps.chat.database import MessageRepository, create_session_factory
+        from apps.chat.database import (
+            ChatMessage,
+            ChatRepository,
+            ConnectionSession,
+            MessageDelivery,
+            Participant,
+            ParticipantAlias,
+            Room,
+            create_session_factory,
+        )
         from apps.chat.server import ConnectionHub
+        from sqlalchemy import func, select
 
         class SocketDouble:
             def __init__(self) -> None:
                 self.events: list[dict[str, object]] = []
+                self.client = None
+                self.headers: dict[str, str] = {}
 
             async def accept(self) -> None:
                 pass
@@ -89,13 +101,18 @@ class RepositoryAppTests(unittest.TestCase):
         database.unlink(missing_ok=True)
         self.addCleanup(database.unlink, missing_ok=True)
         database_url = f"sqlite:///{database}"
-        repository = MessageRepository(create_session_factory(database_url))
+        sessions = create_session_factory(database_url)
+        self.addCleanup(sessions.kw["bind"].dispose)
+        repository = ChatRepository(sessions)
         hub, first, second = ConnectionHub(), SocketDouble(), SocketDouble()
+        participant_id = "0f314f25-e6af-49fe-80be-bfb9505b1071"
 
         async def exercise_live_room() -> None:
             await hub.connect(first, repository)  # type: ignore[arg-type]
             await hub.connect(second, repository)  # type: ignore[arg-type]
-            await hub.publish(repository, "Ada", "Hello, room.")
+            hub.identify(first, repository, participant_id, "Ada")  # type: ignore[arg-type]
+            await hub.publish(first, repository, "Ada", "Hello, room.",
+                "c58ee53e-e44e-4db7-a51f-e53544379a93")  # type: ignore[arg-type]
 
         asyncio.run(exercise_live_room())
         sent, received = first.events[-1], second.events[-1]
@@ -104,8 +121,53 @@ class RepositoryAppTests(unittest.TestCase):
         self.assertEqual(sent["message"]["author"], "Ada")  # type: ignore[index]
         self.assertEqual(sent["message"]["body"], "Hello, room.")  # type: ignore[index]
 
-        restarted = MessageRepository(create_session_factory(database_url))
+        restarted_sessions = create_session_factory(database_url)
+        self.addCleanup(restarted_sessions.kw["bind"].dispose)
+        restarted = ChatRepository(restarted_sessions)
         self.assertEqual(restarted.all(), [sent["message"]])
+        with sessions() as session:
+            counts = {
+                model.__tablename__: session.scalar(select(func.count()).select_from(model))
+                for model in (Room, Participant, ParticipantAlias, ConnectionSession,
+                    ChatMessage, MessageDelivery)
+            }
+        self.assertEqual(counts, {"rooms": 1, "participants": 1,
+            "participant_aliases": 1, "connection_sessions": 2,
+            "chat_messages": 1, "message_deliveries": 2})
+
+    def test_chat_migrates_legacy_messages_without_losing_facts(self) -> None:
+        from datetime import datetime, timezone
+
+        from sqlalchemy import Column, DateTime, Integer, MetaData, String, Table, Text
+        from sqlalchemy import create_engine, inspect
+
+        from apps.chat.database import ChatRepository, create_session_factory
+
+        database = Path("apps/chat/data/test-chat-migration.db")
+        database.unlink(missing_ok=True)
+        self.addCleanup(database.unlink, missing_ok=True)
+        database_url = f"sqlite:///{database}"
+        engine, metadata = create_engine(database_url), MetaData()
+        legacy = Table("messages", metadata,
+            Column("id", Integer, primary_key=True), Column("author", String(40)),
+            Column("body", Text), Column("created_at", DateTime(timezone=True)))
+        metadata.create_all(engine)
+        created_at = datetime(2026, 1, 2, 3, 4, tzinfo=timezone.utc)
+        with engine.begin() as connection:
+            connection.execute(legacy.insert().values(id=7, author="Grace",
+                body="Preserve this.", created_at=created_at))
+
+        sessions = create_session_factory(database_url)
+        self.addCleanup(sessions.kw["bind"].dispose)
+        repository = ChatRepository(sessions)
+
+        self.assertNotIn("messages", inspect(engine).get_table_names())
+        history = repository.all()
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history[0]["id"], 7)
+        self.assertEqual(history[0]["author"], "Grace")
+        self.assertEqual(history[0]["body"], "Preserve this.")
+        engine.dispose()
 
 
 if __name__ == "__main__":

@@ -24,6 +24,7 @@ def permitted_streak_difference(waited_seconds: float) -> int | None:
 class ArenaContext:
     player_id: str
     connection_id: str
+    subscriptions: set[str] = field(default_factory=set, compare=False)
 
 
 @dataclass(frozen=True)
@@ -42,6 +43,10 @@ class LiveMatch:
     deadline: datetime
     submitted: set[str] = field(default_factory=set)
     disconnected: dict[str, datetime] = field(default_factory=dict)
+    ranked: bool = True
+    streaks: tuple[int, int] = (0, 0)
+    started_at: datetime | None = None
+    reveals: list[dict[str, object]] = field(default_factory=list)
 
 
 class ArenaCoordinator:
@@ -56,6 +61,7 @@ class ArenaCoordinator:
         self.matches: dict[str, LiveMatch] = {}
         self.player_matches: dict[str, str] = {}
         self.mutations: set[tuple[str, str]] = set()
+        self.recent_results: list[dict[str, object]] = []
 
     async def connect(self, socket: RealtimeSocket, player: Player) -> None:
         await socket.accept()  # type: ignore[attr-defined]
@@ -70,13 +76,13 @@ class ArenaCoordinator:
             await self._send_player(player.id, {"type": "queue_state", "queued": True})
         if match:
             await self._send_match_snapshot(player.id, match)
-        await self._broadcast_presence()
+        await self._broadcast_arena()
 
     async def disconnect(self, socket: RealtimeSocket) -> None:
         context = self.connections.remove(socket)
         if context:
             await self._connection_lost(context)
-        await self._broadcast_presence()
+        await self._broadcast_arena()
 
     async def join_queue(self, player_id: str, client_id: str) -> None:
         if not self._claim_mutation(player_id, client_id):
@@ -87,6 +93,7 @@ class ArenaCoordinator:
         player = self.repository.player(player_id)
         record = QueueRecord(player_id, entry.id, player.competitive_streak, self.clock.now())
         self.queue[player_id] = record
+        await self._broadcast_arena()
         await self._send_player(player_id, {"type": "queue_state", "queued": True})
         self._schedule_queue_checks(record)
         await self.attempt_matches()
@@ -98,7 +105,32 @@ class ArenaCoordinator:
         if record is None:
             raise DomainError("Player is not queued.")
         self.repository.leave_queue(record.entry_id)
+        await self._broadcast_arena()
         await self._send_player(player_id, {"type": "queue_state", "queued": False})
+
+    async def spectate(self, player_id: str, match_id: str, client_id: str) -> None:
+        if not self._claim_mutation(player_id, client_id):
+            return
+        match = self.matches.get(match_id)
+        if match is None:
+            raise DomainError("Match is not available for spectating.")
+        for socket, context in self.connections.connections():
+            if context.player_id == player_id:
+                context.subscriptions.add(match_id)
+                await self.connections.send(socket, self._spectator_state(match))
+        await self._broadcast_spectator_count(match_id)
+
+    async def leave_spectator(self, player_id: str, match_id: str, client_id: str) -> None:
+        if not self._claim_mutation(player_id, client_id):
+            return
+        changed = False
+        for _, context in self.connections.connections():
+            if context.player_id == player_id and match_id in context.subscriptions:
+                context.subscriptions.remove(match_id)
+                changed = True
+        if not changed:
+            raise DomainError("Player is not spectating this match.")
+        await self._broadcast_spectator_count(match_id)
 
     async def attempt_matches(self) -> None:
         while True:
@@ -112,12 +144,15 @@ class ArenaCoordinator:
                 queue_entry_ids=(first.entry_id, second.entry_id))
             self.queue.pop(first.player_id, None)
             self.queue.pop(second.player_id, None)
-            live = LiveMatch(match.id, (first.player_id, second.player_id), 1, deadline)
+            live = LiveMatch(match.id, (first.player_id, second.player_id), 1, deadline,
+                ranked=match.ranked, streaks=(first.streak, second.streak),
+                started_at=match.started_at)
             self.matches[match.id] = live
             self.player_matches[first.player_id] = match.id
             self.player_matches[second.player_id] = match.id
             self._schedule_round(live)
             await self._announce_match(live)
+            await self._broadcast_arena()
 
     async def submit_throw(self, player_id: str, selection: str, client_id: str) -> None:
         if not self._claim_mutation(player_id, client_id):
@@ -178,18 +213,31 @@ class ArenaCoordinator:
         await self._finish(match, result)
 
     async def _finish(self, match: LiveMatch, result: dict[str, object]) -> None:
+        public_result = {"match_id": match.id, "ranked": match.ranked,
+            "participants": [self._player(player_id) for player_id in match.players],
+            "outcome": result["outcome"], "winner_id": result.get("winner_id"),
+            "completed_at": self.clock.now().isoformat()}
+        self.recent_results.insert(0, public_result)
+        del self.recent_results[10:]
+        self.matches.pop(match.id, None)
+        for player_id in match.players:
+            self.player_matches.pop(player_id, None)
+        await self._broadcast_arena()
         for player_id in match.players:
             await self._send_player(player_id, {"type": "match_result", **result,
                 "player": self._player(player_id)})
-            self.player_matches.pop(player_id, None)
-        self.matches.pop(match.id, None)
+        await self._send_spectators(match.id, {"type": "match_result", **public_result})
+        for _, context in self.connections.connections():
+            context.subscriptions.discard(match.id)
 
     async def _reveal(self, match: LiveMatch, result: dict[str, object]) -> None:
         outcome = "tie" if result["state"] == "active" else "decisive"
         event = {"type": "round_reveal", "match_id": match.id,
             "round": result["round"], "throws": result["throws"],
             "outcome": outcome, "winner_id": result.get("winner_id")}
+        match.reveals.append(event)
         await self._send_match(match, event)
+        await self._send_spectators(match.id, event)
 
     async def _announce_match(self, match: LiveMatch) -> None:
         for player_id in match.players:
@@ -207,6 +255,7 @@ class ArenaCoordinator:
     async def _broadcast_round_state(self, match: LiveMatch) -> None:
         for player_id in match.players:
             await self._send_player(player_id, self._round_state(match, player_id))
+        await self._send_spectators(match.id, self._spectator_state(match))
 
     def _round_state(self, match: LiveMatch, player_id: str) -> dict[str, object]:
         opponent_id = next(candidate for candidate in match.players if candidate != player_id)
@@ -225,10 +274,50 @@ class ArenaCoordinator:
             lambda context: context.player_id == player_id)
         await self._clean_stale(report)
 
-    async def _broadcast_presence(self) -> None:
+    async def _broadcast_arena(self) -> None:
         players = {context.player_id for _, context in self.connections.connections()}
-        report = await self.connections.broadcast({"type": "presence", "count": len(players)})
+        event = {"type": "arena_snapshot", "visitors": len(players),
+            "queue_size": len(self.queue), "active_matches": len(self.matches),
+            "top_matches": [self._match_listing(match) for match in self._ranked_matches()],
+            "recent_results": self.recent_results}
+        report = await self.connections.broadcast(event)
         await self._clean_stale(report)
+
+    async def _send_spectators(self, match_id: str, event: dict[str, Any]) -> None:
+        report = await self.connections.broadcast(event,
+            lambda context: match_id in context.subscriptions)
+        await self._clean_stale(report)
+
+    async def _broadcast_spectator_count(self, match_id: str) -> None:
+        match = self.matches.get(match_id)
+        if match is None:
+            return
+        await self._send_spectators(match_id, {"type": "spectator_count",
+            "match_id": match_id, "count": self._spectator_count(match_id)})
+        await self._broadcast_arena()
+
+    def _spectator_count(self, match_id: str) -> int:
+        return len({context.player_id for _, context in self.connections.connections()
+            if match_id in context.subscriptions})
+
+    def _spectator_state(self, match: LiveMatch) -> dict[str, object]:
+        return {"type": "spectator_state", "match_id": match.id,
+            "ranked": match.ranked, "participants": [self._player(player_id)
+                for player_id in match.players], "round": match.round_number,
+            "deadline": match.deadline.isoformat(), "tie_count": sum(
+                reveal["outcome"] == "tie" for reveal in match.reveals),
+            "revealed_rounds": match.reveals, "spectator_count": self._spectator_count(match.id)}
+
+    def _ranked_matches(self) -> list[LiveMatch]:
+        return sorted(self.matches.values(), key=lambda match: (
+            -max(match.streaks), -sum(match.streaks), match.started_at or self.clock.now(), match.id))
+
+    def _match_listing(self, match: LiveMatch) -> dict[str, object]:
+        return {"match_id": match.id, "ranked": match.ranked,
+            "participants": [self._player(player_id) for player_id in match.players],
+            "highest_streak": max(match.streaks), "combined_streak": sum(match.streaks),
+            "started_at": match.started_at.isoformat() if match.started_at else None,
+            "spectator_count": self._spectator_count(match.id)}
 
     async def _clean_stale(self, report: SendReport[ArenaContext]) -> None:
         for disconnected in report.disconnected:
@@ -245,6 +334,7 @@ class ArenaCoordinator:
         record = self.queue.pop(context.player_id, None)
         if record:
             self.repository.leave_queue(record.entry_id)
+            await self._broadcast_arena()
         match = self._player_match(context.player_id)
         if match:
             deadline = self.clock.now() + RECONNECT_TIME

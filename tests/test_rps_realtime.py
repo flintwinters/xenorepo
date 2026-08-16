@@ -178,6 +178,81 @@ class RpsRealtimeTests(unittest.TestCase):
         run_async(self.scheduler.advance(9.999))
         self.assertIn(match_id, self.arena.matches)
 
+    def test_arena_snapshot_ranks_matches_and_reports_public_counts(self) -> None:
+        players = [self.guest(str(index), streak) for index, streak in
+            enumerate((2, 2, 9, 9, 5, 5))]
+        sockets = [self.connect(player) for player in players]
+        for index, player in enumerate(players):
+            run_async(self.arena.join_queue(player.id, f"join-{index}"))
+        snapshot = [event for event in sockets[0].events
+            if event["type"] == "arena_snapshot"][-1]
+        self.assertEqual((snapshot["visitors"], snapshot["queue_size"],
+            snapshot["active_matches"]), (6, 0, 3))
+        rankings = [(item["highest_streak"], item["combined_streak"])
+            for item in snapshot["top_matches"]]
+        self.assertEqual(rankings, [(9, 18), (5, 10), (2, 4)])
+
+    def test_spectator_subscription_is_isolated_and_never_exposes_pending_throw(self) -> None:
+        first, _, second, _, match_id = self.matched_pair()
+        spectator, outsider = self.guest("spectator"), self.guest("outsider")
+        spectator_socket, outsider_socket = self.connect(spectator), self.connect(outsider)
+        spectator_socket.events.clear()
+        outsider_socket.events.clear()
+        run_async(self.arena.spectate(spectator.id, match_id, "watch"))
+        state = spectator_socket.events[0]
+        self.assertEqual(state["type"], "spectator_state")
+        self.assertEqual({item["id"] for item in state["participants"]}, {first.id, second.id})
+        run_async(self.arena.submit_throw(first.id, "rock", "secret"))
+        self.assertNotIn("rock", json.dumps(spectator_socket.events))
+        self.assertFalse(any(event["type"] == "spectator_state"
+            for event in outsider_socket.events))
+        run_async(self.arena.submit_throw(second.id, "rock", "reveal"))
+        self.assertEqual(spectator_socket.events[-2]["type"], "round_reveal")
+        self.assertEqual(spectator_socket.events[-2]["throws"][first.id], "rock")
+
+    def test_spectator_reconnect_snapshot_contains_only_revealed_rounds(self) -> None:
+        first, _, second, _, match_id = self.matched_pair()
+        spectator = self.guest("spectator")
+        original = self.connect(spectator)
+        run_async(self.arena.spectate(spectator.id, match_id, "watch"))
+        run_async(self.arena.submit_throw(first.id, "paper", "one"))
+        run_async(self.arena.submit_throw(second.id, "paper", "two"))
+        run_async(self.arena.disconnect(original))
+        replacement = self.connect(self.repository.player(spectator.id))
+        run_async(self.arena.spectate(spectator.id, match_id, "watch-again"))
+        state = [event for event in replacement.events
+            if event["type"] == "spectator_state"][-1]
+        self.assertEqual(state["tie_count"], 1)
+        self.assertEqual(len(state["revealed_rounds"]), 1)
+
+    def test_completed_match_notifies_spectators_then_moves_to_recent_results(self) -> None:
+        first, _, second, _, match_id = self.matched_pair()
+        spectator = self.guest("spectator")
+        socket = self.connect(spectator)
+        run_async(self.arena.spectate(spectator.id, match_id, "watch"))
+        run_async(self.arena.submit_throw(first.id, "rock", "one"))
+        run_async(self.arena.submit_throw(second.id, "scissors", "two"))
+        result = next(event for event in socket.events
+            if event["type"] == "match_result")
+        self.assertEqual(result["winner_id"], first.id)
+        snapshot = [event for event in socket.events
+            if event["type"] == "arena_snapshot"][-1]
+        self.assertEqual(snapshot["active_matches"], 0)
+        self.assertEqual(snapshot["top_matches"], [])
+        self.assertEqual(snapshot["recent_results"][0]["match_id"], match_id)
+
+    def test_leave_spectator_updates_count_and_stops_scoped_events(self) -> None:
+        first, _, second, _, match_id = self.matched_pair()
+        spectator = self.guest("spectator")
+        socket = self.connect(spectator)
+        run_async(self.arena.spectate(spectator.id, match_id, "watch"))
+        run_async(self.arena.leave_spectator(spectator.id, match_id, "leave"))
+        marker = len(socket.events)
+        run_async(self.arena.submit_throw(first.id, "rock", "one"))
+        run_async(self.arena.submit_throw(second.id, "rock", "two"))
+        scoped = {"round_reveal", "spectator_state", "spectator_count"}
+        self.assertFalse(any(event["type"] in scoped for event in socket.events[marker:]))
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -109,6 +109,13 @@ def create_app(database_url: str | None = None, *, clock: Clock | None = None,
                         if not isinstance(selection, str):
                             raise DomainError("Throw must be rock, paper, or scissors.")
                         await coordinator.submit_throw(player.id, selection, client_id)
+                    elif command in {"spectate", "spectate_leave"}:
+                        match_id = payload.get("match_id")
+                        if not isinstance(match_id, str):
+                            raise DomainError("Match ID is required.")
+                        operation = coordinator.spectate if command == "spectate" \
+                            else coordinator.leave_spectator
+                        await operation(player.id, match_id, client_id)
                     else:
                         raise DomainError("Unknown arena command.")
                 except (DomainError, ValueError) as failure:

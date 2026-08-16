@@ -13,7 +13,7 @@ from apps.chat.database import MessageRepository, create_session_factory, sqlite
 
 DIRECTORY = Path(__file__).parent
 DIST = DIRECTORY / "dist"
-DEFAULT_DATABASE = DIRECTORY.parent.parent / ".state" / "chat.sqlite3"
+DEFAULT_DATABASE = DIRECTORY.parent.parent / ".state" / "chat.db"
 MAX_AUTHOR_LENGTH = 40
 MAX_MESSAGE_LENGTH = 2000
 

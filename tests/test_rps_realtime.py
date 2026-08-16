@@ -113,6 +113,25 @@ class RpsRealtimeTests(unittest.TestCase):
             match = session.get(Match, match_id)
             self.assertEqual((match.state, match.winner_id), ("completed", first.id))
 
+    def test_completed_players_rejoin_matchmaking_after_one_second(self) -> None:
+        first, first_socket, second, second_socket, match_id = self.matched_pair()
+        run_async(self.arena.submit_throw(first.id, "rock", "throw-first"))
+        run_async(self.arena.submit_throw(second.id, "scissors", "throw-second"))
+        self.assertNotIn(first.id, self.arena.queue)
+        self.assertNotIn(second.id, self.arena.queue)
+
+        run_async(self.scheduler.advance(0.999))
+        self.assertNotIn(first.id, self.arena.queue)
+        self.assertNotIn(second.id, self.arena.queue)
+
+        run_async(self.scheduler.advance(0.001))
+        self.assertIn(first.id, self.arena.queue)
+        self.assertIn(second.id, self.arena.queue)
+        self.assertTrue(any(event == {"type": "queue_state", "queued": True}
+            for event in first_socket.events))
+        self.assertTrue(any(event == {"type": "queue_state", "queued": True}
+            for event in second_socket.events))
+
     def test_selection_deadline_forfeits_the_only_missing_player(self) -> None:
         first, first_socket, second, second_socket, match_id = self.matched_pair()
         run_async(self.arena.submit_throw(first.id, "paper", "throw-first"))

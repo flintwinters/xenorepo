@@ -11,6 +11,7 @@ from tooling.realtime import ConnectionRegistry, RealtimeSocket, SendReport, cli
 
 ROUND_TIME = timedelta(seconds=10)
 RECONNECT_TIME = timedelta(seconds=5)
+POST_MATCH_PAUSE = timedelta(seconds=1)
 
 
 def permitted_streak_difference(waited_seconds: float) -> int | None:
@@ -89,6 +90,12 @@ class ArenaCoordinator:
             return
         if player_id in self.player_matches:
             raise DomainError("Player is already in a match.")
+        if player_id in self.queue:
+            return
+        await self._queue_player(player_id)
+
+    async def _queue_player(self, player_id: str) -> None:
+        """Create one durable queue entry and immediately seek an opponent."""
         entry = self.repository.join_queue(player_id)
         player = self.repository.player(player_id)
         record = QueueRecord(player_id, entry.id, player.competitive_streak, self.clock.now())
@@ -97,6 +104,12 @@ class ArenaCoordinator:
         await self._send_player(player_id, {"type": "queue_state", "queued": True})
         self._schedule_queue_checks(record)
         await self.attempt_matches()
+
+    async def _requeue_completed_player(self, player_id: str) -> None:
+        """Return a completed player to matchmaking unless their state changed."""
+        if player_id in self.player_matches or player_id in self.queue:
+            return
+        await self._queue_player(player_id)
 
     async def leave_queue(self, player_id: str, client_id: str) -> None:
         if not self._claim_mutation(player_id, client_id):
@@ -229,6 +242,10 @@ class ArenaCoordinator:
         await self._send_spectators(match.id, {"type": "match_result", **public_result})
         for _, context in self.connections.connections():
             context.subscriptions.discard(match.id)
+        requeue_at = self.clock.now() + POST_MATCH_PAUSE
+        for player_id in match.players:
+            self.scheduler.call_at(requeue_at,
+                lambda player_id=player_id: self._requeue_completed_player(player_id))
 
     async def _reveal(self, match: LiveMatch, result: dict[str, object]) -> None:
         outcome = "tie" if result["state"] == "active" else "decisive"

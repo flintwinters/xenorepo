@@ -1,9 +1,11 @@
 import unittest
 from pathlib import Path
+from tempfile import TemporaryDirectory
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from tooling.apps import AppDefinitionError, discover_apps, get_app
+from tooling.apps import AppDefinition, AppDefinitionError, FrontendArtifact, ROOT, discover_apps, get_app, load_app
 from tooling.cli import app
 from tooling.frontend import CONSOLE_SHELL, DocumentParts, compose_console
 from tooling.lifecycle import build_app, validate_app, validate_dist
@@ -36,6 +38,58 @@ class RepositoryAppTests(unittest.TestCase):
             str(raised.exception),
             f"unknown app 'missing'; available: {available}",
         )
+
+    def test_yaml_metadata_rejects_invalid_declarations_with_actionable_errors(self) -> None:
+        base = """name: fixture
+title: Fixture
+module: tests.fixture
+frontend:
+  artifacts:
+    index:
+      format: document
+      source: frontend/index.html
+      output: index.html
+      shell: console
+  routes:
+    /: index
+"""
+        cases = {
+            "malformed": ("name: [\n", "malformed YAML"),
+            "duplicate": (base.replace("title: Fixture\n", "title: Fixture\ntitle: Again\n"), "duplicate key"),
+            "unknown-artifact": (base.replace("/: index", "/: missing"), "unknown frontend artifact"),
+            "reserved-route": (base.replace("/: index", "/health: index"), "reserved by the platform"),
+            "invalid-output": (base.replace("output: index.html", "output: ../index.html"), "normalized relative path"),
+        }
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="metadata-") as temporary:
+            directory = Path(temporary) / "fixture"
+            directory.mkdir()
+            for name, (contents, message) in cases.items():
+                with self.subTest(case=name):
+                    (directory / "app.yaml").write_text(contents, encoding="utf-8")
+                    with self.assertRaisesRegex(AppDefinitionError, message):
+                        load_app(directory)
+
+    def test_runtime_registers_one_independent_document_endpoint_per_metadata_route(self) -> None:
+        definition = AppDefinition(
+            name="fixture",
+            title="Fixture pages",
+            directory=ROOT / "tests",
+            module="tests.fixture",
+            artifacts=(
+                FrontendArtifact("home", "document", Path("home.html"), Path("home.html"), "console"),
+                FrontendArtifact("about", "document", Path("about.html"), Path("about.html"), "console"),
+            ),
+            routes=(("/", "home"), ("/about", "about")),
+            capabilities=frozenset(),
+        )
+        from tooling.runtime import create_application
+
+        with patch("tooling.runtime.get_app", return_value=definition):
+            application = create_application("fixture")
+        routes = {route.path: route for route in application.routes if hasattr(route, "path")}
+        self.assertEqual(routes["/"].endpoint(), ROOT / "tests" / "dist" / "home.html")
+        self.assertEqual(routes["/about"].endpoint(), ROOT / "tests" / "dist" / "about.html")
+        self.assertEqual(routes["/health"].endpoint(), {"status": "ok"})
 
     def test_every_discovered_app_validates_and_builds(self) -> None:
         for definition in discover_apps():

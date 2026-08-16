@@ -1,0 +1,14 @@
+name: microblog
+title: WIRE/98
+module: apps.microblog.server
+capabilities:
+  - database
+frontend:
+  artifacts:
+    index:
+      format: document
+      source: frontend/index.html
+      output: index.html
+      shell: console
+  routes:
+    /: index

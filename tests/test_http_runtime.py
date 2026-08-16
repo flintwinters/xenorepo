@@ -48,15 +48,19 @@ class HttpPlatformTests(unittest.TestCase):
 
 
 class RuntimePlatformTests(unittest.TestCase):
-    def test_every_discovered_app_exposes_health_and_root_document(self) -> None:
+    def test_every_discovered_app_exposes_health_and_metadata_declared_documents(self) -> None:
         for definition in discover_apps():
             with self.subTest(app=definition.name):
                 module = __import__(definition.module, fromlist=["app"])
                 application = module.app
                 routes = {route.path: route for route in application.routes if hasattr(route, "path")}
                 self.assertEqual(routes["/health"].endpoint(), {"status": "ok"})
-                document = routes["/"].endpoint()
-                self.assertEqual(Path(document), definition.dist_directory / "index.html")
+                for path, artifact_name in definition.routes:
+                    with self.subTest(route=path):
+                        document = routes[path].endpoint()
+                        self.assertEqual(
+                            Path(document), definition.dist_directory / definition.artifact(artifact_name).output
+                        )
 
 
 if __name__ == "__main__":

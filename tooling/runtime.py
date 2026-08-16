@@ -5,17 +5,27 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
+from tooling.apps import get_app
 
-def create_application(title: str, document: Path) -> FastAPI:
-    """Create an app with the platform health and root-document contract."""
-    application = FastAPI(title=title)
+
+def _document_endpoint(document: Path):
+    def serve_document() -> Path:
+        return document
+
+    return serve_document
+
+
+def create_application(app_name: str) -> FastAPI:
+    """Create an app with platform health and metadata-declared documents."""
+    definition = get_app(app_name)
+    application = FastAPI(title=definition.title)
 
     @application.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
 
-    @application.get("/", response_class=FileResponse)
-    def index() -> Path:
-        return document
-
+    for route, artifact_name in definition.routes:
+        endpoint = _document_endpoint(definition.dist_directory / definition.artifact(artifact_name).output)
+        endpoint.__name__ = f"document_{artifact_name}"
+        application.add_api_route(route, endpoint, methods=["GET"], response_class=FileResponse)
     return application

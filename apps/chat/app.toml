@@ -1,8 +1,0 @@
-name = "chat"
-title = "Common Room"
-module = "apps.chat.server"
-capabilities = ["database", "realtime"]
-
-[frontend]
-format = "document"
-shell = "console"

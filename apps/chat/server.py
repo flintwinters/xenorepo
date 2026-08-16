@@ -18,7 +18,6 @@ from tooling.runtime import create_application
 
 
 DIRECTORY = Path(__file__).parent
-DIST = DIRECTORY / "dist"
 DEFAULT_DATABASE = DIRECTORY / "data" / "chat.db"
 MAX_AUTHOR_LENGTH = 40
 MAX_MESSAGE_LENGTH = 2000
@@ -85,7 +84,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     resolved_url = database_url or os.environ.get("CHAT_DATABASE_URL") or sqlite_url(DEFAULT_DATABASE)
     repository = ChatRepository(create_session_factory(resolved_url))
     hub = ConnectionHub()
-    application = create_application("Common Room", DIST / "index.html")
+    application = create_application("chat")
 
     @application.get("/api/messages")
     def messages() -> list[dict[str, int | str]]:

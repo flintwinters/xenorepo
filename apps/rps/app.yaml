@@ -1,0 +1,15 @@
+name: rps
+title: Rock Paper Scissors
+module: apps.rps.server
+capabilities:
+  - database
+  - realtime
+frontend:
+  artifacts:
+    index:
+      format: document
+      source: frontend/index.html
+      output: index.html
+      shell: console
+  routes:
+    /: index

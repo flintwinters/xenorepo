@@ -1,0 +1,15 @@
+name: chat
+title: Common Room
+module: apps.chat.server
+capabilities:
+  - database
+  - realtime
+frontend:
+  artifacts:
+    index:
+      format: document
+      source: frontend/index.html
+      output: index.html
+      shell: console
+  routes:
+    /: index

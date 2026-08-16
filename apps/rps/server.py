@@ -21,7 +21,6 @@ from tooling.runtime import create_application
 
 
 DIRECTORY = Path(__file__).parent
-DIST = DIRECTORY / "dist"
 DEFAULT_DATABASE = DIRECTORY / "data" / "rps.db"
 COOKIE = "throw98_guest"
 COOKIE_AGE = 365 * 24 * 60 * 60
@@ -43,7 +42,7 @@ def create_app(database_url: str | None = None, *, clock: Clock | None = None,
     repository = RpsRepository(create_session_factory(resolved), resolved_clock.now)
     coordinator = ArenaCoordinator(repository, resolved_clock,
         scheduler or AsyncIOScheduler(resolved_clock))
-    application = create_application("Rock Paper Scissors", DIST / "index.html")
+    application = create_application("rps")
 
     def current_player(request: Request) -> object | None:
         return repository.restore_guest(request.cookies.get(COOKIE))

@@ -22,7 +22,6 @@ from tooling.runtime import create_application
 
 
 DIRECTORY = Path(__file__).parent
-DIST = DIRECTORY / "dist"
 DEFAULT_DATABASE = DIRECTORY / "data" / "microblog.db"
 COOKIE = "wire98_session"
 COOKIE_AGE = 30 * 24 * 60 * 60
@@ -73,7 +72,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     resolved = database_url or os.environ.get("MICROBLOG_DATABASE_URL") or sqlite_url(DEFAULT_DATABASE)
     repository = MicroblogRepository(create_session_factory(resolved))
     changes = ChangeFeed()
-    application = create_application("WIRE/98", DIST / "index.html")
+    application = create_application("microblog")
 
     def current_account(request: Request) -> object | None:
         return repository.account_for_token(request.cookies.get(COOKIE))

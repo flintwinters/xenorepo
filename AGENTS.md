@@ -65,6 +65,8 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 ## 3. Current tasks
 
 1. Add centrally orchestrated browser testing to `manage.py` for interaction
-   and responsive-layout coverage.
-2. Continue implementing lifecycle operations one verified logical checkpoint
+   and responsive-layout coverage, including the chat room's live stream.
+2. Exercise the chat app's SQLAlchemy boundary against PostgreSQL when a shared
+   deployment environment is introduced.
+3. Continue implementing lifecycle operations one verified logical checkpoint
    at a time, committing each checkpoint with a detailed message.

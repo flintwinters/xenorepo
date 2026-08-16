@@ -1,4 +1,7 @@
 import unittest
+import asyncio
+import json
+from pathlib import Path
 
 from tooling.apps import AppDefinitionError, discover_apps, get_app
 from tooling.lifecycle import build_app, validate_app, validate_dist
@@ -64,6 +67,45 @@ class RepositoryAppTests(unittest.TestCase):
         self.assertIn("localStorage.setItem(storageKey", document)
         self.assertIn("localStorage.getItem(storageKey)", document)
         self.assertIn("ledger.unshift", document)
+
+    def test_chat_persists_history_and_broadcasts_to_every_connection(self) -> None:
+        from apps.chat.database import MessageRepository, create_session_factory
+        from apps.chat.server import ConnectionHub
+
+        class SocketDouble:
+            def __init__(self) -> None:
+                self.events: list[dict[str, object]] = []
+
+            async def accept(self) -> None:
+                pass
+
+            async def send_json(self, event: dict[str, object]) -> None:
+                self.events.append(event)
+
+            async def send_text(self, payload: str) -> None:
+                self.events.append(json.loads(payload))
+
+        database = Path(".state/test-chat.sqlite3")
+        database.unlink(missing_ok=True)
+        self.addCleanup(database.unlink, missing_ok=True)
+        database_url = f"sqlite:///{database}"
+        repository = MessageRepository(create_session_factory(database_url))
+        hub, first, second = ConnectionHub(), SocketDouble(), SocketDouble()
+
+        async def exercise_live_room() -> None:
+            await hub.connect(first, repository)  # type: ignore[arg-type]
+            await hub.connect(second, repository)  # type: ignore[arg-type]
+            await hub.publish(repository, "Ada", "Hello, room.")
+
+        asyncio.run(exercise_live_room())
+        sent, received = first.events[-1], second.events[-1]
+        self.assertEqual(sent, received)
+        self.assertEqual(sent["type"], "message")
+        self.assertEqual(sent["message"]["author"], "Ada")  # type: ignore[index]
+        self.assertEqual(sent["message"]["body"], "Hello, room.")  # type: ignore[index]
+
+        restarted = MessageRepository(create_session_factory(database_url))
+        self.assertEqual(restarted.all(), [sent["message"]])
 
 
 if __name__ == "__main__":

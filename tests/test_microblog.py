@@ -152,10 +152,19 @@ class MicroblogTests(unittest.TestCase):
         logged_out = endpoints["/api/session:DELETE"](authenticated_request)
         self.assertFalse(json.loads(logged_out.body)["authenticated"])
 
+    def test_live_feed_announces_each_confirmed_change(self) -> None:
+        from apps.microblog.server import ChangeFeed
+
+        changes = ChangeFeed()
+        revision = changes.publish()
+        event = next(changes.events())
+        self.assertEqual(revision, 1)
+        self.assertEqual(event, "id: 1\nevent: feed\ndata: 1\n\n")
+
     def test_document_has_operational_responsive_and_accessible_contracts(self) -> None:
         document = Path("apps/microblog/frontend/index.html").read_text(encoding="utf-8")
         for marker in ('aria-live="polite"', 'aria-labelledby="feed-title"',
-            ":focus-visible", "@media(max-width:620px)", "setInterval", "REFRESH",
+            ":focus-visible", "@media(max-width:620px)", "EventSource", "REFRESH",
             "maxlength=\"280\""):
             with self.subTest(marker=marker):
                 self.assertIn(marker, document)

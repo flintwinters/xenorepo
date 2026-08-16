@@ -1,11 +1,13 @@
 """Single FastAPI runtime for the WIRE/98 public microblog."""
 
+from collections.abc import Iterator
 import os
 from pathlib import Path
+from threading import Condition
 from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from apps.microblog.auth import ValidationError, issue_token
@@ -26,6 +28,33 @@ class Credentials(BaseModel):
 
 class PostInput(BaseModel):
     body: str = ""
+
+
+class ChangeFeed:
+    """Wake every connected feed when durable public state changes."""
+
+    def __init__(self) -> None:
+        self.condition = Condition()
+        self.revision = 0
+
+    def publish(self) -> int:
+        with self.condition:
+            self.revision += 1
+            self.condition.notify_all()
+            return self.revision
+
+    def events(self, last_seen: int = 0) -> Iterator[str]:
+        revision = last_seen
+        while True:
+            with self.condition:
+                changed = self.condition.wait_for(
+                    lambda: self.revision > revision, timeout=20
+                )
+                if changed:
+                    revision = self.revision
+                    yield f"id: {revision}\nevent: feed\ndata: {revision}\n\n"
+                else:
+                    yield ": keepalive\n\n"
 
 
 def error(message: str, status: int) -> JSONResponse:
@@ -49,6 +78,7 @@ def origin_is_valid(request: Request) -> bool:
 def create_app(database_url: str | None = None) -> FastAPI:
     resolved = database_url or os.environ.get("MICROBLOG_DATABASE_URL") or sqlite_url(DEFAULT_DATABASE)
     repository = MicroblogRepository(create_session_factory(resolved))
+    changes = ChangeFeed()
     application = FastAPI(title="WIRE/98")
 
     def current_account(request: Request) -> object | None:
@@ -126,23 +156,38 @@ def create_app(database_url: str | None = None) -> FastAPI:
         account = current_account(request)
         return repository.posts(account.id if account else None, parsed_before, parsed_limit)
 
+    @application.get("/api/events", response_class=StreamingResponse)
+    def live_events(request: Request) -> StreamingResponse:
+        try:
+            last_seen = int(request.headers.get("last-event-id", "0"))
+        except ValueError:
+            last_seen = 0
+        return StreamingResponse(changes.events(last_seen), media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
     @application.post("/api/posts", status_code=201)
     def publish(payload: PostInput, request: Request) -> dict[str, object]:
         enforce_origin(request)
         account = require_account(request)
-        return repository.add_post(account.id, payload.body)
+        post = repository.add_post(account.id, payload.body)
+        changes.publish()
+        return post
 
     @application.put("/api/posts/{post_id}/like")
     def like(post_id: int, request: Request) -> dict[str, object]:
         enforce_origin(request)
         account = require_account(request)
-        return repository.set_like(account.id, post_id, True)
+        post = repository.set_like(account.id, post_id, True)
+        changes.publish()
+        return post
 
     @application.delete("/api/posts/{post_id}/like")
     def unlike(post_id: int, request: Request) -> dict[str, object]:
         enforce_origin(request)
         account = require_account(request)
-        return repository.set_like(account.id, post_id, False)
+        post = repository.set_like(account.id, post_id, False)
+        changes.publish()
+        return post
 
     @application.get("/", response_class=FileResponse)
     def index() -> Path:

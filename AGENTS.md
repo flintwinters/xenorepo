@@ -79,6 +79,5 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 
 ## 3. Current tasks
 
-- Verify and refine the WIRE/98 microblog checkpoint: durable accounts,
-  credentials, sessions, posts, like transitions, JSON API, and self-contained
-  responsive interface.
+- Verify and refine WIRE/98 live synchronization: server-sent feed-change events,
+  reconnecting browser updates, and periodic recovery polling.

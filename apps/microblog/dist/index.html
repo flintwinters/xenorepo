@@ -36,5 +36,6 @@ $("logout").onclick=async()=>{try{session=await api("/api/session",{method:"DELE
 $("body").oninput=()=>$("counter").textContent=$("body").value.length+"/280";
 $("postForm").onsubmit=async event=>{event.preventDefault();try{const post=await api("/api/posts",{method:"POST",body:JSON.stringify({body:$("body").value})});posts.unshift(post);$("body").value="";$("counter").textContent="0/280";renderPosts();notice("TRANSMISSION PUBLISHED")}catch(error){notice(error.message,true)}};
 $("feed").onclick=async event=>{const button=event.target.closest(".like");if(!button)return;const article=button.closest(".post"),post=posts.find(item=>item.id===Number(article.dataset.id));try{const updated=await api(`/api/posts/${post.id}/like`,{method:post.liked_by_me?"DELETE":"PUT"});posts=posts.map(item=>item.id===updated.id?updated:item);renderPosts();notice(updated.liked_by_me?"SIGNAL ADDED":"SIGNAL REMOVED")}catch(error){notice(error.message,true)}};
-loadSession();setInterval(()=>refresh(true),30000);
+function connectLiveFeed(){const events=new EventSource("/api/events");events.addEventListener("feed",()=>refresh(true));events.onerror=()=>notice("LIVE LINK RETRYING",true);events.onopen=()=>{if($("message").textContent==="LIVE LINK RETRYING")notice("LIVE LINK ACTIVE")}}
+loadSession();connectLiveFeed();setInterval(()=>refresh(true),120000);
 </script></body></html>

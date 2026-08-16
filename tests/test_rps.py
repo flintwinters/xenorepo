@@ -64,6 +64,7 @@ class RpsTests(unittest.TestCase):
             'class="index">01', 'id="round-log"', "position:sticky",
             'id="top-matches"', 'id="recent-results"', 'data-watch',
             'id="spectator-count"', '"spectator_state"', '"arena_snapshot"',
+            "function enterMatchmaking()", 'send("queue_join")',
             "@media(max-width:850px)", "@media(max-width:590px)"):
             with self.subTest(marker=marker):
                 self.assertIn(marker, document)

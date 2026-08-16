@@ -57,14 +57,15 @@ class RpsTests(unittest.TestCase):
 
     def test_operator_console_document_follows_repository_ui_direction(self) -> None:
         document = Path("apps/rps/frontend/index.html").read_text(encoding="utf-8")
-        for marker in ("grid-template-rows:28px minmax(0,1fr)",
+        for marker in ("grid-template-rows:28px 1fr",
             'class="utility"', 'class="mosaic"',
             'class="pane arena-index"', 'class="pane battle"',
             'class="pane ledger"',
             'class="index">01', 'id="round-log"', "position:sticky",
             'id="top-matches"', 'id="recent-results"', 'data-watch',
             '"spectator_state"', '"arena_snapshot"',
-            "function enterMatchmaking()", 'send("queue_join")',
+            'id="landing"', 'id="play-form"', 'id="landing-matches"',
+            'class="key play"', 'p.competitive_streak', 'send("queue_join")',
             "@media(max-width:850px)", "@media(max-width:590px)"):
             with self.subTest(marker=marker):
                 self.assertIn(marker, document)
@@ -81,6 +82,8 @@ class RpsTests(unittest.TestCase):
             'PAIRING GAP EXPANDS', '<dt>FORMAT</dt>', 'id="system-clock"'):
             with self.subTest(redundant=redundant):
                 self.assertNotIn(redundant, document)
+        self.assertLess(document.index('id="nickname"'),
+            document.index('class="key play"'))
 
     def test_all_nine_throw_pairs_have_antisymmetric_results(self) -> None:
         expected = {

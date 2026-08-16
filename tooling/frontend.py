@@ -63,6 +63,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .pane { min-width: 0; min-height: 0; overflow: hidden; background: var(--panel); }
 .pane-body { min-height: 0; overflow: auto; }
 .pane-title, .title {
+  --chrome-rim: #b7cfca;
+  --chrome-shade: #354a44;
   position: relative;
   z-index: 1;
   display: flex;
@@ -75,9 +77,21 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   font-size: 12px;
   font-weight: bold;
   background: linear-gradient(#83a598, #5f7f75);
-  border-top: 1px solid #b7cfca;
-  border-bottom: 2px solid #354a44;
+  border-top: 1px solid var(--chrome-rim);
+  border-bottom: 2px solid var(--chrome-shade);
   box-shadow: 0 2px 2px #111;
+}
+.pane-title.green, .title.green {
+  --chrome-rim: #d5d87a;
+  --chrome-shade: #57580e;
+}
+.pane-title.orange, .title.orange {
+  --chrome-rim: #ffaf66;
+  --chrome-shade: #7a3307;
+}
+.pane-title.purple, .title.purple {
+  --chrome-rim: #edb8c5;
+  --chrome-shade: #65364c;
 }
 .index, .plaque {
   align-self: stretch;

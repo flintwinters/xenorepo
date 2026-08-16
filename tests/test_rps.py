@@ -77,6 +77,9 @@ class RpsTests(unittest.TestCase):
             'signal-search', 'signal-active', 'signal-locked', 'signal-ready',
             'signal-win', 'signal-loss', 'signal-tie', '--signal:',
             'position:absolute', 'border:7px solid var(--signal)',
+            'grid-template-rows:1fr auto 1fr', 'animation:their-swoop',
+            'animation:your-swoop', '@keyframes their-swoop',
+            '@keyframes your-swoop',
             'icons={rock:"🪨",paper:"📄",scissors:"✂️"}',
             "@media(max-width:850px)", "@media(max-width:590px)"):
             with self.subTest(marker=marker):
@@ -96,6 +99,8 @@ class RpsTests(unittest.TestCase):
         you = document.index('id="you-strip"')
         self.assertLess(opponent, instrument)
         self.assertLess(instrument, you)
+        self.assertLess(document.index('id="their-pick"'),
+            document.index('id="your-pick"'))
         for redundant in ('class="pane inspector"', 'class="status"',
             'PAIRING GAP EXPANDS', '<dt>FORMAT</dt>', 'id="system-clock"',
             'class="landing-card"', 'box-shadow:0 12px 30px'):

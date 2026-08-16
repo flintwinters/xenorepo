@@ -29,6 +29,11 @@ before the requested outcome is proved.
 - App definitions are declarative, typed, and capability-driven. Tooling must
   discover behavior from metadata rather than hard-coded app names or implicit
   directory knowledge.
+- Applications use FastAPI as their sole runtime service. TypeScript frontends
+  are compiled entirely ahead of time into each application's `./dist/`
+  directory, which FastAPI routes and serves directly. Do not run a separate
+  frontend development or production service such as Vite; startup exposes the
+  complete application through one FastAPI service.
 - Framework code is modular and DRY. Build shared functions and modules around
   clear responsibilities, and promote an abstraction only after concrete app
   work has demonstrated the shared boundary.

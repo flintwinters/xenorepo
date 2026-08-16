@@ -113,14 +113,14 @@ class RpsRealtimeTests(unittest.TestCase):
             match = session.get(Match, match_id)
             self.assertEqual((match.state, match.winner_id), ("completed", first.id))
 
-    def test_completed_players_rejoin_matchmaking_after_one_second(self) -> None:
+    def test_completed_players_rejoin_matchmaking_after_result_pause(self) -> None:
         first, first_socket, second, second_socket, match_id = self.matched_pair()
         run_async(self.arena.submit_throw(first.id, "rock", "throw-first"))
         run_async(self.arena.submit_throw(second.id, "scissors", "throw-second"))
         self.assertNotIn(first.id, self.arena.queue)
         self.assertNotIn(second.id, self.arena.queue)
 
-        run_async(self.scheduler.advance(0.999))
+        run_async(self.scheduler.advance(0.199))
         self.assertNotIn(first.id, self.arena.queue)
         self.assertNotIn(second.id, self.arena.queue)
 

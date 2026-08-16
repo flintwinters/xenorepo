@@ -11,7 +11,7 @@ from tooling.realtime import ConnectionRegistry, RealtimeSocket, SendReport, cli
 
 ROUND_TIME = timedelta(seconds=10)
 RECONNECT_TIME = timedelta(seconds=5)
-POST_MATCH_PAUSE = timedelta(seconds=1)
+POST_MATCH_PAUSE = timedelta(milliseconds=200)
 
 
 def permitted_streak_difference(waited_seconds: float) -> int | None:
@@ -110,6 +110,11 @@ class ArenaCoordinator:
         if player_id in self.player_matches or player_id in self.queue:
             return
         await self._queue_player(player_id)
+
+    async def _requeue_completed_players(self, player_ids: tuple[str, str]) -> None:
+        """Return both participants through one ordered post-match handoff."""
+        for player_id in player_ids:
+            await self._requeue_completed_player(player_id)
 
     async def leave_queue(self, player_id: str, client_id: str) -> None:
         if not self._claim_mutation(player_id, client_id):
@@ -242,10 +247,8 @@ class ArenaCoordinator:
         await self._send_spectators(match.id, {"type": "match_result", **public_result})
         for _, context in self.connections.connections():
             context.subscriptions.discard(match.id)
-        requeue_at = self.clock.now() + POST_MATCH_PAUSE
-        for player_id in match.players:
-            self.scheduler.call_at(requeue_at,
-                lambda player_id=player_id: self._requeue_completed_player(player_id))
+        self.scheduler.call_at(self.clock.now() + POST_MATCH_PAUSE,
+            lambda: self._requeue_completed_players(match.players))
 
     async def _reveal(self, match: LiveMatch, result: dict[str, object]) -> None:
         outcome = "tie" if result["state"] == "active" else "decisive"

@@ -71,6 +71,11 @@ class RpsTests(unittest.TestCase):
             "animation:", "transition:"):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, document)
+        opponent = document.index('id="opponent-strip"')
+        instrument = document.index('class="instrument"')
+        you = document.index('id="you-strip"')
+        self.assertLess(opponent, instrument)
+        self.assertLess(instrument, you)
 
     def test_all_nine_throw_pairs_have_antisymmetric_results(self) -> None:
         expected = {

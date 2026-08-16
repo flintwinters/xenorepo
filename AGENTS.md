@@ -43,6 +43,18 @@ When a systemic issue, which may occur more than once, is found, routinize prote
   database, especially for demos and local experiments, while designing models,
   migrations, queries, and transaction boundaries to remain compatible with a
   future PostgreSQL deployment.
+- Treat persisted data as a durable information model, never as a snapshot of
+  the current screen. Retain domain facts at the highest useful fidelity:
+  stable identifiers, precise timestamps, provenance, state transitions, and
+  explicit relationships. Model distinct entities, events, and associations in
+  typed tables with constraints, foreign keys, and query-driven indexes; avoid
+  opaque blobs, overloaded columns, and duplicated derived values when the
+  underlying facts have known structure.
+- Normalize pragmatically to prevent ambiguity and update anomalies, not to
+  satisfy a theoretical form mechanically. Preserve canonical source facts and
+  derive projections from them. Denormalize only for a demonstrated query need,
+  with an explicit source of truth and a deterministic rebuild path. Evolve
+  schemas through repeatable migrations that retain existing information.
 - Framework code is modular and DRY. Build shared functions and modules around
   clear responsibilities, and promote an abstraction only after concrete app
   work has demonstrated the shared boundary.
@@ -56,17 +68,22 @@ When a systemic issue, which may occur more than once, is found, routinize prote
   mutation, prove stable readiness before success, preserve relevant process
   output, and report cleanup failures without hiding the original error.
 - Test directly in the repository. Ignored runtime and test state belongs in
-  the visible `data/` directory, never a hidden directory or `/tmp`.
+  the visible per-app `data/` directory, never a hidden directory or `/tmp`.
 - Keep source files below 600 lines and cyclomatic complexity at or below 8.
   Prefer small modules with explicit responsibilities and strict interfaces.
 - Apps remain independent product experiments. They may share central tooling,
   contracts, and learned patterns, but not application source or build artifacts.
+- Give every app a README so it can be deployed as a standalone submodule.
+- Do not use hidden folders or hide state or project files.
+- Do not put exposition in UI elements.
 
 ## 3. Current tasks
 
 1. Add centrally orchestrated browser testing to `manage.py` for interaction
    and responsive-layout coverage, including the chat room's live stream.
-2. Exercise the chat app's SQLAlchemy boundary against PostgreSQL when a shared
+2. Replace the chat app's stream-shaped message table with a lossless relational
+   model for rooms, participants, sessions, messages, and delivery events.
+3. Exercise the chat app's SQLAlchemy boundary against PostgreSQL when a shared
    deployment environment is introduced.
-3. Continue implementing lifecycle operations one verified logical checkpoint
+4. Continue implementing lifecycle operations one verified logical checkpoint
    at a time, committing each checkpoint with a detailed message.

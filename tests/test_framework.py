@@ -30,6 +30,7 @@ class SharedFrameworkTests(unittest.TestCase):
         self.assertEqual(capabilities["calculator"], frozenset())
         self.assertEqual(capabilities["chat"], frozenset({"database", "realtime"}))
         self.assertEqual(capabilities["microblog"], frozenset({"database"}))
+        self.assertEqual(capabilities["rps"], frozenset({"database"}))
 
     def test_database_factory_enforces_sqlite_foreign_keys(self) -> None:
         metadata = MetaData()

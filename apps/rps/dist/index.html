@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>THROW/98</title>
+<style>
+:root{color-scheme:dark;--bg:#151515;--panel:#242424;--line:#56504a;--ink:#f2e7cf;--dim:#aaa095;--hot:#ff6b35;--gold:#ffd166;--green:#95d55d;font:14px/1.4 "Courier New",monospace}*{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--bg);color:var(--ink)}body{display:grid;place-items:center;padding:16px}.shell{width:min(820px,100%);border:1px solid #080808;background:var(--panel);box-shadow:0 18px 60px #000}.bar{display:flex;justify-content:space-between;gap:12px;padding:8px 12px;background:linear-gradient(#3b3835,#242220);border-bottom:1px solid #080808}.brand{color:var(--gold);font-weight:bold;letter-spacing:.12em}.lamp{color:var(--green)}.arena{display:grid;grid-template-columns:1fr 1fr;min-height:360px}.card{padding:24px;border-right:1px solid var(--line)}.card:last-child{border:0}.label{color:var(--dim);font-size:12px;letter-spacing:.08em}.value{margin:6px 0 28px;font-size:42px;font-weight:bold;color:var(--hot)}form{display:grid;gap:8px}label{color:var(--dim)}input,button{min-height:42px;padding:8px 10px;font:inherit;color:var(--ink);background:#171717;border:1px solid var(--line)}button{color:var(--gold);font-weight:bold;cursor:pointer}button:focus-visible,input:focus-visible{outline:2px solid var(--gold);outline-offset:2px}.stage{display:grid;place-items:center;text-align:center}.mark{font-size:72px;color:var(--hot)}.status{min-height:26px;color:var(--dim)}@media(max-width:600px){.arena{grid-template-columns:1fr}.card{border-right:0;border-bottom:1px solid var(--line)}.value{font-size:34px;margin-bottom:18px}}
+</style>
+</head>
+<body>
+<main class="shell">
+ <header class="bar"><span class="brand">◆ THROW/98</span><span class="lamp" id="link">● ONLINE</span></header>
+ <section class="arena">
+  <section class="card" aria-labelledby="identity-title"><div class="label" id="identity-title">PLAYER</div><div class="value" id="nickname">——</div><form id="profile"><label for="name">NICKNAME</label><input id="name" minlength="2" maxlength="24" required><button>SAVE IDENTITY</button><div class="status" id="feedback" role="status" aria-live="polite"></div></form></section>
+  <section class="card stage" aria-labelledby="streak-title"><div><div class="label" id="streak-title">COMPETITIVE STREAK</div><div class="mark">✦</div><div class="value" id="streak">0</div></div></section>
+ </section>
+</main>
+<script>
+(()=>{"use strict";const $=id=>document.getElementById(id),form=$("profile"),name=$("name"),feedback=$("feedback");function show(player){$("nickname").textContent=player.nickname;$("streak").textContent=player.competitive_streak;name.value=player.nickname}async function request(path,options){const response=await fetch(path,options),body=await response.json();if(!response.ok)throw new Error(body.error||"Request failed.");return body}async function load(){try{show(await request("/api/session"))}catch(error){$("link").textContent="● OFFLINE";feedback.textContent=error.message}}form.addEventListener("submit",async event=>{event.preventDefault();feedback.textContent="SAVING";try{show(await request("/api/session",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({nickname:name.value})}));feedback.textContent="SAVED"}catch(error){feedback.textContent=error.message}});load()})();
+</script>
+</body>
+</html>

@@ -1,13 +1,23 @@
 import unittest
 from pathlib import Path
 
+from typer.testing import CliRunner
+
 from tooling.apps import AppDefinitionError, discover_apps, get_app
+from tooling.cli import app
 from tooling.frontend import CONSOLE_SHELL, DocumentParts, compose_console
 from tooling.lifecycle import build_app, validate_app, validate_dist
 from tests.support import SocketDouble, run_async
 
 
 class RepositoryAppTests(unittest.TestCase):
+    def test_serve_without_an_app_lists_discovered_choices(self) -> None:
+        result = CliRunner().invoke(app, ["serve"])
+
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn("choose an application: calculator, chat, microblog, rps", result.output)
+        self.assertIn("Example: manage.py serve calculator", result.output)
+
     def test_app_catalog_is_nonempty_and_has_unique_names(self) -> None:
         apps = discover_apps()
         names = [app.name for app in apps]

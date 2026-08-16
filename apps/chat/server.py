@@ -6,15 +6,15 @@ from typing import Any
 from uuid import UUID
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse
 
 from apps.chat.database import ChatRepository, create_session_factory, sqlite_url
+from tooling.http import client_provenance
 from tooling.realtime import (
     ConnectionRegistry,
     bounded_text,
-    client_provenance,
     websocket_origin_allowed,
 )
+from tooling.runtime import create_application
 
 
 DIRECTORY = Path(__file__).parent
@@ -85,11 +85,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     resolved_url = database_url or os.environ.get("CHAT_DATABASE_URL") or sqlite_url(DEFAULT_DATABASE)
     repository = ChatRepository(create_session_factory(resolved_url))
     hub = ConnectionHub()
-    application = FastAPI(title="Common Room")
-
-    @application.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
+    application = create_application("Common Room", DIST / "index.html")
 
     @application.get("/api/messages")
     def messages() -> list[dict[str, int | str]]:
@@ -116,10 +112,6 @@ def create_app(database_url: str | None = None) -> FastAPI:
                 await hub.publish(socket, repository, *cleaned)
         except WebSocketDisconnect:
             await hub.disconnect(socket, repository)
-
-    @application.get("/", response_class=FileResponse)
-    def index() -> Path:
-        return DIST / "index.html"
 
     return application
 

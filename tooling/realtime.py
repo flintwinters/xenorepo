@@ -6,6 +6,8 @@ import json
 from typing import Any, Generic, Protocol, TypeVar
 from urllib.parse import urlsplit
 
+from tooling.http import client_provenance
+
 
 Context = TypeVar("Context")
 
@@ -89,17 +91,6 @@ class ConnectionRegistry(Generic[Context]):
 def encode_event(event: Mapping[str, Any]) -> str:
     """Encode server events consistently and compactly."""
     return json.dumps(event, separators=(",", ":"), ensure_ascii=False)
-
-
-def client_provenance(connection: Any) -> dict[str, str | None]:
-    """Capture the durable request facts shared by HTTP and WebSocket clients."""
-    client = getattr(connection, "client", None)
-    headers = connection.headers
-    return {
-        "client_host": client.host if client else None,
-        "user_agent": headers.get("user-agent"),
-        "origin": headers.get("origin"),
-    }
 
 
 def websocket_origin_allowed(socket: Any) -> bool:

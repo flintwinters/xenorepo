@@ -2,17 +2,22 @@
 
 import os
 from pathlib import Path
-from urllib.parse import urlsplit
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
 from apps.rps.auth import issue_credential
 from apps.rps.arena import ArenaCoordinator
 from apps.rps.database import DomainError, RpsRepository, create_session_factory, sqlite_url
 from apps.rps.scheduling import AsyncIOScheduler, Clock, Scheduler, SystemClock
+from tooling.http import (
+    json_error,
+    same_origin_allowed,
+    set_session_cookie,
+)
 from tooling.realtime import websocket_origin_allowed
+from tooling.runtime import create_application
 
 
 DIRECTORY = Path(__file__).parent
@@ -24,14 +29,6 @@ COOKIE_AGE = 365 * 24 * 60 * 60
 
 class NicknameInput(BaseModel):
     nickname: str = ""
-
-
-def origin_allowed(request: Request) -> bool:
-    origin = request.headers.get("origin")
-    if not origin:
-        return True
-    parsed = urlsplit(origin)
-    return parsed.scheme == request.url.scheme and parsed.netloc == request.url.netloc
 
 
 def player_state(player: object) -> dict[str, object]:
@@ -46,18 +43,14 @@ def create_app(database_url: str | None = None, *, clock: Clock | None = None,
     repository = RpsRepository(create_session_factory(resolved), resolved_clock.now)
     coordinator = ArenaCoordinator(repository, resolved_clock,
         scheduler or AsyncIOScheduler(resolved_clock))
-    application = FastAPI(title="Rock Paper Scissors")
+    application = create_application("Rock Paper Scissors", DIST / "index.html")
 
     def current_player(request: Request) -> object | None:
         return repository.restore_guest(request.cookies.get(COOKIE))
 
     @application.exception_handler(DomainError)
     async def domain_error(_request: Request, failure: DomainError) -> JSONResponse:
-        return JSONResponse({"error": str(failure)}, status_code=400)
-
-    @application.get("/health")
-    def health() -> dict[str, str]:
-        return {"status": "ok"}
+        return json_error(str(failure), 400)
 
     @application.get("/api/session")
     def session_state(request: Request) -> JSONResponse:
@@ -67,17 +60,15 @@ def create_app(database_url: str | None = None, *, clock: Clock | None = None,
         credential = issue_credential()
         player = repository.create_guest(credential)
         response = JSONResponse(player_state(player), status_code=201)
-        response.set_cookie(COOKIE, credential, max_age=COOKIE_AGE, httponly=True,
-            samesite="lax", secure=request.url.scheme == "https", path="/")
-        return response
+        return set_session_cookie(response, request, COOKIE, credential, COOKIE_AGE)
 
     @application.patch("/api/session", response_model=None)
     def update_session(payload: NicknameInput, request: Request) -> dict[str, object] | JSONResponse:
-        if not origin_allowed(request):
-            return JSONResponse({"error": "Request origin is not allowed."}, status_code=403)
+        if not same_origin_allowed(request):
+            return json_error("Request origin is not allowed.", 403)
         player = current_player(request)
         if player is None:
-            return JSONResponse({"error": "Guest session is required."}, status_code=401)
+            return json_error("Guest session is required.", 401)
         return player_state(repository.rename(player.id, payload.nickname))
 
     @application.websocket("/ws")
@@ -124,10 +115,6 @@ def create_app(database_url: str | None = None, *, clock: Clock | None = None,
             pass
         finally:
             await coordinator.disconnect(socket)
-
-    @application.get("/", response_class=FileResponse)
-    def index() -> Path:
-        return DIST / "index.html"
 
     application.state.repository = repository
     application.state.coordinator = coordinator

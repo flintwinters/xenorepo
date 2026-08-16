@@ -165,9 +165,12 @@ frontend:
         self.assertIn("localStorage.getItem(storageKey)", source)
         self.assertIn("ledger.unshift", source)
         self.assertIn("x-console-shell", source)
+        self.assertIn('<x-command-button class="calc-key', source)
+        self.assertNotIn('<button class="calc-key', source)
         self.assertIn("calc98-state-v1", document)
         self.assertIn("x-console-shell", document)
         self.assertIn('<meta name="tooling-shell" content="console">', document)
+        self.assertIn("html,body,#app{width:100%;height:100%;margin:0}", document)
         self.assertNotIn('src="', document)
         self.assertNotIn('href="', document)
 

@@ -61,10 +61,10 @@ export class CommandButton extends ConsoleElement {
   disabled = false;
   pressed = false;
   static styles = [consoleTokens, css`
-    :host { display: inline-block; } button { min-height: 22px; padding: 2px 8px; color: var(--console-fg, #ebdbb2); background: linear-gradient(#3c3836, #282828); border: 1px solid #111; border-top-color: #7c6f64; border-left-color: #665c54; box-shadow: inset -1px -1px #1d2021, 0 2px #101112; cursor: pointer; }
+    :host { display: inline-block; } button { width: 100%; min-height: 22px; padding: 2px 8px; color: var(--console-fg, #ebdbb2); background: linear-gradient(#3c3836, #282828); border: 1px solid #111; border-top-color: #7c6f64; border-left-color: #665c54; box-shadow: inset -1px -1px #1d2021, 0 2px #101112; cursor: pointer; }
     button:active, button[aria-pressed="true"] { transform: translateY(1px); box-shadow: inset 1px 1px #101112; } button:disabled { color: var(--console-muted, #a89984); cursor: not-allowed; }
   `];
-  render() { return html`<button ?disabled=${this.disabled} aria-pressed=${this.pressed ? "true" : "false"}><slot></slot></button>`; }
+  render() { return html`<button part="button" ?disabled=${this.disabled} aria-pressed=${this.pressed ? "true" : "false"}><slot></slot></button>`; }
 }
 customElements.define("x-command-button", CommandButton);
 

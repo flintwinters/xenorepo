@@ -51,7 +51,10 @@ def _build_lit(definition: AppDefinition, artifact: FrontendArtifact) -> None:
         "<!doctype html>\n<html lang=\"en\">\n<head>\n"
         "<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
         "<meta name=\"tooling-shell\" content=\"console\">\n"
-        f"<title>{escape(definition.title)}</title>\n</head>\n<body>\n<main id=\"app\"></main>\n"
+        f"<title>{escape(definition.title)}</title>\n"
+        "<style>html,body,#app{width:100%;height:100%;margin:0}"
+        "html,body{overflow:hidden;background:#1d2021;color:#ebdbb2}</style>\n"
+        "</head>\n<body>\n<main id=\"app\"></main>\n"
         f"<script>{script}</script>\n</body>\n</html>\n",
         encoding="utf-8",
     )

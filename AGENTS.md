@@ -82,5 +82,5 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 
 ## 3. Current tasks
 
-- Keep YAML app contracts, server-owned document routes, and the central Lit
-  UI build path deterministic and covered by `manage.py` checks.
+- Maximize RPS social state feedback across matchmaking, match start, opponent
+  readiness, throw confirmation, round resolution, and final match outcomes.

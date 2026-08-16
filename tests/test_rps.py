@@ -69,6 +69,10 @@ class RpsTests(unittest.TestCase):
             'class="landing-utility"', 'class="landing-mosaic"',
             'class="landing-status"', 'ENTER ARENA',
             'error.status=r.status', 'if(e.status===404)', '● WRONG SERVICE',
+            'function announce(', 'MATCH START · YOU VS', 'MATCH WON',
+            'MATCH LOST', 'OPPONENT READY · YOUR THROW',
+            'MATCHMAKING · SEARCHING FOR OPPONENT', 'classList.toggle("ready"',
+            'CONNECTION LOST · RECONNECTING',
             "@media(max-width:850px)", "@media(max-width:590px)"):
             with self.subTest(marker=marker):
                 self.assertIn(marker, document)

@@ -55,6 +55,21 @@ class RpsTests(unittest.TestCase):
         self.assertIn(f"<title>{title}</title>", document)
         self.assertIn(f'<span class="brand">{title}</span>', document)
 
+    def test_operator_console_document_follows_repository_ui_direction(self) -> None:
+        document = Path("apps/rps/frontend/index.html").read_text(encoding="utf-8")
+        for marker in ("grid-template-rows:28px minmax(0,1fr) 24px",
+            'class="utility"', 'class="status"', 'class="mosaic"',
+            'class="pane arena-index"', 'class="pane battle"',
+            'class="pane inspector"', 'class="pane ledger"',
+            'class="index">01', 'id="round-log"', "position:sticky",
+            "@media(max-width:850px)", "@media(max-width:590px)"):
+            with self.subTest(marker=marker):
+                self.assertIn(marker, document)
+        for forbidden in ("radial-gradient", "border-radius", "@keyframes",
+            "animation:", "transition:"):
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, document)
+
     def test_all_nine_throw_pairs_have_antisymmetric_results(self) -> None:
         expected = {
             ("rock", "rock"): 0, ("rock", "paper"): -1, ("rock", "scissors"): 1,

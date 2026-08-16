@@ -66,6 +66,8 @@ class RpsTests(unittest.TestCase):
             '"spectator_state"', '"arena_snapshot"',
             'id="landing"', 'id="play-form"', 'id="landing-matches"',
             'class="key play"', 'p.competitive_streak', 'send("queue_join")',
+            'class="landing-utility"', 'class="landing-mosaic"',
+            'class="landing-status"', 'ENTER ARENA',
             "@media(max-width:850px)", "@media(max-width:590px)"):
             with self.subTest(marker=marker):
                 self.assertIn(marker, document)
@@ -79,7 +81,8 @@ class RpsTests(unittest.TestCase):
         self.assertLess(opponent, instrument)
         self.assertLess(instrument, you)
         for redundant in ('class="pane inspector"', 'class="status"',
-            'PAIRING GAP EXPANDS', '<dt>FORMAT</dt>', 'id="system-clock"'):
+            'PAIRING GAP EXPANDS', '<dt>FORMAT</dt>', 'id="system-clock"',
+            'class="landing-card"', 'box-shadow:0 12px 30px'):
             with self.subTest(redundant=redundant):
                 self.assertNotIn(redundant, document)
         self.assertLess(document.index('id="nickname"'),

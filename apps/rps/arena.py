@@ -61,6 +61,7 @@ class ArenaCoordinator:
         self.queue: dict[str, QueueRecord] = {}
         self.matches: dict[str, LiveMatch] = {}
         self.player_matches: dict[str, str] = {}
+        self.rematch_requests: dict[str, set[str]] = {}
         self.mutations: set[tuple[str, str]] = set()
         self.recent_results: list[dict[str, object]] = []
 
@@ -111,8 +112,12 @@ class ArenaCoordinator:
             return
         await self._queue_player(player_id)
 
-    async def _requeue_completed_players(self, player_ids: tuple[str, str]) -> None:
-        """Return both participants through one ordered post-match handoff."""
+    async def _requeue_completed_players(self, match_id: str, player_ids: tuple[str, str]) -> None:
+        """Start a mutual rematch or return both participants to matchmaking."""
+        if self.rematch_requests.pop(match_id, set()) == set(player_ids):
+            await self._start_match(player_ids, ranked=False, rematch_of_id=match_id)
+            await self._broadcast_arena()
+            return
         for player_id in player_ids:
             await self._requeue_completed_player(player_id)
 
@@ -125,6 +130,16 @@ class ArenaCoordinator:
         self.repository.leave_queue(record.entry_id)
         await self._broadcast_arena()
         await self._send_player(player_id, {"type": "queue_state", "queued": False})
+
+    async def request_rematch(self, player_id: str, match_id: str, client_id: str) -> None:
+        """Record a player's consent to replay a just-completed match."""
+        if not self._claim_mutation(player_id, client_id):
+            return
+        result = next((item for item in self.recent_results if item["match_id"] == match_id), None)
+        if result is None or player_id not in {item["id"] for item in result["participants"]}:
+            raise DomainError("Match is not available for rematch.")
+        self.rematch_requests.setdefault(match_id, set()).add(player_id)
+        await self._send_player(player_id, {"type": "rematch_requested", "match_id": match_id})
 
     async def spectate(self, player_id: str, match_id: str, client_id: str) -> None:
         if not self._claim_mutation(player_id, client_id):
@@ -156,21 +171,28 @@ class ArenaCoordinator:
             if pair is None:
                 return
             first, second = pair
-            deadline = self.clock.now() + ROUND_TIME
-            match = self.repository.create_match(first.player_id, second.player_id,
-                selection_deadline_at=deadline,
-                queue_entry_ids=(first.entry_id, second.entry_id))
+            await self._start_match((first.player_id, second.player_id), ranked=True,
+                queue_entry_ids=(first.entry_id, second.entry_id),
+                streaks=(first.streak, second.streak))
             self.queue.pop(first.player_id, None)
             self.queue.pop(second.player_id, None)
-            live = LiveMatch(match.id, (first.player_id, second.player_id), 1, deadline,
-                ranked=match.ranked, streaks=(first.streak, second.streak),
-                started_at=match.started_at)
-            self.matches[match.id] = live
-            self.player_matches[first.player_id] = match.id
-            self.player_matches[second.player_id] = match.id
-            self._schedule_round(live)
-            await self._announce_match(live)
             await self._broadcast_arena()
+
+    async def _start_match(self, player_ids: tuple[str, str], *, ranked: bool,
+        rematch_of_id: str | None = None, queue_entry_ids: tuple[str, str] | None = None,
+        streaks: tuple[int, int] | None = None) -> None:
+        deadline = self.clock.now() + ROUND_TIME
+        match = self.repository.create_match(*player_ids, ranked=ranked,
+            rematch_of_id=rematch_of_id, selection_deadline_at=deadline,
+            queue_entry_ids=queue_entry_ids)
+        live = LiveMatch(match.id, player_ids, 1, deadline, ranked=ranked,
+            streaks=streaks or tuple(self._player(player_id)["competitive_streak"]
+                for player_id in player_ids), started_at=match.started_at)
+        self.matches[match.id] = live
+        for player_id in player_ids:
+            self.player_matches[player_id] = match.id
+        self._schedule_round(live)
+        await self._announce_match(live)
 
     async def submit_throw(self, player_id: str, selection: str, client_id: str) -> None:
         if not self._claim_mutation(player_id, client_id):
@@ -237,6 +259,7 @@ class ArenaCoordinator:
             "completed_at": self.clock.now().isoformat()}
         self.recent_results.insert(0, public_result)
         del self.recent_results[10:]
+        self.rematch_requests[match.id] = set()
         self.matches.pop(match.id, None)
         for player_id in match.players:
             self.player_matches.pop(player_id, None)
@@ -248,7 +271,7 @@ class ArenaCoordinator:
         for _, context in self.connections.connections():
             context.subscriptions.discard(match.id)
         self.scheduler.call_at(self.clock.now() + POST_MATCH_PAUSE,
-            lambda: self._requeue_completed_players(match.players))
+            lambda: self._requeue_completed_players(match.id, match.players))
 
     async def _reveal(self, match: LiveMatch, result: dict[str, object]) -> None:
         outcome = "tie" if result["state"] == "active" else "decisive"
@@ -263,7 +286,7 @@ class ArenaCoordinator:
         for player_id in match.players:
             opponent_id = next(candidate for candidate in match.players if candidate != player_id)
             await self._send_player(player_id, {"type": "match_assignment",
-                "match_id": match.id, "ranked": True, "opponent": self._player(opponent_id)})
+                "match_id": match.id, "ranked": match.ranked, "opponent": self._player(opponent_id)})
         await self._broadcast_round_state(match)
 
     async def _send_match_snapshot(self, player_id: str, match: LiveMatch) -> None:

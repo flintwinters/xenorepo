@@ -118,6 +118,7 @@ frontend:
                 )
                 self.assertIn("<style>", document)
                 self.assertIn("<script>", document)
+                self.assertEqual(document.count("<script>"), 1)
                 self.assertIn('<meta name="tooling-shell" content="console">', document)
                 self.assertIn("/* tooling.frontend: console shell */", document)
                 self.assertNotIn('src="', document)

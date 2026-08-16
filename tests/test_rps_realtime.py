@@ -132,6 +132,21 @@ class RpsRealtimeTests(unittest.TestCase):
         self.assertTrue(any(event == {"type": "queue_state", "queued": True}
             for event in second_socket.events))
 
+    def test_mutual_rematch_starts_an_unranked_replay_after_result_pause(self) -> None:
+        first, _, second, _, match_id = self.matched_pair()
+        run_async(self.arena.submit_throw(first.id, "rock", "throw-first"))
+        run_async(self.arena.submit_throw(second.id, "scissors", "throw-second"))
+        run_async(self.arena.request_rematch(first.id, match_id, "rematch-first"))
+        run_async(self.arena.request_rematch(second.id, match_id, "rematch-second"))
+
+        run_async(self.scheduler.advance(1))
+        rematch_id = self.arena.player_matches[first.id]
+        self.assertEqual(rematch_id, self.arena.player_matches[second.id])
+        self.assertNotEqual(rematch_id, match_id)
+        with self.sessions() as session:
+            rematch = session.get(Match, rematch_id)
+            self.assertEqual((rematch.ranked, rematch.rematch_of_id), (False, match_id))
+
     def test_selection_deadline_forfeits_the_only_missing_player(self) -> None:
         first, first_socket, second, second_socket, match_id = self.matched_pair()
         run_async(self.arena.submit_throw(first.id, "paper", "throw-first"))

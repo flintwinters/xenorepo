@@ -141,7 +141,8 @@ def parse_document(source: Path) -> DocumentParts:
     script = _required(_SCRIPT, text, source, "script block")
     if _EXTERNAL_ASSET.search(text):
         raise FrontendCompositionError(f"{source} references an external asset")
-    return DocumentParts(title=title.strip(), body=body.strip(), styles=styles.strip(), script=script.strip())
+    return DocumentParts(title=title.strip(), body=_SCRIPT.sub("", body).strip(),
+        styles=styles.strip(), script=script.strip())
 
 
 def compose_console(parts: DocumentParts) -> str:

@@ -94,6 +94,11 @@ def create_app(database_url: str | None = None, *, clock: Clock | None = None,
                         await coordinator.join_queue(player.id, client_id)
                     elif command == "queue_leave":
                         await coordinator.leave_queue(player.id, client_id)
+                    elif command == "rematch":
+                        match_id = payload.get("match_id")
+                        if not isinstance(match_id, str):
+                            raise DomainError("Match ID is required.")
+                        await coordinator.request_rematch(player.id, match_id, client_id)
                     elif command == "throw":
                         selection = payload.get("selection")
                         if not isinstance(selection, str):

@@ -66,6 +66,7 @@ class RpsTests(unittest.TestCase):
             '"spectator_state"', '"arena_snapshot"',
             'id="landing"', 'id="play-form"', 'id="landing-matches"',
             'class="key play"', 'p.competitive_streak', 'send("queue_join")',
+            'id="rematch"', 'send("rematch"',
             'class="landing-utility"', 'class="landing-mosaic"',
             'class="landing-status"', 'ENTER ARENA',
             'error.status=r.status', 'if(e.status===404)', '● WRONG SERVICE',

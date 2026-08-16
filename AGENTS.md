@@ -82,5 +82,5 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 
 ## 3. Current tasks
 
-- Make RPS match state legible without text through a large, bright, arena-wide
-  signal system for search, play, lock, readiness, results, and disconnection.
+- Center the RPS reveal as a dominant arena panel with instantly distinguishable
+  hand silhouettes and stable spatial/color ownership for both players.

@@ -14,6 +14,12 @@ const tone = (value: ConsoleTone) => ({
   neutral: ["#665c54", "#3c3836", "#928374", "#282828"],
 }[value]);
 
+/** Preserve the legacy numbered-title shorthand while favoring explicit indices. */
+const paneHeading = (title: string, index: string) => {
+  const numbered = /^\s*(\d{1,3})\s+(.+?)\s*$/.exec(title);
+  return { index: index || numbered?.[1] || "", title: numbered?.[2] || title };
+};
+
 class ConsoleElement extends LitElement {
   static styles = consoleTokens;
 }
@@ -51,7 +57,8 @@ export class ConsolePane extends ConsoleElement {
   render() {
     const [light, dark, rim, shadow] = tone(this.tone);
     const style = `--console-tone-light:${light};--console-tone-dark:${dark};--console-tone-rim:${rim};--console-tone-shadow:${shadow}`;
-    return html`<div class="chrome" style=${style}>${this.index ? html`<span class="index">${this.index}</span>` : nothing}<span>${this.title}</span><slot name="title-end"></slot></div><div class="body"><slot></slot></div>`;
+    const heading = paneHeading(this.title, this.index);
+    return html`<div class="chrome" style=${style}>${heading.index ? html`<span class="index">${heading.index}</span>` : nothing}<span>${heading.title}</span><slot name="title-end"></slot></div><div class="body"><slot></slot></div>`;
   }
 }
 customElements.define("x-console-pane", ConsolePane);

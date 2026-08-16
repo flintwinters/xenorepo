@@ -174,6 +174,10 @@ frontend:
         for index in ("01", "02", "03", "04"):
             with self.subTest(index=index):
                 self.assertIn(f'index="{index}"', source)
+        pane_component = Path("packages/lit-ui/src/index.ts").read_text(encoding="utf-8")
+        self.assertIn("const paneHeading", pane_component)
+        self.assertIn("numbered?.[1]", pane_component)
+        self.assertIn("numbered?.[2]", pane_component)
         self.assertIn("calc98-state-v1", document)
         self.assertIn("x-console-shell", document)
         self.assertIn('<meta name="tooling-shell" content="console">', document)

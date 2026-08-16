@@ -55,11 +55,11 @@ before the requested outcome is proved.
 
 ## 3. Current tasks
 
-1. Define the scripting framework's command model, typed app metadata, module
-   boundaries, diagnostics, and test strategy before expanding app features.
-2. Establish `manage.py` as the obvious root entrypoint with discoverable
-   commands and deterministic validation of repository and app configuration.
-3. Implement lifecycle operations in the central framework one verified logical
-   checkpoint at a time, committing each checkpoint with a detailed message.
-4. Create a minimal representative app to prove each framework capability and
-   feed discovered requirements back into shared tooling.
+1. Exercise the initial calculator vertical slice and refine its interaction
+   model based on real browser use, including keyboard input and history.
+2. Extend typed app metadata only when a second concrete app demonstrates a
+   shared capability boundary.
+3. Add centrally orchestrated browser testing to `manage.py` before expanding
+   the calculator beyond its core arithmetic workflow.
+4. Continue implementing lifecycle operations one verified logical checkpoint
+   at a time, committing each checkpoint with a detailed message.

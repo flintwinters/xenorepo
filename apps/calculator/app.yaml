@@ -1,0 +1,12 @@
+name: calculator
+title: Calculation Control
+module: apps.calculator.server
+frontend:
+  artifacts:
+    index:
+      format: lit
+      source: frontend/index.ts
+      output: index.html
+      shell: console
+  routes:
+    /: index

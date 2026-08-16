@@ -1,4 +1,4 @@
-"""FastAPI service for THROW/98 guest identity and competitive persistence."""
+"""FastAPI service for Rock Paper Scissors guest identity and persistence."""
 
 import os
 from pathlib import Path
@@ -39,7 +39,7 @@ def player_state(player: object) -> dict[str, object]:
 def create_app(database_url: str | None = None) -> FastAPI:
     resolved = database_url or os.environ.get("RPS_DATABASE_URL") or sqlite_url(DEFAULT_DATABASE)
     repository = RpsRepository(create_session_factory(resolved))
-    application = FastAPI(title="THROW/98")
+    application = FastAPI(title="Rock Paper Scissors")
 
     def current_player(request: Request) -> object | None:
         return repository.restore_guest(request.cookies.get(COOKIE))

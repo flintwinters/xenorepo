@@ -1,6 +1,6 @@
-# THROW/98
+# Rock Paper Scissors
 
-THROW/98 is a standalone social rock–paper–scissors arena. This checkpoint
+Rock Paper Scissors is a standalone social arena. This checkpoint
 provides durable guest identity and the complete ranked match state machine;
 live matchmaking and round transport are introduced by the next checkpoint.
 

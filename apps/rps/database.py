@@ -1,4 +1,4 @@
-"""Durable competitive domain for THROW/98."""
+"""Durable competitive domain for Rock Paper Scissors."""
 
 from datetime import datetime, timezone
 from uuid import uuid4

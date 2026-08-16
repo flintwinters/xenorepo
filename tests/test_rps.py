@@ -1,4 +1,4 @@
-"""Curated persistence, API, and competitive-domain contracts for THROW/98."""
+"""Curated persistence, API, and competitive-domain contracts for Rock Paper Scissors."""
 
 import json
 from pathlib import Path
@@ -39,6 +39,21 @@ class RpsTests(unittest.TestCase):
 
     def guest(self, token: str) -> Player:
         return self.repository.create_guest(token)
+
+    def test_every_application_title_is_rock_paper_scissors(self) -> None:
+        from apps.rps.server import create_app
+        from tooling.apps import get_app
+
+        title = "Rock Paper Scissors"
+        document = Path("apps/rps/frontend/index.html").read_text(encoding="utf-8")
+        self.assertEqual(get_app("rps").title, title)
+        application = create_app(f"sqlite:///{self.database}")
+        try:
+            self.assertEqual(application.title, title)
+        finally:
+            application.state.repository.sessions.kw["bind"].dispose()
+        self.assertIn(f"<title>{title}</title>", document)
+        self.assertIn(f'<span class="brand">{title}</span>', document)
 
     def test_all_nine_throw_pairs_have_antisymmetric_results(self) -> None:
         expected = {

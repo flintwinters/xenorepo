@@ -1,1 +1,1 @@
-"""THROW/98 competitive rock-paper-scissors application."""
+"""Rock Paper Scissors competitive application."""

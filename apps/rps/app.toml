@@ -1,5 +1,5 @@
 name = "rps"
-title = "THROW/98"
+title = "Rock Paper Scissors"
 module = "apps.rps.server"
 capabilities = ["database"]
 

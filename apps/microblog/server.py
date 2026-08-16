@@ -44,17 +44,21 @@ class ChangeFeed:
             self.condition.notify_all()
             return self.revision
 
+    def wait_for_event(self, last_seen: int) -> tuple[int, str]:
+        """Wait for a revision and construct its SSE frame while synchronized."""
+        with self.condition:
+            changed = self.condition.wait_for(
+                lambda: self.revision > last_seen, timeout=self.keepalive_seconds
+            )
+            revision = self.revision if changed else last_seen
+            event = (f"id: {revision}\nevent: feed\ndata: {revision}\n\n"
+                if changed else ": keepalive\n\n")
+        return revision, event
+
     def events(self, last_seen: int = 0) -> Iterator[str]:
         revision = last_seen
         while True:
-            with self.condition:
-                changed = self.condition.wait_for(
-                    lambda: self.revision > revision, timeout=self.keepalive_seconds
-                )
-                if changed:
-                    revision = self.revision
-                event = (f"id: {revision}\nevent: feed\ndata: {revision}\n\n"
-                    if changed else ": keepalive\n\n")
+            revision, event = self.wait_for_event(revision)
             yield event
 
 

@@ -4,6 +4,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import timedelta
 import json
 from pathlib import Path
+from threading import Event, get_ident
 import unittest
 
 from sqlalchemy import func, select
@@ -165,6 +166,40 @@ class MicroblogTests(unittest.TestCase):
         with ThreadPoolExecutor(max_workers=1) as workers:
             keepalive = workers.submit(next, events).result(timeout=1)
         self.assertEqual(keepalive, ": keepalive\n\n")
+        events.close()
+
+    def test_live_feed_delivers_across_threads_without_holding_its_condition(self) -> None:
+        from apps.microblog.server import ChangeFeed
+
+        changes = ChangeFeed(keepalive_seconds=1)
+        events = changes.events()
+        waiting = Event()
+
+        def wait_for_change() -> tuple[int, str]:
+            waiting.set()
+            return get_ident(), next(events)
+
+        def publish_change() -> tuple[int, int]:
+            return get_ident(), changes.publish()
+
+        def condition_can_be_acquired() -> bool:
+            acquired = changes.condition.acquire(timeout=0.1)
+            if acquired:
+                changes.condition.release()
+            return acquired
+
+        with ThreadPoolExecutor(max_workers=2) as workers:
+            delivery = workers.submit(wait_for_change)
+            self.assertTrue(waiting.wait(timeout=1))
+            published = workers.submit(publish_change)
+            publisher_thread, revision = published.result(timeout=1)
+            delivery_thread, event = delivery.result(timeout=1)
+            self.assertNotEqual(delivery_thread, publisher_thread)
+            self.assertEqual(revision, 1)
+            self.assertEqual(event, "id: 1\nevent: feed\ndata: 1\n\n")
+
+            # A suspended generator must not retain the thread-owned condition lock.
+            self.assertTrue(workers.submit(condition_can_be_acquired).result(timeout=1))
         events.close()
 
     def test_document_has_operational_responsive_and_accessible_contracts(self) -> None:

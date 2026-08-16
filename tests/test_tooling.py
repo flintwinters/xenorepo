@@ -171,6 +171,9 @@ frontend:
         self.assertIn('data-mode="scientific">SCIENTIFIC</button>', source)
         self.assertIn('["sin","cos","tan","ln","log","square","pi"]', source)
         self.assertIn('mode=state.mode ?? "standard"', source)
+        for index in ("01", "02", "03", "04"):
+            with self.subTest(index=index):
+                self.assertIn(f'index="{index}"', source)
         self.assertIn("calc98-state-v1", document)
         self.assertIn("x-console-shell", document)
         self.assertIn('<meta name="tooling-shell" content="console">', document)

@@ -79,5 +79,5 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 
 ## 3. Current tasks
 
-- Repair and verify the WIRE/98 sign-in/registration experience, including
-  durable in-pane error feedback and an explicit path from failed sign-in to signup.
+- Flatten WIRE/98 feed cards by removing the per-post gradient while preserving
+  the compact mechanical separation between transmissions.

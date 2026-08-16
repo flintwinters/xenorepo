@@ -1,7 +1,7 @@
 name = "rps"
 title = "Rock Paper Scissors"
 module = "apps.rps.server"
-capabilities = ["database"]
+capabilities = ["database", "realtime"]
 
 [frontend]
 format = "document"

@@ -1,5 +1,6 @@
 """Durable competitive domain for Rock Paper Scissors."""
 
+from collections.abc import Callable
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -13,7 +14,9 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     select,
+    inspect,
 )
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from apps.rps.auth import credential_digest
@@ -97,6 +100,8 @@ class MatchParticipant(Base):
     player_id: Mapped[str] = mapped_column(ForeignKey("players.id"), primary_key=True)
     seat: Mapped[int] = mapped_column(Integer)
     streak_at_start: Mapped[int] = mapped_column(Integer)
+    disconnected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    reconnect_deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     __table_args__ = (
         UniqueConstraint("match_id", "seat"),
         CheckConstraint("seat IN (1, 2)", name="participant_seat"),
@@ -113,6 +118,7 @@ class Round(Base):
     winner_id: Mapped[str | None] = mapped_column(ForeignKey("players.id"))
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    selection_deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     __table_args__ = (
         CheckConstraint("number BETWEEN 1 AND 5", name="round_number"),
         CheckConstraint("state IN ('collecting', 'resolved', 'cancelled')", name="round_state"),
@@ -165,16 +171,35 @@ def throw_result(first: str, second: str) -> int:
     } else -1
 
 
+def _migrate_realtime_columns(engine: Engine) -> None:
+    """Add checkpoint-three facts to databases created by the durable-domain release."""
+    additions = {
+        "match_participants": {
+            "disconnected_at": "DATETIME",
+            "reconnect_deadline_at": "DATETIME",
+        },
+        "rounds": {"selection_deadline_at": "DATETIME"},
+    }
+    with engine.begin() as connection:
+        for table, columns in additions.items():
+            existing = {column["name"] for column in inspect(connection).get_columns(table)}
+            for name, sql_type in columns.items():
+                if name not in existing:
+                    connection.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {name} {sql_type}")
+
+
 def create_session_factory(database_url: str) -> sessionmaker[Session]:
-    return shared_session_factory(database_url, Base.metadata)
+    return shared_session_factory(database_url, Base.metadata, _migrate_realtime_columns)
 
 
 class RpsRepository:
-    def __init__(self, sessions: sessionmaker[Session]) -> None:
+    def __init__(self, sessions: sessionmaker[Session],
+        clock: Callable[[], datetime] = now) -> None:
         self.sessions = sessions
+        self.clock = clock
 
     def create_guest(self, raw_credential: str) -> Player:
-        timestamp, player_id = now(), str(uuid4())
+        timestamp, player_id = self.clock(), str(uuid4())
         player = Player(id=player_id, nickname=f"Guest-{player_id[:4].upper()}",
             competitive_streak=0, created_at=timestamp, last_seen_at=timestamp)
         with self.sessions.begin() as session:
@@ -191,7 +216,7 @@ class RpsRepository:
             player = session.scalar(select(Player).join(GuestCredential).where(
                 GuestCredential.digest == credential_digest(raw_credential)))
             if player is not None:
-                player.last_seen_at = now()
+                player.last_seen_at = self.clock()
             return player
 
     def rename(self, player_id: str, nickname: str) -> Player:
@@ -201,7 +226,7 @@ class RpsRepository:
         with self.sessions.begin() as session:
             player = self._player(session, player_id)
             player.nickname = cleaned
-            player.last_seen_at = now()
+            player.last_seen_at = self.clock()
             return player
 
     def open_connection(self, player_id: str, provenance: dict[str, str | None]) -> str:
@@ -209,7 +234,7 @@ class RpsRepository:
         with self.sessions.begin() as session:
             self._player(session, player_id)
             session.add(ConnectionSession(id=identifier, player_id=player_id,
-                connected_at=now(), disconnected_at=None, **provenance))
+                connected_at=self.clock(), disconnected_at=None, **provenance))
         return identifier
 
     def close_connection(self, connection_id: str) -> None:
@@ -217,7 +242,7 @@ class RpsRepository:
             connection = session.get(ConnectionSession, connection_id)
             if connection is None or connection.disconnected_at is not None:
                 raise DomainError("Connection is not active.")
-            connection.disconnected_at = now()
+            connection.disconnected_at = self.clock()
 
     def join_queue(self, player_id: str) -> MatchmakingEntry:
         with self.sessions.begin() as session:
@@ -227,7 +252,7 @@ class RpsRepository:
             if active:
                 raise DomainError("Player is already queued.")
             entry = MatchmakingEntry(id=str(uuid4()), player_id=player_id, state="queued",
-                joined_at=now(), left_at=None, match_id=None)
+                joined_at=self.clock(), left_at=None, match_id=None)
             session.add(entry)
             return entry
 
@@ -236,13 +261,14 @@ class RpsRepository:
             entry = session.get(MatchmakingEntry, entry_id)
             if entry is None or entry.state != "queued":
                 raise DomainError("Queue entry is not active.")
-            entry.state, entry.left_at = "left", now()
+            entry.state, entry.left_at = "left", self.clock()
 
     def create_match(self, first_id: str, second_id: str, *, ranked: bool = True,
-        rematch_of_id: str | None = None) -> Match:
+        rematch_of_id: str | None = None, selection_deadline_at: datetime | None = None,
+        queue_entry_ids: tuple[str, str] | None = None) -> Match:
         if first_id == second_id:
             raise DomainError("A match requires two distinct players.")
-        timestamp, identifier = now(), str(uuid4())
+        timestamp, identifier = self.clock(), str(uuid4())
         with self.sessions.begin() as session:
             players = [self._player(session, player_id) for player_id in (first_id, second_id)]
             if rematch_of_id is not None:
@@ -255,14 +281,27 @@ class RpsRepository:
                 rematch_of_id=rematch_of_id)
             session.add(match)
             session.add_all(MatchParticipant(match_id=identifier, player_id=player.id,
-                seat=seat, streak_at_start=player.competitive_streak)
+                seat=seat, streak_at_start=player.competitive_streak,
+                disconnected_at=None, reconnect_deadline_at=None)
                 for seat, player in enumerate(players, 1))
             session.add(Round(match_id=identifier, number=1, state="collecting",
                 outcome=None, winner_id=None, started_at=timestamp, resolved_at=None))
+            if selection_deadline_at is not None:
+                session.flush()
+                session.get(Round, (identifier, 1)).selection_deadline_at = selection_deadline_at
+            if queue_entry_ids is not None:
+                entries = [session.get(MatchmakingEntry, entry_id) for entry_id in queue_entry_ids]
+                if any(entry is None or entry.state != "queued" for entry in entries):
+                    raise DomainError("Queue entry is not active.")
+                if {entry.player_id for entry in entries} != {first_id, second_id}:
+                    raise DomainError("Queue entries do not match participants.")
+                for entry in entries:
+                    entry.state, entry.left_at, entry.match_id = "matched", timestamp, identifier
             session.flush()
             return match
 
-    def submit_throw(self, match_id: str, player_id: str, selection: str) -> dict[str, object]:
+    def submit_throw(self, match_id: str, player_id: str, selection: str,
+        next_deadline_at: datetime | None = None) -> dict[str, object]:
         if selection not in THROWS:
             raise DomainError("Throw must be rock, paper, or scissors.")
         with self.sessions.begin() as session:
@@ -279,13 +318,14 @@ class RpsRepository:
             if duplicate:
                 raise DomainError("Player has already thrown in this round.")
             session.add(Throw(match_id=match_id, round_number=round_.number,
-                player_id=player_id, selection=selection, submitted_at=now()))
+                player_id=player_id, selection=selection, submitted_at=self.clock()))
             session.flush()
             throws = session.scalars(select(Throw).where(Throw.match_id == match_id,
                 Throw.round_number == round_.number)).all()
             if len(throws) == 1:
                 return {"match_id": match_id, "round": round_.number, "state": "concealed"}
-            return self._resolve_round(session, match, round_, participants, throws)
+            return self._resolve_round(session, match, round_, participants, throws,
+                next_deadline_at)
 
     def forfeit(self, match_id: str, loser_id: str) -> dict[str, object]:
         with self.sessions.begin() as session:
@@ -297,9 +337,41 @@ class RpsRepository:
             round_ = session.scalar(select(Round).where(Round.match_id == match_id,
                 Round.state == "collecting"))
             if round_ is not None:
-                round_.state, round_.resolved_at = "cancelled", now()
+                round_.state, round_.resolved_at = "cancelled", self.clock()
             self._complete_match(session, match, "forfeit", winner_id, loser_id)
             return self._match_state(match)
+
+    def fail_match(self, match_id: str, failed_player_ids: set[str]) -> dict[str, object]:
+        """Resolve one failure as a forfeit and simultaneous failures as a draw."""
+        with self.sessions.begin() as session:
+            match = self._active_match(session, match_id)
+            participants = self._participants(session, match_id)
+            if not failed_player_ids or not failed_player_ids <= participants.keys():
+                raise DomainError("Failed players must be match participants.")
+            round_ = session.scalar(select(Round).where(Round.match_id == match_id,
+                Round.state == "collecting"))
+            if round_ is not None:
+                round_.state, round_.resolved_at = "cancelled", self.clock()
+            if len(failed_player_ids) == 2:
+                self._complete_match(session, match, "draw", None, None)
+            else:
+                loser_id = next(iter(failed_player_ids))
+                winner_id = next(player_id for player_id in participants if player_id != loser_id)
+                self._complete_match(session, match, "forfeit", winner_id, loser_id)
+            return self._match_state(match)
+
+    def set_connection_state(self, match_id: str, player_id: str,
+        reconnect_deadline_at: datetime | None) -> None:
+        with self.sessions.begin() as session:
+            participant = session.get(MatchParticipant, (match_id, player_id))
+            if participant is None:
+                raise DomainError("Player is not a participant in this match.")
+            participant.disconnected_at = self.clock() if reconnect_deadline_at else None
+            participant.reconnect_deadline_at = reconnect_deadline_at
+
+    def player(self, player_id: str) -> Player:
+        with self.sessions() as session:
+            return self._player(session, player_id)
 
     def match_state(self, match_id: str) -> dict[str, object]:
         with self.sessions() as session:
@@ -314,9 +386,10 @@ class RpsRepository:
             return state
 
     def _resolve_round(self, session: Session, match: Match, round_: Round,
-        participants: dict[str, MatchParticipant], throws: list[Throw]) -> dict[str, object]:
+        participants: dict[str, MatchParticipant], throws: list[Throw],
+        next_deadline_at: datetime | None) -> dict[str, object]:
         ordered = sorted(throws, key=lambda item: participants[item.player_id].seat)
-        result, timestamp = throw_result(ordered[0].selection, ordered[1].selection), now()
+        result, timestamp = throw_result(ordered[0].selection, ordered[1].selection), self.clock()
         round_.state, round_.resolved_at = "resolved", timestamp
         if result == 0:
             round_.outcome = "tie"
@@ -325,7 +398,8 @@ class RpsRepository:
             else:
                 session.add(Round(match_id=match.id, number=round_.number + 1,
                     state="collecting", outcome=None, winner_id=None,
-                    started_at=timestamp, resolved_at=None))
+                    started_at=timestamp, resolved_at=None,
+                    selection_deadline_at=next_deadline_at))
         else:
             winner = ordered[0].player_id if result == 1 else ordered[1].player_id
             loser = ordered[1].player_id if result == 1 else ordered[0].player_id
@@ -338,7 +412,7 @@ class RpsRepository:
 
     def _complete_match(self, session: Session, match: Match, outcome: str,
         winner_id: str | None, loser_id: str | None) -> None:
-        match.state, match.outcome, match.completed_at = "completed", outcome, now()
+        match.state, match.outcome, match.completed_at = "completed", outcome, self.clock()
         match.winner_id, match.loser_id = winner_id, loser_id
         if match.ranked and winner_id and loser_id:
             self._player(session, winner_id).competitive_streak += 1

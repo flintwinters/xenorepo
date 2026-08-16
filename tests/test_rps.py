@@ -185,8 +185,8 @@ class RpsTests(unittest.TestCase):
 
         application = create_app(f"sqlite:///{self.database}")
         self.addCleanup(application.state.repository.sessions.kw["bind"].dispose)
-        endpoints = {route.path + ":" + next(iter(route.methods or ())): route.endpoint
-            for route in application.routes if hasattr(route, "endpoint")}
+        endpoints = {route.path + ":" + next(iter(route.methods)): route.endpoint
+            for route in application.routes if getattr(route, "methods", None)}
 
         def request(headers: dict[str, str] | None = None) -> Request:
             encoded = [(key.lower().encode(), value.encode()) for key, value in (headers or {}).items()]

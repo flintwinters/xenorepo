@@ -1,10 +1,13 @@
 # Rock Paper Scissors
 
-Rock Paper Scissors is a standalone social arena. This checkpoint
-provides durable guest identity and the complete ranked match state machine;
-live matchmaking and round transport are introduced by the next checkpoint.
+Rock Paper Scissors is a standalone live competitive arena. Guests enter a
+streak-aware queue, receive simultaneous concealed ten-second rounds, and may
+recover an interrupted match for five seconds through their durable guest
+credential. Ranked decisive results and forfeits update competitive streaks;
+five consecutive ties end in a draw.
 
-FastAPI serves the self-contained browser document and JSON session API. The
+FastAPI serves the self-contained browser document, JSON session API, and the
+same-origin `/ws` arena protocol from one process. The
 default SQLite database is `data/rps.db`; set `RPS_DATABASE_URL` to another
 SQLAlchemy-compatible URL when deploying.
 

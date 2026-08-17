@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, aliased, mapped_column, sessionmaker
 
 from apps.microblog.auth import PasswordHash, hash_password, normalize_handle, token_digest, verify_password
+from tooling.database import ClientProvenanceMixin
 from tooling.database import create_session_factory as shared_session_factory
 from tooling.database import sqlite_url
 
@@ -53,7 +54,7 @@ class PasswordCredential(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-class AuthenticationSession(Base):
+class AuthenticationSession(ClientProvenanceMixin, Base):
     __tablename__ = "authentication_sessions"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"), index=True)
@@ -61,9 +62,6 @@ class AuthenticationSession(Base):
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    client_host: Mapped[str | None] = mapped_column(String(255))
-    user_agent: Mapped[str | None] = mapped_column(String(500))
-    origin: Mapped[str | None] = mapped_column(String(500))
 
 
 class Post(Base):

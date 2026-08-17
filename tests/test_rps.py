@@ -259,6 +259,13 @@ class RpsTests(unittest.TestCase):
         updated = endpoints["/api/session:PATCH"](
             NicknameInput(nickname="Grace"), request({"Cookie": session_cookie}))
         self.assertEqual(updated["nickname"], "Grace")
+        rejected_origin = endpoints["/api/session:PATCH"](
+            NicknameInput(nickname="Ada"), request({"Origin": "https://foreign.example"}))
+        self.assertEqual((rejected_origin.status_code, json.loads(rejected_origin.body)),
+            (403, {"error": "Request origin is not allowed."}))
+        missing_guest = endpoints["/api/session:PATCH"](NicknameInput(nickname="Ada"), request())
+        self.assertEqual((missing_guest.status_code, json.loads(missing_guest.body)),
+            (401, {"error": "Guest session is required."}))
         self.assertTrue(session_cookie.startswith(f"{COOKIE}="))
 
 

@@ -8,6 +8,7 @@ from sqlalchemy import inspect, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
+from tooling.database import ClientProvenanceMixin
 from tooling.database import create_session_factory as shared_session_factory
 from tooling.database import sqlite_url
 
@@ -45,16 +46,13 @@ class ParticipantAlias(Base):
     last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-class ConnectionSession(Base):
+class ConnectionSession(ClientProvenanceMixin, Base):
     __tablename__ = "connection_sessions"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), index=True)
     participant_id: Mapped[str | None] = mapped_column(ForeignKey("participants.id"), index=True)
     connected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     disconnected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    client_host: Mapped[str | None] = mapped_column(String(255))
-    user_agent: Mapped[str | None] = mapped_column(String(500))
-    origin: Mapped[str | None] = mapped_column(String(500))
 
 
 class ChatMessage(Base):

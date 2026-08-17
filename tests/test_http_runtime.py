@@ -1,5 +1,6 @@
 """Platform contracts shared by every managed FastAPI application."""
 
+import asyncio
 from pathlib import Path
 import unittest
 
@@ -10,7 +11,11 @@ from tooling.apps import discover_apps
 from tooling.http import (
     client_provenance,
     delete_session_cookie,
+    domain_error_handler,
+    enforce_same_origin,
     json_error,
+    require_cookie_principal,
+    resolve_cookie_principal,
     same_origin_allowed,
     set_session_cookie,
 )
@@ -45,6 +50,31 @@ class HttpPlatformTests(unittest.TestCase):
         cleared = delete_session_cookie(JSONResponse({}), "session")
         self.assertIn("session=\"\"", cleared.headers["set-cookie"])
         self.assertIn("Path=/", cleared.headers["set-cookie"])
+
+    def test_origin_and_cookie_helpers_preserve_application_rejections(self) -> None:
+        accepted = request(headers={"Cookie": "session=known"})
+        resolver = lambda value: {"known": "principal"}.get(value)
+        self.assertEqual(resolve_cookie_principal(accepted, "session", resolver), "principal")
+        self.assertEqual(require_cookie_principal(
+            accepted, "session", resolver, ValueError, "Authentication required."), "principal")
+        with self.assertRaisesRegex(ValueError, "Authentication required"):
+            require_cookie_principal(request(), "session", resolver, ValueError,
+                "Authentication required.")
+
+        rejected = enforce_same_origin(request(headers={"Origin": "https://foreign.test"}),
+            lambda message: json_error(message, 403))
+        self.assertEqual((rejected.status_code, rejected.body),
+            (403, b'{"error":"Request origin is not allowed."}'))
+        with self.assertRaisesRegex(ValueError, "origin is not allowed"):
+            enforce_same_origin(request(headers={"Origin": "https://foreign.test"}), ValueError)
+
+    def test_domain_error_handler_is_configurable(self) -> None:
+        class Failure(ValueError):
+            kind = "missing"
+
+        handler = domain_error_handler(statuses={"missing": 404})
+        response = asyncio.run(handler(request(), Failure("Not found.")))
+        self.assertEqual((response.status_code, response.body), (404, b'{"error":"Not found."}'))
 
 
 class RuntimePlatformTests(unittest.TestCase):

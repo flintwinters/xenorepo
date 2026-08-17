@@ -14,8 +14,11 @@ from apps.microblog.database import DomainError, MicroblogRepository, create_ses
 from tooling.http import (
     client_provenance,
     delete_session_cookie,
+    domain_error_handler,
+    enforce_same_origin,
     json_error,
-    same_origin_allowed,
+    require_cookie_principal,
+    resolve_cookie_principal,
     set_session_cookie,
 )
 from tooling.runtime import create_application
@@ -75,22 +78,21 @@ def create_app(database_url: str | None = None) -> FastAPI:
     application = create_application("microblog")
 
     def current_account(request: Request) -> object | None:
-        return repository.account_for_token(request.cookies.get(COOKIE))
+        return resolve_cookie_principal(request, COOKIE, repository.account_for_token)
 
     def enforce_origin(request: Request) -> None:
-        if not same_origin_allowed(request):
-            raise DomainError("Request origin is not allowed.", "forbidden")
+        enforce_same_origin(request, lambda message: DomainError(message, "forbidden"))
 
     def require_account(request: Request) -> object:
-        account = current_account(request)
-        if account is None:
-            raise DomainError("Authentication required.", "authentication")
-        return account
+        return require_cookie_principal(
+            request, COOKIE, repository.account_for_token,
+            lambda message: DomainError(message, "authentication"),
+            "Authentication required.",
+        )
 
-    @application.exception_handler(DomainError)
-    async def domain_error(_request: Request, failure: DomainError) -> JSONResponse:
-        statuses = {"authentication": 401, "conflict": 409, "forbidden": 403, "missing": 404}
-        return json_error(str(failure), statuses.get(failure.kind, 400))
+    application.add_exception_handler(DomainError, domain_error_handler(statuses={
+        "authentication": 401, "conflict": 409, "forbidden": 403, "missing": 404,
+    }))
 
     @application.exception_handler(ValidationError)
     async def validation_error(_request: Request, failure: ValidationError) -> JSONResponse:

@@ -20,6 +20,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from apps.rps.auth import credential_digest
+from tooling.database import ClientProvenanceMixin
 from tooling.database import create_session_factory as shared_session_factory
 from tooling.database import sqlite_url
 
@@ -57,15 +58,12 @@ class GuestCredential(Base):
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-class ConnectionSession(Base):
+class ConnectionSession(ClientProvenanceMixin, Base):
     __tablename__ = "connection_sessions"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     player_id: Mapped[str] = mapped_column(ForeignKey("players.id"), index=True)
     connected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     disconnected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    client_host: Mapped[str | None] = mapped_column(String(255))
-    user_agent: Mapped[str | None] = mapped_column(String(500))
-    origin: Mapped[str | None] = mapped_column(String(500))
 
 
 class Match(Base):

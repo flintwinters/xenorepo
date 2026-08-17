@@ -12,8 +12,10 @@ from apps.rps.arena import ArenaCoordinator
 from apps.rps.database import DomainError, RpsRepository, create_session_factory, sqlite_url
 from apps.rps.scheduling import AsyncIOScheduler, Clock, Scheduler, SystemClock
 from tooling.http import (
+    domain_error_handler,
+    enforce_same_origin,
     json_error,
-    same_origin_allowed,
+    resolve_cookie_principal,
     set_session_cookie,
 )
 from tooling.realtime import websocket_origin_allowed
@@ -45,11 +47,9 @@ def create_app(database_url: str | None = None, *, clock: Clock | None = None,
     application = create_application("rps")
 
     def current_player(request: Request) -> object | None:
-        return repository.restore_guest(request.cookies.get(COOKIE))
+        return resolve_cookie_principal(request, COOKIE, repository.restore_guest)
 
-    @application.exception_handler(DomainError)
-    async def domain_error(_request: Request, failure: DomainError) -> JSONResponse:
-        return json_error(str(failure), 400)
+    application.add_exception_handler(DomainError, domain_error_handler())
 
     @application.get("/api/session")
     def session_state(request: Request) -> JSONResponse:
@@ -63,8 +63,9 @@ def create_app(database_url: str | None = None, *, clock: Clock | None = None,
 
     @application.patch("/api/session", response_model=None)
     def update_session(payload: NicknameInput, request: Request) -> dict[str, object] | JSONResponse:
-        if not same_origin_allowed(request):
-            return json_error("Request origin is not allowed.", 403)
+        rejected = enforce_same_origin(request, lambda message: json_error(message, 403))
+        if rejected is not None:
+            return rejected
         player = current_player(request)
         if player is None:
             return json_error("Guest session is required.", 401)

@@ -9,6 +9,12 @@ from sqlalchemy.exc import IntegrityError
 from starlette.websockets import WebSocketDisconnect
 
 from tests.support import SocketDouble, run_async
+from apps.chat.database import ConnectionSession as ChatConnectionSession
+from apps.microblog.auth import issue_token, token_digest
+from apps.microblog.database import AuthenticationSession
+from apps.rps.auth import credential_digest, issue_credential
+from apps.rps.database import ConnectionSession as RpsConnectionSession
+from tooling.auth import issue_opaque_credential, opaque_credential_digest
 from tooling.apps import discover_apps
 from tooling.database import create_session_factory
 from tooling.realtime import (
@@ -81,6 +87,29 @@ class SharedFrameworkTests(unittest.TestCase):
             "user_agent": "test-suite", "origin": "http://arena.test"})
         socket.headers["origin"] = "https://foreign.test"
         self.assertFalse(websocket_origin_allowed(socket))
+
+    def test_opaque_credentials_have_one_canonical_compatible_contract(self) -> None:
+        credentials = {issue_opaque_credential() for _ in range(16)}
+        self.assertEqual(len(credentials), 16)
+        for credential in credentials:
+            self.assertRegex(credential, r"^[A-Za-z0-9_-]{43}$")
+        expected = "fcd67aa6f012ef6579f191b8a6614d5672d9ff4c725ffce97e06a0e4abc08019"
+        self.assertEqual(opaque_credential_digest("opaque-test"), expected)
+        self.assertRegex(issue_token(), r"^[A-Za-z0-9_-]{43}$")
+        self.assertRegex(issue_credential(), r"^[A-Za-z0-9_-]{43}$")
+        self.assertEqual(token_digest("opaque-test"), expected)
+        self.assertEqual(credential_digest("opaque-test"), expected)
+
+    def test_session_models_share_nullable_client_provenance(self) -> None:
+        provenance = {"client_host": "127.0.0.1", "user_agent": "test-suite",
+            "origin": "http://arena.test"}
+        expected_lengths = {"client_host": 255, "user_agent": 500, "origin": 500}
+        for model in (ChatConnectionSession, AuthenticationSession, RpsConnectionSession):
+            with self.subTest(model=model.__name__):
+                self.assertEqual({name: model.__table__.c[name].type.length
+                    for name in expected_lengths}, expected_lengths)
+                record = model(**provenance)
+                self.assertEqual({name: getattr(record, name) for name in provenance}, provenance)
 
 
 if __name__ == "__main__":

@@ -1,12 +1,13 @@
 """Opaque guest credential primitives."""
 
-import hashlib
-import secrets
+from tooling.auth import issue_opaque_credential, opaque_credential_digest
 
 
 def issue_credential() -> str:
-    return secrets.token_urlsafe(32)
+    """Issue an RPS-compatible opaque guest credential."""
+    return issue_opaque_credential()
 
 
 def credential_digest(credential: str) -> str:
-    return hashlib.sha256(credential.encode()).hexdigest()
+    """Return the storage-safe digest for an RPS guest credential."""
+    return opaque_credential_digest(credential)

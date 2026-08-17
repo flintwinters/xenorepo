@@ -6,6 +6,8 @@ import hmac
 import re
 import secrets
 
+from tooling.auth import issue_opaque_credential, opaque_credential_digest
+
 
 HANDLE_PATTERN = re.compile(r"^[a-z0-9_]{3,20}$")
 PASSWORD_MINIMUM = 8
@@ -62,8 +64,10 @@ def verify_password(password: str, credential: PasswordHash) -> bool:
 
 
 def issue_token() -> str:
-    return secrets.token_urlsafe(32)
+    """Issue a Microblog-compatible opaque session token."""
+    return issue_opaque_credential()
 
 
 def token_digest(token: str) -> str:
-    return hashlib.sha256(token.encode()).hexdigest()
+    """Return the storage-safe digest for a Microblog session token."""
+    return opaque_credential_digest(token)

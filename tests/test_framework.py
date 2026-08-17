@@ -3,6 +3,7 @@
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
 from sqlalchemy import ForeignKey, Integer, MetaData, Table, Column, text
 from sqlalchemy.exc import IntegrityError
@@ -16,7 +17,7 @@ from apps.rps.auth import credential_digest, issue_credential
 from apps.rps.database import ConnectionSession as RpsConnectionSession
 from tooling.auth import issue_opaque_credential, opaque_credential_digest
 from tooling.apps import discover_apps
-from tooling.database import create_session_factory
+from tooling.database import create_session_factory, resolve_database_url
 from tooling.realtime import (
     ConnectionRegistry,
     bounded_text,
@@ -51,6 +52,23 @@ class SharedFrameworkTests(unittest.TestCase):
             self.assertEqual(session.scalar(text("PRAGMA foreign_keys")), 1)
         with self.assertRaises(IntegrityError), sessions.begin() as session:
             session.execute(children.insert().values(id=1, parent_id=999))
+
+    def test_database_url_resolution_has_a_stable_override_order(self) -> None:
+        default_path = Path("tests/resolved-database.db")
+        with patch.dict("os.environ", {"FIXTURE_DATABASE_URL": "postgresql://environment"}):
+            self.assertEqual(
+                resolve_database_url("sqlite:///explicit.db", "FIXTURE_DATABASE_URL", default_path),
+                "sqlite:///explicit.db",
+            )
+            self.assertEqual(
+                resolve_database_url(None, "FIXTURE_DATABASE_URL", default_path),
+                "postgresql://environment",
+            )
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertEqual(
+                resolve_database_url(None, "FIXTURE_DATABASE_URL", default_path),
+                "sqlite:///tests/resolved-database.db",
+            )
 
     def test_registry_filters_sends_and_reports_stale_connections(self) -> None:
         registry = ConnectionRegistry[str]()

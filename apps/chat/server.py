@@ -1,13 +1,13 @@
 """Single FastAPI runtime for durable anonymous group chat."""
 
-import os
 from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-from apps.chat.database import ChatRepository, create_session_factory, sqlite_url
+from apps.chat.database import ChatRepository, create_session_factory
+from tooling.database import resolve_database_url
 from tooling.http import client_provenance
 from tooling.realtime import (
     ConnectionRegistry,
@@ -81,7 +81,7 @@ def clean_identity(payload: dict[str, Any]) -> tuple[str, str] | None:
 
 
 def create_app(database_url: str | None = None) -> FastAPI:
-    resolved_url = database_url or os.environ.get("CHAT_DATABASE_URL") or sqlite_url(DEFAULT_DATABASE)
+    resolved_url = resolve_database_url(database_url, "CHAT_DATABASE_URL", DEFAULT_DATABASE)
     repository = ChatRepository(create_session_factory(resolved_url))
     hub = ConnectionHub()
     application = create_application("chat")

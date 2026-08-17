@@ -1,7 +1,6 @@
 """Single FastAPI runtime for the WIRE/98 public microblog."""
 
 from collections.abc import Iterator
-import os
 from pathlib import Path
 from threading import Condition
 
@@ -10,7 +9,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from apps.microblog.auth import ValidationError, issue_token
-from apps.microblog.database import DomainError, MicroblogRepository, create_session_factory, sqlite_url
+from apps.microblog.database import DomainError, MicroblogRepository, create_session_factory
+from tooling.database import resolve_database_url
 from tooling.http import (
     client_provenance,
     delete_session_cookie,
@@ -72,7 +72,7 @@ class ChangeFeed:
 
 
 def create_app(database_url: str | None = None) -> FastAPI:
-    resolved = database_url or os.environ.get("MICROBLOG_DATABASE_URL") or sqlite_url(DEFAULT_DATABASE)
+    resolved = resolve_database_url(database_url, "MICROBLOG_DATABASE_URL", DEFAULT_DATABASE)
     repository = MicroblogRepository(create_session_factory(resolved))
     changes = ChangeFeed()
     application = create_application("microblog")

@@ -13,6 +13,15 @@ from tests.support import SocketDouble, run_async
 
 
 class RepositoryAppTests(unittest.TestCase):
+    def test_library_catalog_describes_the_shared_frontend_and_backend_boundaries(self) -> None:
+        catalog = (ROOT / "LIBRARIES.md").read_text(encoding="utf-8")
+
+        self.assertIn("# Custom Library Catalog", catalog)
+        self.assertIn("`tooling/`", catalog)
+        self.assertIn("`packages/lit-ui/`", catalog)
+        self.assertIn("Applications are consumers; they do not", catalog)
+        self.assertIn("import one another.", catalog)
+
     def test_serve_without_an_app_lists_discovered_choices(self) -> None:
         result = CliRunner().invoke(app, ["serve"])
 

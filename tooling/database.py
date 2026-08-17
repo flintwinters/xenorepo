@@ -1,6 +1,7 @@
 """Shared SQLAlchemy construction with portable SQLite correctness defaults."""
 
 from collections.abc import Callable
+import os
 from pathlib import Path
 from typing import Any
 
@@ -49,3 +50,12 @@ def sqlite_url(path: Path) -> str:
     """Return a SQLite URL after ensuring its visible data directory exists."""
     path.parent.mkdir(parents=True, exist_ok=True)
     return f"sqlite:///{path}"
+
+
+def resolve_database_url(
+    configured_url: str | None,
+    environment_key: str,
+    default_path: Path,
+) -> str:
+    """Resolve an app database from explicit, environment, then local sources."""
+    return configured_url or os.environ.get(environment_key) or sqlite_url(default_path)

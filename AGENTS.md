@@ -84,3 +84,5 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 
 - Center the RPS reveal as a dominant arena panel with instantly distinguishable
   hand silhouettes and stable spatial/color ownership for both players.
+- Strengthen frontend/backend separation, extract proven Python and frontend
+  libraries, and maintain `LIBRARIES.md` as their authoritative catalog.

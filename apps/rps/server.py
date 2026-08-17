@@ -1,6 +1,5 @@
 """FastAPI service for Rock Paper Scissors guest identity and persistence."""
 
-import os
 from pathlib import Path
 
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
@@ -9,8 +8,9 @@ from pydantic import BaseModel
 
 from apps.rps.auth import issue_credential
 from apps.rps.arena import ArenaCoordinator
-from apps.rps.database import DomainError, RpsRepository, create_session_factory, sqlite_url
+from apps.rps.database import DomainError, RpsRepository, create_session_factory
 from apps.rps.scheduling import AsyncIOScheduler, Clock, Scheduler, SystemClock
+from tooling.database import resolve_database_url
 from tooling.http import (
     domain_error_handler,
     enforce_same_origin,
@@ -39,7 +39,7 @@ def player_state(player: object) -> dict[str, object]:
 
 def create_app(database_url: str | None = None, *, clock: Clock | None = None,
     scheduler: Scheduler | None = None) -> FastAPI:
-    resolved = database_url or os.environ.get("RPS_DATABASE_URL") or sqlite_url(DEFAULT_DATABASE)
+    resolved = resolve_database_url(database_url, "RPS_DATABASE_URL", DEFAULT_DATABASE)
     resolved_clock = clock or SystemClock()
     repository = RpsRepository(create_session_factory(resolved), resolved_clock.now)
     coordinator = ArenaCoordinator(repository, resolved_clock,

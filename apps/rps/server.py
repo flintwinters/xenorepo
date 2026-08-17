@@ -10,16 +10,16 @@ from apps.rps.auth import issue_credential
 from apps.rps.arena import ArenaCoordinator
 from apps.rps.database import DomainError, RpsRepository, create_session_factory
 from apps.rps.scheduling import AsyncIOScheduler, Clock, Scheduler, SystemClock
-from tooling.database import resolve_database_url
-from tooling.http import (
+from monotools.database import resolve_database_url
+from monotools.http import (
     domain_error_handler,
     enforce_same_origin,
     json_error,
     resolve_cookie_principal,
     set_session_cookie,
 )
-from tooling.realtime import websocket_origin_allowed
-from tooling.runtime import create_application
+from monotools.realtime import websocket_origin_allowed
+from monotools.runtime import create_application
 
 
 DIRECTORY = Path(__file__).parent

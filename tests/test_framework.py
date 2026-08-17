@@ -15,10 +15,10 @@ from apps.microblog.auth import issue_token, token_digest
 from apps.microblog.database import AuthenticationSession
 from apps.rps.auth import credential_digest, issue_credential
 from apps.rps.database import ConnectionSession as RpsConnectionSession
-from tooling.auth import issue_opaque_credential, opaque_credential_digest
-from tooling.apps import discover_apps
-from tooling.database import create_session_factory, resolve_database_url
-from tooling.realtime import (
+from monotools.auth import issue_opaque_credential, opaque_credential_digest
+from monotools.apps import discover_apps
+from monotools.database import create_session_factory, resolve_database_url
+from monotools.realtime import (
     ConnectionRegistry,
     bounded_text,
     client_provenance,

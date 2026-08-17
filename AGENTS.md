@@ -1,8 +1,8 @@
-# Centralized App Tooling Laboratory
+# Centralized App Monotools Laboratory
 
 ## 1. Guiding motivation
 
-This iteration treats centralized tooling as the primary product. Individual
+This iteration treats Monotools as the primary product. Individual
 apps are experiments and proving grounds for an impeccable scripting framework
 that manages their complete lifecycle: planning, creation, startup, building,
 validation, testing, and maintenance.
@@ -10,7 +10,7 @@ validation, testing, and maintenance.
 Optimize first for a coherent developer experience, deterministic behavior,
 and reusable automation. App work should expose requirements for the framework;
 it should not accumulate one-off scripts or workflows. Promote every proven
-operation into shared tooling so each new app becomes easier to understand and
+operation into Monotools so each new app becomes easier to understand and
 manage than the last.
 
 Prefer short feedback loops, strict contracts, portable state, reproducible
@@ -25,10 +25,10 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 - `manage.py` is the sole routine entrypoint and the repository's primary
   interface. Every recurring workflow belongs behind a clear, discoverable
   command implemented with Typer and presented with Rich.  All apps must be routed thru this cockpit from the start.
-- Central tooling owns planning, scaffolding, discovery, startup, shutdown,
+- Monotools owns planning, scaffolding, discovery, startup, shutdown,
   building, validation, testing, and status reporting. Apps declare facts and
   capabilities; they do not duplicate lifecycle orchestration.
-- App definitions are declarative, typed, and capability-driven. Tooling must
+- App definitions are declarative, typed, and capability-driven. Monotools must
   discover behavior from metadata rather than hard-coded app names or implicit
   directory knowledge.
 - Applications use FastAPI as their sole runtime service. Server-owned URLs
@@ -41,7 +41,7 @@ When a systemic issue, which may occur more than once, is found, routinize prote
   legacy documents until deliberately migrated.
 - Treat persistence as an implementation detail behind a durable domain
   boundary. Use SQLAlchemy's ORM as the database abstraction layer so
-  application behavior, schemas, and lifecycle tooling do not depend on
+  application behavior, schemas, and lifecycle utilities do not depend on
   backend-specific SQL or connection APIs. Prefer SQLite as the primary
   database, especially for demos and local experiments, while designing models,
   migrations, queries, and transaction boundaries to remain compatible with a
@@ -74,7 +74,7 @@ When a systemic issue, which may occur more than once, is found, routinize prote
   the visible per-app `data/` directory, never a hidden directory or `/tmp`.
 - Keep source files below 600 lines and cyclomatic complexity at or below 8.
   Prefer small modules with explicit responsibilities and strict interfaces.
-- Apps remain independent product experiments. They may share central tooling,
+- Apps remain independent product experiments. They may share Monotools,
   contracts, and learned patterns, but not application source or build artifacts.
 - Give every app a README so it can be deployed as a standalone submodule.
 - Do not use hidden folders or hide state or project files.

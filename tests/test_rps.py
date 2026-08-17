@@ -42,7 +42,7 @@ class RpsTests(unittest.TestCase):
 
     def test_every_application_title_is_rock_paper_scissors(self) -> None:
         from apps.rps.server import create_app
-        from tooling.apps import get_app
+        from monotools.apps import get_app
 
         title = "Rock Paper Scissors"
         document = Path("apps/rps/frontend/index.html").read_text(encoding="utf-8")

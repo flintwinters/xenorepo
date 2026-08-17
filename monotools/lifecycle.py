@@ -9,8 +9,8 @@ import subprocess
 
 from fastapi.routing import APIWebSocketRoute
 
-from tooling.apps import AppDefinition, FrontendArtifact, ROOT
-from tooling.frontend import FrontendCompositionError, compose_document
+from monotools.apps import AppDefinition, FrontendArtifact, ROOT
+from monotools.frontend import FrontendCompositionError, compose_document
 
 
 class LifecycleError(RuntimeError):
@@ -50,7 +50,7 @@ def _build_lit(definition: AppDefinition, artifact: FrontendArtifact) -> None:
     output.write_text(
         "<!doctype html>\n<html lang=\"en\">\n<head>\n"
         "<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        "<meta name=\"tooling-shell\" content=\"console\">\n"
+        "<meta name=\"monotools-shell\" content=\"console\">\n"
         f"<title>{escape(definition.title)}</title>\n"
         "<style>html,body,#app{width:100%;height:100%;margin:0}"
         "html,body{overflow:hidden;background:#1d2021;color:#ebdbb2}</style>\n"

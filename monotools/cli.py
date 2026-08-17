@@ -1,4 +1,4 @@
-"""Typer command model for the centralized tooling framework."""
+"""Typer command model for the centralized Monotools framework."""
 
 from pathlib import Path
 import subprocess
@@ -8,8 +8,8 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from tooling.apps import AppDefinition, AppDefinitionError, ROOT, discover_apps, get_app
-from tooling.lifecycle import LifecycleError, build_app, validate_app, validate_dist
+from monotools.apps import AppDefinition, AppDefinitionError, ROOT, discover_apps, get_app
+from monotools.lifecycle import LifecycleError, build_app, validate_app, validate_dist
 
 
 app = typer.Typer(no_args_is_help=True, help="Build, validate, test, and run repository apps.")

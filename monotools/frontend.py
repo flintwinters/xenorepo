@@ -20,7 +20,7 @@ class DocumentParts:
     script: str
 
 
-CONSOLE_SHELL = """/* tooling.frontend: console shell */
+CONSOLE_SHELL = """/* monotools.frontend: console shell */
 :root {
   color-scheme: dark;
   --bg: #1d2021;
@@ -152,7 +152,7 @@ def compose_console(parts: DocumentParts) -> str:
 <head>
 <meta charset=\"utf-8\">
 <meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">
-<meta name=\"tooling-shell\" content=\"console\">
+<meta name=\"monotools-shell\" content=\"console\">
 <title>{title}</title>
 <style>
 {shell}

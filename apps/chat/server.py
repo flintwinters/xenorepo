@@ -7,14 +7,14 @@ from uuid import UUID
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
 from apps.chat.database import ChatRepository, create_session_factory
-from tooling.database import resolve_database_url
-from tooling.http import client_provenance
-from tooling.realtime import (
+from monotools.database import resolve_database_url
+from monotools.http import client_provenance
+from monotools.realtime import (
     ConnectionRegistry,
     bounded_text,
     websocket_origin_allowed,
 )
-from tooling.runtime import create_application
+from monotools.runtime import create_application
 
 
 DIRECTORY = Path(__file__).parent

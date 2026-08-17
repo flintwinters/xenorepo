@@ -1,1 +1,1 @@
-"""Independent applications managed by central tooling."""
+"""Independent applications managed by Monotools."""

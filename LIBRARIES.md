@@ -7,7 +7,7 @@ consumers; they do not import one another.
 
 | Library | Language | Location | Public responsibility | Consumers |
 | --- | --- | --- | --- | --- |
-| App platform tooling | Python | `tooling/` | `tooling.apps`, `tooling.lifecycle`, `tooling.runtime`, `tooling.database`, `tooling.auth`, `tooling.http`, and `tooling.realtime`: declarative discovery, lifecycle commands, FastAPI document runtime, portable SQLAlchemy setup and database URL resolution, opaque credentials, HTTP/session primitives, and WebSocket delivery. | Central `manage.py` and all apps as applicable. |
+| Monotools | Python | `monotools/` | `monotools.apps`, `monotools.lifecycle`, `monotools.runtime`, `monotools.database`, `monotools.auth`, `monotools.http`, and `monotools.realtime`: declarative discovery, lifecycle commands, FastAPI document runtime, portable SQLAlchemy setup and database URL resolution, opaque credentials, HTTP/session primitives, and WebSocket delivery. | Central `manage.py` and all apps as applicable. |
 | Console Lit UI | TypeScript | `packages/lit-ui/` | Reusable Lit console elements, design tokens, and chrome for browser artifacts. | Calculator today; new Lit pages. |
 
 ## Extraction rules

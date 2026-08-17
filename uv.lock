@@ -34,7 +34,7 @@ wheels = [
 ]
 
 [[package]]
-name = "centralized-app-tooling-laboratory"
+name = "centralized-app-monotools-laboratory"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

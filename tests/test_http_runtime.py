@@ -7,8 +7,8 @@ import unittest
 from fastapi.responses import JSONResponse
 from starlette.requests import Request
 
-from tooling.apps import discover_apps
-from tooling.http import (
+from monotools.apps import discover_apps
+from monotools.http import (
     client_provenance,
     delete_session_cookie,
     domain_error_handler,

@@ -6,7 +6,7 @@ import hmac
 import re
 import secrets
 
-from tooling.auth import issue_opaque_credential, opaque_credential_digest
+from monotools.auth import issue_opaque_credential, opaque_credential_digest
 
 
 HANDLE_PATTERN = re.compile(r"^[a-z0-9_]{3,20}$")

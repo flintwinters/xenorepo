@@ -1,6 +1,6 @@
 # Internal application platform
 
-`tooling` is the repository's internal platform for independently deployable
+`monotools` is the repository's internal platform for independently deployable
 FastAPI applications. It is intentionally not a public SDK: abstractions enter
 only after more than one app has proved their boundary.
 

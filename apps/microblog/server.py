@@ -10,8 +10,8 @@ from pydantic import BaseModel
 
 from apps.microblog.auth import ValidationError, issue_token
 from apps.microblog.database import DomainError, MicroblogRepository, create_session_factory
-from tooling.database import resolve_database_url
-from tooling.http import (
+from monotools.database import resolve_database_url
+from monotools.http import (
     client_provenance,
     delete_session_cookie,
     domain_error_handler,
@@ -21,7 +21,7 @@ from tooling.http import (
     resolve_cookie_principal,
     set_session_cookie,
 )
-from tooling.runtime import create_application
+from monotools.runtime import create_application
 
 
 DIRECTORY = Path(__file__).parent

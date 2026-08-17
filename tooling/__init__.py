@@ -1,1 +1,0 @@
-"""Centralized application lifecycle tooling."""

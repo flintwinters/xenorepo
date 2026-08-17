@@ -5,7 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
-from tooling.apps import get_app
+from monotools.apps import get_app
 
 
 def _document_endpoint(document: Path):

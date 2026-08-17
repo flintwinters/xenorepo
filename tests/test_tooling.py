@@ -5,10 +5,10 @@ from unittest.mock import patch
 
 from typer.testing import CliRunner
 
-from tooling.apps import AppDefinition, AppDefinitionError, FrontendArtifact, ROOT, discover_apps, get_app, load_app
-from tooling.cli import app
-from tooling.frontend import CONSOLE_SHELL, DocumentParts, compose_console
-from tooling.lifecycle import build_app, validate_app, validate_dist
+from monotools.apps import AppDefinition, AppDefinitionError, FrontendArtifact, ROOT, discover_apps, get_app, load_app
+from monotools.cli import app
+from monotools.frontend import CONSOLE_SHELL, DocumentParts, compose_console
+from monotools.lifecycle import build_app, validate_app, validate_dist
 from tests.support import SocketDouble, run_async
 
 
@@ -17,7 +17,7 @@ class RepositoryAppTests(unittest.TestCase):
         catalog = (ROOT / "LIBRARIES.md").read_text(encoding="utf-8")
 
         self.assertIn("# Custom Library Catalog", catalog)
-        self.assertIn("`tooling/`", catalog)
+        self.assertIn("`monotools/`", catalog)
         self.assertIn("`packages/lit-ui/`", catalog)
         self.assertIn("Applications are consumers; they do not", catalog)
         self.assertIn("import one another.", catalog)
@@ -91,9 +91,9 @@ frontend:
             routes=(("/", "home"), ("/about", "about")),
             capabilities=frozenset(),
         )
-        from tooling.runtime import create_application
+        from monotools.runtime import create_application
 
-        with patch("tooling.runtime.get_app", return_value=definition):
+        with patch("monotools.runtime.get_app", return_value=definition):
             application = create_application("fixture")
         routes = {route.path: route for route in application.routes if hasattr(route, "path")}
         self.assertEqual(routes["/"].endpoint(), ROOT / "tests" / "dist" / "home.html")
@@ -128,8 +128,8 @@ frontend:
                 self.assertIn("<style>", document)
                 self.assertIn("<script>", document)
                 self.assertEqual(document.count("<script>"), 1)
-                self.assertIn('<meta name="tooling-shell" content="console">', document)
-                self.assertIn("/* tooling.frontend: console shell */", document)
+                self.assertIn('<meta name="monotools-shell" content="console">', document)
+                self.assertIn("/* monotools.frontend: console shell */", document)
                 self.assertNotIn('src="', document)
                 self.assertNotIn('href="', document)
 
@@ -141,7 +141,7 @@ frontend:
             script='document.title = "READY";',
         ))
 
-        self.assertIn("/* tooling.frontend: console shell */", document)
+        self.assertIn("/* monotools.frontend: console shell */", document)
         self.assertIn("--yellow: #fabd2f", CONSOLE_SHELL)
         self.assertIn("--chrome-rim: #b7cfca", CONSOLE_SHELL)
         self.assertIn(".pane-title.green, .title.green", CONSOLE_SHELL)
@@ -190,7 +190,7 @@ frontend:
         self.assertIn("numbered?.[2]", pane_component)
         self.assertIn("calc98-state-v1", document)
         self.assertIn("x-console-shell", document)
-        self.assertIn('<meta name="tooling-shell" content="console">', document)
+        self.assertIn('<meta name="monotools-shell" content="console">', document)
         self.assertIn("html,body,#app{width:100%;height:100%;margin:0}", document)
         self.assertNotIn('src="', document)
         self.assertNotIn('href="', document)

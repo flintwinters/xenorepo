@@ -1,0 +1,12 @@
+name: quiz
+title: Quick Quiz
+module: apps.quiz.server
+frontend:
+  artifacts:
+    index:
+      format: document
+      source: frontend/index.html
+      output: index.html
+      shell: console
+  routes:
+    /: index

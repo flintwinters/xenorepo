@@ -26,7 +26,7 @@ class RepositoryAppTests(unittest.TestCase):
         result = CliRunner().invoke(app, ["serve"])
 
         self.assertEqual(result.exit_code, 2)
-        self.assertIn("choose an application: calculator, chat, microblog, rps", result.output)
+        self.assertIn("choose an application: calculator, chat, microblog, quiz, rps", result.output)
         self.assertIn("Example: manage.py serve calculator", result.output)
 
     def test_app_catalog_is_nonempty_and_has_unique_names(self) -> None:
@@ -194,6 +194,20 @@ frontend:
         self.assertIn("html,body,#app{width:100%;height:100%;margin:0}", document)
         self.assertNotIn('src="', document)
         self.assertNotIn('href="', document)
+
+    def test_quiz_has_a_five_question_local_session(self) -> None:
+        definition = get_app("quiz")
+        build_app(definition)
+        source = (definition.directory / definition.artifact("index").source).read_text(
+            encoding="utf-8"
+        )
+        document = definition.dist_directory.joinpath("index.html").read_text(encoding="utf-8")
+
+        self.assertEqual(source.count("category:"), 5)
+        self.assertIn('bestKey="quick-quiz-best-v1"', source)
+        self.assertIn("localStorage.setItem(bestKey", source)
+        self.assertIn("Press Enter for the next question.", source)
+        self.assertIn('meta name="monotools-shell" content="console"', document)
 
     def test_chat_persists_history_and_broadcasts_to_every_connection(self) -> None:
         from apps.chat.database import (

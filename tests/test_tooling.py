@@ -207,7 +207,17 @@ frontend:
         self.assertIn("There are no right answers.", source)
         self.assertIn("NOT A CLINICAL ASSESSMENT", source)
         self.assertIn("profile recorded", source.lower())
+        self.assertIn('<div class="pane-body"><ol class="review-list"', source)
         self.assertIn('meta name="monotools-shell" content="console"', document)
+
+    def test_console_data_views_have_a_bounded_scroll_container(self) -> None:
+        shell = (ROOT / "monotools" / "frontend.py").read_text(encoding="utf-8")
+        components = (ROOT / "packages" / "lit-ui" / "src" / "index.ts").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn(".pane-body { min-height: 0; overflow: auto; }", shell)
+        self.assertIn(":host { display: block; min-height: 0; overflow: auto; } table", components)
 
     def test_chat_persists_history_and_broadcasts_to_every_connection(self) -> None:
         from apps.chat.database import (

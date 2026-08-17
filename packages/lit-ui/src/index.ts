@@ -89,7 +89,7 @@ export class DataGrid extends ConsoleElement {
   static properties = { columns: { attribute: false }, rows: { attribute: false }, empty: { type: String } };
   columns: GridColumn[] = []; rows: GridRow[] = []; empty = "NO RECORDS";
   static styles = [consoleTokens, css`
-    :host { display: block; overflow: auto; } table { width: 100%; border-collapse: collapse; table-layout: fixed; } th, td { padding: 4px 7px; text-align: left; border-right: 1px solid var(--console-line, #504945); border-bottom: 1px solid var(--console-line, #504945); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } th { position: sticky; top: 0; color: var(--console-accent, #fabd2f); background: #32302f; } .empty { padding: 18px; color: var(--console-muted, #a89984); text-align: center; }
+    :host { display: block; min-height: 0; overflow: auto; } table { width: 100%; border-collapse: collapse; table-layout: fixed; } th, td { padding: 4px 7px; text-align: left; border-right: 1px solid var(--console-line, #504945); border-bottom: 1px solid var(--console-line, #504945); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } th { position: sticky; top: 0; color: var(--console-accent, #fabd2f); background: #32302f; } .empty { padding: 18px; color: var(--console-muted, #a89984); text-align: center; }
   `];
   render() { return html`<table><thead><tr>${this.columns.map((column) => html`<th scope="col">${column.label}</th>`)}</tr></thead><tbody>${this.rows.length ? this.rows.map((row) => html`<tr>${this.columns.map((column) => html`<td>${row[column.key] ?? ""}</td>`)}</tr>`) : html`<tr><td class="empty" colspan=${this.columns.length || 1}>${this.empty}</td></tr>`}</tbody></table>`; }
 }

@@ -1,8 +1,9 @@
-# Quick Quiz
+# Working Style Inventory
 
-Quick Quiz is a standalone five-question general-knowledge quiz. It gives
-immediate answer feedback, supports number-key selection, and preserves the
-best score locally in the browser.
+Working Style Inventory is a standalone, eight-item non-diagnostic
+psychometric self-reflection exercise. Participants rate workplace statements
+on a five-point scale and receive a local working-style profile across focus,
+structure, connection, and adaptability. It is not a clinical assessment.
 
 From the repository root:
 

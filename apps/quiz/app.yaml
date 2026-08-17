@@ -1,5 +1,5 @@
 name: quiz
-title: Quick Quiz
+title: Working Style Inventory
 module: apps.quiz.server
 frontend:
   artifacts:

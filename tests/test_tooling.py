@@ -195,7 +195,7 @@ frontend:
         self.assertNotIn('src="', document)
         self.assertNotIn('href="', document)
 
-    def test_quiz_has_a_five_question_local_session(self) -> None:
+    def test_quiz_has_a_non_diagnostic_psychometric_inventory(self) -> None:
         definition = get_app("quiz")
         build_app(definition)
         source = (definition.directory / definition.artifact("index").source).read_text(
@@ -203,10 +203,10 @@ frontend:
         )
         document = definition.dist_directory.joinpath("index.html").read_text(encoding="utf-8")
 
-        self.assertEqual(source.count("category:"), 5)
-        self.assertIn('bestKey="quick-quiz-best-v1"', source)
-        self.assertIn("localStorage.setItem(bestKey", source)
-        self.assertIn("Press Enter for the next question.", source)
+        self.assertEqual(source.count("dimension:"), 8)
+        self.assertIn("There are no right answers.", source)
+        self.assertIn("NOT A CLINICAL ASSESSMENT", source)
+        self.assertIn("profile recorded", source.lower())
         self.assertIn('meta name="monotools-shell" content="console"', document)
 
     def test_chat_persists_history_and_broadcasts_to_every_connection(self) -> None:

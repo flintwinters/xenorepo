@@ -3,3 +3,4 @@ __pycache__/
 node_modules/
 .state/
 apps/*/data/*.db
+apps/*/data/ui-check/

@@ -10,6 +10,7 @@ from rich.table import Table
 
 from monotools.apps import AppDefinition, AppDefinitionError, ROOT, discover_apps, get_app
 from monotools.lifecycle import LifecycleError, build_app, validate_app, validate_dist
+from monotools.ui import run_ui_check
 
 
 app = typer.Typer(no_args_is_help=True, help="Build, validate, test, and run repository apps.")
@@ -68,6 +69,11 @@ def bootstrap() -> None:
             ["npm", "ci"],
             "Verify package-lock.json and npm registry access, then rerun bootstrap.",
         )
+        _run_bootstrap(
+            ["node_modules/.bin/playwright", "install", "chromium"],
+            "Install Chromium with node_modules/.bin/playwright install chromium, then rerun bootstrap. "
+            "If the download is blocked, restore network access for the Playwright browser download.",
+        )
     except (FileNotFoundError, LifecycleError) as error:
         _fail(error)
     console.print(f"[bold green]Bootstrap complete[/] (Node {version.stdout.strip()})")
@@ -122,6 +128,20 @@ def test() -> None:
     if result.returncode:
         raise typer.Exit(result.returncode)
     console.print("[bold green]Tests passed[/]")
+
+
+@app.command("ui-check")
+def ui_check(name: str = typer.Argument(..., help="Application name.")) -> None:
+    """Build, serve, and run browser verification for one application."""
+    try:
+        definition = _select_app(name)
+        artifacts = run_ui_check(definition)
+    except (AppDefinitionError, LifecycleError) as error:
+        _fail(error)
+    console.print(
+        f"[bold green]UI checks passed[/] {name} "
+        f"(artifacts: {artifacts.relative_to(ROOT)})"
+    )
 
 
 @app.command()

@@ -9,6 +9,7 @@
     "build:lit": "node scripts/build-lit.mjs"
   },
   "devDependencies": {
+    "@playwright/test": "1.57.0",
     "esbuild": "0.25.10"
   }
 }

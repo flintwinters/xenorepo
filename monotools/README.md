@@ -52,7 +52,8 @@ bundled centrally with esbuild; they import reusable elements only from
 `@xenorepo/lit-ui`. Every artifact is self-contained: embedded CSS and
 JavaScript, no external assets, and no separate frontend service. Use
 `python manage.py bootstrap` to verify Node 22, synchronize locked Python
-dependencies, and run `npm ci` before frontend work.
+dependencies, run `npm ci`, and install the locked Chromium browser before
+frontend work.
 
 ## Required verification
 
@@ -61,3 +62,13 @@ for every new shared primitive and keep app regression coverage in its app test
 module. Before a checkpoint is complete run `python manage.py check` and
 `python manage.py test`; runtime, HTTP, realtime, and frontend tests must
 exercise every discovered app where the contract is cross-app.
+
+## Browser verification
+
+`python manage.py ui-check rps` builds and validates RPS, starts its real
+FastAPI service on an available loopback port, waits for `/health`, and runs the
+Chromium smoke suite at desktop and mobile sizes. The suite permits requests
+only to that managed service. Failure screenshots, traces, and service output
+remain in `apps/rps/data/ui-check/`; the directory is ignored runtime state and
+can be inspected or removed between runs. RPS is the first supported browser
+suite; add an app-specific `tests/ui/<app>.spec.js` before enabling another app.

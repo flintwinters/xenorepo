@@ -29,6 +29,18 @@ class RepositoryAppTests(unittest.TestCase):
         self.assertIn("choose an application: calculator, chat, microblog, quiz, rps", result.output)
         self.assertIn("Example: manage.py serve calculator", result.output)
 
+    def test_status_reports_the_organization_of_every_discovered_app(self) -> None:
+        result = CliRunner().invoke(app, ["status"])
+
+        self.assertEqual(result.exit_code, 0)
+        for name in ("calculator", "chat", "microblog", "quiz", "rps"):
+            with self.subTest(app=name):
+                self.assertIn(name, result.output)
+        self.assertIn("README", result.output)
+        self.assertIn("Source", result.output)
+        self.assertIn("5 managed app(s)", result.output)
+        self.assertIn("manage.py check", result.output)
+
     def test_app_catalog_is_nonempty_and_has_unique_names(self) -> None:
         apps = discover_apps()
         names = [app.name for app in apps]

@@ -92,6 +92,37 @@ def list_apps() -> None:
 
 
 @app.command()
+def status() -> None:
+    """Show the organization and artifact health of every discovered app."""
+    table = Table("App", "Title", "Source", "README", "Data", "Dist")
+    try:
+        definitions = discover_apps()
+    except AppDefinitionError as error:
+        _fail(error)
+    for definition in definitions:
+        source = all(
+            (definition.directory / artifact.source).is_file()
+            for artifact in definition.artifacts
+        )
+        readme = (definition.directory / "README.md").is_file()
+        data = (definition.directory / "data").is_dir()
+        dist = all(
+            (definition.dist_directory / artifact.output).is_file()
+            for artifact in definition.artifacts
+        )
+        table.add_row(
+            definition.name,
+            definition.title,
+            "[green]ok[/]" if source else "[red]missing[/]",
+            "[green]ok[/]" if readme else "[red]missing[/]",
+            "[green]ok[/]" if data else "—",
+            "[green]built[/]" if dist else "[yellow]pending[/]",
+        )
+    console.print(table)
+    console.print(f"{len(definitions)} managed app(s); run [bold]manage.py check[/] for deep validation.")
+
+
+@app.command()
 def build(name: str = typer.Argument(..., help="Application name.")) -> None:
     """Compile an application's frontend into its dist directory."""
     try:

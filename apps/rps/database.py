@@ -21,15 +21,12 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sess
 
 from apps.rps.auth import credential_digest
 from monotools.database import ClientProvenanceMixin
-from monotools.database import create_session_factory as shared_session_factory
-from monotools.database import sqlite_url
+from monotools.appkit import SystemClock
+from monotools.database import create_session_factory as _create_session_factory
 
 
 THROWS = frozenset({"rock", "paper", "scissors"})
-
-
-def now() -> datetime:
-    return datetime.now(timezone.utc)
+now = SystemClock().now
 
 
 class DomainError(ValueError):
@@ -38,6 +35,11 @@ class DomainError(ValueError):
 
 class Base(DeclarativeBase):
     pass
+
+
+def create_session_factory(database_url: str) -> sessionmaker[Session]:
+    """Compatibility factory for tests and standalone app-domain consumers."""
+    return _create_session_factory(database_url, Base.metadata, _migrate_realtime_columns)
 
 
 class Player(Base):
@@ -186,15 +188,11 @@ def _migrate_realtime_columns(engine: Engine) -> None:
                     connection.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {name} {sql_type}")
 
 
-def create_session_factory(database_url: str) -> sessionmaker[Session]:
-    return shared_session_factory(database_url, Base.metadata, _migrate_realtime_columns)
-
-
 class RpsRepository:
     def __init__(self, sessions: sessionmaker[Session],
-        clock: Callable[[], datetime] = now) -> None:
+        clock: Callable[[], datetime] | None = None) -> None:
         self.sessions = sessions
-        self.clock = clock
+        self.clock = clock or SystemClock().now
 
     def create_guest(self, raw_credential: str) -> Player:
         timestamp, player_id = self.clock(), str(uuid4())

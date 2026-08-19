@@ -1,5 +1,6 @@
 """Normalized SQLAlchemy persistence and domain operations for WIRE/98."""
 
+from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
@@ -10,15 +11,12 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, aliased, mapped_col
 
 from apps.microblog.auth import PasswordHash, hash_password, normalize_handle, token_digest, verify_password
 from monotools.database import ClientProvenanceMixin
-from monotools.database import create_session_factory as shared_session_factory
-from monotools.database import sqlite_url
+from monotools.appkit import SystemClock
+from monotools.database import create_session_factory as _create_session_factory
 
 
 SESSION_LIFETIME = timedelta(days=30)
-
-
-def now() -> datetime:
-    return datetime.now(timezone.utc)
+now = SystemClock().now
 
 
 def utc(value: datetime) -> datetime:
@@ -33,6 +31,11 @@ class DomainError(ValueError):
 
 class Base(DeclarativeBase):
     pass
+
+
+def create_session_factory(database_url: str) -> sessionmaker[Session]:
+    """Compatibility factory for tests and standalone app-domain consumers."""
+    return _create_session_factory(database_url, Base.metadata)
 
 
 class Account(Base):
@@ -82,16 +85,13 @@ class LikeEvent(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
 
 
-def create_session_factory(database_url: str) -> sessionmaker[Session]:
-    return shared_session_factory(database_url, Base.metadata)
-
-
 class MicroblogRepository:
-    def __init__(self, sessions: sessionmaker[Session]) -> None:
+    def __init__(self, sessions: sessionmaker[Session], clock: Callable[[], datetime] | None = None) -> None:
         self.sessions = sessions
+        self.clock = clock or SystemClock().now
 
     def register(self, handle: str, password: str) -> Account:
-        normalized, secured, timestamp = normalize_handle(handle), hash_password(password), now()
+        normalized, secured, timestamp = normalize_handle(handle), hash_password(password), self.clock()
         account = Account(id=str(uuid4()), handle=normalized, created_at=timestamp)
         try:
             with self.sessions.begin() as session:
@@ -121,7 +121,7 @@ class MicroblogRepository:
 
     def create_session(self, account_id: str, raw_token: str,
         provenance: dict[str, str | None]) -> AuthenticationSession:
-        timestamp = now()
+        timestamp = self.clock()
         authentication = AuthenticationSession(id=str(uuid4()), account_id=account_id,
             token_digest=token_digest(raw_token), issued_at=timestamp,
             expires_at=timestamp + SESSION_LIFETIME, revoked_at=None, **provenance)
@@ -132,7 +132,7 @@ class MicroblogRepository:
     def account_for_token(self, raw_token: str | None, at: datetime | None = None) -> Account | None:
         if not raw_token:
             return None
-        timestamp = at or now()
+        timestamp = at or self.clock()
         with self.sessions() as session:
             row = session.execute(select(Account).join(AuthenticationSession)
                 .where(AuthenticationSession.token_digest == token_digest(raw_token),
@@ -147,14 +147,14 @@ class MicroblogRepository:
             authentication = session.scalar(select(AuthenticationSession)
                 .where(AuthenticationSession.token_digest == token_digest(raw_token)))
             if authentication and authentication.revoked_at is None:
-                authentication.revoked_at = now()
+                authentication.revoked_at = self.clock()
 
     def add_post(self, account_id: str, body: str) -> dict[str, object]:
         cleaned = body.strip()
         if not 1 <= len(cleaned) <= 280:
             raise DomainError("Post must contain 1–280 characters.")
         with self.sessions.begin() as session:
-            post = Post(author_id=account_id, body=cleaned, created_at=now())
+            post = Post(author_id=account_id, body=cleaned, created_at=self.clock())
             session.add(post)
             session.flush()
             handle = session.get(Account, account_id).handle
@@ -180,7 +180,7 @@ class MicroblogRepository:
                 LikeEvent.account_id == account_id).order_by(LikeEvent.id.desc()).limit(1))
             if latest is None or latest.liked != liked:
                 session.add(LikeEvent(post_id=post_id, account_id=account_id,
-                    liked=liked, occurred_at=now()))
+                    liked=liked, occurred_at=self.clock()))
                 session.flush()
             handle = session.get(Account, post.author_id).handle
             return self._post_state(session, post, handle, account_id)

@@ -8,9 +8,9 @@ from pydantic import BaseModel
 
 from apps.rps.auth import issue_credential
 from apps.rps.arena import ArenaCoordinator
-from apps.rps.database import DomainError, RpsRepository, create_session_factory
+from apps.rps.database import Base, DomainError, RpsRepository, _migrate_realtime_columns
 from apps.rps.scheduling import AsyncIOScheduler, Clock, Scheduler, SystemClock
-from monotools.database import resolve_database_url
+from monotools.appkit import create_app_context
 from monotools.http import (
     domain_error_handler,
     enforce_same_origin,
@@ -39,9 +39,11 @@ def player_state(player: object) -> dict[str, object]:
 
 def create_app(database_url: str | None = None, *, clock: Clock | None = None,
     scheduler: Scheduler | None = None) -> FastAPI:
-    resolved = resolve_database_url(database_url, "RPS_DATABASE_URL", DEFAULT_DATABASE)
     resolved_clock = clock or SystemClock()
-    repository = RpsRepository(create_session_factory(resolved), resolved_clock.now)
+    context = create_app_context("rps", metadata=Base.metadata,
+        default_database=DEFAULT_DATABASE, environment_key="RPS_DATABASE_URL",
+        database_url=database_url, prepare=_migrate_realtime_columns, clock=resolved_clock)
+    repository = RpsRepository(context.require_sessions(), context.clock.now)
     coordinator = ArenaCoordinator(repository, resolved_clock,
         scheduler or AsyncIOScheduler(resolved_clock))
     application = create_application("rps")

@@ -6,8 +6,8 @@ from uuid import UUID
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-from apps.chat.database import ChatRepository, create_session_factory
-from monotools.database import resolve_database_url
+from apps.chat.database import Base, ChatRepository, _migrate_legacy
+from monotools.appkit import create_app_context
 from monotools.http import client_provenance
 from monotools.realtime import (
     ConnectionRegistry,
@@ -81,8 +81,10 @@ def clean_identity(payload: dict[str, Any]) -> tuple[str, str] | None:
 
 
 def create_app(database_url: str | None = None) -> FastAPI:
-    resolved_url = resolve_database_url(database_url, "CHAT_DATABASE_URL", DEFAULT_DATABASE)
-    repository = ChatRepository(create_session_factory(resolved_url))
+    context = create_app_context("chat", metadata=Base.metadata,
+        default_database=DEFAULT_DATABASE, environment_key="CHAT_DATABASE_URL",
+        database_url=database_url, prepare=_migrate_legacy)
+    repository = ChatRepository(context.require_sessions(), context.clock.now)
     hub = ConnectionHub()
     application = create_application("chat")
 

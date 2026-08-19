@@ -9,8 +9,8 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
 from apps.microblog.auth import ValidationError, issue_token
-from apps.microblog.database import DomainError, MicroblogRepository, create_session_factory
-from monotools.database import resolve_database_url
+from apps.microblog.database import Base, DomainError, MicroblogRepository
+from monotools.appkit import create_app_context
 from monotools.http import (
     client_provenance,
     delete_session_cookie,
@@ -72,8 +72,10 @@ class ChangeFeed:
 
 
 def create_app(database_url: str | None = None) -> FastAPI:
-    resolved = resolve_database_url(database_url, "MICROBLOG_DATABASE_URL", DEFAULT_DATABASE)
-    repository = MicroblogRepository(create_session_factory(resolved))
+    context = create_app_context("microblog", metadata=Base.metadata,
+        default_database=DEFAULT_DATABASE, environment_key="MICROBLOG_DATABASE_URL",
+        database_url=database_url)
+    repository = MicroblogRepository(context.require_sessions(), context.clock.now)
     changes = ChangeFeed()
     application = create_application("microblog")
 

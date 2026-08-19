@@ -1,5 +1,6 @@
 """Normalized, lossless persistence for the anonymous chat domain."""
 
+from collections.abc import Callable
 from datetime import datetime, timezone
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
@@ -9,16 +10,17 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from monotools.database import ClientProvenanceMixin
-from monotools.database import create_session_factory as shared_session_factory
-from monotools.database import sqlite_url
-
-
-def now() -> datetime:
-    return datetime.now(timezone.utc)
+from monotools.appkit import SystemClock
+from monotools.database import create_session_factory as _create_session_factory
 
 
 class Base(DeclarativeBase):
     pass
+
+
+def create_session_factory(database_url: str) -> sessionmaker[Session]:
+    """Compatibility factory for tests and standalone app-domain consumers."""
+    return _create_session_factory(database_url, Base.metadata, _migrate_legacy)
 
 
 class Room(Base):
@@ -77,10 +79,10 @@ class MessageDelivery(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-def _room(session: Session) -> Room:
+def _room(session: Session, at: datetime) -> Room:
     room = session.scalar(select(Room).where(Room.slug == "common"))
     if room is None:
-        room = Room(slug="common", title="Common Room", created_at=now())
+        room = Room(slug="common", title="Common Room", created_at=at)
         session.add(room)
         session.flush()
     return room
@@ -107,7 +109,7 @@ def _migrate_legacy(engine: Engine) -> None:
         return
     legacy = Table("messages", MetaData(), autoload_with=engine)
     with Session(engine) as session, session.begin():
-        room = _room(session)
+        room = _room(session, datetime.now(timezone.utc))
         for row in session.execute(select(legacy).order_by(legacy.c.id)).mappings():
             at, author = row["created_at"], row["author"]
             participant_id = str(uuid5(NAMESPACE_URL, f"common-room:legacy:{author}"))
@@ -132,24 +134,21 @@ def _migrate_legacy(engine: Engine) -> None:
     legacy.drop(engine)
 
 
-def create_session_factory(database_url: str) -> sessionmaker[Session]:
-    return shared_session_factory(database_url, Base.metadata, _migrate_legacy)
-
-
 class ChatRepository:
-    def __init__(self, sessions: sessionmaker[Session]) -> None:
+    def __init__(self, sessions: sessionmaker[Session], clock: Callable[[], datetime] | None = None) -> None:
         self.sessions = sessions
+        self.clock = clock or SystemClock().now
 
     def open_session(self, metadata: dict[str, str | None]) -> str:
         identifier = str(uuid4())
         with self.sessions.begin() as session:
-            room = _room(session)
+            room = _room(session, self.clock())
             session.add(ConnectionSession(id=identifier, room_id=room.id, participant_id=None,
-                connected_at=now(), disconnected_at=None, **metadata))
+                connected_at=self.clock(), disconnected_at=None, **metadata))
         return identifier
 
     def identify(self, session_id: str, participant_id: str, name: str) -> None:
-        at = now()
+        at = self.clock()
         with self.sessions.begin() as session:
             participant = session.get(Participant, participant_id)
             if participant is None:
@@ -161,7 +160,7 @@ class ChatRepository:
 
     def close_session(self, session_id: str) -> None:
         with self.sessions.begin() as session:
-            session.get(ConnectionSession, session_id).disconnected_at = now()
+            session.get(ConnectionSession, session_id).disconnected_at = self.clock()
 
     def all(self) -> list[dict[str, int | str]]:
         with self.sessions() as session:
@@ -170,7 +169,7 @@ class ChatRepository:
             return [self._serialize(message, alias) for message, alias in rows]
 
     def add(self, session_id: str, name: str, body: str, client_id: str | None) -> dict[str, int | str]:
-        at = now()
+        at = self.clock()
         with self.sessions.begin() as session:
             connection = session.get(ConnectionSession, session_id)
             participant = session.get(Participant, connection.participant_id)
@@ -185,7 +184,7 @@ class ChatRepository:
     def delivered(self, message_id: int, session_id: str) -> None:
         with self.sessions.begin() as session:
             session.add(MessageDelivery(message_id=message_id, session_id=session_id,
-                event_type="sent", occurred_at=now()))
+                    event_type="sent", occurred_at=self.clock()))
 
     @staticmethod
     def _serialize(message: ChatMessage, author: str) -> dict[str, int | str]:

@@ -1,6 +1,70 @@
+# OS-generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+._*
+
+# Editor / IDE / backup files
+.vscode/
+.idea/
+*~
+*.swp
+*.swo
+*.tmp
+
+# Python
 __pycache__/
+.venv/
+venv/
+.tox/
+.nox/
+build/
+*.dist-info/
 *.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+*.eggs/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.pyre/
+*.pyc
+
+# Node / JS tooling
 node_modules/
+dist/
+.cache/
+.parcel-cache/
+.next/
+.npm/
+.pnpm-store/
+.yarn/
+.yarn-cache/
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+npm-debug.log*
+
+# Logs and diagnostics
+*.log
+*.log.*
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+
+# Environment / local secrets / runtime state
+.env
+.env.*
 .state/
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
 apps/*/data/*.db
+
+# Temporary app/runtime artifacts
 apps/*/data/ui-check/

@@ -52,18 +52,15 @@ out of sync with the backend.
 
 ### Durable domain truth
 
-Persistence records domain facts rather than the current screen: identifiers,
-timestamps, provenance, state transitions, and explicit relationships. ORM
-boundaries keep application behavior independent of database-specific details.
-SQLite remains the practical local default, while schemas, migrations, and
-transactions preserve a credible path to PostgreSQL.
+SQLite remains the practical local default, while ORM, schemas, migrations, and
+transactions preserve a reliable path to PostgreSQL.
 
 ### A shared, restrained interface language
 
 The central Lit UI package should provide the reusable primitives and visual
 language for new pages. The Gruvbox operator-console direction is a product
 constraint, not decoration: dense information, clear hierarchy, semantic color,
-responsive topology, keyboard focus, and self-contained artifacts should make
+responsive topology, and self-contained artifacts should make
 each application feel like part of one instrument.
 
 ### Evidence-driven quality

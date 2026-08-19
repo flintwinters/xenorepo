@@ -16,6 +16,7 @@ from apps.microblog.database import AuthenticationSession
 from apps.rps.auth import credential_digest, issue_credential
 from apps.rps.database import ConnectionSession as RpsConnectionSession
 from monotools.auth import issue_opaque_credential, opaque_credential_digest
+from monotools.appkit import SystemClock, create_app_context
 from monotools.apps import discover_apps
 from monotools.database import create_session_factory, resolve_database_url
 from monotools.realtime import (
@@ -70,6 +71,15 @@ class SharedFrameworkTests(unittest.TestCase):
                 resolve_database_url(None, "FIXTURE_DATABASE_URL", default_path),
                 "sqlite:///tests/resolved-database.db",
             )
+
+    def test_app_context_centralizes_metadata_database_and_clock(self) -> None:
+        context = create_app_context("chat", metadata=MetaData(),
+            default_database=self.database, environment_key="CHAT_TEST_DATABASE_URL",
+            clock=SystemClock())
+        self.assertEqual(context.definition.name, "chat")
+        self.assertTrue(context.database_url.startswith("sqlite:///"))
+        self.assertIsNotNone(context.sessions)
+        self.assertIsNotNone(context.clock.now())
 
     def test_registry_filters_sends_and_reports_stale_connections(self) -> None:
         registry = ConnectionRegistry[str]()

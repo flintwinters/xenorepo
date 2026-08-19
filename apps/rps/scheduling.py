@@ -2,24 +2,17 @@
 
 import asyncio
 from collections.abc import Awaitable, Callable
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Protocol
+
+from monotools.appkit import Clock, SystemClock
 
 
 Callback = Callable[[], Awaitable[None]]
 
 
-class Clock(Protocol):
-    def now(self) -> datetime: ...
-
-
 class Scheduler(Protocol):
     def call_at(self, when: datetime, callback: Callback) -> None: ...
-
-
-class SystemClock:
-    def now(self) -> datetime:
-        return datetime.now(timezone.utc)
 
 
 class AsyncIOScheduler:

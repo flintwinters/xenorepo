@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Protocol
 
 from sqlalchemy import MetaData
-from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 
 from monotools.apps import AppDefinition, get_app
 from monotools.database import DatabasePreparation, create_session_factory, resolve_database_url

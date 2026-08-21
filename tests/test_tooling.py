@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from typer.testing import CliRunner
 
@@ -9,6 +9,7 @@ from monotools.apps import AppDefinition, AppDefinitionError, FrontendArtifact, 
 from monotools.cli import app
 from monotools.frontend import CONSOLE_SHELL, DocumentParts, compose_console
 from monotools.lifecycle import build_app, validate_app, validate_dist
+from monotools.watch import frontend_inputs, watch_frontend
 from tests.support import SocketDouble, run_async
 
 
@@ -38,6 +39,30 @@ class RepositoryAppTests(unittest.TestCase):
         self.assertEqual(result.exit_code, 0)
         self.assertIn("--user", result.output)
         self.assertIn("Unix user for Worminal terminal", result.output)
+
+    def test_frontend_watch_is_discoverable_from_the_managed_serve_command(self) -> None:
+        result = CliRunner().invoke(app, ["serve", "--help"])
+
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("--watch", result.output)
+        self.assertIn("Rebuild frontend artifacts", result.output)
+
+    def test_frontend_watch_rebuilds_declared_and_shared_lit_inputs(self) -> None:
+        definition = get_app("worminal")
+        inputs = frontend_inputs(definition)
+
+        self.assertIn(definition.directory / "frontend" / "index.ts", inputs)
+        self.assertIn(ROOT / "packages" / "lit-ui" / "src" / "index.ts", inputs)
+        report = Mock()
+        with patch("monotools.watch._snapshot", side_effect=[
+                ((Path("source"), 1),), ((Path("source"), 2),)
+            ]), patch("monotools.watch.build_app") as rebuild, patch(
+                "monotools.watch.time.sleep", side_effect=[None, RuntimeError("stop")]
+            ):
+            with self.assertRaisesRegex(RuntimeError, "stop"):
+                watch_frontend(definition, report, interval=0)
+        rebuild.assert_called_once_with(definition)
+        report.assert_called_once_with("Rebuilt worminal frontend")
 
     def test_status_reports_the_organization_of_every_discovered_app(self) -> None:
         result = CliRunner().invoke(app, ["status"])

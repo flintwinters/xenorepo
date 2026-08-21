@@ -13,6 +13,10 @@ From the repository root:
 python manage.py serve worminal
 ```
 
+Use `--watch` for a long-running development service. Monotools rebuilds the
+Worminal document when its TypeScript or central Lit UI inputs change; Uvicorn
+continues serving the rebuilt `dist/index.html` without a backend restart.
+
 Open `http://127.0.0.1:8000/worminal`, then create, drag, resize, minimize, maximize, and
 close shell windows from the browser desktop. Closing a window or browser
 connection terminates its shell process.

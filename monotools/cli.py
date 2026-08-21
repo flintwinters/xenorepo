@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 import subprocess
 import sys
+import threading
 
 import typer
 from rich.console import Console
@@ -12,6 +13,7 @@ from rich.table import Table
 from monotools.apps import AppDefinition, AppDefinitionError, ROOT, discover_apps, get_app
 from monotools.lifecycle import LifecycleError, build_app, validate_app, validate_dist
 from monotools.ui import run_ui_check
+from monotools.watch import watch_frontend
 
 
 app = typer.Typer(no_args_is_help=True, help="Build, validate, test, and run repository apps.")
@@ -182,6 +184,7 @@ def serve(
     host: str = typer.Option("127.0.0.1"),
     port: int = typer.Option(8000, min=1, max=65535),
     user: str | None = typer.Option(None, "--user", help="Unix user for Worminal terminal processes."),
+    watch: bool = typer.Option(False, "--watch", help="Rebuild frontend artifacts when their inputs change."),
 ) -> None:
     """Build and serve an application through its FastAPI service."""
     try:
@@ -192,6 +195,9 @@ def serve(
         validate_dist(definition)
     except (AppDefinitionError, LifecycleError) as error:
         _fail(error)
+    if watch:
+        threading.Thread(target=watch_frontend, args=(definition, console.print),
+            daemon=True, name=f"{definition.name}-frontend-watch").start()
     subprocess.run(
         [sys.executable, "-m", "uvicorn", definition.module + ":app", "--host", host, "--port", str(port)],
         cwd=ROOT, env=os.environ | ({"WORMINAL_SHELL_USER": user} if user else {}),

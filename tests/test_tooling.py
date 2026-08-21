@@ -26,19 +26,22 @@ class RepositoryAppTests(unittest.TestCase):
         result = CliRunner().invoke(app, ["serve"])
 
         self.assertEqual(result.exit_code, 2)
-        self.assertIn("choose an application: calculator, chat, microblog, quiz, rps", result.output)
+        self.assertIn(
+            "choose an application: calculator, chat, microblog, pyterminal, quiz, rps",
+            result.output,
+        )
         self.assertIn("Example: manage.py serve calculator", result.output)
 
     def test_status_reports_the_organization_of_every_discovered_app(self) -> None:
         result = CliRunner().invoke(app, ["status"])
 
         self.assertEqual(result.exit_code, 0)
-        for name in ("calculator", "chat", "microblog", "quiz", "rps"):
+        for name in ("calculator", "chat", "microblog", "pyterminal", "quiz", "rps"):
             with self.subTest(app=name):
                 self.assertIn(name, result.output)
         self.assertIn("README", result.output)
         self.assertIn("Source", result.output)
-        self.assertIn("5 managed app(s)", result.output)
+        self.assertIn("6 managed app(s)", result.output)
         self.assertIn("manage.py check", result.output)
 
     def test_app_catalog_is_nonempty_and_has_unique_names(self) -> None:
@@ -206,6 +209,25 @@ frontend:
         self.assertIn("html,body,#app{width:100%;height:100%;margin:0}", document)
         self.assertNotIn('src="', document)
         self.assertNotIn('href="', document)
+
+    def test_python_terminal_executes_only_in_an_isolated_browser_worker(self) -> None:
+        definition = get_app("pyterminal")
+        validate_app(definition)
+        build_app(definition)
+        source = (definition.directory / definition.artifact("index").source).read_text(
+            encoding="utf-8"
+        )
+        document = definition.dist_directory.joinpath("index.html").read_text(encoding="utf-8")
+
+        self.assertIn('new Worker(URL.createObjectURL(blob))', source)
+        self.assertIn('runtime.runPythonAsync(event.data.source)', source)
+        self.assertIn('https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/', source)
+        self.assertIn('PYODIDE_VERSION = "0.28.2"', source)
+        self.assertNotIn("fetch(\"/", source)
+        self.assertNotIn("WebSocket", source)
+        self.assertIn("BROWSER PYTHON TERMINAL", document)
+        self.assertIn("LOCAL WORKER", document)
+        self.assertIn('<meta name="monotools-shell" content="console">', document)
 
     def test_quiz_has_a_non_diagnostic_psychometric_inventory(self) -> None:
         definition = get_app("quiz")

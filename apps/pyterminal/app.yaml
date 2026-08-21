@@ -1,0 +1,11 @@
+name: pyterminal
+title: Python Browser Terminal
+module: apps.pyterminal.server
+frontend:
+  artifacts:
+    index:
+      format: lit
+      source: frontend/index.ts
+      output: index.html
+  routes:
+    /: index

@@ -82,6 +82,8 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 
 ## 3. Current tasks
 
+- Validate and refine the browser-resident Python terminal, including its
+  Pyodide worker boundary, keyboard workflow, and first-load behavior.
 - Center the RPS reveal as a dominant arena panel with instantly distinguishable
   hand silhouettes and stable spatial/color ownership for both players.
 - Strengthen frontend/backend separation, extract proven Python and frontend

@@ -19,6 +19,8 @@ class WorminalDesktop extends LitElement {
   private nextId = 1;
   private topZ = 1;
   private clockTimer?: number;
+  private superHeld = false;
+  private superChord = false;
 
   constructor() { super(); this.windows = []; this.clock = "--:--:--"; }
 
@@ -48,16 +50,37 @@ class WorminalDesktop extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this.renderRoot.addEventListener("contextmenu", this.blockShiftContextMenu, { capture: true });
+    window.addEventListener("keydown", this.handleSuperKeyDown, { capture: true });
+    window.addEventListener("keyup", this.handleSuperKeyUp, { capture: true });
     this.clockTimer = window.setInterval(() => this.clock = new Date().toLocaleTimeString([], { hour12: false }), 1000);
     this.spawn();
   }
-  disconnectedCallback() { this.renderRoot.removeEventListener("contextmenu", this.blockShiftContextMenu, { capture: true }); for (const id of this.sessions.keys()) this.destroySession(id); clearInterval(this.clockTimer); super.disconnectedCallback(); }
+  disconnectedCallback() { this.renderRoot.removeEventListener("contextmenu", this.blockShiftContextMenu, { capture: true }); window.removeEventListener("keydown", this.handleSuperKeyDown, { capture: true }); window.removeEventListener("keyup", this.handleSuperKeyUp, { capture: true }); for (const id of this.sessions.keys()) this.destroySession(id); clearInterval(this.clockTimer); super.disconnectedCallback(); }
 
   private blockShiftContextMenu(event: Event) {
     if (!(event as MouseEvent).shiftKey) return;
     event.preventDefault();
     event.stopImmediatePropagation();
   }
+
+  private isSuperKey(event: KeyboardEvent) {
+    return event.key === "Meta" || event.code === "MetaLeft" || event.code === "MetaRight";
+  }
+
+  private handleSuperKeyDown = (event: KeyboardEvent) => {
+    if (this.isSuperKey(event)) {
+      if (!event.repeat) { this.superHeld = true; this.superChord = false; }
+      return;
+    }
+    if (this.superHeld) this.superChord = true;
+  };
+
+  private handleSuperKeyUp = (event: KeyboardEvent) => {
+    if (!this.isSuperKey(event) || !this.superHeld) return;
+    const openShell = !this.superChord;
+    this.superHeld = false; this.superChord = false;
+    if (openShell) this.spawn();
+  };
 
   private updateWindow(id: number, change: (window: WindowState) => WindowState) {
     this.windows = this.windows.map(window => window.id === id ? change(window) : window);

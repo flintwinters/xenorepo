@@ -17,8 +17,12 @@ test("creates and manages independent terminal windows", async ({ page }) => {
   await expect(page.getByText("1 SHELL CONNECTED", { exact: true })).toBeVisible();
   await expect(page.getByLabel("shell-1 terminal")).toBeVisible();
 
-  await page.getByRole("button", { name: "+ NEW SHELL" }).click();
+  await page.keyboard.press("Meta");
   await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
+  await page.keyboard.down("Meta");
+  await page.keyboard.press("c");
+  await page.keyboard.up("Meta");
+  await expect(page.getByLabel("shell-3 terminal")).toHaveCount(0);
   const secondWindow = page.getByRole("region", { name: "shell-2" });
   const contextMenuAllowed = await page.getByLabel("shell-2 terminal").evaluate(element =>
     element.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, shiftKey: true })),

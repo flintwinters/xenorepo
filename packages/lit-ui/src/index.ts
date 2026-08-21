@@ -97,7 +97,13 @@ customElements.define("x-data-grid", DataGrid);
 
 export class StatusIndicator extends ConsoleElement {
   static properties = { label: { type: String }, tone: { type: String } };
-  label = ""; tone: ConsoleTone = "green";
+  declare label: string;
+  declare tone: ConsoleTone;
+  constructor() {
+    super();
+    this.label = "";
+    this.tone = "green";
+  }
   static styles = [consoleTokens, css`
     :host { display: inline-flex; align-items: center; gap: 5px; } i { width: 8px; height: 8px; border: 1px solid #0c0d0d; background: var(--indicator, #b8bb26); box-shadow: 0 0 4px var(--indicator, #b8bb26); } span { color: var(--console-muted, #a89984); }
   `];

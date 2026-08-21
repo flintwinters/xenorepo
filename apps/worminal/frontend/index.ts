@@ -1,154 +1,224 @@
-import { LitElement, css, html } from "lit";
+import { LitElement, css, html, nothing } from "lit";
 import "@xenorepo/lit-ui";
 
 type Phase = "loading" | "ready" | "running" | "failed";
+interface TerminalWindow {
+  id: number; title: string; x: number; y: number; width: number; height: number;
+  z: number; minimized: boolean; maximized: boolean; phase: Phase;
+  transcript: string; source: string; sequence: number; history: string[]; historyIndex: number;
+}
 type WorkerReply =
   | { type: "progress"; value: string }
   | { type: "ready"; version: string }
-  | { type: "stream"; channel: "stdout" | "stderr"; text: string }
-  | { type: "result"; value: string }
-  | { type: "error"; value: string };
+  | { type: "stream"; id: number; channel: "stdout" | "stderr"; text: string }
+  | { type: "result"; id: number; value: string }
+  | { type: "error"; id?: number; value: string };
 
 const PYODIDE_VERSION = "0.28.2";
 const PYODIDE_ROOT = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
-
+const STARTUP_TIMEOUT = 30_000;
 const workerSource = `
+import { loadPyodide } from ${JSON.stringify(PYODIDE_ROOT + "pyodide.mjs")};
 const root = ${JSON.stringify(PYODIDE_ROOT)};
-let runtime;
+const sessions = new Map();
+let activeId = 0;
 const send = (type, payload = {}) => postMessage({ type, ...payload });
-async function boot() {
-  try {
-    send("progress", { value: "Downloading CPython engine…" });
-    importScripts(root + "pyodide.js");
-    send("progress", { value: "Initializing browser sandbox…" });
-    runtime = await loadPyodide({
-      indexURL: root,
-      stdout: text => send("stream", { channel: "stdout", text }),
-      stderr: text => send("stream", { channel: "stderr", text }),
-    });
-    send("ready", { version: runtime.runPython("import sys; sys.version.split()[0]") });
-  } catch (error) {
-    send("error", { value: "Runtime failed to load: " + String(error) });
-  }
-}
-onmessage = async event => {
-  if (!runtime || event.data.type !== "execute") return;
-  try {
-    const result = await runtime.runPythonAsync(event.data.source);
-    let value = "";
-    if (result !== undefined && result !== null) value = String(result);
-    if (result && typeof result.destroy === "function") result.destroy();
-    send("result", { value });
-  } catch (error) {
-    send("error", { value: String(error) });
-  }
-};
-setTimeout(boot, 0);
+try {
+  send("progress", { value: "Downloading CPython engine" });
+  const runtime = await loadPyodide({
+    indexURL: root,
+    stdout: text => send("stream", { id: activeId, channel: "stdout", text }),
+    stderr: text => send("stream", { id: activeId, channel: "stderr", text }),
+  });
+  const namespace = id => {
+    if (!sessions.has(id)) sessions.set(id, runtime.toPy({ __name__: "__main__" }));
+    return sessions.get(id);
+  };
+  onmessage = async event => {
+    const { id, type, source } = event.data;
+    if (type === "destroy") { sessions.get(id)?.destroy(); sessions.delete(id); return; }
+    if (type !== "execute") return;
+    activeId = id;
+    try {
+      const result = await runtime.runPythonAsync(source, { globals: namespace(id) });
+      let value = "";
+      if (result !== undefined && result !== null) value = String(result);
+      if (result && typeof result.destroy === "function") result.destroy();
+      send("result", { id, value });
+    } catch (error) { send("error", { id, value: String(error) }); }
+  };
+  send("ready", { version: runtime.runPython("import sys; sys.version.split()[0]") });
+} catch (error) { send("error", { value: "Runtime failed to load: " + String(error) }); }
 `;
 
-class PythonTerminal extends LitElement {
+class WorminalDesktop extends LitElement {
   static properties = {
-    phase: { state: true }, transcript: { state: true }, source: { state: true },
-    runtimeVersion: { state: true }, sequence: { state: true },
+    windows: { state: true }, runtimePhase: { state: true }, runtimeVersion: { state: true },
+    runtimeMessage: { state: true }, clock: { state: true },
   };
-  phase: Phase = "loading";
-  transcript = "WORMINAL BOOTING · fetching isolated Python runtime…\n";
-  source = "";
-  runtimeVersion = "—";
-  sequence = 0;
+  declare windows: TerminalWindow[];
+  declare runtimePhase: Phase;
+  declare runtimeVersion: string;
+  declare runtimeMessage: string;
+  declare clock: string;
   private worker?: Worker;
-  private history: string[] = [];
-  private historyIndex = 0;
+  private workerUrl?: string;
+  private nextId = 1;
+  private topZ = 1;
+  private startupTimer?: number;
+  private clockTimer?: number;
+
+  constructor() {
+    super();
+    this.windows = [];
+    this.runtimePhase = "loading";
+    this.runtimeVersion = "—";
+    this.runtimeMessage = "STARTING PYTHON";
+    this.clock = "--:--:--";
+  }
 
   static styles = css`
-    :host { display: block; height: 100%; --console-font: 13px/1.45 "Courier New", monospace; }
+    :host { display: block; height: 100%; color: #ebdbb2; font: 12px/1.35 "Courier New", monospace; background: #1d2021; }
+    * { box-sizing: border-box; }
     x-console-shell { height: 100%; }
-    x-console-shell::part(main) { min-height: 0; }
-    .brand { color: #fabd2f; font-weight: bold; letter-spacing: .08em; }
+    .brand { color: #fabd2f; font-weight: bold; letter-spacing: .1em; }
     .push { margin-left: auto; }
-    .workspace { display: grid; min-width: 0; min-height: 0; grid-template-rows: minmax(0, 1fr) auto; background: #181a1b; }
-    pre { min-height: 0; margin: 0; padding: 14px 16px; overflow: auto; color: #ebdbb2; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; }
-    .entry { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px; padding: 9px 12px 11px; border-top: 1px solid #504945; background: #202221; }
-    .prompt { padding-top: 5px; color: #b8bb26; font-weight: bold; }
-    textarea { width: 100%; min-height: 32px; max-height: 28vh; resize: vertical; padding: 5px 7px; color: #ebdbb2; font: inherit; background: #111313; border: 1px solid #504945; outline: none; }
+    .desktop { position: relative; min-width: 0; min-height: 0; overflow: hidden; background-color: #1a1d1c; background-image: linear-gradient(#282b2a 1px, transparent 1px), linear-gradient(90deg, #282b2a 1px, transparent 1px); background-size: 24px 24px; }
+    .welcome { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center; color: #a89984; pointer-events: none; }
+    .welcome strong { color: #ebdbb2; font-size: 18px; }
+    .window { position: absolute; display: grid; grid-template-rows: 28px minmax(0, 1fr); min-width: 300px; min-height: 190px; overflow: hidden; background: #181a1b; border: 1px solid #111; box-shadow: 5px 7px 18px #0009; resize: both; }
+    .window.active { border-color: #83a598; box-shadow: 5px 7px 22px #000c, 0 0 0 1px #83a598; }
+    .window.maximized { inset: 0 !important; width: 100% !important; height: 100% !important; resize: none; }
+    .titlebar { display: flex; align-items: center; gap: 7px; min-width: 0; padding-left: 7px; color: #1d2021; font-weight: bold; background: linear-gradient(#83a598, #5f7f75); border-top: 1px solid #b7cfca; border-bottom: 2px solid #354a44; cursor: move; user-select: none; touch-action: none; }
+    .window:not(.active) .titlebar { filter: saturate(.35) brightness(.72); }
+    .titlebar .controls { display: flex; align-self: stretch; margin-left: auto; }
+    .titlebar button { width: 30px; padding: 0; color: #ebdbb2; font: inherit; background: #282828; border: 0; border-left: 1px solid #111; cursor: pointer; }
+    .titlebar button:hover { background: #3c3836; }
+    .terminal { display: grid; min-height: 0; grid-template-rows: minmax(0, 1fr) auto; }
+    pre { min-height: 0; margin: 0; padding: 10px; overflow: auto; color: #ebdbb2; white-space: pre-wrap; overflow-wrap: anywhere; tab-size: 4; }
+    .entry { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 7px; padding: 7px 9px 9px; border-top: 1px solid #504945; background: #202221; }
+    .prompt { padding-top: 4px; color: #b8bb26; font-weight: bold; }
+    textarea { width: 100%; min-height: 29px; max-height: 120px; resize: vertical; padding: 4px 6px; color: #ebdbb2; font: inherit; background: #111313; border: 1px solid #504945; outline: 0; }
     textarea:focus { border-color: #fabd2f; box-shadow: 0 0 0 1px #fabd2f; }
     textarea:disabled { color: #928374; cursor: wait; }
-    .error { color: #fb4934; }
-    .hint { color: #a89984; }
-    @media (max-width: 620px) { .optional { display: none; } pre { padding: 10px; } }
+    .taskbar { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; }
+    .task { min-width: 95px; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .task.active { color: #fabd2f; }
+    .failed { color: #fb4934; }
+    @media (max-width: 620px) { .optional { display: none; } .window { min-width: 260px; } }
   `;
 
   connectedCallback() {
     super.connectedCallback();
-    const blob = new Blob([workerSource], { type: "text/javascript" });
-    this.worker = new Worker(URL.createObjectURL(blob));
-    this.worker.onmessage = (event: MessageEvent<WorkerReply>) => this.receive(event.data);
-    this.worker.onerror = (event: ErrorEvent) => {
-      this.phase = "failed";
-      this.append(`Worker failed: ${event.message || "unknown browser error"}\n`, true);
-    };
+    this.clockTimer = window.setInterval(() => this.clock = new Date().toLocaleTimeString([], { hour12: false }), 1000);
+    this.startRuntime();
+    this.spawn();
+  }
+  disconnectedCallback() { this.stopRuntime(); clearInterval(this.clockTimer); super.disconnectedCallback(); }
+
+  private stopRuntime() {
+    this.worker?.terminate(); this.worker = undefined;
+    if (this.workerUrl) URL.revokeObjectURL(this.workerUrl);
+    clearTimeout(this.startupTimer);
   }
 
-  disconnectedCallback() { this.worker?.terminate(); super.disconnectedCallback(); }
+  private startRuntime() {
+    this.stopRuntime(); this.runtimePhase = "loading"; this.runtimeMessage = "STARTING PYTHON";
+    this.windows = this.windows.map(window => ({ ...window, phase: "loading" }));
+    this.workerUrl = URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" }));
+    this.worker = new Worker(this.workerUrl, { type: "module", name: "worminal-python" });
+    this.worker.onmessage = (event: MessageEvent<WorkerReply>) => this.receive(event.data);
+    this.worker.onerror = event => this.failRuntime(event.message || "Python worker failed");
+    this.startupTimer = window.setTimeout(() => this.failRuntime("Python startup timed out. Check network access, then retry."), STARTUP_TIMEOUT);
+  }
+
+  private failRuntime(message: string) {
+    if (this.runtimePhase !== "loading") return;
+    clearTimeout(this.startupTimer); this.worker?.terminate();
+    this.runtimePhase = "failed"; this.runtimeMessage = message;
+    this.windows = this.windows.map(window => ({ ...window, phase: "failed", transcript: window.transcript + `[error] ${message}\n` }));
+  }
 
   private receive(message: WorkerReply) {
+    if (message.type === "progress") { this.runtimeMessage = message.value; return; }
     if (message.type === "ready") {
-      this.phase = "ready"; this.runtimeVersion = message.version;
-      this.append(`Python ${message.version} ready. Type an expression or statement.\n\n`);
-      this.updateComplete.then(() => this.input()?.focus());
+      clearTimeout(this.startupTimer); this.runtimePhase = "ready"; this.runtimeVersion = message.version; this.runtimeMessage = "PYTHON READY";
+      this.windows = this.windows.map(window => ({ ...window, phase: "ready", transcript: window.transcript + `Python ${message.version} ready.\n\n` }));
       return;
     }
-    if (message.type === "progress") { this.append(message.value + "\n"); return; }
-    if (message.type === "stream") { this.append(message.text + "\n"); return; }
-    if (message.type === "result") {
-      if (message.value) this.append(message.value + "\n");
-      this.finish(); return;
+    if (message.type === "error" && message.id === undefined) { this.failRuntime(message.value); return; }
+    if (message.id === undefined) return;
+    this.updateWindow(message.id, window => {
+      if (message.type === "stream") return { ...window, transcript: window.transcript + message.text + "\n" };
+      const value = message.type === "error" ? message.value.replace(/^PythonError: /, "") : message.value;
+      return { ...window, phase: "ready", transcript: window.transcript + (value ? `${message.type === "error" ? "[error] " : ""}${value}\n` : "") };
+    });
+  }
+
+  private spawn() {
+    const id = this.nextId++; const offset = (id - 1) % 7;
+    this.windows = [...this.windows, {
+      id, title: `python-${id}`, x: 32 + offset * 28, y: 30 + offset * 24, width: 610, height: 390,
+      z: ++this.topZ, minimized: false, maximized: false, phase: this.runtimePhase,
+      transcript: `Worminal session ${id}\n`, source: "", sequence: 0, history: [], historyIndex: 0,
+    }];
+    this.updateComplete.then(() => this.input(id)?.focus());
+  }
+
+  private updateWindow(id: number, change: (window: TerminalWindow) => TerminalWindow) {
+    this.windows = this.windows.map(window => window.id === id ? change(window) : window);
+    this.updateComplete.then(() => { const output = this.renderRoot.querySelector<HTMLElement>(`[data-output="${id}"]`); if (output) output.scrollTop = output.scrollHeight; });
+  }
+  private focus(id: number) { this.updateWindow(id, window => ({ ...window, z: ++this.topZ, minimized: false })); }
+  private input(id: number) { return this.renderRoot.querySelector<HTMLTextAreaElement>(`textarea[data-id="${id}"]`); }
+  private close(id: number) { this.worker?.postMessage({ type: "destroy", id }); this.windows = this.windows.filter(window => window.id !== id); }
+  private toggleMaximize(id: number) { this.updateWindow(id, window => ({ ...window, maximized: !window.maximized, minimized: false, z: ++this.topZ })); }
+  private toggleMinimize(id: number) { this.updateWindow(id, window => ({ ...window, minimized: !window.minimized })); }
+
+  private drag(event: PointerEvent, id: number) {
+    if ((event.target as Element).closest("button")) return;
+    const item = this.windows.find(window => window.id === id);
+    if (!item || item.maximized) return;
+    this.focus(id); const startX = event.clientX; const startY = event.clientY; const originX = item.x; const originY = item.y;
+    const move = (next: PointerEvent) => this.updateWindow(id, window => ({ ...window, x: Math.max(0, originX + next.clientX - startX), y: Math.max(0, originY + next.clientY - startY) }));
+    const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", stop); };
+    addEventListener("pointermove", move); addEventListener("pointerup", stop, { once: true });
+  }
+
+  private execute(id: number) {
+    const terminal = this.windows.find(window => window.id === id);
+    if (!terminal || terminal.phase !== "ready" || !terminal.source.trimEnd()) return;
+    const command = terminal.source.trimEnd();
+    this.updateWindow(id, window => ({ ...window, phase: "running", source: "", sequence: window.sequence + 1, history: [...window.history, command], historyIndex: window.history.length + 1, transcript: window.transcript + `${String(window.sequence + 1).padStart(3, "0")} >>> ${command.replaceAll("\n", "\n        ")}\n` }));
+    this.worker?.postMessage({ type: "execute", id, source: command });
+  }
+
+  private keydown(event: KeyboardEvent, id: number) {
+    const terminal = this.windows.find(window => window.id === id); if (!terminal) return;
+    if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); this.execute(id); return; }
+    if ((event.key === "ArrowUp" || event.key === "ArrowDown") && !terminal.source.includes("\n")) {
+      event.preventDefault(); const index = Math.max(0, Math.min(terminal.history.length, terminal.historyIndex + (event.key === "ArrowUp" ? -1 : 1)));
+      this.updateWindow(id, window => ({ ...window, historyIndex: index, source: window.history[index] ?? "" }));
     }
-    this.append(message.value.replace(/^PythonError: /, "") + "\n", true);
-    this.phase = message.value.startsWith("Runtime failed") ? "failed" : "ready";
-    if (this.phase === "ready") this.finish();
   }
 
-  private append(text: string, error = false) {
-    this.transcript += error ? `[error] ${text}` : text;
-    this.updateComplete.then(() => { const output = this.renderRoot.querySelector("pre"); if (output) output.scrollTop = output.scrollHeight; });
+  private renderWindow(window: TerminalWindow) {
+    if (window.minimized) return nothing;
+    const style = `left:${window.x}px;top:${window.y}px;width:${window.width}px;height:${window.height}px;z-index:${window.z}`;
+    return html`<section class="window ${window.z === this.topZ ? "active" : ""} ${window.maximized ? "maximized" : ""}" style=${style} @pointerdown=${() => this.focus(window.id)} aria-label=${window.title}>
+      <header class="titlebar" @pointerdown=${(event: PointerEvent) => this.drag(event, window.id)} @dblclick=${() => this.toggleMaximize(window.id)}><span>▣</span><span>${window.title}</span><div class="controls"><button aria-label="Minimize ${window.title}" @click=${() => this.toggleMinimize(window.id)}>_</button><button aria-label="Maximize ${window.title}" @click=${() => this.toggleMaximize(window.id)}>□</button><button aria-label="Close ${window.title}" @click=${() => this.close(window.id)}>×</button></div></header>
+      <section class="terminal"><pre data-output=${window.id} aria-live="polite" aria-label=${`${window.title} output`}>${window.transcript}</pre><label class="entry"><span class="prompt">${window.phase === "ready" ? ">>>" : "···"}</span><textarea data-id=${window.id} aria-label=${`${window.title} command`} spellcheck="false" .value=${window.source} ?disabled=${window.phase !== "ready"} @input=${(event: InputEvent) => this.updateWindow(window.id, item => ({ ...item, source: (event.target as HTMLTextAreaElement).value }))} @keydown=${(event: KeyboardEvent) => this.keydown(event, window.id)}></textarea></label></section>
+    </section>`;
   }
-
-  private finish() { this.phase = "ready"; this.updateComplete.then(() => this.input()?.focus()); }
-  private input() { return this.renderRoot.querySelector<HTMLTextAreaElement>("textarea"); }
-
-  private execute() {
-    const command = this.source.trimEnd();
-    if (!command || this.phase !== "ready") return;
-    this.sequence += 1; this.history.push(command); this.historyIndex = this.history.length;
-    this.append(`${this.sequence.toString().padStart(3, "0")} >>> ${command.replaceAll("\n", "\n        ")}\n`);
-    this.source = ""; this.phase = "running";
-    this.worker?.postMessage({ type: "execute", source: command });
-  }
-
-  private keydown(event: KeyboardEvent) {
-    if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); this.execute(); return; }
-    if ((event.key === "ArrowUp" || event.key === "ArrowDown") && !this.source.includes("\n")) {
-      event.preventDefault();
-      this.historyIndex = Math.max(0, Math.min(this.history.length, this.historyIndex + (event.key === "ArrowUp" ? -1 : 1)));
-      this.source = this.history[this.historyIndex] ?? "";
-    }
-  }
-
-  private clear() { this.transcript = `Python ${this.runtimeVersion} · transcript cleared\n\n`; this.sequence = 0; }
 
   render() {
-    const status = { loading: "LOADING RUNTIME", ready: "READY", running: "EXECUTING", failed: "LOAD FAILED" }[this.phase];
-    return html`<x-console-shell @keydown=${(event: KeyboardEvent) => { if (event.ctrlKey && event.key.toLowerCase() === "l") { event.preventDefault(); this.clear(); } }}>
-      <x-utility-rail slot="header"><span class="brand">WORMINAL</span><span class="optional">BROWSER PYTHON TERMINAL</span><x-command-button class="push" @click=${this.clear}>CLEAR</x-command-button></x-utility-rail>
-      <x-console-pane title="INTERACTIVE SESSION" index="01" tone="green"><section class="workspace">
-        <pre aria-live="polite" aria-label="Terminal output">${this.transcript}</pre>
-        <label class="entry"><span class="prompt">${this.phase === "ready" ? ">>>" : "···"}</span><textarea aria-label="Python command" spellcheck="false" .value=${this.source} ?disabled=${this.phase !== "ready"} @input=${(event: InputEvent) => this.source = (event.target as HTMLTextAreaElement).value} @keydown=${this.keydown}></textarea></label>
-      </section></x-console-pane>
-      <x-status-rail slot="footer"><x-status-indicator .label=${status} tone=${this.phase === "failed" ? "orange" : this.phase === "ready" ? "green" : "blue"}></x-status-indicator><span class="hint optional">ENTER EXECUTE · SHIFT+ENTER NEWLINE · ↑↓ HISTORY · CTRL+L CLEAR</span><span class="push">PY ${this.runtimeVersion} · LOCAL WORKER</span></x-status-rail>
+    return html`<x-console-shell>
+      <x-utility-rail slot="header"><span class="brand">WORMINAL</span><x-command-button @click=${this.spawn}>+ NEW TERMINAL</x-command-button>${this.runtimePhase === "failed" ? html`<x-command-button @click=${this.startRuntime}>RETRY PYTHON</x-command-button>` : nothing}<span class="push optional">BROWSER WORKSPACE · ${this.windows.length} WINDOW${this.windows.length === 1 ? "" : "S"}</span></x-utility-rail>
+      <main class="desktop" aria-label="Worminal desktop">${this.windows.length ? nothing : html`<div class="welcome"><strong>NO OPEN TERMINALS</strong><span>Use NEW TERMINAL to create a session.</span></div>`}${this.windows.map(window => this.renderWindow(window))}</main>
+      <x-status-rail slot="footer"><x-status-indicator .label=${this.runtimeMessage} tone=${this.runtimePhase === "failed" ? "orange" : this.runtimePhase === "ready" ? "green" : "blue"}></x-status-indicator><nav class="taskbar" aria-label="Open terminals">${this.windows.map(window => html`<x-command-button class="task ${window.z === this.topZ && !window.minimized ? "active" : ""}" @click=${() => this.focus(window.id)}>${window.title}</x-command-button>`)}</nav><span class="push">PY ${this.runtimeVersion} · ${this.clock}</span></x-status-rail>
     </x-console-shell>`;
   }
 }
-customElements.define("python-terminal", PythonTerminal);
+customElements.define("worminal-desktop", WorminalDesktop);
 
-export function mount(root: HTMLElement) { root.replaceChildren(document.createElement("python-terminal")); }
+export function mount(root: HTMLElement) { root.replaceChildren(document.createElement("worminal-desktop")); }

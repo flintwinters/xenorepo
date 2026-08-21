@@ -20,6 +20,7 @@ test("creates and manages independent terminal windows", async ({ page }) => {
   await page.getByRole("button", { name: "+ NEW SHELL" }).click();
   await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
   const secondWindow = page.getByRole("region", { name: "shell-2" });
+  await secondWindow.evaluate(element => { element.style.width = "540px"; element.style.height = "300px"; });
   const beforeMove = await secondWindow.boundingBox();
   const viewport = page.viewportSize();
   const gestureX = Math.min(beforeMove.x + 120, viewport.width - 20);
@@ -33,6 +34,8 @@ test("creates and manages independent terminal windows", async ({ page }) => {
   const afterMove = await secondWindow.boundingBox();
   expect(afterMove.x).toBeGreaterThan(beforeMove.x + 20);
   expect(afterMove.y).toBeGreaterThan(beforeMove.y + 15);
+  expect(afterMove.width).toBe(beforeMove.width);
+  expect(afterMove.height).toBe(beforeMove.height);
 
   await page.keyboard.down("Shift");
   await page.mouse.move(gestureX + 28, gestureY + 22);

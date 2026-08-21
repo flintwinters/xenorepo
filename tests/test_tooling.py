@@ -231,6 +231,8 @@ frontend:
         self.assertIn("event.shiftKey", source)
         self.assertIn("event.button === 0", source)
         self.assertIn("else this.resizeWindow(event, id)", source)
+        self.assertIn("bounds?.width ?? window.width", source)
+        self.assertIn("bounds?.height ?? window.height", source)
         self.assertNotIn("Pyodide", source)
         self.assertIn("+ NEW SHELL", document)
         self.assertIn("LOCALHOST WORKSPACE", document)

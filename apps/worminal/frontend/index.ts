@@ -96,15 +96,19 @@ class WorminalDesktop extends LitElement {
 
   private moveWindow(event: PointerEvent, id: number) {
     const item = this.windows.find(window => window.id === id); if (!item || item.maximized) return;
+    const frame = this.renderRoot.querySelector<HTMLElement>(`[data-window="${id}"]`);
+    const bounds = frame?.getBoundingClientRect();
     this.focus(id); const startX = event.clientX; const startY = event.clientY; const originX = item.x; const originY = item.y;
-    const move = (next: PointerEvent) => this.updateWindow(id, window => ({ ...window, x: originX + next.clientX - startX, y: originY + next.clientY - startY }));
+    const move = (next: PointerEvent) => this.updateWindow(id, window => ({ ...window, x: originX + next.clientX - startX, y: originY + next.clientY - startY, width: bounds?.width ?? window.width, height: bounds?.height ?? window.height }));
     const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", stop); };
     addEventListener("pointermove", move); addEventListener("pointerup", stop, { once: true });
   }
 
   private resizeWindow(event: PointerEvent, id: number) {
     const item = this.windows.find(window => window.id === id); if (!item || item.maximized) return;
-    this.focus(id); const startX = event.clientX; const startY = event.clientY; const width = item.width; const height = item.height;
+    const frame = this.renderRoot.querySelector<HTMLElement>(`[data-window="${id}"]`);
+    const bounds = frame?.getBoundingClientRect();
+    this.focus(id); const startX = event.clientX; const startY = event.clientY; const width = bounds?.width ?? item.width; const height = bounds?.height ?? item.height;
     const move = (next: PointerEvent) => this.updateWindow(id, window => ({ ...window, width: Math.max(300, width + next.clientX - startX), height: Math.max(190, height + next.clientY - startY) }));
     const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", stop); };
     addEventListener("pointermove", move); addEventListener("pointerup", stop, { once: true });
@@ -125,7 +129,7 @@ class WorminalDesktop extends LitElement {
   private renderWindow(window: WindowState) {
     if (window.minimized) return nothing;
     const style = `left:${window.x}px;top:${window.y}px;width:${window.width}px;height:${window.height}px;z-index:${window.z}`;
-    return html`<section class="window ${window.z === this.topZ ? "active" : ""} ${window.maximized ? "maximized" : ""}" style=${style} @pointerdown=${(event: PointerEvent) => this.windowPointerDown(event, window.id)} @contextmenu=${(event: MouseEvent) => { if (event.shiftKey) event.preventDefault(); }} aria-label=${window.title}>
+    return html`<section data-window=${window.id} class="window ${window.z === this.topZ ? "active" : ""} ${window.maximized ? "maximized" : ""}" style=${style} @pointerdown=${(event: PointerEvent) => this.windowPointerDown(event, window.id)} @contextmenu=${(event: MouseEvent) => { if (event.shiftKey) event.preventDefault(); }} aria-label=${window.title}>
       <header class="titlebar" @pointerdown=${(event: PointerEvent) => this.titlePointerDown(event, window.id)} @dblclick=${() => this.toggleMaximize(window.id)}><span>▣</span><span>${window.title}</span><span class="phase">${window.phase.toUpperCase()}</span><div class="controls"><button aria-label="Minimize ${window.title}" @click=${() => this.toggleMinimize(window.id)}>_</button><button aria-label="Maximize ${window.title}" @click=${() => this.toggleMaximize(window.id)}>□</button><button aria-label="Close ${window.title}" @click=${() => this.close(window.id)}>×</button></div></header>
       <div class="terminal-host" data-terminal=${window.id} aria-label=${`${window.title} terminal`}></div>
     </section>`;

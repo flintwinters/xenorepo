@@ -57,6 +57,11 @@ class WorminalTests(unittest.TestCase):
         self.assertEqual(restarted.transcript(workspace, window["id"]),
             b"$ echo durable\r\ndurable\r\n")
 
+    def test_shared_workspace_adopts_existing_server_desktop(self) -> None:
+        workspace = self.repository.create_workspace()
+        self.assertEqual(self.repository.shared_workspace(), workspace)
+        self.assertEqual(self.repository.shared_workspace(), workspace)
+
     def test_replacing_windows_does_not_discard_its_transcript(self) -> None:
         workspace = self.repository.create_workspace()
         window = {"id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae", "title": "shell-1",

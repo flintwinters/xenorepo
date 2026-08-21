@@ -103,6 +103,16 @@ class WorkspaceRepository:
             session.add(Workspace(id=identifier, created_at=timestamp, updated_at=timestamp))
         return identifier
 
+    def shared_workspace(self) -> str:
+        """Return the server desktop, adopting the most recently used legacy workspace."""
+        with self.sessions.begin() as session:
+            workspace = session.scalar(select(Workspace).order_by(Workspace.updated_at.desc()).limit(1))
+            if workspace is not None:
+                return workspace.id
+            identifier, timestamp = str(uuid4()), self.clock()
+            session.add(Workspace(id=identifier, created_at=timestamp, updated_at=timestamp))
+            return identifier
+
     def workspace_exists(self, workspace_id: str | None) -> bool:
         return bool(workspace_id) and self._valid_identifier(workspace_id) and self._workspace(workspace_id)
 

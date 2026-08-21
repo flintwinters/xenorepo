@@ -1,5 +1,17 @@
 const { expect, test } = require("@playwright/test");
 
+async function openCleanDesktop(page) {
+  const response = await page.request.get("/api/workspace");
+  const state = await response.json();
+  await Promise.all(state.windows.map(window => page.request.delete(
+    `/api/workspace/windows/${window.id}`,
+  )));
+  await page.request.put("/api/workspace", { data: { windows: [], shortcuts: [{
+    action: "new-shell", key: "Meta", control: false, alt: false, shift: false, meta: false,
+  }] } });
+  await page.goto("/worminal");
+}
+
 test("creates and manages independent terminal windows", async ({ page }) => {
   await page.addInitScript(() => {
     globalThis.WebSocket = class SocketDouble {
@@ -11,7 +23,7 @@ test("creates and manages independent terminal windows", async ({ page }) => {
       close() { this.readyState = 3; this.onclose?.({}); }
     };
   });
-  await page.goto("/worminal");
+  await openCleanDesktop(page);
 
   await expect(page.getByText("WORMINAL", { exact: true })).toBeVisible();
   await expect(page.getByText("1 SHELL CONNECTED", { exact: true })).toBeVisible();
@@ -76,7 +88,7 @@ test("creates and manages independent terminal windows", async ({ page }) => {
 });
 
 test("executes a command in a real localhost shell", async ({ page }) => {
-  await page.goto("/worminal");
+  await openCleanDesktop(page);
   await expect(page.getByText("1 SHELL CONNECTED", { exact: true })).toBeVisible();
 
   const terminal = page.getByLabel("shell-1 terminal");
@@ -99,7 +111,7 @@ test("restores a server-saved desktop after reload", async ({ page }) => {
       close() { this.readyState = 3; this.onclose?.({}); }
     };
   });
-  await page.goto("/worminal");
+  await openCleanDesktop(page);
   await expect(page.getByLabel("shell-1 terminal")).toBeVisible();
   await page.getByText("+ NEW SHELL", { exact: true }).click();
   await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
@@ -134,7 +146,7 @@ test("customizes and restores the new-shell hotkey from settings", async ({ page
       close() { this.readyState = 3; this.onclose?.({}); }
     };
   });
-  await page.goto("/worminal");
+  await openCleanDesktop(page);
   await expect(page.getByLabel("shell-1 terminal")).toBeVisible();
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByRole("dialog", { name: "HOTKEY SETTINGS" })).toBeVisible();

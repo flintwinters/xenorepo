@@ -142,8 +142,8 @@ def create_app(database_url: str | None = None) -> FastAPI:
             status_code=403)
 
     def workspace_id(request: Request) -> str | None:
-        candidate = request.cookies.get(COOKIE)
-        return candidate if repository.workspace_exists(candidate) else None
+        del request
+        return repository.shared_workspace()
 
     def require_workspace(request: Request) -> str:
         identifier = workspace_id(request)
@@ -167,11 +167,9 @@ def create_app(database_url: str | None = None) -> FastAPI:
     @application.get("/api/workspace")
     def get_workspace(request: Request) -> JSONResponse:
         identifier = workspace_id(request)
-        created = identifier is None
-        identifier = identifier or repository.create_workspace()
         response = JSONResponse({"windows": repository.windows(identifier),
             "shortcuts": repository.shortcuts(identifier)})
-        return set_session_cookie(response, request, COOKIE, identifier, COOKIE_AGE) if created else response
+        return response
 
     @application.put("/api/workspace", status_code=204)
     def save_workspace(payload: WorkspaceInput, request: Request) -> Response:
@@ -198,8 +196,8 @@ def create_app(database_url: str | None = None) -> FastAPI:
         if not is_loopback_client(socket) and not remote_session_authorized(socket.cookies.get(ACCESS_COOKIE)):
             await socket.close(code=1008, reason="Worminal requires authenticated remote access.")
             return
-        workspace = socket.cookies.get(COOKIE)
-        transcript = repository.transcript(workspace or "", window_id)
+        workspace = repository.shared_workspace()
+        transcript = repository.transcript(workspace, window_id)
         session = manager.attach(window_id) if transcript is not None else None
         if session is None:
             await socket.close(code=1008, reason="Terminal window is unavailable.")

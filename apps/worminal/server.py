@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from apps.worminal.database import Base, WorkspaceRepository, _migrate_legacy_schema
-from apps.worminal.terminal import PtySession, bridge_terminal, is_loopback_client
+from apps.worminal.terminal import PtySession, bridge_terminal, is_loopback_client, resolve_shell_account
 from monotools.appkit import create_app_context
 from monotools.http import enforce_same_origin, set_session_cookie
 from monotools.realtime import websocket_origin_allowed
@@ -56,14 +56,15 @@ class WorkspaceInput(BaseModel):
 class TerminalManager:
     """Keep each live shell attached to its durable window, not a socket."""
 
-    def __init__(self) -> None:
+    def __init__(self, shell_user: str | None = None) -> None:
         self.sessions: dict[str, PtySession] = {}
         self.active: set[str] = set()
+        self.shell_user = shell_user
 
     def session(self, window_id: str) -> PtySession:
         session = self.sessions.get(window_id)
         if session is None or session.process.poll() is not None:
-            session = PtySession()
+            session = PtySession(user=self.shell_user)
             self.sessions[window_id] = session
         return session
 
@@ -103,7 +104,9 @@ def create_app(database_url: str | None = None) -> FastAPI:
         default_database=DEFAULT_DATABASE, environment_key="WORMINAL_DATABASE_URL",
         database_url=database_url, prepare=_migrate_legacy_schema)
     repository = WorkspaceRepository(context.require_sessions(), context.clock.now)
-    manager = TerminalManager()
+    shell_user = os.environ.get("WORMINAL_SHELL_USER")
+    resolve_shell_account(shell_user)
+    manager = TerminalManager(shell_user)
     remote_access_token = os.environ.get("WORMINAL_ACCESS_TOKEN")
 
     @asynccontextmanager

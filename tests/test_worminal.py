@@ -1,12 +1,14 @@
 import select
 from base64 import b64encode
+import os
 from pathlib import Path
+import pwd
 from types import SimpleNamespace
 import unittest
 
 from apps.worminal.database import WorkspaceRepository, create_session_factory
 from apps.worminal.server import app, remote_access_authorized
-from apps.worminal.terminal import PtySession, is_loopback_client
+from apps.worminal.terminal import PtySession, is_loopback_client, resolve_shell_account
 
 
 class WorminalTests(unittest.TestCase):
@@ -99,6 +101,26 @@ class WorminalTests(unittest.TestCase):
         session.close()
         self.assertTrue(session.closed)
         self.assertIsNotNone(session.process.returncode)
+
+    def test_selected_terminal_user_controls_the_shell_identity(self) -> None:
+        account = pwd.getpwuid(os.geteuid())
+        self.assertEqual(resolve_shell_account(account.pw_name).uid, account.pw_uid)
+        with self.assertRaisesRegex(ValueError, "Unknown terminal user"):
+            resolve_shell_account("worminal-user-that-does-not-exist")
+        session = PtySession("/bin/sh", user=account.pw_name)
+        self.addCleanup(session.close)
+        session.write("id -un\nexit\n")
+        output = bytearray()
+        while session.process.poll() is None:
+            readable, _, _ = select.select([session.master], [], [], 0.25)
+            if readable:
+                try:
+                    output.extend(session.read())
+                except OSError:
+                    break
+        session.process.wait(timeout=2)
+
+        self.assertIn(account.pw_name.encode(), output)
 
 
 if __name__ == "__main__":

@@ -32,6 +32,16 @@ Open `http://<server-lan-address>:8000/worminal`. For port 80, use your normal
 privileged service or reverse-proxy setup; the same `WORMINAL_ACCESS_TOKEN`
 requirement applies.
 
+To run every terminal as a selected Unix account, add `--user`:
+
+```console
+uv run python manage.py serve worminal --host 0.0.0.0 --port 8000 --user alice
+```
+
+Selecting a different account requires the hosting service to run with the
+necessary Unix privilege. Each terminal child drops to `alice` before its login
+shell starts; an unavailable user or unauthorized switch fails at startup.
+
 ## Security boundary
 
 Worminal intentionally grants shell access to the local user account running

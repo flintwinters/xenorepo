@@ -1,6 +1,7 @@
 """Typer command model for the centralized Monotools framework."""
 
 from pathlib import Path
+import os
 import subprocess
 import sys
 
@@ -180,16 +181,19 @@ def serve(
     name: str | None = typer.Argument(None, help="Application name."),
     host: str = typer.Option("127.0.0.1"),
     port: int = typer.Option(8000, min=1, max=65535),
+    user: str | None = typer.Option(None, "--user", help="Unix user for Worminal terminal processes."),
 ) -> None:
     """Build and serve an application through its FastAPI service."""
     try:
         definition = _select_app(name)
+        if user is not None and definition.name != "worminal":
+            raise LifecycleError("--user is available only when serving worminal.")
         build_app(definition)
         validate_dist(definition)
     except (AppDefinitionError, LifecycleError) as error:
         _fail(error)
     subprocess.run(
         [sys.executable, "-m", "uvicorn", definition.module + ":app", "--host", host, "--port", str(port)],
-        cwd=ROOT,
+        cwd=ROOT, env=os.environ | ({"WORMINAL_SHELL_USER": user} if user else {}),
         check=False,
     )

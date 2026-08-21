@@ -32,6 +32,13 @@ class RepositoryAppTests(unittest.TestCase):
         )
         self.assertIn("Example: manage.py serve calculator", result.output)
 
+    def test_worminal_user_option_is_discoverable_from_the_managed_serve_command(self) -> None:
+        result = CliRunner().invoke(app, ["serve", "--help"])
+
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("--user", result.output)
+        self.assertIn("Unix user for Worminal terminal", result.output)
+
     def test_status_reports_the_organization_of_every_discovered_app(self) -> None:
         result = CliRunner().invoke(app, ["status"])
 

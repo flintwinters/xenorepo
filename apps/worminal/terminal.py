@@ -5,6 +5,7 @@ import fcntl
 import ipaddress
 import os
 from pathlib import Path
+import pwd
 import pty
 import shutil
 import signal
@@ -20,6 +21,13 @@ from fastapi import WebSocket, WebSocketDisconnect
 MAX_INPUT_BYTES = 64 * 1024
 DEFAULT_COLUMNS = 100
 DEFAULT_ROWS = 30
+
+
+class ShellAccount:
+    """The Unix identity and login environment for one terminal process."""
+
+    def __init__(self, name: str, uid: int, gid: int, home: Path, shell: str) -> None:
+        self.name, self.uid, self.gid, self.home, self.shell = name, uid, gid, home, shell
 
 
 def is_loopback_client(socket: Any) -> bool:
@@ -39,17 +47,52 @@ def login_shell() -> str:
     return shutil.which("zsh") or shutil.which("bash") or "/bin/sh"
 
 
+def resolve_shell_account(name: str | None) -> ShellAccount | None:
+    """Resolve a selected Unix account and reject unavailable privilege changes."""
+    if name is None:
+        return None
+    try:
+        record = pwd.getpwnam(name)
+    except KeyError as error:
+        raise ValueError(f"Unknown terminal user: {name}") from error
+    if os.geteuid() != 0 and record.pw_uid != os.geteuid():
+        raise PermissionError("Serving another terminal user requires a root-owned service.")
+    home = Path(record.pw_dir)
+    if not home.is_dir():
+        raise ValueError(f"Terminal user {name} has no usable home directory: {home}")
+    shell = record.pw_shell if Path(record.pw_shell).is_absolute() and os.access(record.pw_shell, os.X_OK) else login_shell()
+    return ShellAccount(record.pw_name, record.pw_uid, record.pw_gid, home, shell)
+
+
+def _drop_privileges(account: ShellAccount | None):
+    """Return the child-only identity transition when the service is privileged."""
+    if account is None or os.geteuid() != 0 or account.uid == 0:
+        return None
+
+    def drop() -> None:
+        os.setgid(account.gid)
+        os.initgroups(account.name, account.gid)
+        os.setuid(account.uid)
+
+    return drop
+
+
 class PtySession:
     """Own one shell process and its pseudo-terminal file descriptor."""
 
-    def __init__(self, shell: str | None = None) -> None:
+    def __init__(self, shell: str | None = None, user: str | None = None) -> None:
+        account = resolve_shell_account(user)
         master, slave = pty.openpty()
-        command = shell or login_shell()
+        command = shell or (account.shell if account is not None else login_shell())
         environment = os.environ | {"TERM": "xterm-256color", "COLORTERM": "truecolor"}
+        if account is not None:
+            environment |= {"HOME": str(account.home), "USER": account.name,
+                "LOGNAME": account.name, "SHELL": command}
         try:
             self.process = subprocess.Popen(
                 [command, "-l"], stdin=slave, stdout=slave, stderr=slave,
-                cwd=Path.home(), env=environment, start_new_session=True, close_fds=True,
+                cwd=account.home if account is not None else Path.home(), env=environment,
+                preexec_fn=_drop_privileges(account), start_new_session=True, close_fds=True,
             )
         finally:
             os.close(slave)

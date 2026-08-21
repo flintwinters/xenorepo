@@ -25,12 +25,11 @@ class WorminalTests(unittest.TestCase):
 
         self.assertIn("WantedBy=default.target", unit)
         self.assertIn("Environment=WORMINAL_ACCESS_TOKEN=felix", unit)
-        self.assertIn("ExecStart=%h/.local/bin/uv run python manage.py serve worminal "
+        self.assertIn("ExecStart=/usr/bin/authbind --deep %h/.local/bin/uv run python "
+            "manage.py serve worminal "
             "--watch --host 0.0.0.0 --port 80", unit)
         self.assertIn("Restart=on-failure", unit)
         self.assertNotIn("ExecStartPre", unit)
-        self.assertEqual(Path("apps/worminal/worminal.sysctl").read_text(encoding="utf-8"),
-            "net.ipv4.ip_unprivileged_port_start=80\n")
 
     def setUp(self) -> None:
         self.database.unlink(missing_ok=True)

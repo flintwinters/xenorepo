@@ -20,8 +20,8 @@ continues serving the rebuilt `dist/index.html` without a backend restart.
 The included `worminal.service` runs this mode as a user-level systemd service.
 Install it in `~/.config/systemd/user/`, enable it for `default.target`, and
 enable user lingering when it must start at machine boot before login. The unit
-binds `0.0.0.0:80`; install `worminal.sysctl` in `/etc/sysctl.d/` so the
-unprivileged user service can bind port 80 without executable capabilities.
+binds `0.0.0.0:80` through `authbind`; grant the Worminal user execute access to
+`/etc/authbind/byport/80` to authorize only that user and port.
 
 Open `http://127.0.0.1:8000/worminal`, then create, drag, resize, minimize, maximize, and
 close shell windows from the browser desktop. Closing a window or browser

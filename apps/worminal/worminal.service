@@ -5,7 +5,7 @@ After=network.target
 [Service]
 WorkingDirectory=%h/projects/xenorepo
 Environment=WORMINAL_ACCESS_TOKEN=felix
-ExecStart=%h/.local/bin/uv run python manage.py serve worminal --watch --host 0.0.0.0 --port 80
+ExecStart=/usr/bin/authbind --deep %h/.local/bin/uv run python manage.py serve worminal --watch --host 0.0.0.0 --port 80
 Restart=on-failure
 
 [Install]

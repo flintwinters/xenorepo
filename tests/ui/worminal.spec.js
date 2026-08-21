@@ -20,6 +20,10 @@ test("creates and manages independent terminal windows", async ({ page }) => {
   await page.getByRole("button", { name: "+ NEW SHELL" }).click();
   await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
   const secondWindow = page.getByRole("region", { name: "shell-2" });
+  const contextMenuAllowed = await page.getByLabel("shell-2 terminal").evaluate(element =>
+    element.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, shiftKey: true })),
+  );
+  expect(contextMenuAllowed).toBe(false);
   await secondWindow.evaluate(element => { element.style.width = "540px"; element.style.height = "300px"; });
   const beforeMove = await secondWindow.boundingBox();
   const viewport = page.viewportSize();

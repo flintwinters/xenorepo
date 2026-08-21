@@ -47,10 +47,17 @@ class WorminalDesktop extends LitElement {
 
   connectedCallback() {
     super.connectedCallback();
+    this.renderRoot.addEventListener("contextmenu", this.blockShiftContextMenu, { capture: true });
     this.clockTimer = window.setInterval(() => this.clock = new Date().toLocaleTimeString([], { hour12: false }), 1000);
     this.spawn();
   }
-  disconnectedCallback() { for (const id of this.sessions.keys()) this.destroySession(id); clearInterval(this.clockTimer); super.disconnectedCallback(); }
+  disconnectedCallback() { this.renderRoot.removeEventListener("contextmenu", this.blockShiftContextMenu, { capture: true }); for (const id of this.sessions.keys()) this.destroySession(id); clearInterval(this.clockTimer); super.disconnectedCallback(); }
+
+  private blockShiftContextMenu(event: Event) {
+    if (!(event as MouseEvent).shiftKey) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  }
 
   private updateWindow(id: number, change: (window: WindowState) => WindowState) {
     this.windows = this.windows.map(window => window.id === id ? change(window) : window);
@@ -129,7 +136,7 @@ class WorminalDesktop extends LitElement {
   private renderWindow(window: WindowState) {
     if (window.minimized) return nothing;
     const style = `left:${window.x}px;top:${window.y}px;width:${window.width}px;height:${window.height}px;z-index:${window.z}`;
-    return html`<section data-window=${window.id} class="window ${window.z === this.topZ ? "active" : ""} ${window.maximized ? "maximized" : ""}" style=${style} @pointerdown=${(event: PointerEvent) => this.windowPointerDown(event, window.id)} @contextmenu=${(event: MouseEvent) => { if (event.shiftKey) event.preventDefault(); }} aria-label=${window.title}>
+    return html`<section data-window=${window.id} class="window ${window.z === this.topZ ? "active" : ""} ${window.maximized ? "maximized" : ""}" style=${style} @pointerdown=${(event: PointerEvent) => this.windowPointerDown(event, window.id)} aria-label=${window.title}>
       <header class="titlebar" @pointerdown=${(event: PointerEvent) => this.titlePointerDown(event, window.id)} @dblclick=${() => this.toggleMaximize(window.id)}><span>▣</span><span>${window.title}</span><span class="phase">${window.phase.toUpperCase()}</span><div class="controls"><button aria-label="Minimize ${window.title}" @click=${() => this.toggleMinimize(window.id)}>_</button><button aria-label="Maximize ${window.title}" @click=${() => this.toggleMaximize(window.id)}>□</button><button aria-label="Close ${window.title}" @click=${() => this.close(window.id)}>×</button></div></header>
       <div class="terminal-host" data-terminal=${window.id} aria-label=${`${window.title} terminal`}></div>
     </section>`;

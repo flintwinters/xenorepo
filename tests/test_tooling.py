@@ -233,6 +233,8 @@ frontend:
         self.assertIn("else this.resizeWindow(event, id)", source)
         self.assertIn("bounds?.width ?? window.width", source)
         self.assertIn("bounds?.height ?? window.height", source)
+        self.assertIn('addEventListener("contextmenu", this.blockShiftContextMenu, { capture: true })', source)
+        self.assertIn("event.stopImmediatePropagation()", source)
         self.assertNotIn("Pyodide", source)
         self.assertIn("+ NEW SHELL", document)
         self.assertIn("LOCALHOST WORKSPACE", document)

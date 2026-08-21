@@ -11,6 +11,7 @@ import signal
 import struct
 import subprocess
 import termios
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
@@ -84,13 +85,16 @@ class PtySession:
                 self.process.wait(timeout=2)
 
 
-async def bridge_terminal(socket: WebSocket, session: PtySession) -> None:
+async def bridge_terminal(socket: WebSocket, session: PtySession,
+    on_output: Callable[[bytes], Awaitable[None]] | None = None, *, close_session: bool = True) -> None:
     """Relay one WebSocket bidirectionally until either side disconnects."""
     async def send_output() -> None:
         while True:
             data = await asyncio.to_thread(session.read)
             if not data:
                 return
+            if on_output is not None:
+                await on_output(data)
             await socket.send_bytes(data)
 
     async def receive_input() -> None:
@@ -111,7 +115,8 @@ async def bridge_terminal(socket: WebSocket, session: PtySession) -> None:
     except (OSError, TypeError, ValueError, WebSocketDisconnect):
         pass
     finally:
-        session.close()
+        if close_session:
+            session.close()
         for task in tasks:
             if not task.done():
                 task.cancel()

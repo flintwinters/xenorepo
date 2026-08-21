@@ -8,7 +8,7 @@ type Phase = "connecting" | "ready" | "closed" | "failed";
 const TERMINAL_FONT_SIZE = 11;
 const TERMINAL_ROW_HEIGHT = 9;
 interface WindowState {
-  id: number; title: string; x: number; y: number; width: number; height: number;
+  id: string; title: string; x: number; y: number; width: number; height: number;
   z: number; minimized: boolean; maximized: boolean; phase: Phase;
 }
 interface TerminalSession { socket: WebSocket; terminal: Terminal; fit: FitAddon; resize?: ResizeObserver; }
@@ -17,12 +17,13 @@ class WorminalDesktop extends LitElement {
   static properties = { windows: { state: true }, clock: { state: true } };
   declare windows: WindowState[];
   declare clock: string;
-  private sessions = new Map<number, TerminalSession>();
-  private nextId = 1;
+  private sessions = new Map<string, TerminalSession>();
+  private nextTitle = 1;
   private topZ = 1;
   private clockTimer?: number;
   private superHeld = false;
   private superChord = false;
+  private persistence = Promise.resolve();
 
   constructor() { super(); this.windows = []; this.clock = "--:--:--"; }
 
@@ -57,7 +58,7 @@ class WorminalDesktop extends LitElement {
     window.addEventListener("keydown", this.handleSuperKeyDown, { capture: true });
     window.addEventListener("keyup", this.handleSuperKeyUp, { capture: true });
     this.clockTimer = window.setInterval(() => this.clock = new Date().toLocaleTimeString([], { hour12: false }), 1000);
-    this.spawn();
+    void this.restoreWorkspace();
   }
   disconnectedCallback() { this.renderRoot.removeEventListener("contextmenu", this.blockShiftContextMenu, { capture: true }); window.removeEventListener("contextmenu", this.blockShiftContextMenu, { capture: true }); window.removeEventListener("keydown", this.handleSuperKeyDown, { capture: true }); window.removeEventListener("keyup", this.handleSuperKeyUp, { capture: true }); for (const id of this.sessions.keys()) this.destroySession(id); clearInterval(this.clockTimer); super.disconnectedCallback(); }
 
@@ -87,23 +88,48 @@ class WorminalDesktop extends LitElement {
     if (openShell) this.spawn();
   };
 
-  private updateWindow(id: number, change: (window: WindowState) => WindowState) {
+  private updateWindow(id: string, change: (window: WindowState) => WindowState) {
     this.windows = this.windows.map(window => window.id === id ? change(window) : window);
   }
 
-  private spawn() {
-    const id = this.nextId++; const offset = (id - 1) % 7;
-    this.windows = [...this.windows, { id, title: `shell-${id}`, x: 32 + offset * 28, y: 30 + offset * 24, width: 650, height: 410, z: ++this.topZ, minimized: false, maximized: false, phase: "connecting" }];
-    this.updateComplete.then(() => this.connect(id));
+  private async restoreWorkspace() {
+    const response = await fetch("/api/workspace");
+    if (!response.ok) { this.spawn(); return; }
+    const state = await response.json() as { windows: Omit<WindowState, "phase">[] };
+    this.windows = state.windows.map(window => ({ ...window, phase: "connecting" }));
+    this.topZ = Math.max(1, ...this.windows.map(window => window.z));
+    this.nextTitle = Math.max(1, ...this.windows.map(window => Number(window.title.match(/^shell-(\d+)$/)?.[1] || 0) + 1));
+    if (!this.windows.length) { this.spawn(); return; }
+    await this.updateComplete;
+    for (const window of this.windows) if (!window.minimized) this.connect(window.id);
   }
 
-  private connect(id: number) {
+  private savedWindows() {
+    return this.windows.map(({ phase, ...window }) => window);
+  }
+
+  private saveWorkspace() {
+    const body = JSON.stringify({ windows: this.savedWindows() });
+    this.persistence = this.persistence.then(async () => {
+      const response = await fetch("/api/workspace", { method: "PUT", headers: { "Content-Type": "application/json" }, body });
+      if (!response.ok) throw new Error("Could not save Worminal workspace.");
+    }).catch(() => undefined);
+    return this.persistence;
+  }
+
+  private async spawn() {
+    const id = crypto.randomUUID(); const number = this.nextTitle++; const offset = (number - 1) % 7;
+    this.windows = [...this.windows, { id, title: `shell-${number}`, x: 32 + offset * 28, y: 30 + offset * 24, width: 650, height: 410, z: ++this.topZ, minimized: false, maximized: false, phase: "connecting" }];
+    await this.saveWorkspace(); await this.updateComplete; this.connect(id);
+  }
+
+  private connect(id: string) {
     const host = this.renderRoot.querySelector<HTMLElement>(`[data-terminal="${id}"]`);
     if (!host || this.sessions.has(id)) return;
     const terminal = new Terminal({ cursorBlink: true, convertEol: false, fontFamily: '"Courier New", monospace', fontSize: TERMINAL_FONT_SIZE, lineHeight: 1, letterSpacing: 0, scrollback: 5000, theme: { background: "#181a1b", foreground: "#ebdbb2", cursor: "#fabd2f", selectionBackground: "#504945" } });
     const fit = new FitAddon(); terminal.loadAddon(fit); terminal.open(host);
     const protocol = location.protocol === "https:" ? "wss" : "ws";
-    const socket = new WebSocket(`${protocol}://${location.host}/ws/terminal`);
+    const socket = new WebSocket(`${protocol}://${location.host}/ws/terminal/${id}`);
     socket.binaryType = "arraybuffer";
     const session: TerminalSession = { socket, terminal, fit }; this.sessions.set(id, session);
     terminal.writeln("\x1b[33mWorminal\x1b[0m · opening localhost shell…");
@@ -116,7 +142,7 @@ class WorminalDesktop extends LitElement {
     session.resize = new ResizeObserver(() => this.fitTerminal(id)); session.resize.observe(host);
   }
 
-  private fitTerminal(id: number) {
+  private fitTerminal(id: string) {
     const session = this.sessions.get(id);
     const host = this.renderRoot.querySelector<HTMLElement>(`[data-terminal="${id}"]`);
     if (!session || !host) return;
@@ -126,48 +152,48 @@ class WorminalDesktop extends LitElement {
     this.sendResize(id);
   }
 
-  private sendResize(id: number) {
+  private sendResize(id: string) {
     const session = this.sessions.get(id); if (!session || session.socket.readyState !== WebSocket.OPEN) return;
     session.socket.send(JSON.stringify({ type: "resize", columns: session.terminal.cols, rows: session.terminal.rows }));
   }
 
-  private destroySession(id: number) {
+  private destroySession(id: string) {
     const session = this.sessions.get(id); if (!session) return;
     session.resize?.disconnect(); session.socket.close(); session.terminal.dispose(); this.sessions.delete(id);
   }
-  private close(id: number) { this.destroySession(id); this.windows = this.windows.filter(window => window.id !== id); }
-  private focus(id: number) { this.updateWindow(id, window => ({ ...window, z: ++this.topZ, minimized: false })); this.updateComplete.then(() => this.sessions.get(id)?.terminal.focus()); }
-  private toggleMaximize(id: number) { this.updateWindow(id, window => ({ ...window, maximized: !window.maximized, minimized: false, z: ++this.topZ })); this.updateComplete.then(() => this.fitTerminal(id)); }
-  private toggleMinimize(id: number) { this.updateWindow(id, window => ({ ...window, minimized: !window.minimized })); }
+  private close(id: string) { this.destroySession(id); this.windows = this.windows.filter(window => window.id !== id); this.persistence = this.persistence.then(() => fetch(`/api/workspace/windows/${id}`, { method: "DELETE" })).catch(() => undefined); }
+  private focus(id: string) { this.updateWindow(id, window => ({ ...window, z: ++this.topZ, minimized: false })); void this.saveWorkspace(); this.updateComplete.then(() => this.sessions.get(id)?.terminal.focus()); }
+  private toggleMaximize(id: string) { this.updateWindow(id, window => ({ ...window, maximized: !window.maximized, minimized: false, z: ++this.topZ })); void this.saveWorkspace(); this.updateComplete.then(() => this.fitTerminal(id)); }
+  private toggleMinimize(id: string) { const item = this.windows.find(window => window.id === id); if (!item) return; if (!item.minimized) this.destroySession(id); this.updateWindow(id, window => ({ ...window, minimized: !window.minimized })); void this.saveWorkspace(); if (item.minimized) this.updateComplete.then(() => this.connect(id)); }
 
-  private moveWindow(event: PointerEvent, id: number) {
+  private moveWindow(event: PointerEvent, id: string) {
     const item = this.windows.find(window => window.id === id); if (!item || item.maximized) return;
     const frame = this.renderRoot.querySelector<HTMLElement>(`[data-window="${id}"]`);
     const bounds = frame?.getBoundingClientRect();
     this.focus(id); const startX = event.clientX; const startY = event.clientY; const originX = item.x; const originY = item.y;
     const move = (next: PointerEvent) => this.updateWindow(id, window => ({ ...window, x: originX + next.clientX - startX, y: originY + next.clientY - startY, width: bounds?.width ?? window.width, height: bounds?.height ?? window.height }));
-    const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", stop); };
+    const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", stop); void this.saveWorkspace(); };
     addEventListener("pointermove", move); addEventListener("pointerup", stop, { once: true });
   }
 
-  private resizeWindow(event: PointerEvent, id: number) {
+  private resizeWindow(event: PointerEvent, id: string) {
     const item = this.windows.find(window => window.id === id); if (!item || item.maximized) return;
     const frame = this.renderRoot.querySelector<HTMLElement>(`[data-window="${id}"]`);
     const bounds = frame?.getBoundingClientRect();
     this.focus(id); const startX = event.clientX; const startY = event.clientY; const width = bounds?.width ?? item.width; const height = bounds?.height ?? item.height;
     const move = (next: PointerEvent) => this.updateWindow(id, window => ({ ...window, width: Math.max(300, width + next.clientX - startX), height: Math.max(190, height + next.clientY - startY) }));
-    const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", stop); };
+    const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", stop); void this.saveWorkspace(); };
     addEventListener("pointermove", move); addEventListener("pointerup", stop, { once: true });
   }
 
-  private windowPointerDown(event: PointerEvent, id: number) {
+  private windowPointerDown(event: PointerEvent, id: string) {
     this.focus(id);
     if ((event.target as Element).closest("button") || !event.shiftKey || ![0, 2].includes(event.button)) return;
     event.preventDefault(); event.stopPropagation();
     if (event.button === 0) this.moveWindow(event, id); else this.resizeWindow(event, id);
   }
 
-  private titlePointerDown(event: PointerEvent, id: number) {
+  private titlePointerDown(event: PointerEvent, id: string) {
     if (event.shiftKey || event.button !== 0 || (event.target as Element).closest("button")) return;
     event.stopPropagation(); this.moveWindow(event, id);
   }

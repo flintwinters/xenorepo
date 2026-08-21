@@ -221,7 +221,9 @@ frontend:
         document = definition.dist_directory.joinpath("index.html").read_text(encoding="utf-8")
 
         self.assertIn('from "@xterm/xterm"', source)
-        self.assertIn('new WebSocket(`${protocol}://${location.host}/ws/terminal`)', source)
+        self.assertIn('new WebSocket(`${protocol}://${location.host}/ws/terminal/${id}`)', source)
+        self.assertIn('fetch("/api/workspace")', source)
+        self.assertIn('method: "PUT"', source)
         self.assertIn('socket.send(JSON.stringify({ type: "input", data }))', source)
         self.assertIn('type: "resize"', source)
         self.assertIn("fontSize: TERMINAL_FONT_SIZE, lineHeight: 1, letterSpacing: 0", source)

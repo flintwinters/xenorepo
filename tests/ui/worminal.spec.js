@@ -87,3 +87,38 @@ test("executes a command in a real localhost shell", async ({ page }) => {
 
   await expect(terminal.locator(".xterm-screen")).toContainText("worminal-live-check");
 });
+
+test("restores a server-saved desktop after reload", async ({ page }) => {
+  await page.addInitScript(() => {
+    globalThis.WebSocket = class SocketDouble {
+      static OPEN = 1;
+      readyState = 0;
+      set onopen(handler) { this.readyState = 1; setTimeout(() => handler({}), 0); }
+      get onopen() { return undefined; }
+      send() {}
+      close() { this.readyState = 3; this.onclose?.({}); }
+    };
+  });
+  await page.goto("/");
+  await expect(page.getByLabel("shell-1 terminal")).toBeVisible();
+  await page.getByText("+ NEW SHELL", { exact: true }).click();
+  await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
+  const second = page.getByRole("region", { name: "shell-2" });
+  const before = await second.boundingBox();
+  await page.keyboard.down("Shift");
+  await page.mouse.move(before.x + 100, before.y + 10);
+  await page.mouse.down();
+  await page.mouse.move(before.x + 145, before.y + 42);
+  await page.mouse.up();
+  await page.keyboard.up("Shift");
+  const moved = await second.boundingBox();
+  await expect.poll(async () => page.evaluate(async () => {
+    const state = await fetch("/api/workspace").then(response => response.json());
+    return state.windows.find(window => window.title === "shell-2")?.x;
+  })).toBe(Math.round(moved.x));
+
+  await page.reload();
+  await expect(page.getByLabel("shell-1 terminal")).toBeVisible();
+  await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
+  expect((await page.getByRole("region", { name: "shell-2" }).boundingBox()).x).toBe(Math.round(moved.x));
+});

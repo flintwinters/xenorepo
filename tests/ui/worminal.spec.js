@@ -175,3 +175,23 @@ test("customizes and restores the new-shell hotkey from settings", async ({ page
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByLabel("New shell shortcut")).toHaveValue("Ctrl + Alt + n");
 });
+
+test("mirrors windows and live terminal output across views", async ({ page, context }) => {
+  await openCleanDesktop(page);
+  await expect(page.getByText("1 SHELL CONNECTED", { exact: true })).toBeVisible();
+  const second = await context.newPage();
+  await second.goto("/worminal");
+  await expect(second.getByLabel("shell-1 terminal")).toBeVisible();
+
+  const firstTerminal = page.getByLabel("shell-1 terminal");
+  await firstTerminal.locator(".xterm-helper-textarea").pressSequentially(
+    "printf 'worminal-mirrored-output\\n'",
+  );
+  await firstTerminal.locator(".xterm-helper-textarea").press("Enter");
+  await expect(firstTerminal.locator(".xterm-screen")).toContainText("worminal-mirrored-output");
+  await expect(second.getByLabel("shell-1 terminal").locator(".xterm-screen"))
+    .toContainText("worminal-mirrored-output");
+
+  await page.getByText("+ NEW SHELL", { exact: true }).click();
+  await expect(second.getByLabel("shell-2 terminal")).toBeVisible({ timeout: 3000 });
+});

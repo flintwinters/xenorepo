@@ -5,14 +5,15 @@ import hmac
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from apps.worminal.database import Base, WorkspaceRepository, _migrate_legacy_schema
-from apps.worminal.terminal import PtySession, bridge_terminal, is_loopback_client, resolve_shell_account
+from apps.worminal.terminal import PtySession, is_loopback_client, resolve_shell_account
 from monotools.appkit import create_app_context
 from monotools.http import enforce_same_origin, set_session_cookie
 from monotools.realtime import websocket_origin_allowed
@@ -56,38 +57,61 @@ class AccessInput(BaseModel):
     password: str = Field(min_length=1, max_length=1024)
 
 
+@dataclass
+class ManagedTerminal:
+    session: PtySession
+    sockets: set[WebSocket] = field(default_factory=set)
+    reader: asyncio.Task[None] | None = None
+
+
 class TerminalManager:
-    """Keep each live shell attached to its durable window, not a socket."""
+    """Own each PTY once and broadcast its output to every attached view."""
 
-    def __init__(self, shell_user: str | None = None) -> None:
-        self.sessions: dict[str, PtySession] = {}
-        self.active: set[str] = set()
+    def __init__(self, shell_user: str | None, repository: WorkspaceRepository) -> None:
+        self.terminals: dict[str, ManagedTerminal] = {}
         self.shell_user = shell_user
+        self.repository = repository
 
-    def session(self, window_id: str) -> PtySession:
-        session = self.sessions.get(window_id)
-        if session is None or session.process.poll() is not None:
-            session = PtySession(user=self.shell_user)
-            self.sessions[window_id] = session
-        return session
+    def attach(self, window_id: str, socket: WebSocket) -> PtySession:
+        terminal = self.terminals.get(window_id)
+        if terminal is None or terminal.session.process.poll() is not None:
+            terminal = ManagedTerminal(PtySession(user=self.shell_user))
+            self.terminals[window_id] = terminal
+        terminal.sockets.add(socket)
+        if terminal.reader is None or terminal.reader.done():
+            terminal.reader = asyncio.create_task(self._broadcast(window_id, terminal))
+        return terminal.session
 
-    def attach(self, window_id: str) -> PtySession | None:
-        if window_id in self.active:
-            return None
-        self.active.add(window_id)
-        return self.session(window_id)
+    async def _broadcast(self, window_id: str, terminal: ManagedTerminal) -> None:
+        try:
+            while True:
+                output = await asyncio.to_thread(terminal.session.read)
+                if not output:
+                    return
+                workspace = self.repository.shared_workspace()
+                await asyncio.to_thread(self.repository.append_output, workspace, window_id, output)
+                for socket in tuple(terminal.sockets):
+                    try:
+                        await socket.send_bytes(output)
+                    except Exception:
+                        terminal.sockets.discard(socket)
+        except (OSError, asyncio.CancelledError):
+            return
 
-    def detach(self, window_id: str) -> None:
-        self.active.discard(window_id)
+    def detach(self, window_id: str, socket: WebSocket) -> None:
+        terminal = self.terminals.get(window_id)
+        if terminal is not None:
+            terminal.sockets.discard(socket)
 
     def close(self, window_id: str) -> None:
-        self.active.discard(window_id)
-        session = self.sessions.pop(window_id, None)
-        if session is not None:
-            session.close()
+        terminal = self.terminals.pop(window_id, None)
+        if terminal is not None:
+            if terminal.reader is not None:
+                terminal.reader.cancel()
+            terminal.session.close()
 
     def close_all(self) -> None:
-        for window_id in list(self.sessions):
+        for window_id in list(self.terminals):
             self.close(window_id)
 
 
@@ -110,7 +134,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     repository = WorkspaceRepository(context.require_sessions(), context.clock.now)
     shell_user = os.environ.get("WORMINAL_SHELL_USER")
     resolve_shell_account(shell_user)
-    manager = TerminalManager(shell_user)
+    manager = TerminalManager(shell_user, repository)
     remote_access_token = os.environ.get("WORMINAL_ACCESS_TOKEN")
 
     @asynccontextmanager
@@ -180,7 +204,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
         return Response(status_code=204)
 
     @application.delete("/api/workspace/windows/{window_id}", status_code=204)
-    def close_window(window_id: str, request: Request) -> Response:
+    async def close_window(window_id: str, request: Request) -> Response:
         reject_cross_origin(request)
         identifier = require_workspace(request)
         if not repository.delete_window(identifier, window_id):
@@ -198,21 +222,24 @@ def create_app(database_url: str | None = None) -> FastAPI:
             return
         workspace = repository.shared_workspace()
         transcript = repository.transcript(workspace, window_id)
-        session = manager.attach(window_id) if transcript is not None else None
-        if session is None:
+        if transcript is None:
             await socket.close(code=1008, reason="Terminal window is unavailable.")
             return
         await socket.accept()
         try:
             if transcript:
                 await socket.send_bytes(transcript)
-
-            async def record(output: bytes) -> None:
-                await asyncio.to_thread(repository.append_output, workspace, window_id, output)
-
-            await bridge_terminal(socket, session, record, close_session=False)
+            session = manager.attach(window_id, socket)
+            while True:
+                payload = await socket.receive_json()
+                if payload.get("type") == "input" and isinstance(payload.get("data"), str):
+                    session.write(payload["data"])
+                elif payload.get("type") == "resize":
+                    session.resize(payload.get("columns", 100), payload.get("rows", 30))
+        except (OSError, TypeError, ValueError, WebSocketDisconnect):
+            pass
         finally:
-            manager.detach(window_id)
+            manager.detach(window_id, socket)
 
     return application
 

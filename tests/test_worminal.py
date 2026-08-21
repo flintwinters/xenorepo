@@ -1,4 +1,5 @@
 import select
+import asyncio
 import os
 from pathlib import Path
 import pwd
@@ -6,7 +7,7 @@ from types import SimpleNamespace
 import unittest
 
 from apps.worminal.database import WorkspaceRepository, create_session_factory
-from apps.worminal.server import access_cookie_value, app, remote_access_authorized
+from apps.worminal.server import TerminalManager, access_cookie_value, app, remote_access_authorized
 from apps.worminal.terminal import PtySession, is_loopback_client, resolve_shell_account
 
 
@@ -125,6 +126,36 @@ class WorminalTests(unittest.TestCase):
         session.process.wait(timeout=2)
 
         self.assertIn(account.pw_name.encode(), output)
+
+    def test_terminal_manager_broadcasts_one_pty_to_multiple_views(self) -> None:
+        workspace = self.repository.create_workspace()
+        window = {"id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae", "title": "shell-1",
+            "x": 32, "y": 30, "width": 650, "height": 410, "z": 2,
+            "minimized": False, "maximized": False}
+        self.repository.replace_windows(workspace, [window])
+
+        class View:
+            def __init__(self) -> None:
+                self.output = bytearray()
+
+            async def send_bytes(self, output: bytes) -> None:
+                self.output.extend(output)
+
+        async def exercise() -> None:
+            manager = TerminalManager(None, self.repository)
+            first, second = View(), View()
+            session = manager.attach(window["id"], first)
+            self.assertIs(manager.attach(window["id"], second), session)
+            session.write("printf 'multi-view-check\\n'\n")
+            for _ in range(40):
+                if b"multi-view-check" in first.output and b"multi-view-check" in second.output:
+                    break
+                await asyncio.sleep(0.05)
+            manager.close_all()
+            self.assertIn(b"multi-view-check", first.output)
+            self.assertIn(b"multi-view-check", second.output)
+
+        asyncio.run(exercise())
 
 
 if __name__ == "__main__":

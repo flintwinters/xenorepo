@@ -27,6 +27,9 @@ class WorminalDesktop extends LitElement {
   private nextTitle = 1;
   private topZ = 1;
   private clockTimer?: number;
+  private workspaceTimer?: number;
+  private editingWindow = false;
+  private pendingSaves = 0;
   private persistence = Promise.resolve();
   private shortcutsBeforeSettings?: Shortcut[];
   private standaloneShortcutHeld?: string;
@@ -76,9 +79,10 @@ class WorminalDesktop extends LitElement {
     window.addEventListener("keydown", this.handleSuperKeyDown, { capture: true });
     window.addEventListener("keyup", this.handleSuperKeyUp, { capture: true });
     this.clockTimer = window.setInterval(() => this.clock = new Date().toLocaleTimeString([], { hour12: false }), 1000);
+    this.workspaceTimer = window.setInterval(() => void this.syncWorkspace(), 750);
     void this.restoreWorkspace();
   }
-  disconnectedCallback() { this.renderRoot.removeEventListener("contextmenu", this.blockShiftContextMenu, { capture: true }); window.removeEventListener("contextmenu", this.blockShiftContextMenu, { capture: true }); window.removeEventListener("keydown", this.handleSuperKeyDown, { capture: true }); window.removeEventListener("keyup", this.handleSuperKeyUp, { capture: true }); for (const id of this.sessions.keys()) this.destroySession(id); clearInterval(this.clockTimer); super.disconnectedCallback(); }
+  disconnectedCallback() { this.renderRoot.removeEventListener("contextmenu", this.blockShiftContextMenu, { capture: true }); window.removeEventListener("contextmenu", this.blockShiftContextMenu, { capture: true }); window.removeEventListener("keydown", this.handleSuperKeyDown, { capture: true }); window.removeEventListener("keyup", this.handleSuperKeyUp, { capture: true }); for (const id of this.sessions.keys()) this.destroySession(id); clearInterval(this.clockTimer); clearInterval(this.workspaceTimer); super.disconnectedCallback(); }
 
   private blockShiftContextMenu = (event: Event) => {
     const target = event.target as Node | null;
@@ -148,6 +152,22 @@ class WorminalDesktop extends LitElement {
     for (const window of this.windows) if (!window.minimized) this.connect(window.id);
   }
 
+  private async syncWorkspace() {
+    if (this.passwordRequired || this.settingsOpen || this.editingWindow || this.pendingSaves) return;
+    const response = await fetch("/api/workspace");
+    if (!response.ok) return;
+    const state = await response.json() as { windows: Omit<WindowState, "phase">[]; shortcuts?: Shortcut[] };
+    const previous = new Map(this.windows.map(window => [window.id, window]));
+    const declared = new Set(state.windows.map(window => window.id));
+    for (const id of this.sessions.keys()) if (!declared.has(id)) this.destroySession(id);
+    this.windows = state.windows.map(window => ({ ...window, phase: previous.get(window.id)?.phase || "connecting" }));
+    this.shortcuts = state.shortcuts?.length ? state.shortcuts : [this.defaultShortcut()];
+    this.topZ = Math.max(1, ...this.windows.map(window => window.z));
+    this.nextTitle = Math.max(1, ...this.windows.map(window => Number(window.title.match(/^shell-(\d+)$/)?.[1] || 0) + 1));
+    await this.updateComplete;
+    for (const window of this.windows) window.minimized ? this.destroySession(window.id) : this.connect(window.id);
+  }
+
   private async grantAccess(password: string) {
     const access = await fetch("/api/access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
     if (access.ok) return true;
@@ -169,10 +189,11 @@ class WorminalDesktop extends LitElement {
 
   private saveWorkspace() {
     const body = JSON.stringify({ windows: this.savedWindows(), shortcuts: this.shortcuts });
+    this.pendingSaves++;
     this.persistence = this.persistence.then(async () => {
       const response = await fetch("/api/workspace", { method: "PUT", headers: { "Content-Type": "application/json" }, body });
       if (!response.ok) throw new Error("Could not save Worminal workspace.");
-    }).catch(() => undefined);
+    }).catch(() => undefined).finally(() => this.pendingSaves--);
     return this.persistence;
   }
 
@@ -233,9 +254,9 @@ class WorminalDesktop extends LitElement {
     const item = this.windows.find(window => window.id === id); if (!item || item.maximized) return;
     const frame = this.renderRoot.querySelector<HTMLElement>(`[data-window="${id}"]`);
     const bounds = frame?.getBoundingClientRect();
-    this.focus(id); const startX = event.clientX; const startY = event.clientY; const originX = item.x; const originY = item.y;
+    this.editingWindow = true; this.focus(id); const startX = event.clientX; const startY = event.clientY; const originX = item.x; const originY = item.y;
     const move = (next: PointerEvent) => this.updateWindow(id, window => ({ ...window, x: originX + next.clientX - startX, y: originY + next.clientY - startY, width: bounds?.width ?? window.width, height: bounds?.height ?? window.height }));
-    const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", stop); void this.saveWorkspace(); };
+    const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", stop); this.editingWindow = false; void this.saveWorkspace(); };
     addEventListener("pointermove", move); addEventListener("pointerup", stop, { once: true });
   }
 
@@ -243,9 +264,9 @@ class WorminalDesktop extends LitElement {
     const item = this.windows.find(window => window.id === id); if (!item || item.maximized) return;
     const frame = this.renderRoot.querySelector<HTMLElement>(`[data-window="${id}"]`);
     const bounds = frame?.getBoundingClientRect();
-    this.focus(id); const startX = event.clientX; const startY = event.clientY; const width = bounds?.width ?? item.width; const height = bounds?.height ?? item.height;
+    this.editingWindow = true; this.focus(id); const startX = event.clientX; const startY = event.clientY; const width = bounds?.width ?? item.width; const height = bounds?.height ?? item.height;
     const move = (next: PointerEvent) => this.updateWindow(id, window => ({ ...window, width: Math.max(300, width + next.clientX - startX), height: Math.max(190, height + next.clientY - startY) }));
-    const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", stop); void this.saveWorkspace(); };
+    const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", stop); this.editingWindow = false; void this.saveWorkspace(); };
     addEventListener("pointermove", move); addEventListener("pointerup", stop, { once: true });
   }
 

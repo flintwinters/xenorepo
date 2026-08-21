@@ -68,8 +68,16 @@ export class CommandButton extends ConsoleElement {
   disabled = false;
   pressed = false;
   static styles = [consoleTokens, css`
-    :host { display: inline-block; } button { width: 100%; min-height: 18px; padding: 1px 6px; color: var(--console-fg, #ebdbb2); background: linear-gradient(#3c3836, #282828); border: 1px solid #111; border-top-color: #7c6f64; border-left-color: #665c54; box-shadow: inset -1px -1px #1d2021, 0 2px #101112; cursor: pointer; }
-    button:active, button[aria-pressed="true"] { transform: translateY(1px); box-shadow: inset 1px 1px #101112; } button:disabled { color: var(--console-muted, #a89984); cursor: not-allowed; }
+    :host { display: inline-block; }
+    button {
+      width: 100%; min-height: 18px; padding: 1px 6px; color: var(--console-fg, #ebdbb2);
+      background: linear-gradient(#45413f, #302d2b); border: 1px solid var(--console-button-border, #a89984);
+      border-radius: 4px; box-shadow: inset 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.45);
+      cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
+    }
+    button:hover:not(:disabled) { background: linear-gradient(#504b48, #383431); border-color: var(--console-button-border-hover, #d5c4a1); box-shadow: inset 0 1px rgb(255 255 255 / 0.14), 0 2px 4px rgb(0 0 0 / 0.4); }
+    button:active, button[aria-pressed="true"] { transform: translateY(1px); background: #302d2b; box-shadow: inset 0 1px 2px rgb(0 0 0 / 0.55); }
+    button:disabled { color: var(--console-muted, #a89984); cursor: not-allowed; opacity: 0.65; }
   `];
   render() { return html`<button part="button" ?disabled=${this.disabled} aria-pressed=${this.pressed ? "true" : "false"}><slot></slot></button>`; }
 }

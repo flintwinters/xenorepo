@@ -21,6 +21,7 @@ export async function buildPageEntry(entry, output) {
     format: "iife",
     platform: "browser",
     target: ["es2022"],
+    loader: { ".css": "text" },
     minify: true,
     legalComments: "none",
   });

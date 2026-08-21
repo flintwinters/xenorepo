@@ -211,7 +211,7 @@ frontend:
         self.assertNotIn('src="', document)
         self.assertNotIn('href="', document)
 
-    def test_python_terminal_executes_only_in_an_isolated_browser_worker(self) -> None:
+    def test_worminal_uses_xterm_with_one_local_shell_socket_per_window(self) -> None:
         definition = get_app("worminal")
         validate_app(definition)
         build_app(definition)
@@ -220,18 +220,13 @@ frontend:
         )
         document = definition.dist_directory.joinpath("index.html").read_text(encoding="utf-8")
 
-        self.assertIn('new Worker(this.workerUrl, { type: "module"', source)
-        self.assertIn('runtime.runPythonAsync(source, { globals: namespace(id) })', source)
-        self.assertIn('import { loadPyodide } from', source)
-        self.assertNotIn("importScripts(", source)
-        self.assertIn('https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/', source)
-        self.assertIn('PYODIDE_VERSION = "0.28.2"', source)
-        self.assertIn("STARTUP_TIMEOUT = 30_000", source)
-        self.assertIn('sessions = new Map()', source)
-        self.assertNotIn("fetch(\"/", source)
-        self.assertNotIn("WebSocket", source)
-        self.assertIn("+ NEW TERMINAL", document)
-        self.assertIn("BROWSER WORKSPACE", document)
+        self.assertIn('from "@xterm/xterm"', source)
+        self.assertIn('new WebSocket(`${protocol}://${location.host}/ws/terminal`)', source)
+        self.assertIn('socket.send(JSON.stringify({ type: "input", data }))', source)
+        self.assertIn('type: "resize"', source)
+        self.assertNotIn("Pyodide", source)
+        self.assertIn("+ NEW SHELL", document)
+        self.assertIn("LOCALHOST WORKSPACE", document)
         self.assertIn('<meta name="monotools-shell" content="console">', document)
 
     def test_quiz_has_a_non_diagnostic_psychometric_inventory(self) -> None:

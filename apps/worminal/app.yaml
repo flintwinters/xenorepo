@@ -1,6 +1,8 @@
 name: worminal
 title: Worminal
 module: apps.worminal.server
+capabilities:
+  - realtime
 frontend:
   artifacts:
     index:

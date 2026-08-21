@@ -1,4 +1,4 @@
-"""Loopback-only pseudo-terminal sessions for Worminal."""
+"""Pseudo-terminal sessions and locality checks for Worminal."""
 
 import asyncio
 import fcntl
@@ -23,7 +23,7 @@ DEFAULT_ROWS = 30
 
 
 def is_loopback_client(socket: Any) -> bool:
-    """Accept only clients that originate on this machine's loopback interface."""
+    """Report whether a request or socket originates on the local machine."""
     host = getattr(getattr(socket, "client", None), "host", "")
     try:
         return ipaddress.ip_address(host).is_loopback

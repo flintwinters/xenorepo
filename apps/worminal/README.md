@@ -17,9 +17,25 @@ Open `http://127.0.0.1:8000/worminal`, then create, drag, resize, minimize, maxi
 close shell windows from the browser desktop. Closing a window or browser
 connection terminates its shell process.
 
+## LAN access
+
+Worminal can bind to every network interface, but a real shell must never be
+available without authentication. Set a long random token, then use
+`worminal` as the browser's username and the token as its password:
+
+```console
+export WORMINAL_ACCESS_TOKEN="$(openssl rand -hex 32)"
+uv run python manage.py serve worminal --host 0.0.0.0 --port 8000
+```
+
+Open `http://<server-lan-address>:8000/worminal`. For port 80, use your normal
+privileged service or reverse-proxy setup; the same `WORMINAL_ACCESS_TOKEN`
+requirement applies.
+
 ## Security boundary
 
 Worminal intentionally grants shell access to the local user account running
-the FastAPI process. The WebSocket rejects non-loopback clients and cross-origin
-browsers. Keep the service bound to `127.0.0.1`; do not expose it through a
-public bind address or reverse proxy.
+the FastAPI process. Loopback clients work without a password. Non-loopback
+clients require `WORMINAL_ACCESS_TOKEN` through HTTP Basic authentication, and
+the WebSocket rejects cross-origin browsers. Keep this service on a trusted LAN
+or behind a secure reverse proxy; it is not a public Internet service.

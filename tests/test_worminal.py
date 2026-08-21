@@ -1,10 +1,11 @@
 import select
+from base64 import b64encode
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
 
 from apps.worminal.database import WorkspaceRepository, create_session_factory
-from apps.worminal.server import app
+from apps.worminal.server import app, remote_access_authorized
 from apps.worminal.terminal import PtySession, is_loopback_client
 
 
@@ -27,6 +28,14 @@ class WorminalTests(unittest.TestCase):
         for host in ("192.168.1.10", "example.test", ""):
             with self.subTest(host=host):
                 self.assertFalse(is_loopback_client(SimpleNamespace(client=SimpleNamespace(host=host))))
+
+    def test_remote_access_requires_the_configured_basic_authentication(self) -> None:
+        token = "test-remote-access-token"
+        authorization = "Basic " + b64encode(f"worminal:{token}".encode()).decode()
+        self.assertFalse(remote_access_authorized(None, token))
+        self.assertFalse(remote_access_authorized(authorization, None))
+        self.assertFalse(remote_access_authorized(authorization, "wrong-token"))
+        self.assertTrue(remote_access_authorized(authorization, token))
 
     def test_application_exposes_one_terminal_websocket(self) -> None:
         paths = [route.path for route in app.routes if hasattr(route, "path")]

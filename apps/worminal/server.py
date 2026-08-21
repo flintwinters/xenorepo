@@ -1,12 +1,15 @@
 """Durable localhost terminal workspace served by one FastAPI application."""
 
 import asyncio
+import base64
+import hmac
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request, WebSocket
-from fastapi.responses import JSONResponse, Response
+from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from apps.worminal.database import Base, WorkspaceRepository, _migrate_legacy_schema
@@ -21,6 +24,7 @@ DIRECTORY = Path(__file__).parent
 DEFAULT_DATABASE = DIRECTORY / "data" / "worminal.db"
 COOKIE = "worminal_workspace"
 COOKIE_AGE = 365 * 24 * 60 * 60
+REMOTE_USERNAME = "worminal"
 
 
 class WindowInput(BaseModel):
@@ -83,12 +87,24 @@ class TerminalManager:
             self.close(window_id)
 
 
+def remote_access_authorized(authorization: str | None, access_token: str | None) -> bool:
+    """Validate the deliberately small Basic-auth boundary for non-local clients."""
+    if not access_token or not authorization or not authorization.startswith("Basic "):
+        return False
+    try:
+        username, password = base64.b64decode(authorization[6:], validate=True).decode().split(":", 1)
+    except (UnicodeDecodeError, ValueError):
+        return False
+    return hmac.compare_digest(username, REMOTE_USERNAME) and hmac.compare_digest(password, access_token)
+
+
 def create_app(database_url: str | None = None) -> FastAPI:
     context = create_app_context("worminal", metadata=Base.metadata,
         default_database=DEFAULT_DATABASE, environment_key="WORMINAL_DATABASE_URL",
         database_url=database_url, prepare=_migrate_legacy_schema)
     repository = WorkspaceRepository(context.require_sessions(), context.clock.now)
     manager = TerminalManager()
+    remote_access_token = os.environ.get("WORMINAL_ACCESS_TOKEN")
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -101,6 +117,18 @@ def create_app(database_url: str | None = None) -> FastAPI:
     application.router.lifespan_context = lifespan
     application.state.repository = repository
     application.state.terminal_manager = manager
+
+    @application.middleware("http")
+    async def guard_remote_access(request: Request, call_next):
+        if is_loopback_client(request) or remote_access_authorized(
+            request.headers.get("authorization"), remote_access_token
+        ):
+            return await call_next(request)
+        if remote_access_token:
+            return PlainTextResponse("Worminal requires authentication.", status_code=401,
+                headers={"WWW-Authenticate": 'Basic realm="Worminal"'})
+        return PlainTextResponse("Set WORMINAL_ACCESS_TOKEN before allowing remote access.",
+            status_code=403)
 
     def workspace_id(request: Request) -> str | None:
         candidate = request.cookies.get(COOKIE)
@@ -143,8 +171,13 @@ def create_app(database_url: str | None = None) -> FastAPI:
 
     @application.websocket("/ws/terminal/{window_id}")
     async def terminal(socket: WebSocket, window_id: str) -> None:
-        if not is_loopback_client(socket) or not websocket_origin_allowed(socket):
-            await socket.close(code=1008, reason="Worminal accepts same-origin loopback clients only.")
+        if not websocket_origin_allowed(socket):
+            await socket.close(code=1008, reason="Worminal accepts same-origin clients only.")
+            return
+        if not is_loopback_client(socket) and not remote_access_authorized(
+            socket.headers.get("authorization"), remote_access_token
+        ):
+            await socket.close(code=1008, reason="Worminal requires authenticated remote access.")
             return
         workspace = socket.cookies.get(COOKIE)
         transcript = repository.transcript(workspace or "", window_id)

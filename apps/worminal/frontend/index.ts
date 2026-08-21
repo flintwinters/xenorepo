@@ -53,18 +53,20 @@ class WorminalDesktop extends LitElement {
   connectedCallback() {
     super.connectedCallback();
     this.renderRoot.addEventListener("contextmenu", this.blockShiftContextMenu, { capture: true });
+    window.addEventListener("contextmenu", this.blockShiftContextMenu, { capture: true });
     window.addEventListener("keydown", this.handleSuperKeyDown, { capture: true });
     window.addEventListener("keyup", this.handleSuperKeyUp, { capture: true });
     this.clockTimer = window.setInterval(() => this.clock = new Date().toLocaleTimeString([], { hour12: false }), 1000);
     this.spawn();
   }
-  disconnectedCallback() { this.renderRoot.removeEventListener("contextmenu", this.blockShiftContextMenu, { capture: true }); window.removeEventListener("keydown", this.handleSuperKeyDown, { capture: true }); window.removeEventListener("keyup", this.handleSuperKeyUp, { capture: true }); for (const id of this.sessions.keys()) this.destroySession(id); clearInterval(this.clockTimer); super.disconnectedCallback(); }
+  disconnectedCallback() { this.renderRoot.removeEventListener("contextmenu", this.blockShiftContextMenu, { capture: true }); window.removeEventListener("contextmenu", this.blockShiftContextMenu, { capture: true }); window.removeEventListener("keydown", this.handleSuperKeyDown, { capture: true }); window.removeEventListener("keyup", this.handleSuperKeyUp, { capture: true }); for (const id of this.sessions.keys()) this.destroySession(id); clearInterval(this.clockTimer); super.disconnectedCallback(); }
 
-  private blockShiftContextMenu(event: Event) {
-    if (!(event as MouseEvent).shiftKey) return;
+  private blockShiftContextMenu = (event: Event) => {
+    const target = event.target as Node | null;
+    if (!(event as MouseEvent).shiftKey || !(target && this.renderRoot.contains(target) || event.composedPath().includes(this))) return;
     event.preventDefault();
     event.stopImmediatePropagation();
-  }
+  };
 
   private isSuperKey(event: KeyboardEvent) {
     return event.key === "Meta" || event.code === "MetaLeft" || event.code === "MetaRight";

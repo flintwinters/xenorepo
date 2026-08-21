@@ -34,6 +34,10 @@ test("creates and manages independent terminal windows", async ({ page }) => {
     element.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, shiftKey: true })),
   );
   expect(contextMenuAllowed).toBe(false);
+  const hostContextMenuAllowed = await page.locator("worminal-desktop").evaluate(element =>
+    element.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, shiftKey: true })),
+  );
+  expect(hostContextMenuAllowed).toBe(false);
   await secondWindow.evaluate(element => { element.style.width = "540px"; element.style.height = "300px"; });
   const beforeMove = await secondWindow.boundingBox();
   const viewport = page.viewportSize();

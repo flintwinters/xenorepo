@@ -95,7 +95,10 @@ class WorminalDesktop extends LitElement {
   private connect(id: number) {
     const host = this.renderRoot.querySelector<HTMLElement>(`[data-terminal="${id}"]`);
     if (!host || this.sessions.has(id)) return;
-    const terminal = new Terminal({ cursorBlink: true, convertEol: false, fontFamily: '"Courier New", monospace', fontSize: 11, lineHeight: 0.85, letterSpacing: 0, scrollback: 5000, theme: { background: "#181a1b", foreground: "#ebdbb2", cursor: "#fabd2f", selectionBackground: "#504945" } });
+    // xterm deliberately rejects line heights below 1.  Its cell height is the
+    // font size at that minimum, so a smaller supported font size is the only
+    // reliable way to make the rendered grid denser.
+    const terminal = new Terminal({ cursorBlink: true, convertEol: false, fontFamily: '"Courier New", monospace', fontSize: 9, lineHeight: 1, letterSpacing: 0, scrollback: 5000, theme: { background: "#181a1b", foreground: "#ebdbb2", cursor: "#fabd2f", selectionBackground: "#504945" } });
     const fit = new FitAddon(); terminal.loadAddon(fit); terminal.open(host); fit.fit();
     const protocol = location.protocol === "https:" ? "wss" : "ws";
     const socket = new WebSocket(`${protocol}://${location.host}/ws/terminal`);

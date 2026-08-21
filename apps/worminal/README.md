@@ -13,7 +13,7 @@ From the repository root:
 python manage.py serve worminal
 ```
 
-Open the reported local URL, then create, drag, resize, minimize, maximize, and
+Open `http://127.0.0.1:8000/worminal`, then create, drag, resize, minimize, maximize, and
 close shell windows from the browser desktop. Closing a window or browser
 connection terminates its shell process.
 

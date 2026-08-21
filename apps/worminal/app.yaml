@@ -11,4 +11,4 @@ frontend:
       source: frontend/index.ts
       output: index.html
   routes:
-    /: index
+    /worminal: index

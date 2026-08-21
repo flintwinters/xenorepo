@@ -214,6 +214,7 @@ frontend:
     def test_worminal_uses_xterm_with_one_local_shell_socket_per_window(self) -> None:
         definition = get_app("worminal")
         validate_app(definition)
+        self.assertEqual(definition.routes, (("/worminal", "index"),))
         build_app(definition)
         source = (definition.directory / definition.artifact("index").source).read_text(
             encoding="utf-8"

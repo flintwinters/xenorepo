@@ -11,7 +11,7 @@ test("creates and manages independent terminal windows", async ({ page }) => {
       close() { this.readyState = 3; this.onclose?.({}); }
     };
   });
-  await page.goto("/");
+  await page.goto("/worminal");
 
   await expect(page.getByText("WORMINAL", { exact: true })).toBeVisible();
   await expect(page.getByText("1 SHELL CONNECTED", { exact: true })).toBeVisible();
@@ -76,7 +76,7 @@ test("creates and manages independent terminal windows", async ({ page }) => {
 });
 
 test("executes a command in a real localhost shell", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/worminal");
   await expect(page.getByText("1 SHELL CONNECTED", { exact: true })).toBeVisible();
 
   const terminal = page.getByLabel("shell-1 terminal");
@@ -99,7 +99,7 @@ test("restores a server-saved desktop after reload", async ({ page }) => {
       close() { this.readyState = 3; this.onclose?.({}); }
     };
   });
-  await page.goto("/");
+  await page.goto("/worminal");
   await expect(page.getByLabel("shell-1 terminal")).toBeVisible();
   await page.getByText("+ NEW SHELL", { exact: true }).click();
   await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
@@ -134,7 +134,7 @@ test("customizes and restores the new-shell hotkey from settings", async ({ page
       close() { this.readyState = 3; this.onclose?.({}); }
     };
   });
-  await page.goto("/");
+  await page.goto("/worminal");
   await expect(page.getByLabel("shell-1 terminal")).toBeVisible();
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByRole("dialog", { name: "HOTKEY SETTINGS" })).toBeVisible();

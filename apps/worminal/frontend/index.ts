@@ -95,7 +95,7 @@ class WorminalDesktop extends LitElement {
   private connect(id: number) {
     const host = this.renderRoot.querySelector<HTMLElement>(`[data-terminal="${id}"]`);
     if (!host || this.sessions.has(id)) return;
-    const terminal = new Terminal({ cursorBlink: true, convertEol: false, fontFamily: '"Courier New", monospace', fontSize: 11, lineHeight: 1, letterSpacing: 0, scrollback: 5000, theme: { background: "#181a1b", foreground: "#ebdbb2", cursor: "#fabd2f", selectionBackground: "#504945" } });
+    const terminal = new Terminal({ cursorBlink: true, convertEol: false, fontFamily: '"Courier New", monospace', fontSize: 11, lineHeight: 0.85, letterSpacing: 0, scrollback: 5000, theme: { background: "#181a1b", foreground: "#ebdbb2", cursor: "#fabd2f", selectionBackground: "#504945" } });
     const fit = new FitAddon(); terminal.loadAddon(fit); terminal.open(host); fit.fit();
     const protocol = location.protocol === "https:" ? "wss" : "ws";
     const socket = new WebSocket(`${protocol}://${location.host}/ws/terminal`);

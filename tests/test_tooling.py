@@ -224,7 +224,7 @@ frontend:
         self.assertIn('new WebSocket(`${protocol}://${location.host}/ws/terminal`)', source)
         self.assertIn('socket.send(JSON.stringify({ type: "input", data }))', source)
         self.assertIn('type: "resize"', source)
-        self.assertIn("fontSize: 11, lineHeight: 1, letterSpacing: 0", source)
+        self.assertIn("fontSize: 11, lineHeight: 0.85, letterSpacing: 0", source)
         self.assertIn("x: originX + next.clientX - startX", source)
         self.assertIn("y: originY + next.clientY - startY", source)
         self.assertNotIn("Math.max(0, originX", source)

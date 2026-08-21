@@ -16,6 +16,12 @@ test("creates and manages independent terminal windows", async ({ page }) => {
   await expect(page.getByText("WORMINAL", { exact: true })).toBeVisible();
   await expect(page.getByText("1 SHELL CONNECTED", { exact: true })).toBeVisible();
   await expect(page.getByLabel("shell-1 terminal")).toBeVisible();
+  const metrics = await page.getByLabel("shell-1 terminal").locator(".xterm-rows > div").evaluateAll(rows => ({
+    fontSize: getComputedStyle(rows[0].parentElement).fontSize,
+    rowHeight: rows[0].getBoundingClientRect().height,
+  }));
+  expect(metrics.fontSize).toBe("11px");
+  expect(metrics.rowHeight).toBe(9);
 
   await page.keyboard.press("Meta");
   await expect(page.getByLabel("shell-2 terminal")).toBeVisible();

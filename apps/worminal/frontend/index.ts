@@ -5,6 +5,8 @@ import { LitElement, css, html, nothing, unsafeCSS } from "lit";
 import "@xenorepo/lit-ui";
 
 type Phase = "connecting" | "ready" | "closed" | "failed";
+const TERMINAL_FONT_SIZE = 11;
+const TERMINAL_ROW_HEIGHT = 9;
 interface WindowState {
   id: number; title: string; x: number; y: number; width: number; height: number;
   z: number; minimized: boolean; maximized: boolean; phase: Phase;
@@ -41,6 +43,7 @@ class WorminalDesktop extends LitElement {
     .titlebar button:hover { background: #3c3836; }
     .terminal-host { min-width: 0; min-height: 0; padding: 5px; overflow: hidden; background: #181a1b; }
     .terminal-host .xterm { height: 100%; } .terminal-host .xterm-viewport { scrollbar-color: #665c54 #181a1b; }
+    .terminal-host .xterm-rows > div { height: ${TERMINAL_ROW_HEIGHT}px !important; line-height: ${TERMINAL_ROW_HEIGHT}px !important; overflow: visible !important; }
     .taskbar { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; }
     .task { min-width: 95px; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .task.active { color: #fabd2f; }
@@ -95,22 +98,30 @@ class WorminalDesktop extends LitElement {
   private connect(id: number) {
     const host = this.renderRoot.querySelector<HTMLElement>(`[data-terminal="${id}"]`);
     if (!host || this.sessions.has(id)) return;
-    // xterm deliberately rejects line heights below 1.  Its cell height is the
-    // font size at that minimum, so a smaller supported font size is the only
-    // reliable way to make the rendered grid denser.
-    const terminal = new Terminal({ cursorBlink: true, convertEol: false, fontFamily: '"Courier New", monospace', fontSize: 9, lineHeight: 1, letterSpacing: 0, scrollback: 5000, theme: { background: "#181a1b", foreground: "#ebdbb2", cursor: "#fabd2f", selectionBackground: "#504945" } });
-    const fit = new FitAddon(); terminal.loadAddon(fit); terminal.open(host); fit.fit();
+    const terminal = new Terminal({ cursorBlink: true, convertEol: false, fontFamily: '"Courier New", monospace', fontSize: TERMINAL_FONT_SIZE, lineHeight: 1, letterSpacing: 0, scrollback: 5000, theme: { background: "#181a1b", foreground: "#ebdbb2", cursor: "#fabd2f", selectionBackground: "#504945" } });
+    const fit = new FitAddon(); terminal.loadAddon(fit); terminal.open(host);
     const protocol = location.protocol === "https:" ? "wss" : "ws";
     const socket = new WebSocket(`${protocol}://${location.host}/ws/terminal`);
     socket.binaryType = "arraybuffer";
     const session: TerminalSession = { socket, terminal, fit }; this.sessions.set(id, session);
     terminal.writeln("\x1b[33mWorminal\x1b[0m · opening localhost shell…");
-    socket.onopen = () => { this.updateWindow(id, window => ({ ...window, phase: "ready" })); this.sendResize(id); terminal.focus(); };
+    this.fitTerminal(id);
+    socket.onopen = () => { this.updateWindow(id, window => ({ ...window, phase: "ready" })); this.fitTerminal(id); terminal.focus(); };
     socket.onmessage = event => terminal.write(event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : event.data);
     socket.onerror = () => { terminal.writeln("\r\n\x1b[31mShell connection failed.\x1b[0m"); this.updateWindow(id, window => ({ ...window, phase: "failed" })); };
     socket.onclose = () => { if (this.windows.some(window => window.id === id)) this.updateWindow(id, window => ({ ...window, phase: window.phase === "failed" ? "failed" : "closed" })); };
     terminal.onData(data => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "input", data })); });
-    session.resize = new ResizeObserver(() => { fit.fit(); this.sendResize(id); }); session.resize.observe(host);
+    session.resize = new ResizeObserver(() => this.fitTerminal(id)); session.resize.observe(host);
+  }
+
+  private fitTerminal(id: number) {
+    const session = this.sessions.get(id);
+    const host = this.renderRoot.querySelector<HTMLElement>(`[data-terminal="${id}"]`);
+    if (!session || !host) return;
+    session.fit.fit();
+    const rows = Math.max(1, Math.floor(host.clientHeight / TERMINAL_ROW_HEIGHT));
+    if (session.terminal.rows !== rows) session.terminal.resize(session.terminal.cols, rows);
+    this.sendResize(id);
   }
 
   private sendResize(id: number) {
@@ -124,7 +135,7 @@ class WorminalDesktop extends LitElement {
   }
   private close(id: number) { this.destroySession(id); this.windows = this.windows.filter(window => window.id !== id); }
   private focus(id: number) { this.updateWindow(id, window => ({ ...window, z: ++this.topZ, minimized: false })); this.updateComplete.then(() => this.sessions.get(id)?.terminal.focus()); }
-  private toggleMaximize(id: number) { this.updateWindow(id, window => ({ ...window, maximized: !window.maximized, minimized: false, z: ++this.topZ })); this.updateComplete.then(() => { this.sessions.get(id)?.fit.fit(); this.sendResize(id); }); }
+  private toggleMaximize(id: number) { this.updateWindow(id, window => ({ ...window, maximized: !window.maximized, minimized: false, z: ++this.topZ })); this.updateComplete.then(() => this.fitTerminal(id)); }
   private toggleMinimize(id: number) { this.updateWindow(id, window => ({ ...window, minimized: !window.minimized })); }
 
   private moveWindow(event: PointerEvent, id: number) {

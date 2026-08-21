@@ -262,4 +262,12 @@ test("mirrors windows and live terminal output across views", async ({ page, con
 
   await page.getByText("+ NEW SHELL", { exact: true }).click();
   await expect(second.getByLabel("shell-2 terminal")).toBeVisible({ timeout: 3000 });
+
+  await Promise.all([
+    page.getByText("+ NEW SHELL", { exact: true }).click(),
+    second.getByText("+ NEW SHELL", { exact: true }).click(),
+  ]);
+  await expect.poll(async () => page.evaluate(async () =>
+    (await fetch("/api/workspace").then(response => response.json())).windows.length,
+  )).toBe(4);
 });

@@ -235,32 +235,59 @@ class WorkspaceRepository:
 
     def replace_windows(self, workspace_id: str, windows: Iterable[dict[str, object]]) -> None:
         declared = list(windows)
+        self._validate_windows(declared)
+        timestamp = self.clock()
+        with self.sessions.begin() as session:
+            workspace = self._require_workspace(session, workspace_id)
+            identifiers = {str(item["id"]) for item in declared}
+            for window in session.scalars(select(TerminalWindow)
+                .where(TerminalWindow.workspace_id == workspace_id)):
+                if window.id not in identifiers:
+                    session.delete(window)
+            self._upsert_windows(session, workspace_id, declared, timestamp)
+            workspace.updated_at = timestamp
+
+    def update_windows(self, workspace_id: str, windows: Iterable[dict[str, object]]) -> None:
+        """Upsert client-known windows without deleting concurrent additions."""
+        declared = list(windows)
+        self._validate_windows(declared)
+        timestamp = self.clock()
+        with self.sessions.begin() as session:
+            workspace = self._require_workspace(session, workspace_id)
+            self._upsert_windows(session, workspace_id, declared, timestamp)
+            workspace.updated_at = timestamp
+
+    @staticmethod
+    def _validate_windows(declared: list[dict[str, object]]) -> None:
         identifiers = [str(item["id"]) for item in declared]
         if len(identifiers) != len(set(identifiers)):
             raise ValueError("Window IDs must be unique.")
-        timestamp = self.clock()
-        with self.sessions.begin() as session:
-            workspace = session.get(Workspace, workspace_id)
-            if workspace is None:
-                raise ValueError("Workspace is not available.")
-            existing = {window.id: window for window in session.scalars(select(TerminalWindow)
-                .where(TerminalWindow.workspace_id == workspace_id))}
-            for identifier, window in existing.items():
-                if identifier not in identifiers:
-                    session.delete(window)
-            for item in declared:
-                identifier = str(item["id"])
-                window = existing.get(identifier)
-                if window is None:
-                    window = TerminalWindow(id=identifier, workspace_id=workspace_id,
-                        transcript=b"", created_at=timestamp, updated_at=timestamp,
-                        **{key: value for key, value in item.items() if key != "id"})
-                    session.add(window)
-                else:
-                    for key, value in item.items():
-                        setattr(window, key, value)
-                    window.updated_at = timestamp
-            workspace.updated_at = timestamp
+
+    @staticmethod
+    def _require_workspace(session: Session, workspace_id: str) -> Workspace:
+        workspace = session.get(Workspace, workspace_id)
+        if workspace is None:
+            raise ValueError("Workspace is not available.")
+        return workspace
+
+    @staticmethod
+    def _upsert_windows(session: Session, workspace_id: str,
+        declared: list[dict[str, object]], timestamp: datetime) -> None:
+        identifiers = [str(item["id"]) for item in declared]
+        existing = {window.id: window for window in session.scalars(select(TerminalWindow)
+            .where(TerminalWindow.workspace_id == workspace_id,
+                TerminalWindow.id.in_(identifiers)))} if identifiers else {}
+        for item in declared:
+            identifier = str(item["id"])
+            window = existing.get(identifier)
+            if window is None:
+                session.add(TerminalWindow(id=identifier, workspace_id=workspace_id,
+                    transcript=b"", created_at=timestamp, updated_at=timestamp,
+                    **{key: value for key, value in item.items() if key != "id"}))
+            else:
+                for key, value in item.items():
+                    setattr(window, key, value)
+                window.updated_at = timestamp
 
     def replace_shortcuts(self, workspace_id: str, shortcuts: Iterable[dict[str, object]]) -> None:
         declared = list(shortcuts)

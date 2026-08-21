@@ -179,6 +179,20 @@ class WorminalTests(unittest.TestCase):
 
         self.assertEqual(self.repository.transcript(workspace, window["id"]), b"previous output")
 
+    def test_updating_a_stale_view_does_not_delete_a_concurrent_window(self) -> None:
+        workspace = self.repository.create_workspace()
+        first = {"id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae", "title": "shell-1",
+            "x": 32, "y": 30, "width": 650, "height": 410, "z": 2,
+            "minimized": False, "maximized": False}
+        second = {**first, "id": "56fa1dab-9d72-4a09-9151-76cb411cc9e6",
+            "title": "shell-2", "x": 60, "y": 54, "z": 3}
+
+        self.repository.update_windows(workspace, [first])
+        self.repository.update_windows(workspace, [second])
+
+        self.assertEqual([window["id"] for window in self.repository.windows(workspace)],
+            [first["id"], second["id"]])
+
     def test_workspace_persists_a_custom_new_shell_shortcut(self) -> None:
         workspace = self.repository.create_workspace()
         shortcut = {"action": "new-shell", "key": "N", "control": True,

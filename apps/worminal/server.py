@@ -216,7 +216,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     def save_workspace(payload: WorkspaceInput, request: Request) -> Response:
         reject_cross_origin(request)
         identifier = require_workspace(request)
-        repository.replace_windows(identifier, [window.model_dump() for window in payload.windows])
+        repository.update_windows(identifier, [window.model_dump() for window in payload.windows])
         repository.replace_shortcuts(identifier, [shortcut.model_dump() for shortcut in payload.shortcuts])
         return Response(status_code=204)
 

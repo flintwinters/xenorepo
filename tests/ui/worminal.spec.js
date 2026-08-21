@@ -12,6 +12,16 @@ async function openCleanDesktop(page) {
   await page.goto("/worminal");
 }
 
+test("uses a transparent pink tilde favicon", async ({ page }) => {
+  await page.goto("/worminal");
+  const href = await page.locator('link[rel="icon"]').getAttribute("href");
+  const svg = decodeURIComponent(href.split(",")[1]);
+
+  expect(svg).toContain('stroke="#ff69b4"');
+  expect(svg).toContain('fill="none"');
+  expect(svg).not.toContain("<rect");
+});
+
 test("creates and manages independent terminal windows", async ({ page }) => {
   await page.addInitScript(() => {
     globalThis.WebSocket = class SocketDouble {

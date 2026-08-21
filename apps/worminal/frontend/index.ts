@@ -7,6 +7,7 @@ import "@xenorepo/lit-ui";
 type Phase = "connecting" | "ready" | "closed" | "failed";
 const TERMINAL_FONT_SIZE = 11;
 const TERMINAL_ROW_HEIGHT = 9;
+const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 14c3-7 7-7 11-2s7 5 9-2" fill="none" stroke="#ff69b4" stroke-width="4" stroke-linecap="round"/></svg>`;
 interface WindowState {
   id: string; title: string; x: number; y: number; width: number; height: number;
   z: number; minimized: boolean; maximized: boolean; phase: Phase;
@@ -332,4 +333,10 @@ class WorminalDesktop extends LitElement {
 }
 customElements.define("worminal-desktop", WorminalDesktop);
 
-export function mount(root: HTMLElement) { root.replaceChildren(document.createElement("worminal-desktop")); }
+export function mount(root: HTMLElement) {
+  const favicon = document.createElement("link");
+  favicon.rel = "icon"; favicon.type = "image/svg+xml";
+  favicon.href = `data:image/svg+xml,${encodeURIComponent(FAVICON)}`;
+  document.head.querySelector('link[rel="icon"]')?.remove(); document.head.append(favicon);
+  root.replaceChildren(document.createElement("worminal-desktop"));
+}

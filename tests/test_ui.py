@@ -60,6 +60,8 @@ class BrowserLifecycleTests(unittest.TestCase):
             str(ROOT / "node_modules" / ".bin" / "playwright"), "test", "tests/ui/rps.spec.js",
         ])
         self.assertEqual(run.call_args.kwargs["env"]["BASE_URL"], "http://127.0.0.1:8123")
+        self.assertEqual(run.call_args.kwargs["env"]["RPS_DATABASE_URL"],
+            f"sqlite:///{artifacts / 'browser.db'}")
 
     def test_runner_requires_an_app_specific_suite(self) -> None:
         definition = AppDefinition(

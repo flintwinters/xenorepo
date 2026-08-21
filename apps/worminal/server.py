@@ -57,6 +57,11 @@ class AccessInput(BaseModel):
     password: str = Field(min_length=1, max_length=1024)
 
 
+class PasswordChangeInput(BaseModel):
+    current_password: str = Field(min_length=1, max_length=1024)
+    new_password: str = Field(min_length=1, max_length=1024)
+
+
 @dataclass
 class ManagedTerminal:
     session: PtySession
@@ -115,16 +120,14 @@ class TerminalManager:
             self.close(window_id)
 
 
-def access_cookie_value(access_token: str) -> str:
-    """Derive a non-reversible browser session value from the configured password."""
-    return hmac.digest(access_token.encode(), b"worminal remote access", "sha256").hex()
+def access_cookie_value(access_session_version: str) -> str:
+    """Derive the browser cookie from an opaque, rotatable server generation."""
+    return hmac.digest(access_session_version.encode(), b"worminal remote access", "sha256").hex()
 
 
-def remote_access_authorized(password: str | None, access_token: str | None) -> bool:
-    """Validate one supplied password without retaining it in browser storage."""
-    if not access_token or not password:
-        return False
-    return hmac.compare_digest(password, access_token)
+def remote_access_authorized(password: str | None, repository: WorkspaceRepository) -> bool:
+    """Validate one supplied password against the durable salted verifier."""
+    return repository.verify_access_password(password)
 
 
 def create_app(database_url: str | None = None) -> FastAPI:
@@ -136,6 +139,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     resolve_shell_account(shell_user)
     manager = TerminalManager(shell_user, repository)
     remote_access_token = os.environ.get("WORMINAL_ACCESS_TOKEN")
+    repository.initialize(remote_access_token)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI) -> AsyncIterator[None]:
@@ -150,9 +154,9 @@ def create_app(database_url: str | None = None) -> FastAPI:
     application.state.terminal_manager = manager
 
     def remote_session_authorized(cookie: str | None) -> bool:
-        return bool(remote_access_token and cookie) and hmac.compare_digest(
-            cookie, access_cookie_value(remote_access_token)
-        )
+        version = repository.access_session_version()
+        return bool(version and cookie) and hmac.compare_digest(
+            cookie, access_cookie_value(version))
 
     @application.middleware("http")
     async def guard_remote_access(request: Request, call_next):
@@ -160,7 +164,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
             return await call_next(request)
         if remote_session_authorized(request.cookies.get(ACCESS_COOKIE)):
             return await call_next(request)
-        if remote_access_token:
+        if repository.access_session_version():
             return PlainTextResponse("Worminal requires its access password.", status_code=401)
         return PlainTextResponse("Set WORMINAL_ACCESS_TOKEN before allowing remote access.",
             status_code=403)
@@ -181,11 +185,24 @@ def create_app(database_url: str | None = None) -> FastAPI:
     @application.post("/api/access", status_code=204)
     def grant_remote_access(payload: AccessInput, request: Request) -> Response:
         reject_cross_origin(request)
-        if not is_loopback_client(request) and not remote_access_authorized(payload.password, remote_access_token):
+        if not is_loopback_client(request) and not remote_access_authorized(payload.password, repository):
             raise HTTPException(status_code=401, detail="Access password is not valid.")
         response = Response(status_code=204)
-        if remote_access_token:
-            set_session_cookie(response, request, ACCESS_COOKIE, access_cookie_value(remote_access_token), COOKIE_AGE)
+        version = repository.access_session_version()
+        if version:
+            set_session_cookie(response, request, ACCESS_COOKIE,
+                access_cookie_value(version), COOKIE_AGE)
+        return response
+
+    @application.post("/api/access/password", status_code=204)
+    def change_access_password(payload: PasswordChangeInput, request: Request) -> Response:
+        reject_cross_origin(request)
+        if not repository.change_access_password(
+            payload.current_password, payload.new_password):
+            raise HTTPException(status_code=401, detail="Current access password is not valid.")
+        response = Response(status_code=204)
+        set_session_cookie(response, request, ACCESS_COOKIE,
+            access_cookie_value(repository.access_session_version()), COOKIE_AGE)
         return response
 
     @application.get("/api/workspace")

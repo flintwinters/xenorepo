@@ -5,9 +5,15 @@ from pathlib import Path
 import pwd
 from types import SimpleNamespace
 import unittest
+from unittest.mock import patch
 
-from apps.worminal.database import WorkspaceRepository, create_session_factory
-from apps.worminal.server import TerminalManager, access_cookie_value, app, remote_access_authorized
+from fastapi import HTTPException
+from starlette.requests import Request
+from sqlalchemy import select as sa_select
+
+from apps.worminal.database import ServerSettings, WorkspaceRepository, create_session_factory
+from apps.worminal.server import (ACCESS_COOKIE, TerminalManager, access_cookie_value, app,
+    create_app, PasswordChangeInput, remote_access_authorized)
 from apps.worminal.terminal import PtySession, is_loopback_client, resolve_shell_account
 
 
@@ -33,11 +39,53 @@ class WorminalTests(unittest.TestCase):
 
     def test_remote_access_requires_the_configured_password(self) -> None:
         token = "test-remote-access-token"
-        self.assertFalse(remote_access_authorized(None, token))
-        self.assertFalse(remote_access_authorized(token, None))
-        self.assertFalse(remote_access_authorized("wrong-token", token))
-        self.assertTrue(remote_access_authorized(token, token))
-        self.assertNotEqual(access_cookie_value(token), token)
+        self.repository.initialize(token)
+        self.assertFalse(remote_access_authorized(None, self.repository))
+        self.assertFalse(remote_access_authorized("wrong-token", self.repository))
+        self.assertTrue(remote_access_authorized(token, self.repository))
+        version = self.repository.access_session_version()
+        self.assertNotEqual(access_cookie_value(version), token)
+
+    def test_access_password_is_salted_persisted_and_seeded_only_once(self) -> None:
+        original = "initial-environment-password"
+        self.repository.initialize(original)
+        with self.sessions() as session:
+            settings = session.get(ServerSettings, 1)
+            self.assertNotEqual(settings.password_digest, original.encode())
+            self.assertNotIn(original.encode(), settings.password_digest)
+            self.assertEqual(len(settings.password_salt), 16)
+        self.sessions.kw["bind"].dispose()
+        self.sessions = create_session_factory(f"sqlite:///{self.database}")
+        restarted = WorkspaceRepository(self.sessions)
+        restarted.initialize("changed-environment-password")
+
+        self.assertTrue(restarted.verify_access_password(original))
+        self.assertFalse(restarted.verify_access_password("changed-environment-password"))
+
+    def test_unconfigured_settings_accept_the_first_later_environment_password(self) -> None:
+        workspace = self.repository.initialize()
+        self.repository.initialize("later-environment-password")
+
+        self.assertEqual(self.repository.shared_workspace(), workspace)
+        self.assertTrue(self.repository.verify_access_password("later-environment-password"))
+
+    def test_password_change_rotates_the_persistent_access_session(self) -> None:
+        self.repository.initialize("current-password")
+        previous_version = self.repository.access_session_version()
+        self.assertFalse(self.repository.change_access_password(
+            "wrong-password", "replacement-password"))
+        self.assertEqual(self.repository.access_session_version(), previous_version)
+        self.assertTrue(self.repository.change_access_password(
+            "current-password", "replacement-password"))
+        replacement_version = self.repository.access_session_version()
+
+        self.assertNotEqual(replacement_version, previous_version)
+        self.assertFalse(self.repository.verify_access_password("current-password"))
+        self.assertTrue(self.repository.verify_access_password("replacement-password"))
+        self.sessions.kw["bind"].dispose()
+        self.sessions = create_session_factory(f"sqlite:///{self.database}")
+        self.assertEqual(WorkspaceRepository(self.sessions).access_session_version(),
+            replacement_version)
 
     def test_application_exposes_one_terminal_websocket(self) -> None:
         paths = [route.path for route in app.routes if hasattr(route, "path")]
@@ -62,6 +110,51 @@ class WorminalTests(unittest.TestCase):
         workspace = self.repository.create_workspace()
         self.assertEqual(self.repository.shared_workspace(), workspace)
         self.assertEqual(self.repository.shared_workspace(), workspace)
+
+    def test_shared_workspace_remains_canonical_when_another_workspace_is_updated(self) -> None:
+        canonical = self.repository.create_workspace()
+        self.assertEqual(self.repository.shared_workspace(), canonical)
+        other = self.repository.create_workspace()
+        self.repository.replace_shortcuts(other, [{"action": "new-shell", "key": "N",
+            "control": True, "alt": False, "shift": False, "meta": False}])
+
+        self.assertEqual(self.repository.shared_workspace(), canonical)
+        with self.sessions() as session:
+            settings = session.scalar(sa_select(ServerSettings))
+            self.assertEqual(settings.canonical_workspace_id, canonical)
+
+    def test_password_change_api_requires_current_password_and_same_origin(self) -> None:
+        with patch.dict(os.environ, {"WORMINAL_ACCESS_TOKEN": "current-password"}):
+            application = create_app(f"sqlite:///{self.database}")
+        endpoint = next(route.endpoint for route in application.routes
+            if getattr(route, "path", None) == "/api/access/password")
+        repository = application.state.repository
+        previous_cookie = access_cookie_value(repository.access_session_version())
+
+        def request(origin: str | None = None) -> Request:
+            headers = [(b"host", b"testserver")]
+            if origin:
+                headers.append((b"origin", origin.encode()))
+            return Request({"type": "http", "scheme": "http", "path": "/api/access/password",
+                "headers": headers, "client": ("127.0.0.1", 1),
+                "server": ("testserver", 80)})
+
+        with self.assertRaises(HTTPException) as invalid:
+            endpoint(PasswordChangeInput(current_password="wrong-password",
+                new_password="replacement-password"), request())
+        self.assertEqual(invalid.exception.status_code, 401)
+        with self.assertRaises(HTTPException) as cross_origin:
+            endpoint(PasswordChangeInput(current_password="current-password",
+                new_password="replacement-password"), request("https://foreign.example"))
+        self.assertEqual(cross_origin.exception.status_code, 403)
+        changed = endpoint(PasswordChangeInput(current_password="current-password",
+            new_password="replacement-password"), request())
+
+        self.assertEqual(changed.status_code, 204)
+        self.assertIn(f"{ACCESS_COOKIE}=", changed.headers["set-cookie"])
+        self.assertNotIn(previous_cookie, changed.headers["set-cookie"])
+        self.assertFalse(repository.verify_access_password("current-password"))
+        self.assertTrue(repository.verify_access_password("replacement-password"))
 
     def test_replacing_windows_does_not_discard_its_transcript(self) -> None:
         workspace = self.repository.create_workspace()

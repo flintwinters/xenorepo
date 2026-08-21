@@ -149,7 +149,7 @@ test("customizes and restores the new-shell hotkey from settings", async ({ page
   await openCleanDesktop(page);
   await expect(page.getByLabel("shell-1 terminal")).toBeVisible();
   await page.getByRole("button", { name: "Settings" }).click();
-  await expect(page.getByRole("dialog", { name: "HOTKEY SETTINGS" })).toBeVisible();
+  await expect(page.getByRole("dialog", { name: "SETTINGS" })).toBeVisible();
   const shortcut = page.getByLabel("New shell shortcut");
   await shortcut.focus();
   await page.keyboard.down("Control");
@@ -174,6 +174,25 @@ test("customizes and restores the new-shell hotkey from settings", async ({ page
   await page.reload();
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByLabel("New shell shortcut")).toHaveValue("Ctrl + Alt + n");
+});
+
+test("changes the access password from settings", async ({ page }) => {
+  let submitted;
+  await page.route("**/api/access/password", async route => {
+    submitted = route.request().postDataJSON();
+    await route.fulfill({ status: 204 });
+  });
+  await openCleanDesktop(page);
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByLabel("Current access password").fill("current-secret");
+  await page.getByLabel("New access password", { exact: true }).fill("replacement-secret");
+  await page.getByLabel("Confirm new access password", { exact: true }).fill("replacement-secret");
+  await page.getByRole("button", { name: "SAVE" }).click();
+
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  expect(submitted).toEqual({
+    current_password: "current-secret", new_password: "replacement-secret",
+  });
 });
 
 test("mirrors windows and live terminal output across views", async ({ page, context }) => {

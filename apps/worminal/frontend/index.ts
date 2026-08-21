@@ -15,7 +15,7 @@ interface Shortcut { action: "new-shell"; key: string; control: boolean; alt: bo
 interface TerminalSession { socket: WebSocket; terminal: Terminal; fit: FitAddon; resize?: ResizeObserver; }
 
 class WorminalDesktop extends LitElement {
-  static properties = { windows: { state: true }, clock: { state: true }, shortcuts: { state: true }, settingsOpen: { state: true }, passwordRequired: { state: true }, accessPassword: { state: true }, accessError: { state: true } };
+  static properties = { windows: { state: true }, clock: { state: true }, shortcuts: { state: true }, settingsOpen: { state: true }, passwordRequired: { state: true }, accessPassword: { state: true }, accessError: { state: true }, currentAccessPassword: { state: true }, newAccessPassword: { state: true }, confirmedAccessPassword: { state: true }, settingsError: { state: true }, settingsSaving: { state: true } };
   declare windows: WindowState[];
   declare clock: string;
   declare shortcuts: Shortcut[];
@@ -23,6 +23,11 @@ class WorminalDesktop extends LitElement {
   declare passwordRequired: boolean;
   declare accessPassword: string;
   declare accessError: string;
+  declare currentAccessPassword: string;
+  declare newAccessPassword: string;
+  declare confirmedAccessPassword: string;
+  declare settingsError: string;
+  declare settingsSaving: boolean;
   private sessions = new Map<string, TerminalSession>();
   private nextTitle = 1;
   private topZ = 1;
@@ -34,7 +39,7 @@ class WorminalDesktop extends LitElement {
   private shortcutsBeforeSettings?: Shortcut[];
   private standaloneShortcutHeld?: string;
 
-  constructor() { super(); this.windows = []; this.clock = "--:--:--"; this.shortcuts = [this.defaultShortcut()]; this.settingsOpen = false; this.passwordRequired = false; this.accessPassword = ""; this.accessError = ""; }
+  constructor() { super(); this.windows = []; this.clock = "--:--:--"; this.shortcuts = [this.defaultShortcut()]; this.settingsOpen = false; this.passwordRequired = false; this.accessPassword = ""; this.accessError = ""; this.currentAccessPassword = ""; this.newAccessPassword = ""; this.confirmedAccessPassword = ""; this.settingsError = ""; this.settingsSaving = false; }
 
   static styles = [unsafeCSS(xtermCss), css`
     :host { display: block; height: 100%; color: #ebdbb2; font: 11px/1.15 "Courier New", monospace; background: #1d2021; }
@@ -64,6 +69,12 @@ class WorminalDesktop extends LitElement {
     .shortcut-row { display: grid; grid-template-columns: 1fr minmax(160px, 1fr); gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid #504945; }
     .shortcut-row input { width: 100%; padding: 7px; color: #ebdbb2; font: inherit; background: #1d2021; border: 1px solid #665c54; }
     .shortcut-row input:focus { outline: 1px solid #fabd2f; border-color: #fabd2f; }
+    .password-settings { display: grid; gap: 8px; padding-top: 12px; border-top: 1px solid #504945; }
+    .password-settings h3 { margin: 0 0 2px; color: #83a598; font-size: 12px; letter-spacing: .06em; }
+    .password-settings label { display: grid; grid-template-columns: 1fr minmax(160px, 1fr); gap: 10px; align-items: center; }
+    .password-settings input { width: 100%; padding: 7px; color: #ebdbb2; font: inherit; background: #1d2021; border: 1px solid #665c54; }
+    .password-settings input:focus { outline: 1px solid #fabd2f; border-color: #fabd2f; }
+    .settings-error { min-height: 15px; color: #fb4934; }
     .settings-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 14px; }
     .access-panel { width: min(360px,100%); padding: 16px; color: #ebdbb2; background: #282828; border: 1px solid #fabd2f; box-shadow: 8px 10px 30px #000; }
     .access-panel h2 { margin: 0 0 8px; color: #fabd2f; font-size: 15px; letter-spacing: .08em; }
@@ -203,9 +214,43 @@ class WorminalDesktop extends LitElement {
     await this.saveWorkspace(); await this.updateComplete; this.connect(id);
   }
 
-  private openSettings() { this.shortcutsBeforeSettings = this.shortcuts.map(shortcut => ({ ...shortcut })); this.settingsOpen = true; }
-  private closeSettings() { this.shortcuts = this.shortcutsBeforeSettings || this.shortcuts; this.shortcutsBeforeSettings = undefined; this.settingsOpen = false; }
-  private saveSettings() { void this.saveWorkspace(); this.shortcutsBeforeSettings = undefined; this.settingsOpen = false; }
+  private clearSettingsPassword() {
+    this.currentAccessPassword = ""; this.newAccessPassword = ""; this.confirmedAccessPassword = ""; this.settingsError = "";
+  }
+
+  private openSettings() {
+    this.shortcutsBeforeSettings = this.shortcuts.map(shortcut => ({ ...shortcut }));
+    this.clearSettingsPassword(); this.settingsOpen = true;
+  }
+
+  private closeSettings() {
+    if (this.settingsSaving) return;
+    this.shortcuts = this.shortcutsBeforeSettings || this.shortcuts; this.shortcutsBeforeSettings = undefined;
+    this.clearSettingsPassword(); this.settingsOpen = false;
+  }
+
+  private async saveSettings() {
+    const changesPassword = Boolean(this.currentAccessPassword || this.newAccessPassword || this.confirmedAccessPassword);
+    if (changesPassword) {
+      if (!this.currentAccessPassword || !this.newAccessPassword || !this.confirmedAccessPassword) {
+        this.settingsError = "Complete all password fields."; return;
+      }
+      if (this.newAccessPassword !== this.confirmedAccessPassword) {
+        this.settingsError = "New passwords do not match."; return;
+      }
+      this.settingsSaving = true; this.settingsError = "";
+      try {
+        const response = await fetch("/api/access/password", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ current_password: this.currentAccessPassword, new_password: this.newAccessPassword }) });
+        if (!response.ok) { this.settingsError = response.status === 401 ? "Current password was not accepted." : "Could not change password."; return; }
+        this.clearSettingsPassword();
+      } catch {
+        this.settingsError = "Could not change password."; return;
+      } finally {
+        this.settingsSaving = false;
+      }
+    }
+    void this.saveWorkspace(); this.shortcutsBeforeSettings = undefined; this.settingsOpen = false;
+  }
 
   private connect(id: string) {
     const host = this.renderRoot.querySelector<HTMLElement>(`[data-terminal="${id}"]`);
@@ -296,7 +341,7 @@ class WorminalDesktop extends LitElement {
     return html`<x-console-shell><x-utility-rail slot="header"><span class="brand">WORMINAL</span><x-command-button @click=${this.spawn}>+ NEW SHELL</x-command-button><span class="push optional">LOCALHOST WORKSPACE · ${this.windows.length} WINDOW${this.windows.length === 1 ? "" : "S"}</span><x-command-button aria-label="Settings" @click=${this.openSettings}>SETTINGS</x-command-button></x-utility-rail>
       <main class="desktop" aria-label="Worminal desktop">${this.windows.length ? nothing : html`<div class="welcome"><strong>NO OPEN SHELLS</strong><span>Use NEW SHELL to start a local terminal.</span></div>`}${this.windows.map(window => this.renderWindow(window))}</main>
       <x-status-rail slot="footer"><x-status-indicator .label=${`${ready} SHELL${ready === 1 ? "" : "S"} CONNECTED`} tone=${ready ? "green" : "orange"}></x-status-indicator><nav class="taskbar" aria-label="Open shells">${this.windows.map(window => html`<x-command-button class="task ${window.z === this.topZ && !window.minimized ? "active" : ""}" @click=${() => this.focus(window.id)}>${window.title}</x-command-button>`)}</nav><span class="push">LOCAL PTY · ${this.clock}</span></x-status-rail></x-console-shell>
-      ${this.settingsOpen ? html`<div class="settings" role="presentation" @click=${this.closeSettings}><section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" @click=${(event: Event) => event.stopPropagation()}><h2 id="settings-title">HOTKEY SETTINGS</h2><p>Press any key or key combination to set the action.</p><label class="shortcut-row"><span>New shell</span><input aria-label="New shell shortcut" .value=${this.shortcutLabel(this.newShellShortcut())} @keydown=${this.captureShortcut} readonly></label><div class="settings-actions"><x-command-button @click=${this.closeSettings}>CANCEL</x-command-button><x-command-button @click=${this.saveSettings}>SAVE</x-command-button></div></section></div>` : nothing}
+      ${this.settingsOpen ? html`<div class="settings" role="presentation" @click=${this.closeSettings}><section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" @click=${(event: Event) => event.stopPropagation()}><h2 id="settings-title">SETTINGS</h2><p>Press any key or key combination to set the action.</p><label class="shortcut-row"><span>New shell</span><input aria-label="New shell shortcut" .value=${this.shortcutLabel(this.newShellShortcut())} @keydown=${this.captureShortcut} readonly></label><div class="password-settings"><h3>ACCESS PASSWORD</h3><label><span>Current password</span><input aria-label="Current access password" type="password" autocomplete="current-password" .value=${this.currentAccessPassword} @input=${(event: InputEvent) => this.currentAccessPassword = (event.target as HTMLInputElement).value}></label><label><span>New password</span><input aria-label="New access password" type="password" autocomplete="new-password" .value=${this.newAccessPassword} @input=${(event: InputEvent) => this.newAccessPassword = (event.target as HTMLInputElement).value}></label><label><span>Confirm password</span><input aria-label="Confirm new access password" type="password" autocomplete="new-password" .value=${this.confirmedAccessPassword} @input=${(event: InputEvent) => this.confirmedAccessPassword = (event.target as HTMLInputElement).value}></label><div class="settings-error" role="alert">${this.settingsError}</div></div><div class="settings-actions"><x-command-button ?disabled=${this.settingsSaving} @click=${this.closeSettings}>CANCEL</x-command-button><x-command-button ?disabled=${this.settingsSaving} @click=${this.saveSettings}>${this.settingsSaving ? "SAVING…" : "SAVE"}</x-command-button></div></section></div>` : nothing}
       ${this.passwordRequired ? html`<div class="settings"><form class="access-panel" aria-label="Worminal access" @submit=${this.submitAccess}><h2>ACCESS PASSWORD</h2><p>Enter the single password for this Worminal host.</p><input aria-label="Access password" type="password" .value=${this.accessPassword} @input=${(event: InputEvent) => this.accessPassword = (event.target as HTMLInputElement).value} autofocus><div class="access-error">${this.accessError}</div><div class="settings-actions"><x-command-button @click=${this.submitAccess}>CONNECT</x-command-button></div></form></div>` : nothing}`;
   }
 }

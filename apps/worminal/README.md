@@ -42,6 +42,9 @@ Selecting a different account requires the hosting service to run with the
 necessary Unix privilege. Each terminal child drops to `alice` before its login
 shell starts; an unavailable user or unauthorized switch fails at startup.
 
+The access password can be changed from the top-right Settings panel. Password
+changes persist in the database and revoke access cookies held by other browsers.
+
 ## Security boundary
 
 Worminal intentionally grants shell access to the local user account running

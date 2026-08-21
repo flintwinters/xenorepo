@@ -84,6 +84,9 @@ def run_ui_check(definition: AppDefinition) -> Path:
         "BASE_URL": f"http://127.0.0.1:{port}",
         "PLAYWRIGHT_OUTPUT_DIR": str(artifacts / "test-results"),
     }
+    if "database" in definition.capabilities:
+        database = artifacts / "browser.db"
+        environment[f"{definition.name.upper()}_DATABASE_URL"] = f"sqlite:///{database}"
     command = [str(playwright), "test", str(suite.relative_to(ROOT))]
     process: subprocess.Popen[bytes] | None = None
     primary_failure: Exception | None = None

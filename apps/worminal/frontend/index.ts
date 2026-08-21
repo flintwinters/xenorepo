@@ -148,9 +148,8 @@ class WorminalDesktop extends LitElement {
   private async restoreWorkspace() {
     let response = await fetch("/api/workspace");
     if (response.status === 401) {
-      const password = window.prompt("Worminal access password:");
-      if (!password || !await this.grantAccess(password)) { this.passwordRequired = true; return; }
-      response = await fetch("/api/workspace");
+      this.passwordRequired = true;
+      return;
     }
     if (!response.ok) return;
     const state = await response.json() as { windows: Omit<WindowState, "phase">[]; shortcuts?: Shortcut[] };
@@ -183,7 +182,6 @@ class WorminalDesktop extends LitElement {
     const access = await fetch("/api/access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
     if (access.ok) return true;
     this.accessError = "The password was not accepted.";
-    window.alert("Worminal access password was not accepted.");
     return false;
   }
 
@@ -342,7 +340,7 @@ class WorminalDesktop extends LitElement {
       <main class="desktop" aria-label="Worminal desktop">${this.windows.length ? nothing : html`<div class="welcome"><strong>NO OPEN SHELLS</strong><span>Use NEW SHELL to start a local terminal.</span></div>`}${this.windows.map(window => this.renderWindow(window))}</main>
       <x-status-rail slot="footer"><x-status-indicator .label=${`${ready} SHELL${ready === 1 ? "" : "S"} CONNECTED`} tone=${ready ? "green" : "orange"}></x-status-indicator><nav class="taskbar" aria-label="Open shells">${this.windows.map(window => html`<x-command-button class="task ${window.z === this.topZ && !window.minimized ? "active" : ""}" @click=${() => this.focus(window.id)}>${window.title}</x-command-button>`)}</nav><span class="push">LOCAL PTY · ${this.clock}</span></x-status-rail></x-console-shell>
       ${this.settingsOpen ? html`<div class="settings" role="presentation" @click=${this.closeSettings}><section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" @click=${(event: Event) => event.stopPropagation()}><h2 id="settings-title">SETTINGS</h2><p>Press any key or key combination to set the action.</p><label class="shortcut-row"><span>New shell</span><input aria-label="New shell shortcut" .value=${this.shortcutLabel(this.newShellShortcut())} @keydown=${this.captureShortcut} readonly></label><div class="password-settings"><h3>ACCESS PASSWORD</h3><label><span>Current password</span><input aria-label="Current access password" type="password" autocomplete="current-password" .value=${this.currentAccessPassword} @input=${(event: InputEvent) => this.currentAccessPassword = (event.target as HTMLInputElement).value}></label><label><span>New password</span><input aria-label="New access password" type="password" autocomplete="new-password" .value=${this.newAccessPassword} @input=${(event: InputEvent) => this.newAccessPassword = (event.target as HTMLInputElement).value}></label><label><span>Confirm password</span><input aria-label="Confirm new access password" type="password" autocomplete="new-password" .value=${this.confirmedAccessPassword} @input=${(event: InputEvent) => this.confirmedAccessPassword = (event.target as HTMLInputElement).value}></label><div class="settings-error" role="alert">${this.settingsError}</div></div><div class="settings-actions"><x-command-button ?disabled=${this.settingsSaving} @click=${this.closeSettings}>CANCEL</x-command-button><x-command-button ?disabled=${this.settingsSaving} @click=${this.saveSettings}>${this.settingsSaving ? "SAVING…" : "SAVE"}</x-command-button></div></section></div>` : nothing}
-      ${this.passwordRequired ? html`<div class="settings"><form class="access-panel" aria-label="Worminal access" @submit=${this.submitAccess}><h2>ACCESS PASSWORD</h2><p>Enter the single password for this Worminal host.</p><input aria-label="Access password" type="password" .value=${this.accessPassword} @input=${(event: InputEvent) => this.accessPassword = (event.target as HTMLInputElement).value} autofocus><div class="access-error">${this.accessError}</div><div class="settings-actions"><x-command-button @click=${this.submitAccess}>CONNECT</x-command-button></div></form></div>` : nothing}`;
+      ${this.passwordRequired ? html`<div class="settings"><form class="access-panel" aria-label="Worminal access" @submit=${this.submitAccess}><h2>ACCESS PASSWORD</h2><p>Enter the single password for this Worminal host.</p><input aria-label="Access password" type="password" autocomplete="current-password" .value=${this.accessPassword} @input=${(event: InputEvent) => this.accessPassword = (event.target as HTMLInputElement).value} autofocus><div class="access-error" role="alert">${this.accessError}</div><div class="settings-actions"><x-command-button @click=${this.submitAccess}>CONNECT</x-command-button></div></form></div>` : nothing}`;
   }
 }
 customElements.define("worminal-desktop", WorminalDesktop);

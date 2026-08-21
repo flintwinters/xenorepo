@@ -195,6 +195,39 @@ test("changes the access password from settings", async ({ page }) => {
   });
 });
 
+test("uses one in-app flow to grant remote access", async ({ page }) => {
+  let authorized = false;
+  const submitted = [];
+  await page.route("**/api/workspace", async route => {
+    if (!authorized) {
+      await route.fulfill({ status: 401, body: "Worminal requires its access password." });
+      return;
+    }
+    await route.fulfill({ json: { windows: [], shortcuts: [{
+      action: "new-shell", key: "Meta", control: false, alt: false, shift: false, meta: false,
+    }] } });
+  });
+  await page.route("**/api/access", async route => {
+    const password = route.request().postDataJSON().password;
+    submitted.push(password);
+    authorized = password === "correct-secret";
+    await route.fulfill({ status: authorized ? 204 : 401 });
+  });
+
+  await page.goto("/worminal");
+  const access = page.getByRole("form", { name: "Worminal access" });
+  await expect(access).toBeVisible();
+  await page.getByLabel("Access password").fill("wrong-secret");
+  await page.getByRole("button", { name: "CONNECT" }).click();
+  await expect(page.getByRole("alert")).toHaveText("The password was not accepted.");
+  await expect(access).toBeVisible();
+
+  await page.getByLabel("Access password").fill("correct-secret");
+  await page.getByRole("button", { name: "CONNECT" }).click();
+  await expect(access).toHaveCount(0);
+  expect(submitted).toEqual(["wrong-secret", "correct-secret"]);
+});
+
 test("mirrors windows and live terminal output across views", async ({ page, context }) => {
   await openCleanDesktop(page);
   await expect(page.getByText("1 SHELL CONNECTED", { exact: true })).toBeVisible();

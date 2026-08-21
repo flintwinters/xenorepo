@@ -1,6 +1,6 @@
-name: pyterminal
-title: Python Browser Terminal
-module: apps.pyterminal.server
+name: worminal
+title: Worminal
+module: apps.worminal.server
 frontend:
   artifacts:
     index:

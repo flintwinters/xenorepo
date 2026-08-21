@@ -3,4 +3,4 @@
 from monotools.runtime import create_application
 
 
-app = create_application("pyterminal")
+app = create_application("worminal")

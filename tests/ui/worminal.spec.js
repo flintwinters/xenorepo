@@ -4,7 +4,7 @@ test("presents a responsive terminal while the browser runtime boots", async ({ 
   await page.route("https://cdn.jsdelivr.net/**", route => route.abort());
   await page.goto("/");
 
-  await expect(page.getByText("PY/WEB", { exact: true })).toBeVisible();
+  await expect(page.getByText("WORMINAL", { exact: true })).toBeVisible();
   await expect(page.getByLabel("Terminal output")).toContainText("BOOTING");
   await expect(page.getByLabel("Python command")).toBeDisabled();
   await expect(page.getByRole("button", { name: "CLEAR" })).toBeVisible();

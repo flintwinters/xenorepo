@@ -27,7 +27,7 @@ class RepositoryAppTests(unittest.TestCase):
 
         self.assertEqual(result.exit_code, 2)
         self.assertIn(
-            "choose an application: calculator, chat, microblog, pyterminal, quiz, rps",
+            "choose an application: calculator, chat, microblog, quiz, rps, worminal",
             result.output,
         )
         self.assertIn("Example: manage.py serve calculator", result.output)
@@ -36,7 +36,7 @@ class RepositoryAppTests(unittest.TestCase):
         result = CliRunner().invoke(app, ["status"])
 
         self.assertEqual(result.exit_code, 0)
-        for name in ("calculator", "chat", "microblog", "pyterminal", "quiz", "rps"):
+        for name in ("calculator", "chat", "microblog", "quiz", "rps", "worminal"):
             with self.subTest(app=name):
                 self.assertIn(name, result.output)
         self.assertIn("README", result.output)
@@ -211,7 +211,7 @@ frontend:
         self.assertNotIn('href="', document)
 
     def test_python_terminal_executes_only_in_an_isolated_browser_worker(self) -> None:
-        definition = get_app("pyterminal")
+        definition = get_app("worminal")
         validate_app(definition)
         build_app(definition)
         source = (definition.directory / definition.artifact("index").source).read_text(

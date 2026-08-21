@@ -1,4 +1,4 @@
-# Python Browser Terminal
+# Worminal
 
 A browser-resident Python REPL delivered by the repository's FastAPI runtime.
 Python runs inside a dedicated Web Worker through Pyodide; commands never run
@@ -10,7 +10,7 @@ Pyodide runtime from its pinned CDN URL. Browsers may cache it for later use.
 From the repository root:
 
 ```console
-python manage.py serve pyterminal
+python manage.py serve worminal
 ```
 
 Open the reported local URL. Press Enter to execute, Shift+Enter for a newline,

@@ -52,7 +52,7 @@ class PythonTerminal extends LitElement {
     runtimeVersion: { state: true }, sequence: { state: true },
   };
   phase: Phase = "loading";
-  transcript = "PY/WEB BOOTING · fetching isolated Python runtime…\n";
+  transcript = "WORMINAL BOOTING · fetching isolated Python runtime…\n";
   source = "";
   runtimeVersion = "—";
   sequence = 0;
@@ -140,7 +140,7 @@ class PythonTerminal extends LitElement {
   render() {
     const status = { loading: "LOADING RUNTIME", ready: "READY", running: "EXECUTING", failed: "LOAD FAILED" }[this.phase];
     return html`<x-console-shell @keydown=${(event: KeyboardEvent) => { if (event.ctrlKey && event.key.toLowerCase() === "l") { event.preventDefault(); this.clear(); } }}>
-      <x-utility-rail slot="header"><span class="brand">PY/WEB</span><span class="optional">BROWSER PYTHON TERMINAL</span><x-command-button class="push" @click=${this.clear}>CLEAR</x-command-button></x-utility-rail>
+      <x-utility-rail slot="header"><span class="brand">WORMINAL</span><span class="optional">BROWSER PYTHON TERMINAL</span><x-command-button class="push" @click=${this.clear}>CLEAR</x-command-button></x-utility-rail>
       <x-console-pane title="INTERACTIVE SESSION" index="01" tone="green"><section class="workspace">
         <pre aria-live="polite" aria-label="Terminal output">${this.transcript}</pre>
         <label class="entry"><span class="prompt">${this.phase === "ready" ? ">>>" : "···"}</span><textarea aria-label="Python command" spellcheck="false" .value=${this.source} ?disabled=${this.phase !== "ready"} @input=${(event: InputEvent) => this.source = (event.target as HTMLTextAreaElement).value} @keydown=${this.keydown}></textarea></label>

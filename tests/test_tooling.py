@@ -282,6 +282,15 @@ frontend:
         self.assertIn(".pane-body { min-height: 0; overflow: auto; }", shell)
         self.assertIn(":host { display: block; min-height: 0; overflow: auto; } table", components)
 
+    def test_console_command_buttons_reverse_their_shadow_when_pressed(self) -> None:
+        components = (ROOT / "packages" / "lit-ui" / "src" / "index.ts").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('button:active, button[aria-pressed="true"]', components)
+        self.assertIn("inset 0 2px 3px rgb(0 0 0 / 0.6)", components)
+        self.assertIn("inset 0 -1px rgb(255 255 255 / 0.12)", components)
+
     def test_chat_persists_history_and_broadcasts_to_every_connection(self) -> None:
         from apps.chat.database import (
             ChatMessage,

@@ -94,8 +94,7 @@ class WorminalDesktop extends LitElement {
   private toggleMaximize(id: number) { this.updateWindow(id, window => ({ ...window, maximized: !window.maximized, minimized: false, z: ++this.topZ })); this.updateComplete.then(() => { this.sessions.get(id)?.fit.fit(); this.sendResize(id); }); }
   private toggleMinimize(id: number) { this.updateWindow(id, window => ({ ...window, minimized: !window.minimized })); }
 
-  private drag(event: PointerEvent, id: number) {
-    if ((event.target as Element).closest("button")) return;
+  private moveWindow(event: PointerEvent, id: number) {
     const item = this.windows.find(window => window.id === id); if (!item || item.maximized) return;
     this.focus(id); const startX = event.clientX; const startY = event.clientY; const originX = item.x; const originY = item.y;
     const move = (next: PointerEvent) => this.updateWindow(id, window => ({ ...window, x: originX + next.clientX - startX, y: originY + next.clientY - startY }));
@@ -103,11 +102,31 @@ class WorminalDesktop extends LitElement {
     addEventListener("pointermove", move); addEventListener("pointerup", stop, { once: true });
   }
 
+  private resizeWindow(event: PointerEvent, id: number) {
+    const item = this.windows.find(window => window.id === id); if (!item || item.maximized) return;
+    this.focus(id); const startX = event.clientX; const startY = event.clientY; const width = item.width; const height = item.height;
+    const move = (next: PointerEvent) => this.updateWindow(id, window => ({ ...window, width: Math.max(300, width + next.clientX - startX), height: Math.max(190, height + next.clientY - startY) }));
+    const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", stop); };
+    addEventListener("pointermove", move); addEventListener("pointerup", stop, { once: true });
+  }
+
+  private windowPointerDown(event: PointerEvent, id: number) {
+    this.focus(id);
+    if ((event.target as Element).closest("button") || !event.shiftKey || ![0, 2].includes(event.button)) return;
+    event.preventDefault(); event.stopPropagation();
+    if (event.button === 0) this.moveWindow(event, id); else this.resizeWindow(event, id);
+  }
+
+  private titlePointerDown(event: PointerEvent, id: number) {
+    if (event.shiftKey || event.button !== 0 || (event.target as Element).closest("button")) return;
+    event.stopPropagation(); this.moveWindow(event, id);
+  }
+
   private renderWindow(window: WindowState) {
     if (window.minimized) return nothing;
     const style = `left:${window.x}px;top:${window.y}px;width:${window.width}px;height:${window.height}px;z-index:${window.z}`;
-    return html`<section class="window ${window.z === this.topZ ? "active" : ""} ${window.maximized ? "maximized" : ""}" style=${style} @pointerdown=${() => this.focus(window.id)} aria-label=${window.title}>
-      <header class="titlebar" @pointerdown=${(event: PointerEvent) => this.drag(event, window.id)} @dblclick=${() => this.toggleMaximize(window.id)}><span>▣</span><span>${window.title}</span><span class="phase">${window.phase.toUpperCase()}</span><div class="controls"><button aria-label="Minimize ${window.title}" @click=${() => this.toggleMinimize(window.id)}>_</button><button aria-label="Maximize ${window.title}" @click=${() => this.toggleMaximize(window.id)}>□</button><button aria-label="Close ${window.title}" @click=${() => this.close(window.id)}>×</button></div></header>
+    return html`<section class="window ${window.z === this.topZ ? "active" : ""} ${window.maximized ? "maximized" : ""}" style=${style} @pointerdown=${(event: PointerEvent) => this.windowPointerDown(event, window.id)} @contextmenu=${(event: MouseEvent) => { if (event.shiftKey) event.preventDefault(); }} aria-label=${window.title}>
+      <header class="titlebar" @pointerdown=${(event: PointerEvent) => this.titlePointerDown(event, window.id)} @dblclick=${() => this.toggleMaximize(window.id)}><span>▣</span><span>${window.title}</span><span class="phase">${window.phase.toUpperCase()}</span><div class="controls"><button aria-label="Minimize ${window.title}" @click=${() => this.toggleMinimize(window.id)}>_</button><button aria-label="Maximize ${window.title}" @click=${() => this.toggleMaximize(window.id)}>□</button><button aria-label="Close ${window.title}" @click=${() => this.close(window.id)}>×</button></div></header>
       <div class="terminal-host" data-terminal=${window.id} aria-label=${`${window.title} terminal`}></div>
     </section>`;
   }

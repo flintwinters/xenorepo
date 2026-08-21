@@ -19,6 +19,31 @@ test("creates and manages independent terminal windows", async ({ page }) => {
 
   await page.getByRole("button", { name: "+ NEW SHELL" }).click();
   await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
+  const secondWindow = page.getByRole("region", { name: "shell-2" });
+  const beforeMove = await secondWindow.boundingBox();
+  const viewport = page.viewportSize();
+  const gestureX = Math.min(beforeMove.x + 120, viewport.width - 20);
+  const gestureY = Math.min(beforeMove.y + 100, viewport.height - 40);
+  await page.keyboard.down("Shift");
+  await page.mouse.move(gestureX, gestureY);
+  await page.mouse.down();
+  await page.mouse.move(gestureX + 28, gestureY + 22);
+  await page.mouse.up();
+  await page.keyboard.up("Shift");
+  const afterMove = await secondWindow.boundingBox();
+  expect(afterMove.x).toBeGreaterThan(beforeMove.x + 20);
+  expect(afterMove.y).toBeGreaterThan(beforeMove.y + 15);
+
+  await page.keyboard.down("Shift");
+  await page.mouse.move(gestureX + 28, gestureY + 22);
+  await page.mouse.down({ button: "right" });
+  await page.mouse.move(gestureX + 64, gestureY + 48);
+  await page.mouse.up({ button: "right" });
+  await page.keyboard.up("Shift");
+  const afterResize = await secondWindow.boundingBox();
+  expect(afterResize.width).toBeGreaterThan(beforeMove.width + 25);
+  expect(afterResize.height).toBeGreaterThan(beforeMove.height + 20);
+
   await page.getByRole("button", { name: "Minimize shell-2" }).click();
   await expect(page.getByLabel("shell-2 terminal")).toBeHidden();
   await page.getByRole("button", { name: "shell-2" }).click();

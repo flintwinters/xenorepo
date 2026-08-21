@@ -59,6 +59,17 @@ class WorminalTests(unittest.TestCase):
 
         self.assertEqual(self.repository.transcript(workspace, window["id"]), b"previous output")
 
+    def test_workspace_persists_a_custom_new_shell_shortcut(self) -> None:
+        workspace = self.repository.create_workspace()
+        shortcut = {"action": "new-shell", "key": "N", "control": True,
+            "alt": True, "shift": False, "meta": False}
+        self.assertEqual(self.repository.shortcuts(workspace)[0]["key"], "Meta")
+        self.repository.replace_shortcuts(workspace, [shortcut])
+        self.sessions.kw["bind"].dispose()
+        self.sessions = create_session_factory(f"sqlite:///{self.database}")
+
+        self.assertEqual(WorkspaceRepository(self.sessions).shortcuts(workspace), [shortcut])
+
     def test_pty_session_runs_a_real_shell_and_closes_its_process(self) -> None:
         session = PtySession("/bin/sh")
         self.addCleanup(session.close)

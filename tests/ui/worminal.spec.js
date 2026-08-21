@@ -122,3 +122,44 @@ test("restores a server-saved desktop after reload", async ({ page }) => {
   await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
   expect((await page.getByRole("region", { name: "shell-2" }).boundingBox()).x).toBe(Math.round(moved.x));
 });
+
+test("customizes and restores the new-shell hotkey from settings", async ({ page }) => {
+  await page.addInitScript(() => {
+    globalThis.WebSocket = class SocketDouble {
+      static OPEN = 1;
+      readyState = 0;
+      set onopen(handler) { this.readyState = 1; setTimeout(() => handler({}), 0); }
+      get onopen() { return undefined; }
+      send() {}
+      close() { this.readyState = 3; this.onclose?.({}); }
+    };
+  });
+  await page.goto("/");
+  await expect(page.getByLabel("shell-1 terminal")).toBeVisible();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByRole("dialog", { name: "HOTKEY SETTINGS" })).toBeVisible();
+  const shortcut = page.getByLabel("New shell shortcut");
+  await shortcut.focus();
+  await page.keyboard.down("Control");
+  await page.keyboard.down("Alt");
+  await page.keyboard.press("n");
+  await page.keyboard.up("Alt");
+  await page.keyboard.up("Control");
+  await expect(shortcut).toHaveValue("Ctrl + Alt + n");
+  await page.getByRole("button", { name: "SAVE" }).click();
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await expect.poll(async () => page.evaluate(async () => {
+    const state = await fetch("/api/workspace").then(response => response.json());
+    return state.shortcuts[0];
+  })).toEqual({ action: "new-shell", key: "n", control: true, alt: true, shift: false, meta: false });
+
+  await page.keyboard.down("Control");
+  await page.keyboard.down("Alt");
+  await page.keyboard.press("n");
+  await page.keyboard.up("Alt");
+  await page.keyboard.up("Control");
+  await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByLabel("New shell shortcut")).toHaveValue("Ctrl + Alt + n");
+});

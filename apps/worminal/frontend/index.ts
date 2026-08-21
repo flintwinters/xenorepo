@@ -11,21 +11,24 @@ interface WindowState {
   id: string; title: string; x: number; y: number; width: number; height: number;
   z: number; minimized: boolean; maximized: boolean; phase: Phase;
 }
+interface Shortcut { action: "new-shell"; key: string; control: boolean; alt: boolean; shift: boolean; meta: boolean; }
 interface TerminalSession { socket: WebSocket; terminal: Terminal; fit: FitAddon; resize?: ResizeObserver; }
 
 class WorminalDesktop extends LitElement {
-  static properties = { windows: { state: true }, clock: { state: true } };
+  static properties = { windows: { state: true }, clock: { state: true }, shortcuts: { state: true }, settingsOpen: { state: true } };
   declare windows: WindowState[];
   declare clock: string;
+  declare shortcuts: Shortcut[];
+  declare settingsOpen: boolean;
   private sessions = new Map<string, TerminalSession>();
   private nextTitle = 1;
   private topZ = 1;
   private clockTimer?: number;
-  private superHeld = false;
-  private superChord = false;
   private persistence = Promise.resolve();
+  private shortcutsBeforeSettings?: Shortcut[];
+  private standaloneShortcutHeld?: string;
 
-  constructor() { super(); this.windows = []; this.clock = "--:--:--"; }
+  constructor() { super(); this.windows = []; this.clock = "--:--:--"; this.shortcuts = [this.defaultShortcut()]; this.settingsOpen = false; }
 
   static styles = [unsafeCSS(xtermCss), css`
     :host { display: block; height: 100%; color: #ebdbb2; font: 11px/1.15 "Courier New", monospace; background: #1d2021; }
@@ -48,6 +51,14 @@ class WorminalDesktop extends LitElement {
     .taskbar { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; }
     .task { min-width: 95px; max-width: 170px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .task.active { color: #fabd2f; }
+    .settings { position: fixed; inset: 0; z-index: 200000; display: grid; place-items: center; padding: 18px; background: #000a; }
+    .settings-panel { width: min(440px,100%); padding: 16px; color: #ebdbb2; background: #282828; border: 1px solid #83a598; box-shadow: 8px 10px 30px #000; }
+    .settings-panel h2 { margin: 0 0 8px; color: #fabd2f; font-size: 15px; letter-spacing: .08em; }
+    .settings-panel p { margin: 0 0 14px; color: #a89984; }
+    .shortcut-row { display: grid; grid-template-columns: 1fr minmax(160px, 1fr); gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid #504945; }
+    .shortcut-row input { width: 100%; padding: 7px; color: #ebdbb2; font: inherit; background: #1d2021; border: 1px solid #665c54; }
+    .shortcut-row input:focus { outline: 1px solid #fabd2f; border-color: #fabd2f; }
+    .settings-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 14px; }
     @media (max-width:620px) { .optional { display:none; } .window { min-width:260px; } }
   `];
 
@@ -69,24 +80,44 @@ class WorminalDesktop extends LitElement {
     event.stopImmediatePropagation();
   };
 
-  private isSuperKey(event: KeyboardEvent) {
-    return event.key === "Meta" || event.code === "MetaLeft" || event.code === "MetaRight";
-  }
-
   private handleSuperKeyDown = (event: KeyboardEvent) => {
-    if (this.isSuperKey(event)) {
-      if (!event.repeat) { this.superHeld = true; this.superChord = false; }
+    if (this.settingsOpen) {
+      if (event.key === "Escape") this.closeSettings();
       return;
     }
-    if (this.superHeld) this.superChord = true;
+    const shortcut = this.newShellShortcut();
+    if (this.isStandaloneModifier(shortcut)) {
+      if (event.key === shortcut.key && !event.repeat) this.standaloneShortcutHeld = shortcut.key;
+      else this.standaloneShortcutHeld = undefined;
+      return;
+    }
+    if (event.repeat || !this.matchesShortcut(event, shortcut)) return;
+    event.preventDefault(); event.stopImmediatePropagation(); void this.spawn();
   };
 
   private handleSuperKeyUp = (event: KeyboardEvent) => {
-    if (!this.isSuperKey(event) || !this.superHeld) return;
-    const openShell = !this.superChord;
-    this.superHeld = false; this.superChord = false;
-    if (openShell) this.spawn();
+    if (this.settingsOpen || event.key !== this.standaloneShortcutHeld) return;
+    this.standaloneShortcutHeld = undefined; void this.spawn();
   };
+
+  private defaultShortcut(): Shortcut { return { action: "new-shell", key: "Meta", control: false, alt: false, shift: false, meta: false }; }
+  private newShellShortcut() { return this.shortcuts.find(shortcut => shortcut.action === "new-shell") || this.defaultShortcut(); }
+  private matchesShortcut(event: KeyboardEvent, shortcut: Shortcut) {
+    return event.key.toLowerCase() === shortcut.key.toLowerCase() && event.ctrlKey === shortcut.control
+      && event.altKey === shortcut.alt && event.shiftKey === shortcut.shift && event.metaKey === shortcut.meta;
+  }
+  private isStandaloneModifier(shortcut: Shortcut) {
+    return ["Control", "Alt", "Shift", "Meta"].includes(shortcut.key)
+      && !shortcut.control && !shortcut.alt && !shortcut.shift && !shortcut.meta;
+  }
+  private shortcutLabel(shortcut: Shortcut) {
+    return [...(shortcut.control ? ["Ctrl"] : []), ...(shortcut.alt ? ["Alt"] : []), ...(shortcut.shift ? ["Shift"] : []), ...(shortcut.meta ? ["Meta"] : []), shortcut.key].join(" + ");
+  }
+  private captureShortcut(event: KeyboardEvent) {
+    event.preventDefault(); event.stopPropagation();
+    const shortcut: Shortcut = { action: "new-shell", key: event.key, control: event.ctrlKey && event.key !== "Control", alt: event.altKey && event.key !== "Alt", shift: event.shiftKey && event.key !== "Shift", meta: event.metaKey && event.key !== "Meta" };
+    this.shortcuts = [shortcut];
+  }
 
   private updateWindow(id: string, change: (window: WindowState) => WindowState) {
     this.windows = this.windows.map(window => window.id === id ? change(window) : window);
@@ -95,8 +126,9 @@ class WorminalDesktop extends LitElement {
   private async restoreWorkspace() {
     const response = await fetch("/api/workspace");
     if (!response.ok) { this.spawn(); return; }
-    const state = await response.json() as { windows: Omit<WindowState, "phase">[] };
+    const state = await response.json() as { windows: Omit<WindowState, "phase">[]; shortcuts?: Shortcut[] };
     this.windows = state.windows.map(window => ({ ...window, phase: "connecting" }));
+    this.shortcuts = state.shortcuts?.length ? state.shortcuts : [this.defaultShortcut()];
     this.topZ = Math.max(1, ...this.windows.map(window => window.z));
     this.nextTitle = Math.max(1, ...this.windows.map(window => Number(window.title.match(/^shell-(\d+)$/)?.[1] || 0) + 1));
     if (!this.windows.length) { this.spawn(); return; }
@@ -109,7 +141,7 @@ class WorminalDesktop extends LitElement {
   }
 
   private saveWorkspace() {
-    const body = JSON.stringify({ windows: this.savedWindows() });
+    const body = JSON.stringify({ windows: this.savedWindows(), shortcuts: this.shortcuts });
     this.persistence = this.persistence.then(async () => {
       const response = await fetch("/api/workspace", { method: "PUT", headers: { "Content-Type": "application/json" }, body });
       if (!response.ok) throw new Error("Could not save Worminal workspace.");
@@ -122,6 +154,10 @@ class WorminalDesktop extends LitElement {
     this.windows = [...this.windows, { id, title: `shell-${number}`, x: 32 + offset * 28, y: 30 + offset * 24, width: 650, height: 410, z: ++this.topZ, minimized: false, maximized: false, phase: "connecting" }];
     await this.saveWorkspace(); await this.updateComplete; this.connect(id);
   }
+
+  private openSettings() { this.shortcutsBeforeSettings = this.shortcuts.map(shortcut => ({ ...shortcut })); this.settingsOpen = true; }
+  private closeSettings() { this.shortcuts = this.shortcutsBeforeSettings || this.shortcuts; this.shortcutsBeforeSettings = undefined; this.settingsOpen = false; }
+  private saveSettings() { void this.saveWorkspace(); this.shortcutsBeforeSettings = undefined; this.settingsOpen = false; }
 
   private connect(id: string) {
     const host = this.renderRoot.querySelector<HTMLElement>(`[data-terminal="${id}"]`);
@@ -209,9 +245,10 @@ class WorminalDesktop extends LitElement {
 
   render() {
     const ready = this.windows.filter(window => window.phase === "ready").length;
-    return html`<x-console-shell><x-utility-rail slot="header"><span class="brand">WORMINAL</span><x-command-button @click=${this.spawn}>+ NEW SHELL</x-command-button><span class="push optional">LOCALHOST WORKSPACE · ${this.windows.length} WINDOW${this.windows.length === 1 ? "" : "S"}</span></x-utility-rail>
+    return html`<x-console-shell><x-utility-rail slot="header"><span class="brand">WORMINAL</span><x-command-button @click=${this.spawn}>+ NEW SHELL</x-command-button><span class="push optional">LOCALHOST WORKSPACE · ${this.windows.length} WINDOW${this.windows.length === 1 ? "" : "S"}</span><x-command-button aria-label="Settings" @click=${this.openSettings}>SETTINGS</x-command-button></x-utility-rail>
       <main class="desktop" aria-label="Worminal desktop">${this.windows.length ? nothing : html`<div class="welcome"><strong>NO OPEN SHELLS</strong><span>Use NEW SHELL to start a local terminal.</span></div>`}${this.windows.map(window => this.renderWindow(window))}</main>
-      <x-status-rail slot="footer"><x-status-indicator .label=${`${ready} SHELL${ready === 1 ? "" : "S"} CONNECTED`} tone=${ready ? "green" : "orange"}></x-status-indicator><nav class="taskbar" aria-label="Open shells">${this.windows.map(window => html`<x-command-button class="task ${window.z === this.topZ && !window.minimized ? "active" : ""}" @click=${() => this.focus(window.id)}>${window.title}</x-command-button>`)}</nav><span class="push">LOCAL PTY · ${this.clock}</span></x-status-rail></x-console-shell>`;
+      <x-status-rail slot="footer"><x-status-indicator .label=${`${ready} SHELL${ready === 1 ? "" : "S"} CONNECTED`} tone=${ready ? "green" : "orange"}></x-status-indicator><nav class="taskbar" aria-label="Open shells">${this.windows.map(window => html`<x-command-button class="task ${window.z === this.topZ && !window.minimized ? "active" : ""}" @click=${() => this.focus(window.id)}>${window.title}</x-command-button>`)}</nav><span class="push">LOCAL PTY · ${this.clock}</span></x-status-rail></x-console-shell>
+      ${this.settingsOpen ? html`<div class="settings" role="presentation" @click=${this.closeSettings}><section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" @click=${(event: Event) => event.stopPropagation()}><h2 id="settings-title">HOTKEY SETTINGS</h2><p>Press any key or key combination to set the action.</p><label class="shortcut-row"><span>New shell</span><input aria-label="New shell shortcut" .value=${this.shortcutLabel(this.newShellShortcut())} @keydown=${this.captureShortcut} readonly></label><div class="settings-actions"><x-command-button @click=${this.closeSettings}>CANCEL</x-command-button><x-command-button @click=${this.saveSettings}>SAVE</x-command-button></div></section></div>` : nothing}`;
   }
 }
 customElements.define("worminal-desktop", WorminalDesktop);

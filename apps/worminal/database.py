@@ -26,6 +26,20 @@ class Workspace(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class WorkspaceShortcut(Base):
+    """A user-owned keyboard binding for one desktop action."""
+
+    __tablename__ = "workspace_shortcuts"
+    workspace_id: Mapped[str] = mapped_column(ForeignKey("workspaces.id"), primary_key=True)
+    action: Mapped[str] = mapped_column(String(40), primary_key=True)
+    key: Mapped[str] = mapped_column(String(40))
+    control: Mapped[bool] = mapped_column(Boolean)
+    alt: Mapped[bool] = mapped_column(Boolean)
+    shift: Mapped[bool] = mapped_column(Boolean)
+    meta: Mapped[bool] = mapped_column(Boolean)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class TerminalWindow(Base):
     __tablename__ = "terminal_windows"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
@@ -66,6 +80,15 @@ def _window_state(window: TerminalWindow) -> dict[str, object]:
     }
 
 
+DEFAULT_SHORTCUTS = [{"action": "new-shell", "key": "Meta", "control": False,
+    "alt": False, "shift": False, "meta": False}]
+
+
+def _shortcut_state(shortcut: WorkspaceShortcut) -> dict[str, object]:
+    return {"action": shortcut.action, "key": shortcut.key, "control": shortcut.control,
+        "alt": shortcut.alt, "shift": shortcut.shift, "meta": shortcut.meta}
+
+
 class WorkspaceRepository:
     """Own workspace identity, window geometry, and bounded terminal history."""
 
@@ -88,6 +111,13 @@ class WorkspaceRepository:
             return [_window_state(window) for window in session.scalars(select(TerminalWindow)
                 .where(TerminalWindow.workspace_id == workspace_id)
                 .order_by(TerminalWindow.z, TerminalWindow.created_at))]
+
+    def shortcuts(self, workspace_id: str) -> list[dict[str, object]]:
+        with self.sessions() as session:
+            stored = list(session.scalars(select(WorkspaceShortcut)
+                .where(WorkspaceShortcut.workspace_id == workspace_id)
+                .order_by(WorkspaceShortcut.action)))
+            return [_shortcut_state(shortcut) for shortcut in stored] or DEFAULT_SHORTCUTS.copy()
 
     def replace_windows(self, workspace_id: str, windows: Iterable[dict[str, object]]) -> None:
         declared = list(windows)
@@ -116,6 +146,27 @@ class WorkspaceRepository:
                     for key, value in item.items():
                         setattr(window, key, value)
                     window.updated_at = timestamp
+            workspace.updated_at = timestamp
+
+    def replace_shortcuts(self, workspace_id: str, shortcuts: Iterable[dict[str, object]]) -> None:
+        declared = list(shortcuts)
+        actions = [str(item["action"]) for item in declared]
+        if actions != ["new-shell"]:
+            raise ValueError("Exactly one new-shell shortcut is required.")
+        timestamp = self.clock()
+        with self.sessions.begin() as session:
+            workspace = session.get(Workspace, workspace_id)
+            if workspace is None:
+                raise ValueError("Workspace is not available.")
+            shortcut = session.get(WorkspaceShortcut, (workspace_id, "new-shell"))
+            if shortcut is None:
+                shortcut = WorkspaceShortcut(workspace_id=workspace_id, updated_at=timestamp,
+                    **declared[0])
+                session.add(shortcut)
+            else:
+                for key, value in declared[0].items():
+                    setattr(shortcut, key, value)
+                shortcut.updated_at = timestamp
             workspace.updated_at = timestamp
 
     def delete_window(self, workspace_id: str, window_id: str) -> bool:

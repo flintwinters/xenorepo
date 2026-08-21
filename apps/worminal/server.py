@@ -35,8 +35,18 @@ class WindowInput(BaseModel):
     maximized: bool
 
 
+class ShortcutInput(BaseModel):
+    action: str = Field(pattern="^new-shell$")
+    key: str = Field(min_length=1, max_length=40)
+    control: bool
+    alt: bool
+    shift: bool
+    meta: bool
+
+
 class WorkspaceInput(BaseModel):
     windows: list[WindowInput] = Field(max_length=50)
+    shortcuts: list[ShortcutInput] = Field(min_length=1, max_length=1)
 
 
 class TerminalManager:
@@ -110,7 +120,8 @@ def create_app(database_url: str | None = None) -> FastAPI:
         identifier = workspace_id(request)
         created = identifier is None
         identifier = identifier or repository.create_workspace()
-        response = JSONResponse({"windows": repository.windows(identifier)})
+        response = JSONResponse({"windows": repository.windows(identifier),
+            "shortcuts": repository.shortcuts(identifier)})
         return set_session_cookie(response, request, COOKIE, identifier, COOKIE_AGE) if created else response
 
     @application.put("/api/workspace", status_code=204)
@@ -118,6 +129,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
         reject_cross_origin(request)
         identifier = require_workspace(request)
         repository.replace_windows(identifier, [window.model_dump() for window in payload.windows])
+        repository.replace_shortcuts(identifier, [shortcut.model_dump() for shortcut in payload.shortcuts])
         return Response(status_code=204)
 
     @application.delete("/api/workspace/windows/{window_id}", status_code=204)

@@ -224,6 +224,7 @@ frontend:
         self.assertIn('new WebSocket(`${protocol}://${location.host}/ws/terminal`)', source)
         self.assertIn('socket.send(JSON.stringify({ type: "input", data }))', source)
         self.assertIn('type: "resize"', source)
+        self.assertIn("fontSize: 11, lineHeight: 1, letterSpacing: 0", source)
         self.assertNotIn("Pyodide", source)
         self.assertIn("+ NEW SHELL", document)
         self.assertIn("LOCALHOST WORKSPACE", document)

@@ -23,7 +23,7 @@ class WorminalDesktop extends LitElement {
   constructor() { super(); this.windows = []; this.clock = "--:--:--"; }
 
   static styles = [unsafeCSS(xtermCss), css`
-    :host { display: block; height: 100%; color: #ebdbb2; font: 12px/1.35 "Courier New", monospace; background: #1d2021; }
+    :host { display: block; height: 100%; color: #ebdbb2; font: 11px/1.15 "Courier New", monospace; background: #1d2021; }
     * { box-sizing: border-box; } x-console-shell { height: 100%; }
     .brand { color: #fabd2f; font-weight: bold; letter-spacing: .1em; } .push { margin-left: auto; }
     .desktop { position: relative; min-width: 0; min-height: 0; overflow: hidden; background-color: #1a1d1c; background-image: linear-gradient(#282b2a 1px,transparent 1px),linear-gradient(90deg,#282b2a 1px,transparent 1px); background-size: 24px 24px; }
@@ -65,7 +65,7 @@ class WorminalDesktop extends LitElement {
   private connect(id: number) {
     const host = this.renderRoot.querySelector<HTMLElement>(`[data-terminal="${id}"]`);
     if (!host || this.sessions.has(id)) return;
-    const terminal = new Terminal({ cursorBlink: true, convertEol: false, fontFamily: '"Courier New", monospace', fontSize: 13, scrollback: 5000, theme: { background: "#181a1b", foreground: "#ebdbb2", cursor: "#fabd2f", selectionBackground: "#504945" } });
+    const terminal = new Terminal({ cursorBlink: true, convertEol: false, fontFamily: '"Courier New", monospace', fontSize: 11, lineHeight: 1, letterSpacing: 0, scrollback: 5000, theme: { background: "#181a1b", foreground: "#ebdbb2", cursor: "#fabd2f", selectionBackground: "#504945" } });
     const fit = new FitAddon(); terminal.loadAddon(fit); terminal.open(host); fit.fit();
     const protocol = location.protocol === "https:" ? "wss" : "ws";
     const socket = new WebSocket(`${protocol}://${location.host}/ws/terminal`);

@@ -51,9 +51,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 .utility, .status, .rail {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
-  padding: 2px 6px;
+  padding: 1px 6px;
   background: linear-gradient(#3c3836, #282828);
   border-bottom: 1px solid #101112;
   white-space: nowrap;
@@ -69,10 +69,10 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   z-index: 1;
   display: flex;
   align-items: center;
-  gap: 6px;
-  min-height: 22px;
+  gap: 5px;
+  min-height: 18px;
   margin: 0;
-  padding-right: 7px;
+  padding-right: 5px;
   color: #1d2021;
   font-size: 12px;
   font-weight: bold;
@@ -97,15 +97,15 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   align-self: stretch;
   display: grid;
   place-items: center;
-  min-width: 25px;
-  padding: 0 5px;
+  min-width: 21px;
+  padding: 0 4px;
   color: var(--fg);
   background: var(--panel);
   border-right: 1px solid #111;
 }
 .key, button {
-  min-height: 20px;
-  padding: 1px 8px;
+  min-height: 18px;
+  padding: 1px 6px;
   color: var(--fg);
   background: linear-gradient(#3c3836, #282828);
   border: 1px solid #111;

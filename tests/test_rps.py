@@ -57,7 +57,7 @@ class RpsTests(unittest.TestCase):
 
     def test_operator_console_document_follows_repository_ui_direction(self) -> None:
         document = Path("apps/rps/frontend/index.html").read_text(encoding="utf-8")
-        for marker in ("grid-template-rows:28px 1fr",
+        for marker in ("grid-template-rows:22px 1fr",
             'class="utility"', 'class="mosaic"',
             'class="pane arena-index"', 'class="pane battle"',
             'class="pane ledger"',

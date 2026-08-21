@@ -35,7 +35,7 @@ customElements.define("x-console-shell", ConsoleShell);
 
 export class UtilityRail extends ConsoleElement {
   static styles = [consoleTokens, css`
-    :host { display: flex; align-items: center; gap: 8px; min-width: 0; padding: 3px 6px; background: linear-gradient(#3c3836, #282828); border-bottom: 1px solid #101112; overflow: hidden; white-space: nowrap; }
+    :host { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 1px 6px; background: linear-gradient(#3c3836, #282828); border-bottom: 1px solid #101112; overflow: hidden; white-space: nowrap; }
   `];
   render() { return html`<slot></slot>`; }
 }
@@ -51,7 +51,7 @@ export class ConsolePane extends ConsoleElement {
   tone: ConsoleTone = "blue";
   static styles = [consoleTokens, chrome, css`
     :host { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; background: var(--console-panel, #282828); }
-    .index { align-self: stretch; display: grid; place-items: center; min-width: 25px; padding: 0 5px; color: var(--console-fg, #ebdbb2); background: var(--console-panel, #282828); border-right: 1px solid #111; }
+    .index { align-self: stretch; display: grid; place-items: center; min-width: 21px; padding: 0 4px; color: var(--console-fg, #ebdbb2); background: var(--console-panel, #282828); border-right: 1px solid #111; }
     .body { min-height: 0; overflow: auto; }
   `];
   render() {
@@ -68,7 +68,7 @@ export class CommandButton extends ConsoleElement {
   disabled = false;
   pressed = false;
   static styles = [consoleTokens, css`
-    :host { display: inline-block; } button { width: 100%; min-height: 22px; padding: 2px 8px; color: var(--console-fg, #ebdbb2); background: linear-gradient(#3c3836, #282828); border: 1px solid #111; border-top-color: #7c6f64; border-left-color: #665c54; box-shadow: inset -1px -1px #1d2021, 0 2px #101112; cursor: pointer; }
+    :host { display: inline-block; } button { width: 100%; min-height: 18px; padding: 1px 6px; color: var(--console-fg, #ebdbb2); background: linear-gradient(#3c3836, #282828); border: 1px solid #111; border-top-color: #7c6f64; border-left-color: #665c54; box-shadow: inset -1px -1px #1d2021, 0 2px #101112; cursor: pointer; }
     button:active, button[aria-pressed="true"] { transform: translateY(1px); box-shadow: inset 1px 1px #101112; } button:disabled { color: var(--console-muted, #a89984); cursor: not-allowed; }
   `];
   render() { return html`<button part="button" ?disabled=${this.disabled} aria-pressed=${this.pressed ? "true" : "false"}><slot></slot></button>`; }

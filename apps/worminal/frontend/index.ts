@@ -33,13 +33,13 @@ class WorminalDesktop extends LitElement {
     .desktop { position: relative; min-width: 0; min-height: 0; overflow: hidden; background-color: #1a1d1c; background-image: linear-gradient(#282b2a 1px,transparent 1px),linear-gradient(90deg,#282b2a 1px,transparent 1px); background-size: 24px 24px; }
     .welcome { position: absolute; inset: 0; display: grid; place-content: center; gap: 10px; text-align: center; color: #a89984; pointer-events: none; }
     .welcome strong { color: #ebdbb2; font-size: 18px; }
-    .window { position: absolute; display: grid; grid-template-rows: 28px minmax(0,1fr); min-width: 300px; min-height: 190px; overflow: hidden; background: #181a1b; border: 1px solid #111; box-shadow: 5px 7px 18px #0009; resize: both; }
+    .window { position: absolute; display: grid; grid-template-rows: 20px minmax(0,1fr); min-width: 300px; min-height: 190px; overflow: hidden; background: #181a1b; border: 1px solid #111; box-shadow: 5px 7px 18px #0009; resize: both; }
     .window.active { border-color: #83a598; box-shadow: 5px 7px 22px #000c,0 0 0 1px #83a598; }
     .window.maximized { inset: 0 !important; width: 100% !important; height: 100% !important; resize: none; }
-    .titlebar { display: flex; align-items: center; gap: 7px; min-width: 0; padding-left: 7px; color: #1d2021; font-weight: bold; background: linear-gradient(#83a598,#5f7f75); border-top: 1px solid #b7cfca; border-bottom: 2px solid #354a44; cursor: move; user-select: none; touch-action: none; }
+    .titlebar { display: flex; align-items: center; gap: 5px; min-width: 0; padding-left: 5px; color: #1d2021; font-weight: bold; background: linear-gradient(#83a598,#5f7f75); border-top: 1px solid #b7cfca; border-bottom: 2px solid #354a44; cursor: move; user-select: none; touch-action: none; }
     .window:not(.active) .titlebar { filter: saturate(.35) brightness(.72); }
     .phase { color: #282828; font-weight: normal; } .controls { display: flex; align-self: stretch; margin-left: auto; }
-    .titlebar button { width: 30px; padding: 0; color: #ebdbb2; font: inherit; background: #282828; border: 0; border-left: 1px solid #111; cursor: pointer; }
+    .titlebar button { width: 24px; padding: 0; color: #ebdbb2; font: inherit; background: #282828; border: 0; border-left: 1px solid #111; cursor: pointer; }
     .titlebar button:hover { background: #3c3836; }
     .terminal-host { min-width: 0; min-height: 0; padding: 5px; overflow: hidden; background: #181a1b; }
     .terminal-host .xterm { height: 100%; } .terminal-host .xterm-viewport { scrollbar-color: #665c54 #181a1b; }

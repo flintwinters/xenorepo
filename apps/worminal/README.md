@@ -20,8 +20,8 @@ connection terminates its shell process.
 ## LAN access
 
 Worminal can bind to every network interface, but a real shell must never be
-available without authentication. Set a long random token, then use
-`worminal` as the browser's username and the token as its password:
+available without authentication. Set a long random password; the browser asks
+for it once and retains only an HTTP-only session cookie:
 
 ```console
 export WORMINAL_ACCESS_TOKEN="$(openssl rand -hex 32)"
@@ -46,6 +46,6 @@ shell starts; an unavailable user or unauthorized switch fails at startup.
 
 Worminal intentionally grants shell access to the local user account running
 the FastAPI process. Loopback clients work without a password. Non-loopback
-clients require `WORMINAL_ACCESS_TOKEN` through HTTP Basic authentication, and
-the WebSocket rejects cross-origin browsers. Keep this service on a trusted LAN
-or behind a secure reverse proxy; it is not a public Internet service.
+clients require `WORMINAL_ACCESS_TOKEN` through the page's one-password prompt,
+and the WebSocket rejects cross-origin browsers. Keep this service on a trusted
+LAN or behind a secure reverse proxy; it is not a public Internet service.

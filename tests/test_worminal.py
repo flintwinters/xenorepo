@@ -1,5 +1,4 @@
 import select
-from base64 import b64encode
 import os
 from pathlib import Path
 import pwd
@@ -7,7 +6,7 @@ from types import SimpleNamespace
 import unittest
 
 from apps.worminal.database import WorkspaceRepository, create_session_factory
-from apps.worminal.server import app, remote_access_authorized
+from apps.worminal.server import access_cookie_value, app, remote_access_authorized
 from apps.worminal.terminal import PtySession, is_loopback_client, resolve_shell_account
 
 
@@ -31,13 +30,13 @@ class WorminalTests(unittest.TestCase):
             with self.subTest(host=host):
                 self.assertFalse(is_loopback_client(SimpleNamespace(client=SimpleNamespace(host=host))))
 
-    def test_remote_access_requires_the_configured_basic_authentication(self) -> None:
+    def test_remote_access_requires_the_configured_password(self) -> None:
         token = "test-remote-access-token"
-        authorization = "Basic " + b64encode(f"worminal:{token}".encode()).decode()
         self.assertFalse(remote_access_authorized(None, token))
-        self.assertFalse(remote_access_authorized(authorization, None))
-        self.assertFalse(remote_access_authorized(authorization, "wrong-token"))
-        self.assertTrue(remote_access_authorized(authorization, token))
+        self.assertFalse(remote_access_authorized(token, None))
+        self.assertFalse(remote_access_authorized("wrong-token", token))
+        self.assertTrue(remote_access_authorized(token, token))
+        self.assertNotEqual(access_cookie_value(token), token)
 
     def test_application_exposes_one_terminal_websocket(self) -> None:
         paths = [route.path for route in app.routes if hasattr(route, "path")]

@@ -124,8 +124,15 @@ class WorminalDesktop extends LitElement {
   }
 
   private async restoreWorkspace() {
-    const response = await fetch("/api/workspace");
-    if (!response.ok) { this.spawn(); return; }
+    let response = await fetch("/api/workspace");
+    if (response.status === 401) {
+      const password = window.prompt("Worminal access password:");
+      if (!password) return;
+      const access = await fetch("/api/access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
+      if (!access.ok) { window.alert("Worminal access password was not accepted."); return; }
+      response = await fetch("/api/workspace");
+    }
+    if (!response.ok) return;
     const state = await response.json() as { windows: Omit<WindowState, "phase">[]; shortcuts?: Shortcut[] };
     this.windows = state.windows.map(window => ({ ...window, phase: "connecting" }));
     this.shortcuts = state.shortcuts?.length ? state.shortcuts : [this.defaultShortcut()];

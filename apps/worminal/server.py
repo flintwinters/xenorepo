@@ -1,7 +1,6 @@
 """Durable localhost terminal workspace served by one FastAPI application."""
 
 import asyncio
-import base64
 import hmac
 import os
 from collections.abc import AsyncIterator
@@ -23,8 +22,8 @@ from monotools.runtime import create_application
 DIRECTORY = Path(__file__).parent
 DEFAULT_DATABASE = DIRECTORY / "data" / "worminal.db"
 COOKIE = "worminal_workspace"
+ACCESS_COOKIE = "worminal_access"
 COOKIE_AGE = 365 * 24 * 60 * 60
-REMOTE_USERNAME = "worminal"
 
 
 class WindowInput(BaseModel):
@@ -51,6 +50,10 @@ class ShortcutInput(BaseModel):
 class WorkspaceInput(BaseModel):
     windows: list[WindowInput] = Field(max_length=50)
     shortcuts: list[ShortcutInput] = Field(min_length=1, max_length=1)
+
+
+class AccessInput(BaseModel):
+    password: str = Field(min_length=1, max_length=1024)
 
 
 class TerminalManager:
@@ -88,15 +91,16 @@ class TerminalManager:
             self.close(window_id)
 
 
-def remote_access_authorized(authorization: str | None, access_token: str | None) -> bool:
-    """Validate the deliberately small Basic-auth boundary for non-local clients."""
-    if not access_token or not authorization or not authorization.startswith("Basic "):
+def access_cookie_value(access_token: str) -> str:
+    """Derive a non-reversible browser session value from the configured password."""
+    return hmac.digest(access_token.encode(), b"worminal remote access", "sha256").hex()
+
+
+def remote_access_authorized(password: str | None, access_token: str | None) -> bool:
+    """Validate one supplied password without retaining it in browser storage."""
+    if not access_token or not password:
         return False
-    try:
-        username, password = base64.b64decode(authorization[6:], validate=True).decode().split(":", 1)
-    except (UnicodeDecodeError, ValueError):
-        return False
-    return hmac.compare_digest(username, REMOTE_USERNAME) and hmac.compare_digest(password, access_token)
+    return hmac.compare_digest(password, access_token)
 
 
 def create_app(database_url: str | None = None) -> FastAPI:
@@ -121,15 +125,19 @@ def create_app(database_url: str | None = None) -> FastAPI:
     application.state.repository = repository
     application.state.terminal_manager = manager
 
+    def remote_session_authorized(cookie: str | None) -> bool:
+        return bool(remote_access_token and cookie) and hmac.compare_digest(
+            cookie, access_cookie_value(remote_access_token)
+        )
+
     @application.middleware("http")
     async def guard_remote_access(request: Request, call_next):
-        if is_loopback_client(request) or remote_access_authorized(
-            request.headers.get("authorization"), remote_access_token
-        ):
+        if is_loopback_client(request) or request.url.path in {"/worminal", "/api/access"}:
+            return await call_next(request)
+        if remote_session_authorized(request.cookies.get(ACCESS_COOKIE)):
             return await call_next(request)
         if remote_access_token:
-            return PlainTextResponse("Worminal requires authentication.", status_code=401,
-                headers={"WWW-Authenticate": 'Basic realm="Worminal"'})
+            return PlainTextResponse("Worminal requires its access password.", status_code=401)
         return PlainTextResponse("Set WORMINAL_ACCESS_TOKEN before allowing remote access.",
             status_code=403)
 
@@ -145,6 +153,16 @@ def create_app(database_url: str | None = None) -> FastAPI:
 
     def reject_cross_origin(request: Request) -> None:
         enforce_same_origin(request, lambda message: HTTPException(status_code=403, detail=message))
+
+    @application.post("/api/access", status_code=204)
+    def grant_remote_access(payload: AccessInput, request: Request) -> Response:
+        reject_cross_origin(request)
+        if not is_loopback_client(request) and not remote_access_authorized(payload.password, remote_access_token):
+            raise HTTPException(status_code=401, detail="Access password is not valid.")
+        response = Response(status_code=204)
+        if remote_access_token:
+            set_session_cookie(response, request, ACCESS_COOKIE, access_cookie_value(remote_access_token), COOKIE_AGE)
+        return response
 
     @application.get("/api/workspace")
     def get_workspace(request: Request) -> JSONResponse:
@@ -177,9 +195,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
         if not websocket_origin_allowed(socket):
             await socket.close(code=1008, reason="Worminal accepts same-origin clients only.")
             return
-        if not is_loopback_client(socket) and not remote_access_authorized(
-            socket.headers.get("authorization"), remote_access_token
-        ):
+        if not is_loopback_client(socket) and not remote_session_authorized(socket.cookies.get(ACCESS_COOKIE)):
             await socket.close(code=1008, reason="Worminal requires authenticated remote access.")
             return
         workspace = socket.cookies.get(COOKIE)

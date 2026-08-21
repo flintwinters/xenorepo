@@ -15,11 +15,14 @@ interface Shortcut { action: "new-shell"; key: string; control: boolean; alt: bo
 interface TerminalSession { socket: WebSocket; terminal: Terminal; fit: FitAddon; resize?: ResizeObserver; }
 
 class WorminalDesktop extends LitElement {
-  static properties = { windows: { state: true }, clock: { state: true }, shortcuts: { state: true }, settingsOpen: { state: true } };
+  static properties = { windows: { state: true }, clock: { state: true }, shortcuts: { state: true }, settingsOpen: { state: true }, passwordRequired: { state: true }, accessPassword: { state: true }, accessError: { state: true } };
   declare windows: WindowState[];
   declare clock: string;
   declare shortcuts: Shortcut[];
   declare settingsOpen: boolean;
+  declare passwordRequired: boolean;
+  declare accessPassword: string;
+  declare accessError: string;
   private sessions = new Map<string, TerminalSession>();
   private nextTitle = 1;
   private topZ = 1;
@@ -28,7 +31,7 @@ class WorminalDesktop extends LitElement {
   private shortcutsBeforeSettings?: Shortcut[];
   private standaloneShortcutHeld?: string;
 
-  constructor() { super(); this.windows = []; this.clock = "--:--:--"; this.shortcuts = [this.defaultShortcut()]; this.settingsOpen = false; }
+  constructor() { super(); this.windows = []; this.clock = "--:--:--"; this.shortcuts = [this.defaultShortcut()]; this.settingsOpen = false; this.passwordRequired = false; this.accessPassword = ""; this.accessError = ""; }
 
   static styles = [unsafeCSS(xtermCss), css`
     :host { display: block; height: 100%; color: #ebdbb2; font: 11px/1.15 "Courier New", monospace; background: #1d2021; }
@@ -59,6 +62,10 @@ class WorminalDesktop extends LitElement {
     .shortcut-row input { width: 100%; padding: 7px; color: #ebdbb2; font: inherit; background: #1d2021; border: 1px solid #665c54; }
     .shortcut-row input:focus { outline: 1px solid #fabd2f; border-color: #fabd2f; }
     .settings-actions { display: flex; justify-content: flex-end; gap: 7px; margin-top: 14px; }
+    .access-panel { width: min(360px,100%); padding: 16px; color: #ebdbb2; background: #282828; border: 1px solid #fabd2f; box-shadow: 8px 10px 30px #000; }
+    .access-panel h2 { margin: 0 0 8px; color: #fabd2f; font-size: 15px; letter-spacing: .08em; }
+    .access-panel p { margin: 0 0 12px; color: #a89984; }.access-panel input { width: 100%; padding: 8px; color: #ebdbb2; font: inherit; background: #1d2021; border: 1px solid #665c54; }
+    .access-error { min-height: 15px; margin-top: 8px; color: #fb4934; }
     @media (max-width:620px) { .optional { display:none; } .window { min-width:260px; } }
   `];
 
@@ -127,9 +134,7 @@ class WorminalDesktop extends LitElement {
     let response = await fetch("/api/workspace");
     if (response.status === 401) {
       const password = window.prompt("Worminal access password:");
-      if (!password) return;
-      const access = await fetch("/api/access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
-      if (!access.ok) { window.alert("Worminal access password was not accepted."); return; }
+      if (!password || !await this.grantAccess(password)) { this.passwordRequired = true; return; }
       response = await fetch("/api/workspace");
     }
     if (!response.ok) return;
@@ -142,6 +147,21 @@ class WorminalDesktop extends LitElement {
     await this.updateComplete;
     for (const window of this.windows) if (!window.minimized) this.connect(window.id);
   }
+
+  private async grantAccess(password: string) {
+    const access = await fetch("/api/access", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ password }) });
+    if (access.ok) return true;
+    this.accessError = "The password was not accepted.";
+    window.alert("Worminal access password was not accepted.");
+    return false;
+  }
+
+  private submitAccess = async (event: Event) => {
+    event.preventDefault();
+    if (!await this.grantAccess(this.accessPassword)) return;
+    this.accessPassword = ""; this.accessError = ""; this.passwordRequired = false;
+    await this.restoreWorkspace();
+  };
 
   private savedWindows() {
     return this.windows.map(({ phase, ...window }) => window);
@@ -255,7 +275,8 @@ class WorminalDesktop extends LitElement {
     return html`<x-console-shell><x-utility-rail slot="header"><span class="brand">WORMINAL</span><x-command-button @click=${this.spawn}>+ NEW SHELL</x-command-button><span class="push optional">LOCALHOST WORKSPACE · ${this.windows.length} WINDOW${this.windows.length === 1 ? "" : "S"}</span><x-command-button aria-label="Settings" @click=${this.openSettings}>SETTINGS</x-command-button></x-utility-rail>
       <main class="desktop" aria-label="Worminal desktop">${this.windows.length ? nothing : html`<div class="welcome"><strong>NO OPEN SHELLS</strong><span>Use NEW SHELL to start a local terminal.</span></div>`}${this.windows.map(window => this.renderWindow(window))}</main>
       <x-status-rail slot="footer"><x-status-indicator .label=${`${ready} SHELL${ready === 1 ? "" : "S"} CONNECTED`} tone=${ready ? "green" : "orange"}></x-status-indicator><nav class="taskbar" aria-label="Open shells">${this.windows.map(window => html`<x-command-button class="task ${window.z === this.topZ && !window.minimized ? "active" : ""}" @click=${() => this.focus(window.id)}>${window.title}</x-command-button>`)}</nav><span class="push">LOCAL PTY · ${this.clock}</span></x-status-rail></x-console-shell>
-      ${this.settingsOpen ? html`<div class="settings" role="presentation" @click=${this.closeSettings}><section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" @click=${(event: Event) => event.stopPropagation()}><h2 id="settings-title">HOTKEY SETTINGS</h2><p>Press any key or key combination to set the action.</p><label class="shortcut-row"><span>New shell</span><input aria-label="New shell shortcut" .value=${this.shortcutLabel(this.newShellShortcut())} @keydown=${this.captureShortcut} readonly></label><div class="settings-actions"><x-command-button @click=${this.closeSettings}>CANCEL</x-command-button><x-command-button @click=${this.saveSettings}>SAVE</x-command-button></div></section></div>` : nothing}`;
+      ${this.settingsOpen ? html`<div class="settings" role="presentation" @click=${this.closeSettings}><section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" @click=${(event: Event) => event.stopPropagation()}><h2 id="settings-title">HOTKEY SETTINGS</h2><p>Press any key or key combination to set the action.</p><label class="shortcut-row"><span>New shell</span><input aria-label="New shell shortcut" .value=${this.shortcutLabel(this.newShellShortcut())} @keydown=${this.captureShortcut} readonly></label><div class="settings-actions"><x-command-button @click=${this.closeSettings}>CANCEL</x-command-button><x-command-button @click=${this.saveSettings}>SAVE</x-command-button></div></section></div>` : nothing}
+      ${this.passwordRequired ? html`<div class="settings"><form class="access-panel" aria-label="Worminal access" @submit=${this.submitAccess}><h2>ACCESS PASSWORD</h2><p>Enter the single password for this Worminal host.</p><input aria-label="Access password" type="password" .value=${this.accessPassword} @input=${(event: InputEvent) => this.accessPassword = (event.target as HTMLInputElement).value} autofocus><div class="access-error">${this.accessError}</div><div class="settings-actions"><x-command-button @click=${this.submitAccess}>CONNECT</x-command-button></div></form></div>` : nothing}`;
   }
 }
 customElements.define("worminal-desktop", WorminalDesktop);

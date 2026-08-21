@@ -24,6 +24,7 @@ class WorminalTests(unittest.TestCase):
         unit = Path("apps/worminal/worminal.service").read_text(encoding="utf-8")
 
         self.assertIn("WantedBy=default.target", unit)
+        self.assertIn("Environment=WORMINAL_ACCESS_TOKEN=felix", unit)
         self.assertIn("ExecStart=%h/.local/bin/uv run python manage.py serve worminal --watch", unit)
         self.assertIn("Restart=on-failure", unit)
         self.assertNotIn("ExecStartPre", unit)

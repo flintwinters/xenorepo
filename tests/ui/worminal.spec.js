@@ -195,7 +195,7 @@ test("changes the access password from settings", async ({ page }) => {
   });
 });
 
-test("uses one in-app flow to grant remote access", async ({ page }) => {
+test("uses browser dialogs to grant remote access", async ({ page }) => {
   let authorized = false;
   const submitted = [];
   await page.route("**/api/workspace", async route => {
@@ -214,18 +214,24 @@ test("uses one in-app flow to grant remote access", async ({ page }) => {
     await route.fulfill({ status: authorized ? 204 : 401 });
   });
 
-  await page.goto("/worminal");
-  const access = page.getByRole("form", { name: "Worminal access" });
-  await expect(access).toBeVisible();
-  await page.getByLabel("Access password").fill("wrong-secret");
-  await page.getByRole("button", { name: "CONNECT" }).click();
-  await expect(page.getByRole("alert")).toHaveText("The password was not accepted.");
-  await expect(access).toBeVisible();
+  const dialogs = [];
+  let prompts = 0;
+  page.on("dialog", async dialog => {
+    dialogs.push({ type: dialog.type(), message: dialog.message() });
+    if (dialog.type() === "prompt") {
+      await dialog.accept(prompts++ ? "correct-secret" : "wrong-secret");
+    } else {
+      await dialog.accept();
+    }
+  });
 
-  await page.getByLabel("Access password").fill("correct-secret");
-  await page.getByRole("button", { name: "CONNECT" }).click();
-  await expect(access).toHaveCount(0);
-  expect(submitted).toEqual(["wrong-secret", "correct-secret"]);
+  await page.goto("/worminal");
+  await expect.poll(() => submitted).toEqual(["wrong-secret", "correct-secret"]);
+  expect(dialogs).toEqual([
+    { type: "prompt", message: "Worminal access password:" },
+    { type: "alert", message: "The password was not accepted." },
+    { type: "prompt", message: "Worminal access password:" },
+  ]);
 });
 
 test("mirrors windows and live terminal output across views", async ({ page, context }) => {

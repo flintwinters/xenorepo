@@ -98,7 +98,7 @@ class WorminalDesktop extends LitElement {
     if ((event.target as Element).closest("button")) return;
     const item = this.windows.find(window => window.id === id); if (!item || item.maximized) return;
     this.focus(id); const startX = event.clientX; const startY = event.clientY; const originX = item.x; const originY = item.y;
-    const move = (next: PointerEvent) => this.updateWindow(id, window => ({ ...window, x: Math.max(0, originX + next.clientX - startX), y: Math.max(0, originY + next.clientY - startY) }));
+    const move = (next: PointerEvent) => this.updateWindow(id, window => ({ ...window, x: originX + next.clientX - startX, y: originY + next.clientY - startY }));
     const stop = () => { removeEventListener("pointermove", move); removeEventListener("pointerup", stop); };
     addEventListener("pointermove", move); addEventListener("pointerup", stop, { once: true });
   }

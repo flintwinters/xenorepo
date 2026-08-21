@@ -1,0 +1,11 @@
+[Unit]
+Description=Worminal
+After=network.target
+
+[Service]
+WorkingDirectory=%h/projects/xenorepo
+ExecStart=%h/.local/bin/uv run python manage.py serve worminal --watch
+Restart=on-failure
+
+[Install]
+WantedBy=default.target

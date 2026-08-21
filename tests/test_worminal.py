@@ -20,6 +20,14 @@ from apps.worminal.terminal import PtySession, is_loopback_client, resolve_shell
 class WorminalTests(unittest.TestCase):
     database = Path("apps/worminal/data/test-worminal.db")
 
+    def test_user_service_runs_managed_uvicorn_with_live_frontend_builds(self) -> None:
+        unit = Path("apps/worminal/worminal.service").read_text(encoding="utf-8")
+
+        self.assertIn("WantedBy=default.target", unit)
+        self.assertIn("ExecStart=%h/.local/bin/uv run python manage.py serve worminal --watch", unit)
+        self.assertIn("Restart=on-failure", unit)
+        self.assertNotIn("ExecStartPre", unit)
+
     def setUp(self) -> None:
         self.database.unlink(missing_ok=True)
         self.sessions = create_session_factory(f"sqlite:///{self.database}")

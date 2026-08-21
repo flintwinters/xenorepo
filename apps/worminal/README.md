@@ -17,6 +17,10 @@ Use `--watch` for a long-running development service. Monotools rebuilds the
 Worminal document when its TypeScript or central Lit UI inputs change; Uvicorn
 continues serving the rebuilt `dist/index.html` without a backend restart.
 
+The included `worminal.service` runs this mode as a user-level systemd service.
+Install it in `~/.config/systemd/user/`, enable it for `default.target`, and
+enable user lingering when it must start at machine boot before login.
+
 Open `http://127.0.0.1:8000/worminal`, then create, drag, resize, minimize, maximize, and
 close shell windows from the browser desktop. Closing a window or browser
 connection terminates its shell process.

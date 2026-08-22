@@ -73,7 +73,7 @@ export class CommandButton extends ConsoleElement {
       width: 100%; min-height: 18px; padding: 1px 6px; color: var(--console-fg, #ebdbb2);
       background: linear-gradient(#45413f, #302d2b); border: 1px solid var(--console-button-border, #a89984);
       border-radius: 4px; box-shadow: inset 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.45);
-      cursor: pointer; transition: background-color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+      cursor: pointer;
     }
     button:hover:not(:disabled) { background: linear-gradient(#504b48, #383431); border-color: var(--console-button-border-hover, #d5c4a1); box-shadow: inset 0 1px rgb(255 255 255 / 0.14), 0 2px 4px rgb(0 0 0 / 0.4); }
     button:active, button[aria-pressed="true"] { box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.6), inset 0 -1px rgb(255 255 255 / 0.12); }

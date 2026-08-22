@@ -317,6 +317,7 @@ frontend:
         self.assertIn('button:active, button[aria-pressed="true"]', components)
         self.assertIn("inset 0 2px 3px rgb(0 0 0 / 0.6)", components)
         self.assertIn("inset 0 -1px rgb(255 255 255 / 0.12)", components)
+        self.assertNotIn("transition:", components)
 
     def test_chat_persists_history_and_broadcasts_to_every_connection(self) -> None:
         from apps.chat.database import (

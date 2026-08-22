@@ -88,10 +88,11 @@ monotools: the canonical orchestration library.
 
 ## 3. Current tasks
 
-- Continue the Typer-native manager migration at checkpoint 2: add app-owned
-  managers, then make Xenorepo's root manager own discovery, mounting, and
-  aggregate lifecycle policy. Checkpoint 1 introduced explicit-context
-  lifecycle functions and the reusable `monotools.management` app factory.
+- Complete the Typer-native manager migration at checkpoint 3: move Python and
+  Playwright suites beneath their owning apps, remove legacy global discovery
+  and CLI code, and update documentation and Worminal deployment commands.
+  Checkpoint 2 added seven app managers and Xenorepo-owned strict discovery,
+  deterministic mounting, and aggregate root lifecycle commands.
 - Prove strict shared ORM templates on Chat and RPS realtime connection records;
   next evaluate UUID/timestamp and opaque-auth templates as separate checkpoints.
 - Extend Dispatch Ledger's proven payment and mail contracts with a live Stripe

@@ -2,6 +2,7 @@
 
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import os
 import unittest
 from unittest.mock import ANY, patch
 
@@ -10,9 +11,30 @@ from typer.testing import CliRunner
 
 from monotools.apps import ROOT
 from monotools.management import create_app_cli, create_cli, resolve_local_app
+import manage as repository_manager
+from apps.worminal import manage as worminal_manager
 
 
 class ManagementTests(unittest.TestCase):
+    def _definition(self, directory: Path, name: str) -> None:
+        directory.mkdir(parents=True)
+        (directory / "app.yaml").write_text(
+            f"""name: {name}
+title: {name.title()}
+module: tests.fixture
+frontend:
+  artifacts:
+    index:
+      format: document
+      source: frontend/index.html
+      output: index.html
+      shell: console
+  routes:
+    /: index
+""",
+            encoding="utf-8",
+        )
+
     def _manager(self, *, include_serve: bool = True, ui_suite: str | None = None):
         temporary = TemporaryDirectory(dir=ROOT / "tests", prefix="manager-")
         self.addCleanup(temporary.cleanup)
@@ -71,6 +93,108 @@ frontend:
         serve.assert_called_once_with(definition, definition.directory.parent.parent,
             host="0.0.0.0", port=8123, watch=False,
             report=ANY)
+
+    def test_root_mounts_the_complete_immediate_manager_inventory_in_order(self) -> None:
+        definitions = [definition for definition, _ in repository_manager.MANAGERS]
+
+        self.assertEqual(
+            [definition.name for definition in definitions],
+            ["calculator", "chat", "mailing_list", "microblog", "quiz", "rps", "worminal"],
+        )
+        result = CliRunner().invoke(repository_manager.app, ["--help"])
+        self.assertEqual(result.exit_code, 0)
+        for definition in definitions:
+            self.assertIn(definition.name, result.output)
+
+    def test_root_and_leaf_commands_have_distinct_ownership(self) -> None:
+        root_commands = {command.name or command.callback.__name__.replace("_", "-")
+            for command in repository_manager.app.registered_commands}
+        self.assertEqual(root_commands, {"bootstrap", "list", "status", "check", "test"})
+
+        result = CliRunner().invoke(repository_manager.app, ["rps", "--help"])
+        self.assertEqual(result.exit_code, 0)
+        for command in ("build", "check", "test", "serve", "ui-check"):
+            self.assertIn(command, result.output)
+        self.assertNotIn("bootstrap", result.output)
+        self.assertNotIn("status", result.output)
+
+    def test_targeted_check_executes_only_the_selected_application(self) -> None:
+        with patch("monotools.management.validate_app") as validate, \
+             patch("monotools.management.build_app") as build, \
+             patch("monotools.management.validate_dist") as validate_dist:
+            result = CliRunner().invoke(repository_manager.app, ["calculator", "check"])
+
+        self.assertEqual(result.exit_code, 0)
+        selected = repository_manager.MANAGERS[0][0]
+        validate.assert_called_once_with(selected, ROOT)
+        build.assert_called_once_with(selected, ROOT)
+        validate_dist.assert_called_once_with(selected)
+
+    def test_root_check_executes_every_application_once_in_stable_order(self) -> None:
+        with patch("manage.validate_app") as validate, patch("manage.build_app") as build, \
+             patch("manage.validate_dist") as validate_dist:
+            result = CliRunner().invoke(repository_manager.app, ["check"])
+
+        self.assertEqual(result.exit_code, 0)
+        definitions = [definition for definition, _ in repository_manager.MANAGERS]
+        self.assertEqual([call.args[0] for call in validate.call_args_list], definitions)
+        self.assertEqual([call.args[0] for call in build.call_args_list], definitions)
+        self.assertEqual([call.args[0] for call in validate_dist.call_args_list], definitions)
+
+    def test_root_test_executes_the_curated_suite_once(self) -> None:
+        with patch("manage.run_test_suite", return_value=0) as run:
+            result = CliRunner().invoke(repository_manager.app, ["test"])
+
+        self.assertEqual(result.exit_code, 0)
+        run.assert_called_once_with(ROOT, ROOT / "tests")
+
+    def test_worminal_custom_serve_delegates_user_policy_to_shared_lifecycle(self) -> None:
+        with patch("apps.worminal.manage.serve_app", return_value=0) as serve:
+            result = CliRunner().invoke(worminal_manager.app,
+                ["serve", "--user", "alice", "--watch", "--port", "8124"])
+
+        self.assertEqual(result.exit_code, 0)
+        serve.assert_called_once_with(
+            worminal_manager.definition,
+            ROOT,
+            host="127.0.0.1",
+            port=8124,
+            watch=True,
+            environment={"WORMINAL_SHELL_USER": "alice"},
+            report=ANY,
+        )
+
+    def test_discovery_rejects_unmanaged_and_invalid_manager_directories(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="inventory-") as temporary:
+            apps_directory = Path(temporary) / "apps"
+            unmanaged = apps_directory / "unmanaged"
+            self._definition(unmanaged, "unmanaged")
+            with self.assertRaisesRegex(repository_manager.ManagerError, "has no manage.py"):
+                repository_manager.discover_managers(apps_directory)
+
+            (unmanaged / "manage.py").write_text("app = object()\n", encoding="utf-8")
+            with self.assertRaisesRegex(repository_manager.ManagerError, "must export 'app'"):
+                repository_manager.discover_managers(apps_directory)
+
+            (unmanaged / "manage.py").write_text("raise RuntimeError('broken manager')\n",
+                encoding="utf-8")
+            with self.assertRaisesRegex(repository_manager.ManagerError, "broken manager"):
+                repository_manager.discover_managers(apps_directory)
+
+    def test_root_and_mounted_managers_are_working_directory_independent(self) -> None:
+        original = Path.cwd()
+        foreign = ROOT / "tests"
+        try:
+            os.chdir(foreign)
+            root_result = CliRunner().invoke(repository_manager.app, ["list"])
+            leaf_result = CliRunner().invoke(repository_manager.app, ["worminal", "serve", "--help"])
+        finally:
+            os.chdir(original)
+
+        self.assertEqual(root_result.exit_code, 0)
+        self.assertIn("calculator", root_result.output)
+        self.assertEqual(leaf_result.exit_code, 0)
+        self.assertIn("--user", leaf_result.output)
 
 
 if __name__ == "__main__":

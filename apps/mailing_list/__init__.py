@@ -1,0 +1,1 @@
+"""Paid mailing-list application."""

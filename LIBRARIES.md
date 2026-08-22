@@ -7,7 +7,7 @@ consumers; they do not import one another.
 
 | Library | Language | Location | Public responsibility | Consumers |
 | --- | --- | --- | --- | --- |
-| Monotools | Python | `monotools/` | `monotools.appkit` assembles the typed `AppContext` boundary; `monotools.apps`, `monotools.lifecycle`, `monotools.runtime`, `monotools.database`, `monotools.auth`, `monotools.http`, and `monotools.realtime` provide declarative discovery, lifecycle commands, FastAPI document runtime, portable SQLAlchemy setup and database URL resolution, injectable clocks, opaque credentials, HTTP/session primitives, and WebSocket delivery. | Central `manage.py` and all apps as applicable. |
+| Monotools | Python | `monotools/` | `monotools.appkit` assembles the typed `AppContext` boundary; the package provides declarative lifecycle, FastAPI runtime, portable SQLAlchemy, auth/transport primitives, provider-neutral hosted-payment and mail contracts, and an SMTP adapter. | Central `manage.py` and all apps as applicable. |
 | Console Lit UI | TypeScript | `packages/lit-ui/` | Reusable Lit console elements, design tokens, and chrome for browser artifacts. | Calculator today; new Lit pages. |
 
 ## Extraction rules

@@ -28,9 +28,10 @@ class RepositoryAppTests(unittest.TestCase):
 
         self.assertEqual(result.exit_code, 2)
         self.assertIn(
-            "choose an application: calculator, chat, microblog, quiz, rps, worminal",
+            "choose an application: calculator, chat, mailing_list, microblog, quiz,",
             result.output,
         )
+        self.assertIn("rps, worminal", result.output)
         self.assertIn("Example: manage.py serve calculator", result.output)
 
     def test_worminal_user_option_is_discoverable_from_the_managed_serve_command(self) -> None:
@@ -68,12 +69,13 @@ class RepositoryAppTests(unittest.TestCase):
         result = CliRunner().invoke(app, ["status"])
 
         self.assertEqual(result.exit_code, 0)
-        for name in ("calculator", "chat", "microblog", "quiz", "rps", "worminal"):
+        definitions = discover_apps()
+        for name in (definition.name for definition in definitions):
             with self.subTest(app=name):
                 self.assertIn(name, result.output)
         self.assertIn("README", result.output)
         self.assertIn("Source", result.output)
-        self.assertIn("6 managed app(s)", result.output)
+        self.assertIn(f"{len(definitions)} managed app(s)", result.output)
         self.assertIn("manage.py check", result.output)
 
     def test_app_catalog_is_nonempty_and_has_unique_names(self) -> None:

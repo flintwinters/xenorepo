@@ -82,6 +82,9 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 
 ## 3. Current tasks
 
+- Extend Dispatch Ledger's proven payment and mail contracts with a live Stripe
+  Checkout adapter (Link as a Stripe payment method), signed webhooks, and SMTP
+  delivery after the sandbox lifecycle is accepted.
 - Validate and refine Worminal's loopback-only PTY bridge, shell-process
   cleanup, terminal emulation, and browser window-management behavior.
 - Center the RPS reveal as a dominant arena panel with instantly distinguishable

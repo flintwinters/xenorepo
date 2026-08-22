@@ -39,6 +39,7 @@ class SharedFrameworkTests(unittest.TestCase):
         self.assertEqual(capabilities["calculator"], frozenset())
         self.assertEqual(capabilities["chat"], frozenset({"database", "realtime"}))
         self.assertEqual(capabilities["microblog"], frozenset({"database"}))
+        self.assertEqual(capabilities["mailing_list"], frozenset({"database"}))
         self.assertEqual(capabilities["quiz"], frozenset())
         self.assertEqual(capabilities["rps"], frozenset({"database", "realtime"}))
         self.assertEqual(capabilities["worminal"], frozenset({"database", "realtime"}))

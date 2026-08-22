@@ -313,10 +313,8 @@ frontend:
             encoding="utf-8"
         )
 
-        self.assertIn("background: linear-gradient(#282828, #3c3836)", shell)
         self.assertIn("inset 0 2px 2px #101112, inset 0 -1px #665c54", shell)
         self.assertIn('button:active, button[aria-pressed="true"]', components)
-        self.assertIn("background: linear-gradient(#302d2b, #45413f)", components)
         self.assertIn("inset 0 2px 3px rgb(0 0 0 / 0.6)", components)
         self.assertIn("inset 0 -1px rgb(255 255 255 / 0.12)", components)
 

@@ -82,17 +82,18 @@ def build_app(definition: AppDefinition, workspace: Path) -> None:
 def validate_app(definition: AppDefinition, workspace: Path) -> None:
     expected = [
         definition.directory / "app.yaml",
-        definition.directory / "server.py",
+        definition.backend_directory / "server.py",
     ]
     expected.extend(definition.directory / artifact.source for artifact in definition.artifacts)
     if "database" in definition.capabilities:
         expected.extend(
-            [definition.directory / "database.py", definition.directory / "data" / "README.md"]
+            [definition.backend_directory / "database.py",
+                definition.directory / "data" / "README.md"]
         )
     missing = [path.relative_to(workspace) for path in expected if not path.is_file()]
     if missing:
         raise LifecycleError(f"{definition.name} missing files: {', '.join(map(str, missing))}")
-    py_compile.compile(str(definition.directory / "server.py"), doraise=True)
+    py_compile.compile(str(definition.backend_directory / "server.py"), doraise=True)
     module = import_module(definition.module)
     if not isinstance(getattr(module, "app", None), FastAPI):
         raise LifecycleError(f"{definition.module} does not expose a FastAPI 'app'")

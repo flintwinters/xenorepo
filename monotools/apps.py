@@ -45,8 +45,13 @@ class AppDefinition:
 
     @property
     def source_directory(self) -> Path:
-        """Compatibility location for legacy frontend inputs."""
+        """Application-owned frontend source directory."""
         return self.directory / "frontend"
+
+    @property
+    def backend_directory(self) -> Path:
+        """Application-owned Python implementation package."""
+        return self.directory / "backend"
 
     @property
     def dist_directory(self) -> Path:
@@ -173,6 +178,35 @@ def _routes(value: object, artifacts: tuple[FrontendArtifact, ...], path: Path) 
     return tuple(result)
 
 
+def _validate_structure(directory: Path, name: str, module: str,
+    artifacts: tuple[FrontendArtifact, ...]) -> None:
+    """Reject monoapps that blur their administrative and implementation roots."""
+    missing = [child for child in ("frontend", "backend")
+        if not (directory / child).is_dir()]
+    if missing:
+        raise AppDefinitionError(
+            f"{_display(directory)} missing required directories: {', '.join(missing)}"
+        )
+    root_python = sorted(path.name for path in directory.glob("*.py"))
+    if root_python != ["manage.py"]:
+        found = ", ".join(root_python) or "none"
+        raise AppDefinitionError(
+            f"{_display(directory)} root Python files must be exactly manage.py; found: {found}"
+        )
+    expected_module = f"apps.{name}.backend.server"
+    if module != expected_module:
+        raise AppDefinitionError(
+            f"{_display(directory)} module must be {expected_module!r}"
+        )
+    outside_frontend = sorted(str(artifact.source) for artifact in artifacts
+        if not artifact.source.parts or artifact.source.parts[0] != "frontend")
+    if outside_frontend:
+        raise AppDefinitionError(
+            f"{_display(directory)} frontend sources must be beneath frontend/: "
+            f"{', '.join(outside_frontend)}"
+        )
+
+
 def load_app(directory: Path) -> AppDefinition:
     metadata_path = _metadata_path(directory)
     if not metadata_path.is_file():
@@ -189,6 +223,7 @@ def load_app(directory: Path) -> AppDefinition:
     _only_keys(frontend, frozenset({"artifacts", "routes"}), metadata_path, "frontend")
     artifacts = _artifacts(frontend.get("artifacts"), metadata_path)
     routes = _routes(frontend.get("routes"), artifacts, metadata_path)
+    _validate_structure(directory, name, module, artifacts)
     declared_capabilities = data.get("capabilities", [])
     if not isinstance(declared_capabilities, list) or not all(isinstance(item, str) for item in declared_capabilities):
         raise AppDefinitionError(f"{_display(metadata_path)} capabilities must be a list of strings")

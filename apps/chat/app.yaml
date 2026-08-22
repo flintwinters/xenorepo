@@ -1,6 +1,6 @@
 name: chat
 title: Common Room
-module: apps.chat.server
+module: apps.chat.backend.server
 capabilities:
   - database
   - realtime

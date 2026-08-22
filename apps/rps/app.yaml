@@ -1,6 +1,6 @@
 name: rps
 title: Rock Paper Scissors
-module: apps.rps.server
+module: apps.rps.backend.server
 capabilities:
   - database
   - realtime

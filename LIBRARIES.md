@@ -22,8 +22,10 @@ consumers; they do not import one another.
 - Frontend libraries live under `packages/`, are imported through their package
   name, and must not embed an app's API paths, state, or copy.
 - Keep frontend artifact sources in `apps/<app>/frontend/` and backend/domain
-  code in the application package root. FastAPI remains the sole service that
-  delivers the built frontend and the app API.
+  code in `apps/<app>/backend/`. The monoapp root contains administrative,
+  structural, entrypoint, and informational files; `manage.py` is its only
+  Python file. FastAPI remains the sole service that delivers the built
+  frontend and the app API.
 - Add framework-level tests for every shared contract; retain product behavior
   tests in the consuming app's test module.
 

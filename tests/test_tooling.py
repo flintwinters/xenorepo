@@ -98,7 +98,7 @@ class RepositoryAppTests(unittest.TestCase):
     def test_yaml_metadata_rejects_invalid_declarations_with_actionable_errors(self) -> None:
         base = """name: fixture
 title: Fixture
-module: tests.fixture
+module: apps.fixture.backend.server
 frontend:
   artifacts:
     index:
@@ -119,8 +119,56 @@ frontend:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="metadata-") as temporary:
             directory = Path(temporary) / "fixture"
             directory.mkdir()
+            (directory / "frontend").mkdir()
+            (directory / "backend").mkdir()
+            (directory / "manage.py").touch()
             for name, (contents, message) in cases.items():
                 with self.subTest(case=name):
+                    (directory / "app.yaml").write_text(contents, encoding="utf-8")
+                    with self.assertRaisesRegex(AppDefinitionError, message):
+                        load_app(directory)
+
+    def test_yaml_metadata_enforces_monoapp_implementation_boundaries(self) -> None:
+        metadata = """name: fixture
+title: Fixture
+module: apps.fixture.backend.server
+frontend:
+  artifacts:
+    index:
+      format: document
+      source: frontend/index.html
+      output: index.html
+      shell: console
+  routes:
+    /: index
+"""
+        cases = {
+            "missing frontend": ("frontend", "missing required directories: frontend"),
+            "missing backend": ("backend", "missing required directories: backend"),
+            "missing manager": ("manage.py", "root Python files must be exactly manage.py"),
+            "root implementation": ("server.py", "found: manage.py, server.py"),
+            "wrong module": ("module", "module must be 'apps.fixture.backend.server'"),
+            "misplaced source": ("source", "frontend sources must be beneath frontend/"),
+        }
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="structure-") as temporary:
+            for index, (case, (mutation, message)) in enumerate(cases.items()):
+                with self.subTest(case=case):
+                    directory = Path(temporary) / f"case-{index}" / "fixture"
+                    (directory / "frontend").mkdir(parents=True)
+                    (directory / "backend").mkdir()
+                    (directory / "manage.py").touch()
+                    contents = metadata
+                    if mutation in {"frontend", "backend", "manage.py"}:
+                        target = directory / mutation
+                        target.rmdir() if target.is_dir() else target.unlink()
+                    elif mutation == "server.py":
+                        (directory / mutation).touch()
+                    elif mutation == "module":
+                        contents = contents.replace(
+                            "apps.fixture.backend.server", "apps.fixture.server")
+                    else:
+                        contents = contents.replace(
+                            "source: frontend/index.html", "source: index.html")
                     (directory / "app.yaml").write_text(contents, encoding="utf-8")
                     with self.assertRaisesRegex(AppDefinitionError, message):
                         load_app(directory)
@@ -323,7 +371,7 @@ frontend:
         self.assertNotIn("transition:", components)
 
     def test_chat_persists_history_and_broadcasts_to_every_connection(self) -> None:
-        from apps.chat.database import (
+        from apps.chat.backend.database import (
             ChatMessage,
             ChatRepository,
             ConnectionSession,
@@ -333,7 +381,7 @@ frontend:
             Room,
             create_session_factory,
         )
-        from apps.chat.server import ConnectionHub
+        from apps.chat.backend.server import ConnectionHub
         from sqlalchemy import func, select
 
         database = Path("apps/chat/data/test-chat.db")
@@ -388,7 +436,7 @@ frontend:
         from sqlalchemy import Column, DateTime, Integer, MetaData, String, Table, Text
         from sqlalchemy import create_engine, inspect
 
-        from apps.chat.database import ChatRepository, create_session_factory
+        from apps.chat.backend.database import ChatRepository, create_session_factory
 
         database = Path("apps/chat/data/test-chat-migration.db")
         database.unlink(missing_ok=True)

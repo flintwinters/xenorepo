@@ -6,9 +6,9 @@ import unittest
 
 from sqlalchemy import select
 
-from apps.rps.arena import ArenaCoordinator, QueueRecord, permitted_streak_difference
-from apps.rps.database import Match, MatchmakingEntry, Player, Round, RpsRepository, Throw
-from apps.rps.database import create_session_factory
+from apps.rps.backend.arena import ArenaCoordinator, QueueRecord, permitted_streak_difference
+from apps.rps.backend.database import Match, MatchmakingEntry, Player, Round, RpsRepository, Throw
+from apps.rps.backend.database import create_session_factory
 from tests.support import FakeClock, FakeScheduler, SocketDouble, run_async
 
 

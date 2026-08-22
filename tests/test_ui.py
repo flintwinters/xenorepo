@@ -57,7 +57,7 @@ class BrowserLifecycleTests(unittest.TestCase):
         health.assert_called_once_with(8123, process)
         self.assertEqual(
             popen.call_args.args[0][:4],
-            [__import__("sys").executable, "-m", "uvicorn", "apps.rps.server:app"],
+            [__import__("sys").executable, "-m", "uvicorn", "apps.rps.backend.server:app"],
         )
         self.assertEqual(popen.call_args.kwargs["env"]["RPS_DATABASE_URL"],
             f"sqlite:///{artifacts / 'browser.db'}")

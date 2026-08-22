@@ -8,8 +8,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-from apps.microblog.auth import ValidationError, issue_token
-from apps.microblog.database import Base, DomainError, MicroblogRepository
+from apps.microblog.backend.auth import ValidationError, issue_token
+from apps.microblog.backend.database import Base, DomainError, MicroblogRepository
 from monotools.appkit import create_app_context
 from monotools.http import (
     client_provenance,

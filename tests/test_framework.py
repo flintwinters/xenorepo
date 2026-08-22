@@ -10,11 +10,11 @@ from sqlalchemy.exc import IntegrityError
 from starlette.websockets import WebSocketDisconnect
 
 from tests.support import SocketDouble, run_async
-from apps.chat.database import ConnectionSession as ChatConnectionSession
-from apps.microblog.auth import issue_token, token_digest
-from apps.microblog.database import AuthenticationSession
-from apps.rps.auth import credential_digest, issue_credential
-from apps.rps.database import ConnectionSession as RpsConnectionSession
+from apps.chat.backend.database import ConnectionSession as ChatConnectionSession
+from apps.microblog.backend.auth import issue_token, token_digest
+from apps.microblog.backend.database import AuthenticationSession
+from apps.rps.backend.auth import credential_digest, issue_credential
+from apps.rps.backend.database import ConnectionSession as RpsConnectionSession
 from monotools.auth import issue_opaque_credential, opaque_credential_digest
 from monotools.appkit import SystemClock, create_app_context
 from monotools.apps import discover_apps

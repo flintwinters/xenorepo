@@ -7,8 +7,8 @@ import unittest
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from apps.rps.auth import credential_digest
-from apps.rps.database import (
+from apps.rps.backend.auth import credential_digest
+from apps.rps.backend.database import (
     ConnectionSession,
     DomainError,
     GuestCredential,
@@ -41,7 +41,7 @@ class RpsTests(unittest.TestCase):
         return self.repository.create_guest(token)
 
     def test_every_application_title_is_rock_paper_scissors(self) -> None:
-        from apps.rps.server import create_app
+        from apps.rps.backend.server import create_app
         from monotools.apps import get_app
 
         title = "Rock Paper Scissors"
@@ -235,7 +235,7 @@ class RpsTests(unittest.TestCase):
 
     def test_session_api_issues_restores_and_renames_http_only_guest(self) -> None:
         from starlette.requests import Request
-        from apps.rps.server import COOKIE, NicknameInput, create_app
+        from apps.rps.backend.server import COOKIE, NicknameInput, create_app
 
         application = create_app(f"sqlite:///{self.database}")
         self.addCleanup(application.state.repository.sessions.kw["bind"].dispose)

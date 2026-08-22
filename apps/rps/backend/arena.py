@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any
 
-from apps.rps.database import DomainError, Player, RpsRepository
-from apps.rps.scheduling import Clock, Scheduler
+from apps.rps.backend.database import DomainError, Player, RpsRepository
+from apps.rps.backend.scheduling import Clock, Scheduler
 from monotools.realtime import ConnectionRegistry, RealtimeSocket, SendReport, client_provenance
 
 

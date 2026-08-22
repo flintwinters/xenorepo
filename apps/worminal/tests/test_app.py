@@ -11,10 +11,10 @@ from fastapi import HTTPException
 from starlette.requests import Request
 from sqlalchemy import select as sa_select
 
-from apps.worminal.database import ServerSettings, WorkspaceRepository, create_session_factory
-from apps.worminal.server import (ACCESS_COOKIE, TerminalManager, access_cookie_value, app,
+from apps.worminal.backend.database import ServerSettings, WorkspaceRepository, create_session_factory
+from apps.worminal.backend.server import (ACCESS_COOKIE, TerminalManager, access_cookie_value, app,
     create_app, PasswordChangeInput, remote_access_authorized)
-from apps.worminal.terminal import PtySession, is_loopback_client, resolve_shell_account
+from apps.worminal.backend.terminal import PtySession, is_loopback_client, resolve_shell_account
 
 
 class WorminalTests(unittest.TestCase):

@@ -10,8 +10,8 @@ import unittest
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from apps.microblog.auth import token_digest
-from apps.microblog.database import (
+from apps.microblog.backend.auth import token_digest
+from apps.microblog.backend.database import (
     Account,
     AuthenticationSession,
     DomainError,
@@ -121,7 +121,7 @@ class MicroblogTests(unittest.TestCase):
     def test_api_authentication_origin_errors_and_cookie_contract(self) -> None:
         from starlette.requests import Request
 
-        from apps.microblog.server import COOKIE, Credentials, PostInput, create_app
+        from apps.microblog.backend.server import COOKIE, Credentials, PostInput, create_app
 
         application = create_app(f"sqlite:///{self.database}")
         endpoints = {route.path + ":" + next(iter(route.methods or ())): route.endpoint
@@ -155,7 +155,7 @@ class MicroblogTests(unittest.TestCase):
         self.assertFalse(json.loads(logged_out.body)["authenticated"])
 
     def test_live_feed_announces_each_confirmed_change(self) -> None:
-        from apps.microblog.server import ChangeFeed
+        from apps.microblog.backend.server import ChangeFeed
 
         changes = ChangeFeed(keepalive_seconds=0)
         revision = changes.publish()
@@ -169,7 +169,7 @@ class MicroblogTests(unittest.TestCase):
         events.close()
 
     def test_live_feed_delivers_across_threads_without_holding_its_condition(self) -> None:
-        from apps.microblog.server import ChangeFeed
+        from apps.microblog.backend.server import ChangeFeed
 
         changes = ChangeFeed(keepalive_seconds=1)
         events = changes.events()

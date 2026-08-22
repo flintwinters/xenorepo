@@ -19,7 +19,7 @@ from sqlalchemy import (
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
-from apps.rps.auth import credential_digest
+from apps.rps.backend.auth import credential_digest
 from monotools.appkit import SystemClock
 from monotools.database import create_session_factory as _create_session_factory
 from monotools.orm import RealtimeConnectionTable

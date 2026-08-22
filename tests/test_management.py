@@ -18,10 +18,12 @@ from apps.worminal import manage as worminal_manager
 class ManagementTests(unittest.TestCase):
     def _definition(self, directory: Path, name: str) -> None:
         directory.mkdir(parents=True)
+        (directory / "frontend").mkdir()
+        (directory / "backend").mkdir()
         (directory / "app.yaml").write_text(
             f"""name: {name}
 title: {name.title()}
-module: tests.fixture
+module: apps.{name}.backend.server
 frontend:
   artifacts:
     index:
@@ -40,10 +42,12 @@ frontend:
         self.addCleanup(temporary.cleanup)
         directory = Path(temporary.name)
         name = directory.name
+        (directory / "frontend").mkdir()
+        (directory / "backend").mkdir()
         (directory / "app.yaml").write_text(
             f"""name: {name}
 title: Fixture
-module: tests.fixture
+module: apps.{name}.backend.server
 frontend:
   artifacts:
     index:

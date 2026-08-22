@@ -37,6 +37,9 @@ monotools: the canonical orchestration library.
 - App definitions are declarative, typed, and capability-driven. Monotools must
   discover behavior from metadata rather than hard-coded app names or implicit
   directory knowledge.
+- Every monoapp separates implementation into `frontend/` and `backend/`.
+  Its root is reserved for administrative, structural, entrypoint, and
+  informational files, and `manage.py` is the only Python file allowed there.
 - Applications use FastAPI as their sole runtime service. Server-owned URLs
   are declared in app YAML and route directly to self-contained artifacts in
   each application's `./dist/` directory. Do not run a separate frontend

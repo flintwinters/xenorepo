@@ -1,6 +1,6 @@
 name: microblog
 title: WIRE/98
-module: apps.microblog.server
+module: apps.microblog.backend.server
 capabilities:
   - database
 frontend:

@@ -1,6 +1,6 @@
 name: worminal
 title: Worminal
-module: apps.worminal.server
+module: apps.worminal.backend.server
 capabilities:
   - database
   - realtime

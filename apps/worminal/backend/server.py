@@ -12,8 +12,8 @@ from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconn
 from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
-from apps.worminal.database import Base, WorkspaceRepository, _migrate_legacy_schema
-from apps.worminal.terminal import PtySession, is_loopback_client, read_pty, resolve_shell_account
+from apps.worminal.backend.database import Base, WorkspaceRepository, _migrate_legacy_schema
+from apps.worminal.backend.terminal import PtySession, is_loopback_client, read_pty, resolve_shell_account
 from monotools.appkit import create_app_context
 from monotools.http import enforce_same_origin, set_session_cookie
 from monotools.realtime import websocket_origin_allowed

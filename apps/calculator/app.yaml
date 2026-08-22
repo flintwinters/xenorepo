@@ -1,6 +1,6 @@
 name: calculator
 title: Calculation Control
-module: apps.calculator.server
+module: apps.calculator.backend.server
 frontend:
   artifacts:
     index:

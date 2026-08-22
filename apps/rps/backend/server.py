@@ -6,10 +6,10 @@ from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from apps.rps.auth import issue_credential
-from apps.rps.arena import ArenaCoordinator
-from apps.rps.database import Base, DomainError, RpsRepository, _migrate_realtime_columns
-from apps.rps.scheduling import AsyncIOScheduler, Clock, Scheduler, SystemClock
+from apps.rps.backend.auth import issue_credential
+from apps.rps.backend.arena import ArenaCoordinator
+from apps.rps.backend.database import Base, DomainError, RpsRepository, _migrate_realtime_columns
+from apps.rps.backend.scheduling import AsyncIOScheduler, Clock, Scheduler, SystemClock
 from monotools.appkit import create_app_context
 from monotools.http import (
     domain_error_handler,

@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 
-from apps.chat.database import Base, ChatRepository, _migrate_legacy
+from apps.chat.backend.database import Base, ChatRepository, _migrate_legacy
 from monotools.appkit import create_app_context
 from monotools.http import client_provenance
 from monotools.realtime import (

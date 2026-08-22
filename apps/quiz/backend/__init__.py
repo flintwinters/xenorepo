@@ -1,0 +1,1 @@
+"""Working Style Inventory backend."""

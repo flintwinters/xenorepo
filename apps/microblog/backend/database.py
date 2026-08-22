@@ -9,7 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, aliased, mapped_column, sessionmaker
 
-from apps.microblog.auth import PasswordHash, hash_password, normalize_handle, token_digest, verify_password
+from apps.microblog.backend.auth import PasswordHash, hash_password, normalize_handle, token_digest, verify_password
 from monotools.database import ClientProvenanceMixin
 from monotools.appkit import SystemClock
 from monotools.database import create_session_factory as _create_session_factory

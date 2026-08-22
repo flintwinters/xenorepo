@@ -1,6 +1,6 @@
 name: quiz
 title: Working Style Inventory
-module: apps.quiz.server
+module: apps.quiz.backend.server
 frontend:
   artifacts:
     index:

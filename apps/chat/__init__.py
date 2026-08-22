@@ -1,1 +1,0 @@
-"""Anonymous live chat application."""

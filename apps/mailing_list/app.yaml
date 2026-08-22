@@ -1,6 +1,6 @@
 name: mailing_list
 title: Dispatch Ledger
-module: apps.mailing_list.server
+module: apps.mailing_list.backend.server
 capabilities:
   - database
 frontend:

@@ -5,8 +5,8 @@ from pathlib import Path
 from fastapi import FastAPI, Request
 from pydantic import BaseModel
 
-from apps.mailing_list.database import Base, DomainError, MailingListRepository
-from apps.mailing_list.providers import SandboxGateway
+from apps.mailing_list.backend.database import Base, DomainError, MailingListRepository
+from apps.mailing_list.backend.providers import SandboxGateway
 from monotools.appkit import create_app_context
 from monotools.http import domain_error_handler, enforce_same_origin
 from monotools.runtime import create_application

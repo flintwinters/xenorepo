@@ -50,7 +50,7 @@ class RepositoryAppTests(unittest.TestCase):
 
     def test_frontend_watch_rebuilds_declared_and_shared_lit_inputs(self) -> None:
         definition = get_app("worminal")
-        inputs = frontend_inputs(definition)
+        inputs = frontend_inputs(definition, ROOT)
 
         self.assertIn(definition.directory / "frontend" / "index.ts", inputs)
         self.assertIn(ROOT / "packages" / "lit-ui" / "src" / "index.ts", inputs)
@@ -61,8 +61,8 @@ class RepositoryAppTests(unittest.TestCase):
                 "monotools.watch.time.sleep", side_effect=[None, RuntimeError("stop")]
             ):
             with self.assertRaisesRegex(RuntimeError, "stop"):
-                watch_frontend(definition, report, interval=0)
-        rebuild.assert_called_once_with(definition)
+                watch_frontend(definition, ROOT, report, interval=0)
+        rebuild.assert_called_once_with(definition, ROOT)
         report.assert_called_once_with("Rebuilt worminal frontend")
 
     def test_status_reports_the_organization_of_every_discovered_app(self) -> None:
@@ -152,8 +152,8 @@ frontend:
     def test_every_discovered_app_validates_and_builds(self) -> None:
         for definition in discover_apps():
             with self.subTest(app=definition.name):
-                validate_app(definition)
-                build_app(definition)
+                validate_app(definition, ROOT)
+                build_app(definition, ROOT)
                 validate_dist(definition)
 
     def test_document_frontends_build_as_self_contained_documents(self) -> None:
@@ -164,7 +164,7 @@ frontend:
         )
         for definition in definitions:
             with self.subTest(app=definition.name):
-                build_app(definition)
+                build_app(definition, ROOT)
                 assets = sorted(
                     path.name
                     for path in definition.dist_directory.iterdir()
@@ -212,7 +212,7 @@ frontend:
                     self.assertEqual(definition.frontend_shell, "console")
 
     def test_calculator_preserves_visible_work_across_reload(self) -> None:
-        build_app(get_app("calculator"))
+        build_app(get_app("calculator"), ROOT)
         definition = get_app("calculator")
         source = (definition.directory / definition.artifact("index").source).read_text(
             encoding="utf-8"
@@ -247,9 +247,9 @@ frontend:
 
     def test_worminal_uses_xterm_with_one_local_shell_socket_per_tab(self) -> None:
         definition = get_app("worminal")
-        validate_app(definition)
+        validate_app(definition, ROOT)
         self.assertEqual(definition.routes, (("/worminal", "index"),))
-        build_app(definition)
+        build_app(definition, ROOT)
         source = (definition.directory / definition.artifact("index").source).read_text(
             encoding="utf-8"
         )
@@ -287,7 +287,7 @@ frontend:
 
     def test_quiz_has_a_non_diagnostic_psychometric_inventory(self) -> None:
         definition = get_app("quiz")
-        build_app(definition)
+        build_app(definition, ROOT)
         source = (definition.directory / definition.artifact("index").source).read_text(
             encoding="utf-8"
         )

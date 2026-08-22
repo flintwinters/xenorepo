@@ -45,11 +45,11 @@ class BrowserLifecycleTests(unittest.TestCase):
                  patch("monotools.ui.wait_for_health") as health, \
                  patch("monotools.ui.subprocess.run", return_value=completed) as run, \
                  patch("monotools.ui._terminate", return_value=None):
-                actual = run_ui_check(definition)
+                actual = run_ui_check(definition, ROOT, ROOT / "tests" / "ui" / "rps.spec.js")
 
         self.assertEqual(actual, artifacts)
-        validate.assert_called_once_with(definition)
-        build.assert_called_once_with(definition)
+        validate.assert_called_once_with(definition, ROOT)
+        build.assert_called_once_with(definition, ROOT)
         validate_dist.assert_called_once_with(definition)
         health.assert_called_once_with(8123, process)
         self.assertEqual(
@@ -70,7 +70,7 @@ class BrowserLifecycleTests(unittest.TestCase):
         with patch("monotools.ui.validate_app"), patch("monotools.ui.build_app"), \
              patch("monotools.ui.validate_dist"):
             with self.assertRaisesRegex(LifecycleError, "has no browser suite"):
-                run_ui_check(definition)
+                run_ui_check(definition, ROOT, ROOT / "tests" / "ui" / "missing.spec.js")
 
 
 if __name__ == "__main__":

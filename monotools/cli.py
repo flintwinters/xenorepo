@@ -11,7 +11,13 @@ from rich.console import Console
 from rich.table import Table
 
 from monotools.apps import AppDefinition, AppDefinitionError, ROOT, discover_apps, get_app
-from monotools.lifecycle import LifecycleError, build_app, validate_app, validate_dist
+from monotools.lifecycle import (
+    LifecycleError,
+    build_app,
+    collect_app_status,
+    validate_app,
+    validate_dist,
+)
 from monotools.ui import run_ui_check
 from monotools.watch import watch_frontend
 
@@ -103,23 +109,14 @@ def status() -> None:
     except AppDefinitionError as error:
         _fail(error)
     for definition in definitions:
-        source = all(
-            (definition.directory / artifact.source).is_file()
-            for artifact in definition.artifacts
-        )
-        readme = (definition.directory / "README.md").is_file()
-        data = (definition.directory / "data").is_dir()
-        dist = all(
-            (definition.dist_directory / artifact.output).is_file()
-            for artifact in definition.artifacts
-        )
+        health = collect_app_status(definition)
         table.add_row(
             definition.name,
             definition.title,
-            "[green]ok[/]" if source else "[red]missing[/]",
-            "[green]ok[/]" if readme else "[red]missing[/]",
-            "[green]ok[/]" if data else "—",
-            "[green]built[/]" if dist else "[yellow]pending[/]",
+            "[green]ok[/]" if health["source"] else "[red]missing[/]",
+            "[green]ok[/]" if health["readme"] else "[red]missing[/]",
+            "[green]ok[/]" if health["data"] else "—",
+            "[green]built[/]" if health["dist"] else "[yellow]pending[/]",
         )
     console.print(table)
     console.print(f"{len(definitions)} managed app(s); run [bold]manage.py check[/] for deep validation.")
@@ -130,7 +127,7 @@ def build(name: str = typer.Argument(..., help="Application name.")) -> None:
     """Compile an application's frontend into its dist directory."""
     try:
         definition = _select_app(name)
-        build_app(definition)
+        build_app(definition, ROOT)
         validate_dist(definition)
     except (AppDefinitionError, LifecycleError) as error:
         _fail(error)
@@ -143,8 +140,8 @@ def check() -> None:
     try:
         definitions = discover_apps()
         for definition in definitions:
-            validate_app(definition)
-            build_app(definition)
+            validate_app(definition, ROOT)
+            build_app(definition, ROOT)
             validate_dist(definition)
     except (AppDefinitionError, LifecycleError) as error:
         _fail(error)
@@ -169,7 +166,7 @@ def ui_check(name: str = typer.Argument(..., help="Application name.")) -> None:
     """Build, serve, and run browser verification for one application."""
     try:
         definition = _select_app(name)
-        artifacts = run_ui_check(definition)
+        artifacts = run_ui_check(definition, ROOT, ROOT / "tests" / "ui" / f"{definition.name}.spec.js")
     except (AppDefinitionError, LifecycleError) as error:
         _fail(error)
     console.print(
@@ -191,12 +188,12 @@ def serve(
         definition = _select_app(name)
         if user is not None and definition.name != "worminal":
             raise LifecycleError("--user is available only when serving worminal.")
-        build_app(definition)
+        build_app(definition, ROOT)
         validate_dist(definition)
     except (AppDefinitionError, LifecycleError) as error:
         _fail(error)
     if watch:
-        threading.Thread(target=watch_frontend, args=(definition, console.print),
+        threading.Thread(target=watch_frontend, args=(definition, ROOT, console.print),
             daemon=True, name=f"{definition.name}-frontend-watch").start()
     subprocess.run(
         [sys.executable, "-m", "uvicorn", definition.module + ":app", "--host", host, "--port", str(port)],

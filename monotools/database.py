@@ -9,14 +9,7 @@ from sqlalchemy import MetaData, create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from monotools.orm import ClientProvenanceColumns
-
-
 DatabasePreparation = Callable[[Engine], None]
-
-
-class ClientProvenanceMixin(ClientProvenanceColumns):
-    """Compatibility import for the canonical client-provenance template."""
 
 
 def _enable_sqlite_foreign_keys(connection: Any, _record: Any) -> None:

@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse, Response
 from pydantic import BaseModel, Field
 
 from apps.worminal.database import Base, WorkspaceRepository, _migrate_legacy_schema
-from apps.worminal.terminal import PtySession, is_loopback_client, resolve_shell_account
+from apps.worminal.terminal import PtySession, is_loopback_client, read_pty, resolve_shell_account
 from monotools.appkit import create_app_context
 from monotools.http import enforce_same_origin, set_session_cookie
 from monotools.realtime import websocket_origin_allowed
@@ -37,6 +37,14 @@ class WindowInput(BaseModel):
     z: int = Field(ge=1, le=100_000)
     minimized: bool
     maximized: bool
+    active_tab_id: str = Field(min_length=36, max_length=36)
+    tabs: list["TabInput"] = Field(min_length=1, max_length=30)
+
+
+class TabInput(BaseModel):
+    id: str = Field(min_length=36, max_length=36)
+    title: str = Field(min_length=1, max_length=80)
+    position: int = Field(ge=0, le=29)
 
 
 class ShortcutInput(BaseModel):
@@ -77,24 +85,24 @@ class TerminalManager:
         self.shell_user = shell_user
         self.repository = repository
 
-    def attach(self, window_id: str, socket: WebSocket) -> PtySession:
-        terminal = self.terminals.get(window_id)
+    def attach(self, tab_id: str, socket: WebSocket) -> PtySession:
+        terminal = self.terminals.get(tab_id)
         if terminal is None or terminal.session.process.poll() is not None:
             terminal = ManagedTerminal(PtySession(user=self.shell_user))
-            self.terminals[window_id] = terminal
+            self.terminals[tab_id] = terminal
         terminal.sockets.add(socket)
         if terminal.reader is None or terminal.reader.done():
-            terminal.reader = asyncio.create_task(self._broadcast(window_id, terminal))
+            terminal.reader = asyncio.create_task(self._broadcast(tab_id, terminal))
         return terminal.session
 
-    async def _broadcast(self, window_id: str, terminal: ManagedTerminal) -> None:
+    async def _broadcast(self, tab_id: str, terminal: ManagedTerminal) -> None:
         try:
             while True:
-                output = await asyncio.to_thread(terminal.session.read)
+                output = await read_pty(terminal.session)
                 if not output:
                     return
                 workspace = self.repository.shared_workspace()
-                await asyncio.to_thread(self.repository.append_output, workspace, window_id, output)
+                await asyncio.to_thread(self.repository.append_output, workspace, tab_id, output)
                 for socket in tuple(terminal.sockets):
                     try:
                         await socket.send_bytes(output)
@@ -103,21 +111,21 @@ class TerminalManager:
         except (OSError, asyncio.CancelledError):
             return
 
-    def detach(self, window_id: str, socket: WebSocket) -> None:
-        terminal = self.terminals.get(window_id)
+    def detach(self, tab_id: str, socket: WebSocket) -> None:
+        terminal = self.terminals.get(tab_id)
         if terminal is not None:
             terminal.sockets.discard(socket)
 
-    def close(self, window_id: str) -> None:
-        terminal = self.terminals.pop(window_id, None)
+    def close(self, tab_id: str) -> None:
+        terminal = self.terminals.pop(tab_id, None)
         if terminal is not None:
             if terminal.reader is not None:
                 terminal.reader.cancel()
             terminal.session.close()
 
     def close_all(self) -> None:
-        for window_id in list(self.terminals):
-            self.close(window_id)
+        for tab_id in list(self.terminals):
+            self.close(tab_id)
 
 
 def access_cookie_value(access_session_version: str) -> str:
@@ -224,13 +232,24 @@ def create_app(database_url: str | None = None) -> FastAPI:
     async def close_window(window_id: str, request: Request) -> Response:
         reject_cross_origin(request)
         identifier = require_workspace(request)
-        if not repository.delete_window(identifier, window_id):
+        tab_ids = repository.delete_window(identifier, window_id)
+        if tab_ids is None:
             raise HTTPException(status_code=404, detail="Terminal window not found.")
-        manager.close(window_id)
+        for tab_id in tab_ids:
+            manager.close(tab_id)
         return Response(status_code=204)
 
-    @application.websocket("/ws/terminal/{window_id}")
-    async def terminal(socket: WebSocket, window_id: str) -> None:
+    @application.delete("/api/workspace/tabs/{tab_id}", status_code=204)
+    async def close_tab(tab_id: str, request: Request) -> Response:
+        reject_cross_origin(request)
+        identifier = require_workspace(request)
+        if not repository.delete_tab(identifier, tab_id):
+            raise HTTPException(status_code=404, detail="Terminal tab not found.")
+        manager.close(tab_id)
+        return Response(status_code=204)
+
+    @application.websocket("/ws/terminal/{tab_id}")
+    async def terminal(socket: WebSocket, tab_id: str) -> None:
         if not websocket_origin_allowed(socket):
             await socket.close(code=1008, reason="Worminal accepts same-origin clients only.")
             return
@@ -238,7 +257,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
             await socket.close(code=1008, reason="Worminal requires authenticated remote access.")
             return
         workspace = repository.shared_workspace()
-        transcript = repository.transcript(workspace, window_id)
+        transcript = repository.transcript(workspace, tab_id)
         if transcript is None:
             await socket.close(code=1008, reason="Terminal window is unavailable.")
             return
@@ -246,7 +265,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
         try:
             if transcript:
                 await socket.send_bytes(transcript)
-            session = manager.attach(window_id, socket)
+            session = manager.attach(tab_id, socket)
             while True:
                 payload = await socket.receive_json()
                 if payload.get("type") == "input" and isinstance(payload.get("data"), str):
@@ -256,7 +275,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
         except (OSError, TypeError, ValueError, WebSocketDisconnect):
             pass
         finally:
-            manager.detach(window_id, socket)
+            manager.detach(tab_id, socket)
 
     return application
 

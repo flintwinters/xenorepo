@@ -20,9 +20,9 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from apps.rps.auth import credential_digest
-from monotools.database import ClientProvenanceMixin
 from monotools.appkit import SystemClock
 from monotools.database import create_session_factory as _create_session_factory
+from monotools.orm import RealtimeConnectionTable
 
 
 THROWS = frozenset({"rock", "paper", "scissors"})
@@ -60,12 +60,9 @@ class GuestCredential(Base):
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-class ConnectionSession(ClientProvenanceMixin, Base):
+class ConnectionSession(RealtimeConnectionTable, Base):
     __tablename__ = "connection_sessions"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
     player_id: Mapped[str] = mapped_column(ForeignKey("players.id"), index=True)
-    connected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    disconnected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class Match(Base):

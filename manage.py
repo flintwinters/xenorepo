@@ -1,7 +1,167 @@
 #!/usr/bin/env python3
-"""Single entrypoint for repository lifecycle operations."""
+"""Xenorepo-owned lifecycle aggregation and application mounting."""
 
-from monotools.cli import app
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+import subprocess
+
+from rich.console import Console
+from rich.table import Table
+import typer
+
+from monotools.apps import AppDefinition, AppDefinitionError, load_app
+from monotools.lifecycle import (
+    LifecycleError,
+    build_app,
+    collect_app_status,
+    run_test_suite,
+    validate_app,
+    validate_dist,
+)
+from monotools.management import create_cli
+
+
+ROOT = Path(__file__).resolve().parent
+APPS_DIRECTORY = ROOT / "apps"
+console = Console()
+
+
+class ManagerError(RuntimeError):
+    """Raised when Xenorepo's immediate app-manager inventory is invalid."""
+
+
+def _visible_directories(apps_directory: Path) -> tuple[Path, ...]:
+    if not apps_directory.is_dir():
+        return ()
+    return tuple(directory for directory in sorted(apps_directory.iterdir())
+        if directory.is_dir() and not directory.name.startswith((".", "_")))
+
+
+def _import_manager(path: Path) -> typer.Typer:
+    module_name = f"xenorepo_app_manager_{path.parent.name}"
+    spec = spec_from_file_location(module_name, path)
+    if spec is None or spec.loader is None:
+        raise ManagerError(f"cannot import app manager: {path}")
+    module = module_from_spec(spec)
+    try:
+        spec.loader.exec_module(module)
+    except Exception as error:
+        raise ManagerError(f"failed to import app manager {path}: {error}") from error
+    manager = getattr(module, "app", None)
+    if not isinstance(manager, typer.Typer):
+        raise ManagerError(f"app manager {path} must export 'app' as typer.Typer")
+    return manager
+
+
+def discover_managers(apps_directory: Path = APPS_DIRECTORY
+    ) -> tuple[tuple[AppDefinition, typer.Typer], ...]:
+    """Load every immediate visible Xenorepo app and its explicit manager."""
+    managers: list[tuple[AppDefinition, typer.Typer]] = []
+    names: set[str] = set()
+    for directory in _visible_directories(apps_directory):
+        manager_path = directory / "manage.py"
+        if not manager_path.is_file():
+            raise ManagerError(f"visible app directory has no manage.py: {directory}")
+        try:
+            definition = load_app(directory)
+        except AppDefinitionError as error:
+            raise ManagerError(str(error)) from error
+        if definition.name in names:
+            raise ManagerError(f"duplicate managed app name: {definition.name}")
+        names.add(definition.name)
+        managers.append((definition, _import_manager(manager_path)))
+    return tuple(managers)
+
+
+def _fail(error: Exception | str) -> None:
+    console.print(f"[bold red]Error:[/] {error}")
+    raise typer.Exit(1)
+
+
+def _run_bootstrap(command: list[str], recovery: str) -> None:
+    completed = subprocess.run(command, cwd=ROOT, check=False)
+    if completed.returncode:
+        raise LifecycleError(f"{' '.join(command)} failed ({completed.returncode}). {recovery}")
+
+
+app = create_cli("Manage Xenorepo and its immediate applications.")
+MANAGERS = discover_managers()
+for definition, manager in MANAGERS:
+    app.add_typer(manager, name=definition.name)
+
+
+@app.command()
+def bootstrap() -> None:
+    """Verify Node 22 and restore the locked Python, npm, and browser environments."""
+    try:
+        version = subprocess.run(
+            ["node", "--version"], cwd=ROOT, check=False, text=True, capture_output=True
+        )
+    except FileNotFoundError:
+        _fail("Node 22 is required; install Node 22, then run python manage.py bootstrap.")
+    if version.returncode or not version.stdout.startswith("v22."):
+        actual = version.stdout.strip() or version.stderr.strip() or "not available"
+        _fail(f"Node 22 is required (found {actual}); install Node 22, then rerun bootstrap.")
+    try:
+        _run_bootstrap(["uv", "sync", "--locked"],
+            "Restore or update uv.lock with uv lock, then rerun bootstrap.")
+        _run_bootstrap(["npm", "ci"],
+            "Verify package-lock.json and npm registry access, then rerun bootstrap.")
+        _run_bootstrap(["node_modules/.bin/playwright", "install", "chromium"],
+            "Restore network access for the Playwright browser download, then rerun bootstrap.")
+    except (FileNotFoundError, LifecycleError) as error:
+        _fail(error)
+    console.print(f"[bold green]Bootstrap complete[/] (Node {version.stdout.strip()})")
+
+
+@app.command("list")
+def list_apps() -> None:
+    """List applications explicitly managed by Xenorepo."""
+    table = Table("Name", "Title", "Module")
+    for definition, _ in MANAGERS:
+        table.add_row(definition.name, definition.title, definition.module)
+    console.print(table)
+
+
+@app.command()
+def status() -> None:
+    """Show source and artifact health for every managed application."""
+    table = Table("App", "Title", "Source", "README", "Data", "Dist")
+    for definition, _ in MANAGERS:
+        health = collect_app_status(definition)
+        table.add_row(
+            definition.name,
+            definition.title,
+            "[green]ok[/]" if health["source"] else "[red]missing[/]",
+            "[green]ok[/]" if health["readme"] else "[red]missing[/]",
+            "[green]ok[/]" if health["data"] else "—",
+            "[green]built[/]" if health["dist"] else "[yellow]pending[/]",
+        )
+    console.print(table)
+    console.print(f"{len(MANAGERS)} managed app(s); run [bold]manage.py check[/] for validation.")
+
+
+@app.command()
+def check() -> None:
+    """Validate Xenorepo's manager inventory and every application build."""
+    try:
+        current = discover_managers()
+        for definition, _ in current:
+            validate_app(definition, ROOT)
+            build_app(definition, ROOT)
+            validate_dist(definition)
+    except (ManagerError, LifecycleError) as error:
+        _fail(error)
+    console.print(f"[bold green]All checks passed[/] ({len(current)} app(s))")
+
+
+@app.command()
+def test() -> None:
+    """Run the curated platform and application regression suite exactly once."""
+    result = run_test_suite(ROOT, ROOT / "tests")
+    if result:
+        raise typer.Exit(result)
+    console.print("[bold green]Tests passed[/]")
 
 
 if __name__ == "__main__":

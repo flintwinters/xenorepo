@@ -9,7 +9,7 @@ import subprocess
 import signal
 import time
 
-from monotools.apps import AppDefinition, ROOT
+from monotools.apps import AppDefinition
 from monotools.lifecycle import LifecycleError, build_app, validate_app, validate_dist
 
 
@@ -65,15 +65,14 @@ def _terminate(process: subprocess.Popen[bytes]) -> str | None:
     return None
 
 
-def run_ui_check(definition: AppDefinition) -> Path:
+def run_ui_check(definition: AppDefinition, workspace: Path, suite: Path) -> Path:
     """Build, serve, and browser-check one application with preserved evidence."""
-    validate_app(definition)
-    build_app(definition)
+    validate_app(definition, workspace)
+    build_app(definition, workspace)
     validate_dist(definition)
-    suite = ROOT / "tests" / "ui" / f"{definition.name}.spec.js"
     if not suite.is_file():
-        raise LifecycleError(f"{definition.name} has no browser suite: {suite.relative_to(ROOT)}")
-    playwright = ROOT / "node_modules" / ".bin" / "playwright"
+        raise LifecycleError(f"{definition.name} has no browser suite: {suite.relative_to(workspace)}")
+    playwright = workspace / "node_modules" / ".bin" / "playwright"
     if not playwright.is_file():
         raise LifecycleError("Playwright is not installed; run python manage.py bootstrap first")
     artifacts = ui_artifact_directory(definition)
@@ -87,23 +86,23 @@ def run_ui_check(definition: AppDefinition) -> Path:
     if "database" in definition.capabilities:
         database = artifacts / "browser.db"
         environment[f"{definition.name.upper()}_DATABASE_URL"] = f"sqlite:///{database}"
-    command = [str(playwright), "test", str(suite.relative_to(ROOT))]
+    command = [str(playwright), "test", str(suite.relative_to(workspace))]
     process: subprocess.Popen[bytes] | None = None
     primary_failure: Exception | None = None
     try:
         with service_log.open("wb") as output:
             process = subprocess.Popen(
                 ["uv", "run", "uvicorn", definition.module + ":app", "--host", "127.0.0.1", "--port", str(port)],
-                cwd=ROOT,
+                cwd=workspace,
                 stdout=output,
                 stderr=subprocess.STDOUT,
                 start_new_session=True,
             )
             wait_for_health(port, process)
-            completed = subprocess.run(command, cwd=ROOT, env=environment, check=False)
+            completed = subprocess.run(command, cwd=workspace, env=environment, check=False)
             if completed.returncode:
                 raise LifecycleError(
-                    f"browser checks failed ({completed.returncode}); inspect {artifacts.relative_to(ROOT)}"
+                    f"browser checks failed ({completed.returncode}); inspect {artifacts.relative_to(workspace)}"
                 )
     except (FileNotFoundError, LifecycleError) as error:
         primary_failure = error

@@ -1,0 +1,13 @@
+name: mailing_list
+title: Dispatch Ledger
+module: apps.mailing_list.server
+capabilities:
+  - database
+frontend:
+  artifacts:
+    index:
+      format: lit
+      source: frontend/index.ts
+      output: index.html
+  routes:
+    /: index

@@ -7,7 +7,7 @@ consumers; they do not import one another.
 
 | Library | Language | Location | Public responsibility | Consumers |
 | --- | --- | --- | --- | --- |
-| Monotools | Python | `monotools/` | `monotools.appkit` assembles the typed `AppContext` boundary; `monotools.apps`, `monotools.lifecycle`, `monotools.runtime`, `monotools.database`, `monotools.auth`, `monotools.http`, and `monotools.realtime` provide declarative discovery, lifecycle commands, FastAPI document runtime, portable SQLAlchemy setup and database URL resolution, injectable clocks, opaque credentials, HTTP/session primitives, and WebSocket delivery. | Central `manage.py` and all apps as applicable. |
+| Monotools | Python | `monotools/` | `monotools.appkit` assembles the typed `AppContext` boundary; the package provides declarative lifecycle, FastAPI runtime, portable SQLAlchemy, auth/transport primitives, provider-neutral hosted-payment and mail contracts, and an SMTP adapter. | Central `manage.py` and all apps as applicable. |
 | Console Lit UI | TypeScript | `packages/lit-ui/` | Reusable Lit console elements, design tokens, and chrome for browser artifacts. | Calculator today; new Lit pages. |
 
 ## Extraction rules
@@ -25,3 +25,17 @@ consumers; they do not import one another.
   delivers the built frontend and the app API.
 - Add framework-level tests for every shared contract; retain product behavior
   tests in the consuming app's test module.
+
+## ORM template policy
+
+- Shared ORM templates own infrastructure facts and their schema invariants;
+  applications retain independent declarative bases, metadata, and databases.
+- Applications extend templates with foreign keys and domain facts. They never
+  import another application's models, and complete product-domain tables stay
+  application-owned.
+- Metadata conformance tests enforce canonical column names, types, lengths,
+  nullability, and primary keys while permitting domain-specific extensions.
+- Template changes may intentionally break older consumers until preserving
+  deployed data makes migration compatibility economically justified. Current
+  templates are the supported baseline; applications are brought forward
+  deliberately.

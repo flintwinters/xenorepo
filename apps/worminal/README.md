@@ -1,9 +1,10 @@
 # Worminal
 
 A browser window-manager environment for real localhost shell terminals,
-delivered by the repository's FastAPI runtime. Each window owns an independent
-pseudo-terminal and login shell process on the machine running Worminal. xterm.js
-provides ANSI/VT rendering, keyboard input, scrollback, and terminal resizing.
+delivered by the repository's FastAPI runtime. Each tab owns an independent
+pseudo-terminal and login shell process on the machine running Worminal, while
+windows are movable containers for one or more tabs. xterm.js provides ANSI/VT
+rendering, keyboard input, scrollback, and terminal resizing.
 
 ## Run
 
@@ -23,9 +24,11 @@ enable user lingering when it must start at machine boot before login. The unit
 binds `0.0.0.0:80` through `authbind`; grant the Worminal user execute access to
 `/etc/authbind/byport/80` to authorize only that user and port.
 
-Open `http://127.0.0.1:8000/worminal`, then create, drag, resize, minimize, maximize, and
-close shell windows from the browser desktop. Closing a window or browser
-connection terminates its shell process.
+Open `http://127.0.0.1:8000/worminal`, then create, drag, resize, minimize,
+maximize, and close shell windows from the browser desktop. Use `+` in a window
+titlebar to open another terminal tab. Drag tabs between windows or release a
+tab elsewhere on the desktop to break it into a separate window. Closing a tab
+terminates that shell; closing a window terminates all of its shells.
 
 ## LAN access
 

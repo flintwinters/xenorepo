@@ -20,6 +20,12 @@ before the requested outcome is proved.
 
 When a systemic issue, which may occur more than once, is found, routinize protections against it with scripts orchestrated by manage.py
 
+### Terminology:
+
+monorepo: this entire repo
+monoapp: an app within this repo
+monotools: the canonical orchestration library.
+
 ## 2. Architecture and invariants
 
 - `manage.py` is the sole routine entrypoint and the repository's primary
@@ -82,6 +88,16 @@ When a systemic issue, which may occur more than once, is found, routinize prote
 
 ## 3. Current tasks
 
+- Complete the Typer-native manager migration at checkpoint 3: move Python and
+  Playwright suites beneath their owning apps, remove legacy global discovery
+  and CLI code, and update documentation and Worminal deployment commands.
+  Checkpoint 2 added seven app managers and Xenorepo-owned strict discovery,
+  deterministic mounting, and aggregate root lifecycle commands.
+- Prove strict shared ORM templates on Chat and RPS realtime connection records;
+  next evaluate UUID/timestamp and opaque-auth templates as separate checkpoints.
+- Extend Dispatch Ledger's proven payment and mail contracts with a live Stripe
+  Checkout adapter (Link as a Stripe payment method), signed webhooks, and SMTP
+  delivery after the sandbox lifecycle is accepted.
 - Validate and refine Worminal's loopback-only PTY bridge, shell-process
   cleanup, terminal emulation, and browser window-management behavior.
 - Center the RPS reveal as a dominant arena panel with instantly distinguishable

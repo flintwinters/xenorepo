@@ -5,20 +5,18 @@ import os
 from pathlib import Path
 from typing import Any
 
-from sqlalchemy import MetaData, String, create_engine, event
+from sqlalchemy import MetaData, create_engine, event
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import Mapped, Session, mapped_column, sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
+
+from monotools.orm import ClientProvenanceColumns
 
 
 DatabasePreparation = Callable[[Engine], None]
 
 
-class ClientProvenanceMixin:
-    """Nullable transport facts retained by persisted connection records."""
-
-    client_host: Mapped[str | None] = mapped_column(String(255))
-    user_agent: Mapped[str | None] = mapped_column(String(500))
-    origin: Mapped[str | None] = mapped_column(String(500))
+class ClientProvenanceMixin(ClientProvenanceColumns):
+    """Compatibility import for the canonical client-provenance template."""
 
 
 def _enable_sqlite_foreign_keys(connection: Any, _record: Any) -> None:

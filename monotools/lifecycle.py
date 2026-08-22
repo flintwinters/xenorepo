@@ -3,13 +3,18 @@
 from importlib import import_module
 from html import escape
 from pathlib import Path
+import os
 import py_compile
 import shutil
 import subprocess
+import sys
+import threading
+from collections.abc import Callable, Mapping
 
+from fastapi import FastAPI
 from fastapi.routing import APIWebSocketRoute
 
-from monotools.apps import AppDefinition, FrontendArtifact, ROOT
+from monotools.apps import AppDefinition, FrontendArtifact
 from monotools.frontend import FrontendCompositionError, compose_document
 
 
@@ -17,7 +22,7 @@ class LifecycleError(RuntimeError):
     """Raised when a lifecycle operation cannot complete."""
 
 
-def _run(command: list[str], cwd: Path = ROOT) -> None:
+def _run(command: list[str], cwd: Path) -> None:
     completed = subprocess.run(command, cwd=cwd, check=False)
     if completed.returncode:
         raise LifecycleError(f"command failed ({completed.returncode}): {' '.join(command)}")
@@ -34,13 +39,14 @@ def _build_document(definition: AppDefinition, artifact: FrontendArtifact) -> No
     output.write_text(document, encoding="utf-8")
 
 
-def _build_lit(definition: AppDefinition, artifact: FrontendArtifact) -> None:
+def _build_lit(definition: AppDefinition, artifact: FrontendArtifact, workspace: Path) -> None:
     npm = shutil.which("npm")
     if npm is None:
         raise LifecycleError("npm not found; run python manage.py bootstrap before building Lit pages")
     bundle = definition.dist_directory / f"{artifact.name}.bundle.js"
     source = definition.directory / artifact.source
-    _run([npm, "run", "build:lit", "--", str(source.relative_to(ROOT)), str(bundle.relative_to(ROOT))])
+    _run([npm, "run", "build:lit", "--", str(source.relative_to(workspace)),
+        str(bundle.relative_to(workspace))], workspace)
     try:
         script = bundle.read_text(encoding="utf-8")
     finally:
@@ -60,27 +66,27 @@ def _build_lit(definition: AppDefinition, artifact: FrontendArtifact) -> None:
     )
 
 
-def build_app(definition: AppDefinition) -> None:
+def build_app(definition: AppDefinition, workspace: Path) -> None:
     definition.dist_directory.mkdir(exist_ok=True)
     for artifact in definition.artifacts:
         if artifact.format == "document":
             _build_document(definition, artifact)
             continue
         if artifact.format == "lit":
-            _build_lit(definition, artifact)
+            _build_lit(definition, artifact, workspace)
             continue
         source = definition.directory / artifact.source
         compiler = shutil.which("tsc")
         if compiler is None:
             raise LifecycleError("TypeScript compiler not found; install tsc before building")
-        _run([compiler, "--project", str(source.parent / "tsconfig.json")])
+        _run([compiler, "--project", str(source.parent / "tsconfig.json")], workspace)
         output = definition.dist_directory / artifact.output
         output.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source.parent / "index.html", output)
     return
 
 
-def validate_app(definition: AppDefinition) -> None:
+def validate_app(definition: AppDefinition, workspace: Path) -> None:
     expected = [
         definition.directory / "app.yaml",
         definition.directory / "server.py",
@@ -90,12 +96,12 @@ def validate_app(definition: AppDefinition) -> None:
         expected.extend(
             [definition.directory / "database.py", definition.directory / "data" / "README.md"]
         )
-    missing = [path.relative_to(ROOT) for path in expected if not path.is_file()]
+    missing = [path.relative_to(workspace) for path in expected if not path.is_file()]
     if missing:
         raise LifecycleError(f"{definition.name} missing files: {', '.join(map(str, missing))}")
     py_compile.compile(str(definition.directory / "server.py"), doraise=True)
     module = import_module(definition.module)
-    if not hasattr(module, "app"):
+    if not isinstance(getattr(module, "app", None), FastAPI):
         raise LifecycleError(f"{definition.module} does not expose a FastAPI 'app'")
     if "realtime" in definition.capabilities and not any(
         isinstance(route, APIWebSocketRoute) for route in module.app.routes
@@ -110,3 +116,51 @@ def validate_dist(definition: AppDefinition) -> None:
     missing = [str(name) for name in expected if not (definition.dist_directory / name).is_file()]
     if missing:
         raise LifecycleError(f"build did not produce: {', '.join(missing)}")
+
+
+def collect_app_status(definition: AppDefinition) -> dict[str, bool]:
+    """Collect an application's source and artifact health without mutation."""
+    return {
+        "source": all((definition.directory / artifact.source).is_file()
+            for artifact in definition.artifacts),
+        "readme": (definition.directory / "README.md").is_file(),
+        "data": (definition.directory / "data").is_dir(),
+        "dist": all((definition.dist_directory / artifact.output).is_file()
+            for artifact in definition.artifacts),
+    }
+
+
+def run_test_suite(directory: Path, suite: Path) -> int:
+    """Run one unittest suite and return its process status."""
+    completed = subprocess.run(
+        [sys.executable, "-m", "unittest", "discover", "-s", str(suite), "-v"],
+        cwd=directory,
+        check=False,
+    )
+    return completed.returncode
+
+
+def serve_app(definition: AppDefinition, workspace: Path, *, host: str = "127.0.0.1",
+    port: int = 8000, watch: bool = False, environment: Mapping[str, str] | None = None,
+    report: Callable[[str], None] = print) -> int:
+    """Build and run one FastAPI app, optionally watching its frontend inputs."""
+    validate_app(definition, workspace)
+    build_app(definition, workspace)
+    validate_dist(definition)
+    if watch:
+        from monotools.watch import watch_frontend
+
+        threading.Thread(
+            target=watch_frontend,
+            args=(definition, workspace, report),
+            daemon=True,
+            name=f"{definition.name}-frontend-watch",
+        ).start()
+    completed = subprocess.run(
+        [sys.executable, "-m", "uvicorn", definition.module + ":app", "--host", host,
+            "--port", str(port)],
+        cwd=workspace,
+        env=os.environ | dict(environment or {}),
+        check=False,
+    )
+    return completed.returncode

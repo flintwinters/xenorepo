@@ -100,13 +100,16 @@ class WorminalTests(unittest.TestCase):
 
     def test_application_exposes_one_terminal_websocket(self) -> None:
         paths = [route.path for route in app.routes if hasattr(route, "path")]
-        self.assertEqual(paths.count("/ws/terminal/{window_id}"), 1)
+        self.assertEqual(paths.count("/ws/terminal/{tab_id}"), 1)
 
     def test_workspace_persists_window_geometry_and_terminal_text(self) -> None:
         workspace = self.repository.create_workspace()
         window = {"id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae", "title": "shell-1",
             "x": 60, "y": 48, "width": 720, "height": 480, "z": 4,
-            "minimized": False, "maximized": False}
+            "minimized": False, "maximized": False,
+            "active_tab_id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae",
+            "tabs": [{"id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae",
+                "title": "shell-1", "position": 0}]}
         self.repository.replace_windows(workspace, [window])
         self.repository.append_output(workspace, window["id"], b"$ echo durable\r\ndurable\r\n")
         self.sessions.kw["bind"].dispose()
@@ -171,7 +174,10 @@ class WorminalTests(unittest.TestCase):
         workspace = self.repository.create_workspace()
         window = {"id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae", "title": "shell-1",
             "x": 32, "y": 30, "width": 650, "height": 410, "z": 2,
-            "minimized": False, "maximized": False}
+            "minimized": False, "maximized": False,
+            "active_tab_id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae",
+            "tabs": [{"id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae",
+                "title": "shell-1", "position": 0}]}
         self.repository.replace_windows(workspace, [window])
         self.repository.append_output(workspace, window["id"], b"previous output")
         window["x"], window["width"], window["minimized"] = 92, 800, True
@@ -183,9 +189,15 @@ class WorminalTests(unittest.TestCase):
         workspace = self.repository.create_workspace()
         first = {"id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae", "title": "shell-1",
             "x": 32, "y": 30, "width": 650, "height": 410, "z": 2,
-            "minimized": False, "maximized": False}
+            "minimized": False, "maximized": False,
+            "active_tab_id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae",
+            "tabs": [{"id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae",
+                "title": "shell-1", "position": 0}]}
         second = {**first, "id": "56fa1dab-9d72-4a09-9151-76cb411cc9e6",
-            "title": "shell-2", "x": 60, "y": 54, "z": 3}
+            "title": "shell-2", "x": 60, "y": 54, "z": 3,
+            "active_tab_id": "56fa1dab-9d72-4a09-9151-76cb411cc9e6",
+            "tabs": [{"id": "56fa1dab-9d72-4a09-9151-76cb411cc9e6",
+                "title": "shell-2", "position": 0}]}
 
         self.repository.update_windows(workspace, [first])
         self.repository.update_windows(workspace, [second])
@@ -249,7 +261,10 @@ class WorminalTests(unittest.TestCase):
         workspace = self.repository.create_workspace()
         window = {"id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae", "title": "shell-1",
             "x": 32, "y": 30, "width": 650, "height": 410, "z": 2,
-            "minimized": False, "maximized": False}
+            "minimized": False, "maximized": False,
+            "active_tab_id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae",
+            "tabs": [{"id": "21db2107-fd03-45bd-a1a6-7d31e9b458ae",
+                "title": "shell-1", "position": 0}]}
         self.repository.replace_windows(workspace, [window])
 
         class View:

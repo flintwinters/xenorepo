@@ -128,12 +128,24 @@ class PtySession:
                 self.process.wait(timeout=2)
 
 
+async def read_pty(session: PtySession) -> bytes:
+    """Wait for PTY readiness without occupying an executor thread during shutdown."""
+    loop = asyncio.get_running_loop()
+    ready = loop.create_future()
+    loop.add_reader(session.master, ready.set_result, None)
+    try:
+        await ready
+        return session.read()
+    finally:
+        loop.remove_reader(session.master)
+
+
 async def bridge_terminal(socket: WebSocket, session: PtySession,
     on_output: Callable[[bytes], Awaitable[None]] | None = None, *, close_session: bool = True) -> None:
     """Relay one WebSocket bidirectionally until either side disconnects."""
     async def send_output() -> None:
         while True:
-            data = await asyncio.to_thread(session.read)
+            data = await read_pty(session)
             if not data:
                 return
             if on_output is not None:

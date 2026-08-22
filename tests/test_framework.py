@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from sqlalchemy import ForeignKey, Integer, MetaData, Table, Column, text
+from sqlalchemy import DateTime, ForeignKey, Integer, MetaData, String, Table, Column, text
 from sqlalchemy.exc import IntegrityError
 from starlette.websockets import WebSocketDisconnect
 
@@ -19,6 +19,10 @@ from monotools.auth import issue_opaque_credential, opaque_credential_digest
 from monotools.appkit import SystemClock, create_app_context
 from monotools.apps import discover_apps
 from monotools.database import create_session_factory, resolve_database_url
+from monotools.orm import (
+    REALTIME_CONNECTION_COLUMN_CONTRACTS,
+    assert_realtime_connection_conformance,
+)
 from monotools.realtime import (
     ConnectionRegistry,
     bounded_text,
@@ -39,6 +43,7 @@ class SharedFrameworkTests(unittest.TestCase):
         self.assertEqual(capabilities["calculator"], frozenset())
         self.assertEqual(capabilities["chat"], frozenset({"database", "realtime"}))
         self.assertEqual(capabilities["microblog"], frozenset({"database"}))
+        self.assertEqual(capabilities["mailing_list"], frozenset({"database"}))
         self.assertEqual(capabilities["quiz"], frozenset())
         self.assertEqual(capabilities["rps"], frozenset({"database", "realtime"}))
         self.assertEqual(capabilities["worminal"], frozenset({"database", "realtime"}))
@@ -140,6 +145,47 @@ class SharedFrameworkTests(unittest.TestCase):
                     for name in expected_lengths}, expected_lengths)
                 record = model(**provenance)
                 self.assertEqual({name: getattr(record, name) for name in provenance}, provenance)
+
+    def test_realtime_connection_models_conform_and_retain_domain_extensions(self) -> None:
+        expected_extensions = {
+            ChatConnectionSession: {"room_id", "participant_id"},
+            RpsConnectionSession: {"player_id"},
+        }
+        for model, extensions in expected_extensions.items():
+            with self.subTest(model=model.__name__):
+                assert_realtime_connection_conformance(model)
+                self.assertEqual(
+                    set(model.__table__.c.keys()) - set(REALTIME_CONNECTION_COLUMN_CONTRACTS),
+                    extensions,
+                )
+                for name in extensions:
+                    column = model.__table__.c[name]
+                    self.assertTrue(column.index)
+                    self.assertEqual(len(column.foreign_keys), 1)
+
+        now = SystemClock().now()
+        chat = ChatConnectionSession(id="chat", room_id=1, participant_id=None,
+            connected_at=now, disconnected_at=None, client_host="127.0.0.1",
+            user_agent="tests", origin=None)
+        rps = RpsConnectionSession(id="rps", player_id="player", connected_at=now,
+            disconnected_at=now, client_host=None, user_agent="tests", origin="test")
+        self.assertEqual((chat.room_id, chat.connected_at), (1, now))
+        self.assertEqual((rps.player_id, rps.disconnected_at), ("player", now))
+
+    def test_realtime_connection_conformance_rejects_an_incompatible_model(self) -> None:
+        class IncompatibleConnection:
+            __table__ = Table(
+                "incompatible_connections", MetaData(),
+                Column("id", String(32), primary_key=True),
+                Column("connected_at", DateTime(timezone=False), nullable=False),
+                Column("disconnected_at", DateTime(timezone=True)),
+                Column("client_host", String(255)),
+                Column("user_agent", String(500)),
+                Column("origin", String(500)),
+            )
+
+        with self.assertRaisesRegex(AssertionError, "incompatible_connections.id"):
+            assert_realtime_connection_conformance(IncompatibleConnection)
 
 
 if __name__ == "__main__":

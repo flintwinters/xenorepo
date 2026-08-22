@@ -10,8 +10,9 @@ const TERMINAL_ROW_HEIGHT = 9;
 const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 14c3-7 7-7 11-2s7 5 9-2" fill="none" stroke="#ff69b4" stroke-width="4" stroke-linecap="round"/></svg>`;
 interface WindowState {
   id: string; title: string; x: number; y: number; width: number; height: number;
-  z: number; minimized: boolean; maximized: boolean; phase: Phase;
+  z: number; minimized: boolean; maximized: boolean; active_tab_id: string; tabs: TabState[];
 }
+interface TabState { id: string; title: string; position: number; phase: Phase; }
 interface Shortcut { action: "new-shell"; key: string; control: boolean; alt: boolean; shift: boolean; meta: boolean; }
 interface TerminalSession { socket: WebSocket; terminal: Terminal; fit: FitAddon; resize?: ResizeObserver; }
 
@@ -49,12 +50,20 @@ class WorminalDesktop extends LitElement {
     .window { position: absolute; display: grid; grid-template-rows: 20px minmax(0,1fr); min-width: 300px; min-height: 190px; overflow: hidden; background: #181a1b; border: 1px solid #111; box-shadow: 5px 7px 18px #0009; resize: both; }
     .window.active { border-color: #83a598; box-shadow: 5px 7px 22px #000c,0 0 0 1px #83a598; }
     .window.maximized { inset: 0 !important; width: 100% !important; height: 100% !important; resize: none; }
-    .titlebar { display: flex; align-items: center; gap: 5px; min-width: 0; padding-left: 5px; color: #1d2021; font-weight: bold; background: linear-gradient(#83a598,#5f7f75); border-top: 1px solid #b7cfca; border-bottom: 2px solid #354a44; cursor: move; user-select: none; touch-action: none; }
+    .titlebar { display: flex; align-items: stretch; min-width: 0; color: #1d2021; font-weight: bold; background: linear-gradient(#83a598,#5f7f75); border-top: 1px solid #b7cfca; border-bottom: 2px solid #354a44; cursor: move; user-select: none; touch-action: none; }
     .window:not(.active) .titlebar { filter: saturate(.35) brightness(.72); }
+    .tabs { display:flex; min-width:0; overflow:hidden; }
+    .tab { display:flex; align-items:center; gap:5px; min-width:72px; max-width:180px; padding:0 5px; opacity:.68; border-right:1px solid #354a44; cursor:grab; }
+    .tab.active { opacity:1; background:#b7cfca55; }
+    .tab-title { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .tab-close { width:auto !important; padding:0 2px !important; color:#282828 !important; background:transparent !important; border:0 !important; }
+    .new-tab { width:24px; color:#282828 !important; background:transparent !important; border:0 !important; }
     .phase { color: #282828; font-weight: normal; } .controls { display: flex; align-self: stretch; margin-left: auto; }
     .titlebar button { width: 24px; padding: 0; color: #ebdbb2; font: inherit; background: #282828; border: 0; border-left: 1px solid #111; cursor: pointer; }
     .titlebar button:hover { background: #3c3836; }
-    .terminal-host { min-width: 0; min-height: 0; padding: 5px; overflow: hidden; background: #181a1b; }
+    .terminal-stack { position:relative; min-width:0; min-height:0; }
+    .terminal-host { position:absolute; inset:0; min-width: 0; min-height: 0; padding: 5px; overflow: hidden; background: #181a1b; }
+    .terminal-host:not(.active) { visibility:hidden; pointer-events:none; }
     .terminal-host .xterm { height: 100%; } .terminal-host .xterm-viewport { scrollbar-color: #665c54 #181a1b; }
     .terminal-host .xterm-rows > div { height: ${TERMINAL_ROW_HEIGHT}px !important; line-height: ${TERMINAL_ROW_HEIGHT}px !important; overflow: visible !important; }
     .taskbar { display: flex; align-items: center; gap: 4px; min-width: 0; overflow-x: auto; }
@@ -139,6 +148,11 @@ class WorminalDesktop extends LitElement {
     this.windows = this.windows.map(window => window.id === id ? change(window) : window);
   }
 
+  private updateTab(id: string, change: (tab: TabState) => TabState) {
+    this.windows = this.windows.map(item => ({ ...item,
+      tabs: item.tabs.map(tab => tab.id === id ? change(tab) : tab) }));
+  }
+
   private async restoreWorkspace() {
     let response = await fetch("/api/workspace");
     while (response.status === 401) {
@@ -148,30 +162,35 @@ class WorminalDesktop extends LitElement {
       response = await fetch("/api/workspace");
     }
     if (!response.ok) return;
-    const state = await response.json() as { windows: Omit<WindowState, "phase">[]; shortcuts?: Shortcut[] };
-    this.windows = state.windows.map(window => ({ ...window, phase: "connecting" }));
+    const state = await response.json() as { windows: Array<Omit<WindowState, "tabs"> & { tabs: Omit<TabState, "phase">[] }>; shortcuts?: Shortcut[] };
+    this.windows = state.windows.map(window => ({ ...window,
+      tabs: window.tabs.map(tab => ({ ...tab, phase: "connecting" as Phase })) }));
     this.shortcuts = state.shortcuts?.length ? state.shortcuts : [this.defaultShortcut()];
     this.topZ = Math.max(1, ...this.windows.map(window => window.z));
-    this.nextTitle = Math.max(1, ...this.windows.map(window => Number(window.title.match(/^shell-(\d+)$/)?.[1] || 0) + 1));
+    this.nextTitle = Math.max(1, ...this.windows.flatMap(item => item.tabs)
+      .map(tab => Number(tab.title.match(/^shell-(\d+)$/)?.[1] || 0) + 1));
     if (!this.windows.length) { this.spawn(); return; }
     await this.updateComplete;
-    for (const window of this.windows) if (!window.minimized) this.connect(window.id);
+    for (const item of this.windows) if (!item.minimized) for (const tab of item.tabs) this.connect(tab.id);
   }
 
   private async syncWorkspace() {
     if (this.settingsOpen || this.editingWindow || this.pendingSaves) return;
     const response = await fetch("/api/workspace");
     if (!response.ok) return;
-    const state = await response.json() as { windows: Omit<WindowState, "phase">[]; shortcuts?: Shortcut[] };
-    const previous = new Map(this.windows.map(window => [window.id, window]));
-    const declared = new Set(state.windows.map(window => window.id));
+    const state = await response.json() as { windows: Array<Omit<WindowState, "tabs"> & { tabs: Omit<TabState, "phase">[] }>; shortcuts?: Shortcut[] };
+    const previousTabs = new Map(this.windows.flatMap(item => item.tabs).map(tab => [tab.id, tab]));
+    const declared = new Set(state.windows.flatMap(item => item.tabs).map(tab => tab.id));
     for (const id of this.sessions.keys()) if (!declared.has(id)) this.destroySession(id);
-    this.windows = state.windows.map(window => ({ ...window, phase: previous.get(window.id)?.phase || "connecting" }));
+    this.windows = state.windows.map(window => ({ ...window, tabs: window.tabs.map(tab =>
+      ({ ...tab, phase: previousTabs.get(tab.id)?.phase || "connecting" })) }));
     this.shortcuts = state.shortcuts?.length ? state.shortcuts : [this.defaultShortcut()];
     this.topZ = Math.max(1, ...this.windows.map(window => window.z));
-    this.nextTitle = Math.max(1, ...this.windows.map(window => Number(window.title.match(/^shell-(\d+)$/)?.[1] || 0) + 1));
+    this.nextTitle = Math.max(1, ...this.windows.flatMap(item => item.tabs)
+      .map(tab => Number(tab.title.match(/^shell-(\d+)$/)?.[1] || 0) + 1));
     await this.updateComplete;
-    for (const window of this.windows) window.minimized ? this.destroySession(window.id) : this.connect(window.id);
+    for (const item of this.windows) for (const tab of item.tabs)
+      item.minimized ? this.destroySession(tab.id) : this.connect(tab.id);
   }
 
   private async grantAccess(password: string) {
@@ -182,7 +201,8 @@ class WorminalDesktop extends LitElement {
   }
 
   private savedWindows() {
-    return this.windows.map(({ phase, ...window }) => window);
+    return this.windows.map(item => ({ ...item,
+      tabs: item.tabs.map(({ phase, ...tab }) => tab) }));
   }
 
   private saveWorkspace() {
@@ -196,9 +216,21 @@ class WorminalDesktop extends LitElement {
   }
 
   private async spawn() {
-    const id = crypto.randomUUID(); const number = this.nextTitle++; const offset = (number - 1) % 7;
-    this.windows = [...this.windows, { id, title: `shell-${number}`, x: 32 + offset * 28, y: 30 + offset * 24, width: 650, height: 410, z: ++this.topZ, minimized: false, maximized: false, phase: "connecting" }];
-    await this.saveWorkspace(); await this.updateComplete; this.connect(id);
+    const id = crypto.randomUUID(); const tab = this.createTab(); const offset = (this.nextTitle - 2) % 7;
+    this.windows = [...this.windows, { id, title: tab.title, x: 32 + offset * 28, y: 30 + offset * 24, width: 650, height: 410, z: ++this.topZ, minimized: false, maximized: false, active_tab_id: tab.id, tabs: [tab] }];
+    await this.saveWorkspace(); await this.updateComplete; this.connect(tab.id);
+  }
+
+  private createTab(): TabState {
+    return { id: crypto.randomUUID(), title: `shell-${this.nextTitle++}`,
+      position: 0, phase: "connecting" };
+  }
+
+  private async newTab(windowId: string) {
+    const tab = this.createTab();
+    this.updateWindow(windowId, item => ({ ...item, title: tab.title,
+      active_tab_id: tab.id, tabs: [...item.tabs, { ...tab, position: item.tabs.length }] }));
+    await this.saveWorkspace(); await this.updateComplete; this.connect(tab.id);
   }
 
   private clearSettingsPassword() {
@@ -250,10 +282,11 @@ class WorminalDesktop extends LitElement {
     const session: TerminalSession = { socket, terminal, fit }; this.sessions.set(id, session);
     terminal.writeln("\x1b[33mWorminal\x1b[0m · opening localhost shell…");
     this.fitTerminal(id);
-    socket.onopen = () => { this.updateWindow(id, window => ({ ...window, phase: "ready" })); this.fitTerminal(id); terminal.focus(); };
+    socket.onopen = () => { this.updateTab(id, tab => ({ ...tab, phase: "ready" })); this.fitTerminal(id); terminal.focus(); };
     socket.onmessage = event => terminal.write(event.data instanceof ArrayBuffer ? new Uint8Array(event.data) : event.data);
-    socket.onerror = () => { terminal.writeln("\r\n\x1b[31mShell connection failed.\x1b[0m"); this.updateWindow(id, window => ({ ...window, phase: "failed" })); };
-    socket.onclose = () => { if (this.windows.some(window => window.id === id)) this.updateWindow(id, window => ({ ...window, phase: window.phase === "failed" ? "failed" : "closed" })); };
+    socket.onerror = () => { terminal.writeln("\r\n\x1b[31mShell connection failed.\x1b[0m"); this.updateTab(id, tab => ({ ...tab, phase: "failed" })); };
+    socket.onclose = () => { if (this.windows.some(item => item.tabs.some(tab => tab.id === id)))
+      this.updateTab(id, tab => ({ ...tab, phase: tab.phase === "failed" ? "failed" : "closed" })); };
     terminal.onData(data => { if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ type: "input", data })); });
     session.resize = new ResizeObserver(() => this.fitTerminal(id)); session.resize.observe(host);
   }
@@ -277,10 +310,66 @@ class WorminalDesktop extends LitElement {
     const session = this.sessions.get(id); if (!session) return;
     session.resize?.disconnect(); session.socket.close(); session.terminal.dispose(); this.sessions.delete(id);
   }
-  private close(id: string) { this.destroySession(id); this.windows = this.windows.filter(window => window.id !== id); this.persistence = this.persistence.then(() => fetch(`/api/workspace/windows/${id}`, { method: "DELETE" })).catch(() => undefined); }
-  private focus(id: string) { this.updateWindow(id, window => ({ ...window, z: ++this.topZ, minimized: false })); void this.saveWorkspace(); this.updateComplete.then(() => this.sessions.get(id)?.terminal.focus()); }
+  private close(id: string) { const item = this.windows.find(window => window.id === id); if (!item) return; for (const tab of item.tabs) this.destroySession(tab.id); this.windows = this.windows.filter(window => window.id !== id); this.persistence = this.persistence.then(() => fetch(`/api/workspace/windows/${id}`, { method: "DELETE" })).catch(() => undefined); }
+  private closeTab(windowId: string, tabId: string) {
+    const item = this.windows.find(window => window.id === windowId); if (!item) return;
+    if (item.tabs.length === 1) { this.close(windowId); return; }
+    this.destroySession(tabId);
+    const tabs = item.tabs.filter(tab => tab.id !== tabId).map((tab, position) => ({ ...tab, position }));
+    const active = item.active_tab_id === tabId ? tabs[Math.min(item.tabs.findIndex(tab => tab.id === tabId), tabs.length - 1)] : tabs.find(tab => tab.id === item.active_tab_id)!;
+    this.updateWindow(windowId, window => ({ ...window, tabs, active_tab_id: active.id, title: active.title }));
+    void this.saveWorkspace();
+    this.persistence = this.persistence.then(() => fetch(`/api/workspace/tabs/${tabId}`, { method: "DELETE" })).catch(() => undefined);
+  }
+  private focus(id: string) { const item = this.windows.find(window => window.id === id); this.updateWindow(id, window => ({ ...window, z: ++this.topZ, minimized: false })); void this.saveWorkspace(); this.updateComplete.then(() => { if (item) { this.connect(item.active_tab_id); this.fitTerminal(item.active_tab_id); this.sessions.get(item.active_tab_id)?.terminal.focus(); } }); }
+  private activateTab(windowId: string, tabId: string) { const tab = this.windows.find(item => item.id === windowId)?.tabs.find(candidate => candidate.id === tabId); if (!tab) return; this.updateWindow(windowId, item => ({ ...item, active_tab_id: tabId, title: tab.title, z: ++this.topZ })); void this.saveWorkspace(); this.updateComplete.then(() => { this.fitTerminal(tabId); this.sessions.get(tabId)?.terminal.focus(); }); }
   private toggleMaximize(id: string) { this.updateWindow(id, window => ({ ...window, maximized: !window.maximized, minimized: false, z: ++this.topZ })); void this.saveWorkspace(); this.updateComplete.then(() => this.fitTerminal(id)); }
-  private toggleMinimize(id: string) { const item = this.windows.find(window => window.id === id); if (!item) return; if (!item.minimized) this.destroySession(id); this.updateWindow(id, window => ({ ...window, minimized: !window.minimized })); void this.saveWorkspace(); if (item.minimized) this.updateComplete.then(() => this.connect(id)); }
+  private toggleMinimize(id: string) { const item = this.windows.find(window => window.id === id); if (!item) return; if (!item.minimized) for (const tab of item.tabs) this.destroySession(tab.id); this.updateWindow(id, window => ({ ...window, minimized: !window.minimized })); void this.saveWorkspace(); if (item.minimized) this.updateComplete.then(() => { for (const tab of item.tabs) this.connect(tab.id); }); }
+
+  private dragTab(event: PointerEvent, sourceWindowId: string, tabId: string) {
+    if (event.shiftKey || event.button !== 0 || (event.target as Element).closest("button")) return;
+    event.preventDefault(); event.stopPropagation();
+    const startX = event.clientX; const startY = event.clientY;
+    const stop = (released: PointerEvent) => {
+      removeEventListener("pointermove", move); removeEventListener("pointerup", stop);
+      if (Math.hypot(released.clientX - startX, released.clientY - startY) < 8) { this.activateTab(sourceWindowId, tabId); return; }
+      const elements = this.renderRoot.elementsFromPoint(released.clientX, released.clientY);
+      const targetTab = elements.find(element => element instanceof HTMLElement && element.dataset.tab) as HTMLElement | undefined;
+      const targetWindow = elements.find(element => element instanceof HTMLElement && element.dataset.tabDropWindow) as HTMLElement | undefined;
+      this.moveTab(sourceWindowId, targetWindow?.dataset.tabDropWindow, tabId,
+        released.clientX, released.clientY, targetTab?.dataset.tab);
+    };
+    const move = () => undefined;
+    addEventListener("pointermove", move); addEventListener("pointerup", stop, { once: true });
+  }
+
+  private moveTab(sourceWindowId: string, targetWindowId: string | undefined, tabId: string,
+    x: number, y: number, beforeTabId?: string) {
+    const source = this.windows.find(item => item.id === sourceWindowId);
+    const tab = source?.tabs.find(item => item.id === tabId); if (!source || !tab) return;
+    let windows = this.windows.map(item => ({ ...item, tabs: [...item.tabs] }));
+    const sourceCopy = windows.find(item => item.id === sourceWindowId)!;
+    sourceCopy.tabs = sourceCopy.tabs.filter(item => item.id !== tabId)
+      .map((item, position) => ({ ...item, position }));
+    if (sourceCopy.tabs.length) {
+      const active = sourceCopy.active_tab_id === tabId ? sourceCopy.tabs[0] : sourceCopy.tabs.find(item => item.id === sourceCopy.active_tab_id)!;
+      sourceCopy.active_tab_id = active.id; sourceCopy.title = active.title;
+    } else windows = windows.filter(item => item.id !== sourceWindowId);
+    const target = targetWindowId ? windows.find(item => item.id === targetWindowId) : undefined;
+    if (target) {
+      const requested = beforeTabId ? target.tabs.findIndex(item => item.id === beforeTabId) : -1;
+      const insertion = requested >= 0 ? requested : target.tabs.length;
+      target.tabs.splice(insertion, 0, tab);
+      target.tabs = target.tabs.map((item, position) => ({ ...item, position }));
+      target.active_tab_id = tab.id; target.title = tab.title; target.z = ++this.topZ;
+    } else {
+      const id = crypto.randomUUID();
+      windows.push({ id, title: tab.title, x: Math.max(0, x - 90), y: Math.max(0, y - 10), width: source.width, height: source.height, z: ++this.topZ, minimized: false, maximized: false, active_tab_id: tab.id, tabs: [{ ...tab, position: 0 }] });
+    }
+    this.windows = windows; void this.saveWorkspace();
+    if (!sourceCopy.tabs.length) this.persistence = this.persistence.then(() => fetch(`/api/workspace/windows/${sourceWindowId}`, { method: "DELETE" })).catch(() => undefined);
+    this.updateComplete.then(() => { this.fitTerminal(tabId); this.sessions.get(tabId)?.terminal.focus(); });
+  }
 
   private moveWindow(event: PointerEvent, id: string) {
     const item = this.windows.find(window => window.id === id); if (!item || item.maximized) return;
@@ -318,16 +407,16 @@ class WorminalDesktop extends LitElement {
     if (window.minimized) return nothing;
     const style = `left:${window.x}px;top:${window.y}px;width:${window.width}px;height:${window.height}px;z-index:${window.z}`;
     return html`<section data-window=${window.id} class="window ${window.z === this.topZ ? "active" : ""} ${window.maximized ? "maximized" : ""}" style=${style} @pointerdown=${(event: PointerEvent) => this.windowPointerDown(event, window.id)} aria-label=${window.title}>
-      <header class="titlebar" @pointerdown=${(event: PointerEvent) => this.titlePointerDown(event, window.id)} @dblclick=${() => this.toggleMaximize(window.id)}><span>▣</span><span>${window.title}</span><span class="phase">${window.phase.toUpperCase()}</span><div class="controls"><button aria-label="Minimize ${window.title}" @click=${() => this.toggleMinimize(window.id)}>_</button><button aria-label="Maximize ${window.title}" @click=${() => this.toggleMaximize(window.id)}>□</button><button aria-label="Close ${window.title}" @click=${() => this.close(window.id)}>×</button></div></header>
-      <div class="terminal-host" data-terminal=${window.id} aria-label=${`${window.title} terminal`}></div>
+      <header class="titlebar" data-tab-drop-window=${window.id} @pointerdown=${(event: PointerEvent) => this.titlePointerDown(event, window.id)} @dblclick=${() => this.toggleMaximize(window.id)}><div class="tabs">${window.tabs.map(tab => html`<div class="tab ${tab.id === window.active_tab_id ? "active" : ""}" data-tab=${tab.id} @pointerdown=${(event: PointerEvent) => this.dragTab(event, window.id, tab.id)} @dblclick=${(event: Event) => event.stopPropagation()}><span>▣</span><span class="tab-title">${tab.title}</span><span class="phase">${tab.phase === "ready" ? "" : tab.phase.toUpperCase()}</span><button class="tab-close" aria-label="Close tab ${tab.title}" @click=${() => this.closeTab(window.id, tab.id)}>×</button></div>`)}</div><button class="new-tab" aria-label=${`New tab in ${window.title}`} @click=${() => this.newTab(window.id)}>+</button><div class="controls"><button aria-label="Minimize ${window.title}" @click=${() => this.toggleMinimize(window.id)}>_</button><button aria-label="Maximize ${window.title}" @click=${() => this.toggleMaximize(window.id)}>□</button><button aria-label="Close ${window.title}" @click=${() => this.close(window.id)}>×</button></div></header>
+      <div class="terminal-stack">${window.tabs.map(tab => html`<div class="terminal-host ${tab.id === window.active_tab_id ? "active" : ""}" data-terminal=${tab.id} aria-label=${`${tab.title} terminal`}></div>`)}</div>
     </section>`;
   }
 
   render() {
-    const ready = this.windows.filter(window => window.phase === "ready").length;
+    const tabs = this.windows.flatMap(item => item.tabs); const ready = tabs.filter(tab => tab.phase === "ready").length;
     return html`<x-console-shell><x-utility-rail slot="header"><span class="brand">WORMINAL</span><x-command-button @click=${this.spawn}>+ NEW SHELL</x-command-button><span class="push optional">LOCALHOST WORKSPACE · ${this.windows.length} WINDOW${this.windows.length === 1 ? "" : "S"}</span><x-command-button aria-label="Settings" @click=${this.openSettings}>SETTINGS</x-command-button></x-utility-rail>
       <main class="desktop" aria-label="Worminal desktop">${this.windows.length ? nothing : html`<div class="welcome"><strong>NO OPEN SHELLS</strong><span>Use NEW SHELL to start a local terminal.</span></div>`}${this.windows.map(window => this.renderWindow(window))}</main>
-      <x-status-rail slot="footer"><x-status-indicator .label=${`${ready} SHELL${ready === 1 ? "" : "S"} CONNECTED`} tone=${ready ? "green" : "orange"}></x-status-indicator><nav class="taskbar" aria-label="Open shells">${this.windows.map(window => html`<x-command-button class="task ${window.z === this.topZ && !window.minimized ? "active" : ""}" @click=${() => this.focus(window.id)}>${window.title}</x-command-button>`)}</nav><span class="push">LOCAL PTY · ${this.clock}</span></x-status-rail></x-console-shell>
+      <x-status-rail slot="footer"><x-status-indicator .label=${`${ready} SHELL${ready === 1 ? "" : "S"} CONNECTED`} tone=${ready ? "green" : "orange"}></x-status-indicator><nav class="taskbar" aria-label="Open shells">${this.windows.map(window => html`<x-command-button class="task ${window.z === this.topZ && !window.minimized ? "active" : ""}" @click=${() => this.focus(window.id)}>${window.title}${window.tabs.length > 1 ? ` (${window.tabs.length})` : ""}</x-command-button>`)}</nav><span class="push">LOCAL PTY · ${this.clock}</span></x-status-rail></x-console-shell>
       ${this.settingsOpen ? html`<div class="settings" role="presentation" @click=${this.closeSettings}><section class="settings-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title" @click=${(event: Event) => event.stopPropagation()}><h2 id="settings-title">SETTINGS</h2><p>Press any key or key combination to set the action.</p><label class="shortcut-row"><span>New shell</span><input aria-label="New shell shortcut" .value=${this.shortcutLabel(this.newShellShortcut())} @keydown=${this.captureShortcut} readonly></label><div class="password-settings"><h3>ACCESS PASSWORD</h3><label><span>Current password</span><input aria-label="Current access password" type="password" autocomplete="current-password" .value=${this.currentAccessPassword} @input=${(event: InputEvent) => this.currentAccessPassword = (event.target as HTMLInputElement).value}></label><label><span>New password</span><input aria-label="New access password" type="password" autocomplete="new-password" .value=${this.newAccessPassword} @input=${(event: InputEvent) => this.newAccessPassword = (event.target as HTMLInputElement).value}></label><label><span>Confirm password</span><input aria-label="Confirm new access password" type="password" autocomplete="new-password" .value=${this.confirmedAccessPassword} @input=${(event: InputEvent) => this.confirmedAccessPassword = (event.target as HTMLInputElement).value}></label><div class="settings-error" role="alert">${this.settingsError}</div></div><div class="settings-actions"><x-command-button ?disabled=${this.settingsSaving} @click=${this.closeSettings}>CANCEL</x-command-button><x-command-button ?disabled=${this.settingsSaving} @click=${this.saveSettings}>${this.settingsSaving ? "SAVING…" : "SAVE"}</x-command-button></div></section></div>` : nothing}`;
   }
 }

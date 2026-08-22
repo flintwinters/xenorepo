@@ -243,7 +243,7 @@ frontend:
         self.assertNotIn('src="', document)
         self.assertNotIn('href="', document)
 
-    def test_worminal_uses_xterm_with_one_local_shell_socket_per_window(self) -> None:
+    def test_worminal_uses_xterm_with_one_local_shell_socket_per_tab(self) -> None:
         definition = get_app("worminal")
         validate_app(definition)
         self.assertEqual(definition.routes, (("/worminal", "index"),))

@@ -97,6 +97,48 @@ test("creates and manages independent terminal windows", async ({ page }) => {
   await expect(page.getByLabel("shell-2 terminal")).toHaveCount(0);
 });
 
+test("moves terminal tabs out to new windows and back into existing windows", async ({ page }) => {
+  await page.addInitScript(() => {
+    globalThis.WebSocket = class SocketDouble {
+      static OPEN = 1;
+      readyState = 0;
+      set onopen(handler) { this.readyState = 1; setTimeout(() => handler({}), 0); }
+      get onopen() { return undefined; }
+      send() {}
+      close() { this.readyState = 3; this.onclose?.({}); }
+    };
+  });
+  await openCleanDesktop(page);
+  await page.getByRole("button", { name: "New tab in shell-1" }).click();
+  await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
+
+  const secondTab = page.locator('[data-tab]').filter({ hasText: "shell-2" });
+  const tabBounds = await secondTab.boundingBox();
+  const viewport = page.viewportSize();
+  await page.mouse.move(tabBounds.x + tabBounds.width / 2, tabBounds.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(viewport.width - 20, viewport.height - 90, { steps: 4 });
+  await page.mouse.up();
+  await expect(page.getByRole("region")).toHaveCount(2);
+
+  const firstWindow = page.getByRole("region", { name: "shell-1" });
+  const firstBounds = await firstWindow.boundingBox();
+  const detachedTab = page.locator('[data-tab]').filter({ hasText: "shell-2" });
+  const detachedBounds = await detachedTab.boundingBox();
+  await page.mouse.move(detachedBounds.x + detachedBounds.width / 2, detachedBounds.y + 8);
+  await page.mouse.down();
+  await page.mouse.move(firstBounds.x + 80, firstBounds.y + 8, { steps: 4 });
+  await page.mouse.up();
+
+  await expect(page.getByRole("region")).toHaveCount(1);
+  await expect(page.locator('[data-tab]')).toHaveCount(2);
+  await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
+  await expect.poll(async () => page.evaluate(async () => {
+    const state = await fetch("/api/workspace").then(response => response.json());
+    return state.windows.map(window => window.tabs.map(tab => tab.title));
+  })).toEqual([["shell-2", "shell-1"]]);
+});
+
 test("executes a command in a real localhost shell", async ({ page }) => {
   await openCleanDesktop(page);
   await expect(page.getByText("1 SHELL CONNECTED", { exact: true })).toBeVisible();

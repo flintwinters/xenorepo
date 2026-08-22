@@ -313,8 +313,11 @@ frontend:
             encoding="utf-8"
         )
 
+        self.assertIn("transform: translateY(1px)", shell)
         self.assertIn("inset 0 2px 2px #101112, inset 0 -1px #665c54", shell)
-        self.assertIn('button:active, button[aria-pressed="true"]', components)
+        pressed_rule = 'button:active:not(:disabled), button[aria-pressed="true"]:not(:disabled)'
+        self.assertIn(pressed_rule, components)
+        self.assertIn("transform: translateY(1px)", components)
         self.assertIn("inset 0 2px 3px rgb(0 0 0 / 0.6)", components)
         self.assertIn("inset 0 -1px rgb(255 255 255 / 0.12)", components)
         self.assertNotIn("transition:", components)

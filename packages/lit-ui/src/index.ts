@@ -76,7 +76,7 @@ export class CommandButton extends ConsoleElement {
       cursor: pointer;
     }
     button:hover:not(:disabled) { background: linear-gradient(#504b48, #383431); border-color: var(--console-button-border-hover, #d5c4a1); box-shadow: inset 0 1px rgb(255 255 255 / 0.14), 0 2px 4px rgb(0 0 0 / 0.4); }
-    button:active:not(:disabled), button[aria-pressed="true"]:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 2px 3px rgb(0 0 0 / 0.6), inset 0 -1px rgb(255 255 255 / 0.12); }
+    button:active:not(:disabled), button[aria-pressed="true"]:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 3px 4px rgb(0 0 0 / 0.52), inset 0 -1px rgb(255 255 255 / 0.12); }
     button:disabled { color: var(--console-muted, #a89984); cursor: not-allowed; opacity: 0.65; }
   `];
   render() { return html`<button part="button" ?disabled=${this.disabled} aria-pressed=${this.pressed ? "true" : "false"}><slot></slot></button>`; }

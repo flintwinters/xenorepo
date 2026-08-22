@@ -25,3 +25,17 @@ consumers; they do not import one another.
   delivers the built frontend and the app API.
 - Add framework-level tests for every shared contract; retain product behavior
   tests in the consuming app's test module.
+
+## ORM template policy
+
+- Shared ORM templates own infrastructure facts and their schema invariants;
+  applications retain independent declarative bases, metadata, and databases.
+- Applications extend templates with foreign keys and domain facts. They never
+  import another application's models, and complete product-domain tables stay
+  application-owned.
+- Metadata conformance tests enforce canonical column names, types, lengths,
+  nullability, and primary keys while permitting domain-specific extensions.
+- Template changes may intentionally break older consumers until preserving
+  deployed data makes migration compatibility economically justified. Current
+  templates are the supported baseline; applications are brought forward
+  deliberately.

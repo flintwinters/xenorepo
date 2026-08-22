@@ -9,9 +9,9 @@ from sqlalchemy import inspect, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
-from monotools.database import ClientProvenanceMixin
 from monotools.appkit import SystemClock
 from monotools.database import create_session_factory as _create_session_factory
+from monotools.orm import RealtimeConnectionTable
 
 
 class Base(DeclarativeBase):
@@ -48,13 +48,10 @@ class ParticipantAlias(Base):
     last_used_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-class ConnectionSession(ClientProvenanceMixin, Base):
+class ConnectionSession(RealtimeConnectionTable, Base):
     __tablename__ = "connection_sessions"
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
     room_id: Mapped[int] = mapped_column(ForeignKey("rooms.id"), index=True)
     participant_id: Mapped[str | None] = mapped_column(ForeignKey("participants.id"), index=True)
-    connected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-    disconnected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ChatMessage(Base):

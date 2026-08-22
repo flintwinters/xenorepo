@@ -187,6 +187,37 @@ test("restores a server-saved desktop after reload", async ({ page }) => {
   expect((await page.getByRole("region", { name: "shell-2" }).boundingBox()).x).toBe(Math.round(moved.x));
 });
 
+test("retries a rejected workspace save without restoring stale shell state", async ({ page }) => {
+  await page.addInitScript(() => {
+    globalThis.WebSocket = class SocketDouble {
+      static OPEN = 1;
+      readyState = 0;
+      set onopen(handler) { this.readyState = 1; setTimeout(() => handler({}), 0); }
+      get onopen() { return undefined; }
+      send() {}
+      close() { this.readyState = 3; this.onclose?.({}); }
+    };
+  });
+  await openCleanDesktop(page);
+  let rejected = false;
+  await page.route("**/api/workspace", async route => {
+    if (!rejected && route.request().method() === "PUT") {
+      rejected = true;
+      await route.fulfill({ status: 503, body: "temporary failure" });
+      return;
+    }
+    await route.continue();
+  });
+
+  await page.getByText("+ NEW SHELL", { exact: true }).click();
+  await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
+  await expect.poll(async () => page.evaluate(async () => {
+    const state = await fetch("/api/workspace").then(response => response.json());
+    return state.windows.flatMap(window => window.tabs).length;
+  })).toBe(2);
+  await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
+});
+
 test("customizes and restores the new-shell hotkey from settings", async ({ page }) => {
   await page.addInitScript(() => {
     globalThis.WebSocket = class SocketDouble {

@@ -34,6 +34,7 @@ class WorminalDesktop extends LitElement {
   private workspaceTimer?: number;
   private editingWindow = false;
   private pendingSaves = 0;
+  private workspaceDirty = false;
   private persistence = Promise.resolve();
   private shortcutsBeforeSettings?: Shortcut[];
   private standaloneShortcutHeld?: string;
@@ -176,6 +177,7 @@ class WorminalDesktop extends LitElement {
 
   private async syncWorkspace() {
     if (this.settingsOpen || this.editingWindow || this.pendingSaves) return;
+    if (this.workspaceDirty) { void this.saveWorkspace(); return; }
     const response = await fetch("/api/workspace");
     if (!response.ok) return;
     const state = await response.json() as { windows: Array<Omit<WindowState, "tabs"> & { tabs: Omit<TabState, "phase">[] }>; shortcuts?: Shortcut[] };
@@ -207,10 +209,14 @@ class WorminalDesktop extends LitElement {
 
   private saveWorkspace() {
     const body = JSON.stringify({ windows: this.savedWindows(), shortcuts: this.shortcuts });
+    this.workspaceDirty = true;
     this.pendingSaves++;
     this.persistence = this.persistence.then(async () => {
-      const response = await fetch("/api/workspace", { method: "PUT", headers: { "Content-Type": "application/json" }, body });
+      const response = await fetch("/api/workspace", { method: "PUT", keepalive: true,
+        headers: { "Content-Type": "application/json" }, body });
       if (!response.ok) throw new Error("Could not save Worminal workspace.");
+      const current = JSON.stringify({ windows: this.savedWindows(), shortcuts: this.shortcuts });
+      if (current === body) this.workspaceDirty = false;
     }).catch(() => undefined).finally(() => this.pendingSaves--);
     return this.persistence;
   }

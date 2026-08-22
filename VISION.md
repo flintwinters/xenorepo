@@ -55,6 +55,11 @@ out of sync with the backend.
 SQLite remains the practical local default, while ORM, schemas, migrations, and
 transactions preserve a reliable path to PostgreSQL.
 
+Longer term, app YAML should be able to declare durable ORM schema intent and
+reusable table capabilities, with Monotools producing conventional typed
+SQLAlchemy models and Alembic migrations rather than introducing a separate
+runtime persistence system.
+
 ### A shared, restrained interface language
 
 The central Lit UI package should provide the reusable primitives and visual

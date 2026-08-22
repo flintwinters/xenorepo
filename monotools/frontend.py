@@ -116,7 +116,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 }
 .key:active, button:active, .key.pressed {
   transform: translateY(1px);
-  box-shadow: inset 1px 1px #101112;
+  background: linear-gradient(#282828, #3c3836);
+  box-shadow: inset 0 2px 2px #101112, inset 0 -1px #665c54;
 }
 .key:disabled, button:disabled { color: #665c54; cursor: not-allowed; }
 @media (max-width: 620px) {

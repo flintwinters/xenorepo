@@ -42,3 +42,132 @@ consumers; they do not import one another.
   deployed data makes migration compatibility economically justified. Current
   templates are the supported baseline; applications are brought forward
   deliberately.
+
+### Current class structure
+
+```mermaid
+classDiagram
+    direction TB
+
+    namespace Monotools {
+        class RealtimeConnectionTable {
+            <<declarative template>>
+            +String(36) id PK NOT NULL
+            +DateTime(timezone) connected_at NOT NULL
+            +DateTime(timezone) disconnected_at NULL
+            +String(255) client_host NULL
+            +String(500) user_agent NULL
+            +String(500) origin NULL
+        }
+
+        class ColumnContract {
+            <<frozen dataclass>>
+            +type_ sql_type
+            +nullable bool
+            +primary_key bool
+            +length int?
+            +timezone bool?
+        }
+
+        class RealtimeConnectionContracts {
+            <<contract registry>>
+            id
+            connected_at
+            disconnected_at
+            client_host
+            user_agent
+            origin
+        }
+
+        class ConformanceValidator {
+            +assert_realtime_connection_conformance(model)
+            +assert_column_conformance(model, contracts)
+        }
+    }
+
+    namespace Chat {
+        class ChatBase {
+            <<DeclarativeBase>>
+            independent metadata
+        }
+
+        class ChatConnectionSession {
+            <<connection_sessions>>
+            +Integer room_id FK INDEX
+            +String(36) participant_id FK NULL INDEX
+        }
+
+        class Room {
+            <<rooms>>
+            +Integer id PK
+        }
+
+        class Participant {
+            <<participants>>
+            +String(36) id PK
+        }
+    }
+
+    namespace RPS {
+        class RPSBase {
+            <<DeclarativeBase>>
+            independent metadata
+        }
+
+        class RPSConnectionSession {
+            <<connection_sessions>>
+            +String(36) player_id FK INDEX
+        }
+
+        class Player {
+            <<players>>
+            +String(36) id PK
+        }
+    }
+
+    namespace Microblog {
+        class MicroblogBase {
+            <<DeclarativeBase>>
+            independent metadata
+        }
+
+        class AuthenticationSession {
+            <<authentication_sessions>>
+            +String(36) id PK
+            +String(36) account_id FK INDEX
+            +String(64) token_digest UNIQUE INDEX
+            +DateTime(timezone) issued_at
+            +DateTime(timezone) expires_at INDEX
+            +DateTime(timezone) revoked_at NULL
+            +String(255) client_host NULL
+            +String(500) user_agent NULL
+            +String(500) origin NULL
+        }
+
+        class Account {
+            <<accounts>>
+            +String(36) id PK
+        }
+    }
+
+    RealtimeConnectionTable <|-- ChatConnectionSession : canonical columns
+    ChatBase <|-- ChatConnectionSession : app mapping
+    ChatConnectionSession --> Room : room_id
+    ChatConnectionSession --> Participant : participant_id
+
+    RealtimeConnectionTable <|-- RPSConnectionSession : canonical columns
+    RPSBase <|-- RPSConnectionSession : app mapping
+    RPSConnectionSession --> Player : player_id
+
+    RealtimeConnectionContracts *-- ColumnContract : six definitions
+    ConformanceValidator --> RealtimeConnectionContracts : reads
+    ConformanceValidator ..> ChatConnectionSession : validates
+    ConformanceValidator ..> RPSConnectionSession : validates
+
+    MicroblogBase <|-- AuthenticationSession
+    AuthenticationSession --> Account : account_id
+```
+
+Microblog's authentication session deliberately owns its similar transport
+metadata columns directly: only the six-column realtime connection boundary has
+enough proven consumers to justify a shared ORM template.

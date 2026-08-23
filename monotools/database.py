@@ -9,6 +9,8 @@ from sqlalchemy import MetaData, create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from monotools.identity import DatabaseSchema
+
 DatabasePreparation = Callable[[Engine], None]
 
 
@@ -20,10 +22,14 @@ def _enable_sqlite_foreign_keys(connection: Any, _record: Any) -> None:
 
 def create_session_factory(
     database_url: str,
-    metadata: MetaData,
+    metadata: MetaData | None = None,
     prepare: DatabasePreparation | None = None,
+    *,
+    schema: DatabaseSchema | None = None,
 ) -> sessionmaker[Session]:
     """Create a configured engine, schema, and session factory for an app."""
+    if (metadata is None) == (schema is None):
+        raise ValueError("provide exactly one of metadata or schema")
     sqlite = database_url.startswith("sqlite")
     engine = create_engine(
         database_url,
@@ -31,7 +37,10 @@ def create_session_factory(
     )
     if sqlite:
         event.listen(engine, "connect", _enable_sqlite_foreign_keys)
-    metadata.create_all(engine)
+    if schema is not None:
+        schema.metadata.create_all(engine, tables=schema.tables)
+    else:
+        metadata.create_all(engine)
     if prepare is not None:
         prepare(engine)
     return sessionmaker(engine, expire_on_commit=False)

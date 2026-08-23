@@ -1,11 +1,12 @@
 """Contracts for central persistence, validation, and realtime primitives."""
 
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
-from sqlalchemy import DateTime, ForeignKey, Integer, MetaData, String, Table, Column, text
+from sqlalchemy import DateTime, ForeignKey, Integer, MetaData, String, Table, Column, inspect, text
 from sqlalchemy.exc import IntegrityError
 from starlette.websockets import WebSocketDisconnect
 
@@ -19,6 +20,13 @@ from monotools.auth import issue_opaque_credential, opaque_credential_digest
 from monotools.appkit import SystemClock, create_app_context
 from monotools.apps import discover_apps
 from monotools.database import create_session_factory, resolve_database_url
+from monotools.identity import (
+    Account, AccountEmail, AccountHandle, AccountName,
+    AuthenticationSession as CanonicalSession, DatabaseSchema, PasswordCredential,
+    RealtimeConnection, SCHEMA_GROUPS, add_handle, create_account, issue_session,
+    resolve_session, revoke_session, set_password, verify_password,
+)
+from monotools.migrations import Migration, migration_versions, run_migrations
 from monotools.orm import (
     REALTIME_CONNECTION_COLUMN_CONTRACTS,
     assert_realtime_connection_conformance,
@@ -187,6 +195,120 @@ class SharedFrameworkTests(unittest.TestCase):
 
         with self.assertRaisesRegex(AssertionError, "incompatible_connections.id"):
             assert_realtime_connection_conformance(IncompatibleConnection)
+
+
+class CanonicalIdentityFoundationTests(unittest.TestCase):
+    database = Path("apps/chat/data/test-identity-foundation.db")
+    backup = Path("apps/chat/data/test-identity-foundation.pre-monotools.sqlite3")
+
+    def tearDown(self) -> None:
+        self.database.unlink(missing_ok=True)
+        self.backup.unlink(missing_ok=True)
+
+    def sessions(self, groups: set[str]):
+        factory = create_session_factory(f"sqlite:///{self.database}",
+            schema=DatabaseSchema(groups))
+        self.addCleanup(factory.kw["bind"].dispose)
+        return factory
+
+    def test_schema_rejects_unknown_and_missing_capabilities(self) -> None:
+        with self.assertRaisesRegex(ValueError, "unknown database schema group"):
+            DatabaseSchema({"identity", "imaginary"})
+        with self.assertRaisesRegex(ValueError, "missing dependencies: identity"):
+            DatabaseSchema({"identity-sessions"})
+
+    def test_each_group_creates_only_its_maximal_table_set(self) -> None:
+        expected = {
+            "identity": {"accounts"},
+            "identity-handles": {"accounts", "account_handles"},
+            "identity-names": {"accounts", "account_names"},
+            "identity-emails": {"accounts", "account_emails"},
+            "identity-passwords": {"accounts", "password_credentials"},
+            "identity-sessions": {"accounts", "authentication_sessions"},
+            "realtime-records": {"accounts", "realtime_connections"},
+        }
+        for group, tables in expected.items():
+            with self.subTest(group=group):
+                self.database.unlink(missing_ok=True)
+                groups = {group} | SCHEMA_GROUPS[group].dependencies
+                sessions = self.sessions(groups)
+                self.assertEqual(set(inspect(sessions.kw["bind"]).get_table_names()), tables)
+                sessions.kw["bind"].dispose()
+
+    def test_model_contracts_are_explicit_and_portable(self) -> None:
+        timestamp_columns = {
+            Account: {"created_at", "updated_at", "last_seen_at", "disabled_at"},
+            AccountHandle: {"created_at", "retired_at"},
+            AccountName: {"first_used_at", "last_used_at", "retired_at"},
+            AccountEmail: {"created_at", "verified_at", "retired_at"},
+            PasswordCredential: {"created_at", "retired_at"},
+            CanonicalSession: {"issued_at", "expires_at", "last_seen_at", "revoked_at"},
+            RealtimeConnection: {"connected_at", "last_seen_at", "disconnected_at"},
+        }
+        for model, names in timestamp_columns.items():
+            with self.subTest(model=model.__name__):
+                for name in names:
+                    self.assertTrue(model.__table__.c[name].type.timezone)
+        self.assertTrue(AccountHandle.__table__.c.canonical_handle.unique)
+        self.assertTrue(AccountEmail.__table__.c.normalized_address.unique)
+        self.assertTrue(CanonicalSession.__table__.c.credential_digest.unique)
+        self.assertTrue(CanonicalSession.__table__.c.expires_at.nullable)
+        self.assertTrue(RealtimeConnection.__table__.c.account_id.nullable)
+
+    def test_operations_preserve_history_and_never_store_raw_secrets(self) -> None:
+        sessions = self.sessions({"identity", "identity-handles",
+            "identity-passwords", "identity-sessions"})
+        now = datetime(2026, 8, 23, 12, tzinfo=timezone.utc)
+        with sessions.begin() as session:
+            account = create_account(session, now, account_id="account-1")
+            first = add_handle(session, account.id, "first", now)
+            secured = set_password(session, account.id, "correct horse battery staple", now)
+            self.assertTrue(verify_password("correct horse battery staple", secured))
+            expiring, raw = issue_session(session, account.id, now,
+                lifetime=timedelta(hours=1), provenance={"client_host": "127.0.0.1"})
+        with sessions.begin() as session:
+            second = add_handle(session, "account-1", "second", now + timedelta(seconds=1))
+            self.assertIsNotNone(session.get(AccountHandle, first.id).retired_at)
+            self.assertIsNone(second.retired_at)
+            self.assertEqual(resolve_session(session, raw, now + timedelta(minutes=1)).id,
+                expiring.id)
+            self.assertTrue(revoke_session(session, raw, now + timedelta(minutes=2)))
+            self.assertIsNone(resolve_session(session, raw, now + timedelta(minutes=3)))
+            persistent, persistent_raw = issue_session(session, "account-1", now,
+                lifetime=None)
+        with sessions() as session:
+            self.assertIsNotNone(resolve_session(
+                session, persistent_raw, now + timedelta(days=999)))
+            stored = session.get(CanonicalSession, persistent.id)
+            self.assertNotEqual(stored.credential_digest, persistent_raw)
+            self.assertNotIn(persistent_raw.encode(), self.database.read_bytes())
+
+    def test_migrations_backup_phase_order_and_idempotence(self) -> None:
+        metadata = MetaData()
+        legacy = Table("legacy", metadata, Column("id", Integer, primary_key=True))
+        sessions = create_session_factory(f"sqlite:///{self.database}", metadata)
+        self.addCleanup(sessions.kw["bind"].dispose)
+        with sessions.begin() as session:
+            session.execute(legacy.insert().values(id=1))
+        phases = []
+        migration = Migration(1, "identity-foundation",
+            pre_schema=lambda connection: phases.append(
+                ("pre", inspect(connection).has_table("accounts"))),
+            post_schema=lambda connection: phases.append(
+                ("post", inspect(connection).has_table("accounts"))))
+        schema = DatabaseSchema({"identity"})
+        report = run_migrations(sessions.kw["bind"], schema, (migration,),
+            data_directory=self.database.parent)
+        self.assertEqual(phases, [("pre", False), ("post", True)])
+        self.assertEqual(report.applied, (1,))
+        self.assertEqual(report.backup, self.backup)
+        self.assertTrue(self.backup.is_file())
+        self.assertEqual(migration_versions(sessions.kw["bind"]), (1,))
+        second = run_migrations(sessions.kw["bind"], schema, (migration,),
+            data_directory=self.database.parent)
+        self.assertEqual(second.applied, ())
+        self.assertIsNone(second.backup)
+        self.assertEqual(phases, [("pre", False), ("post", True)])
 
 
 if __name__ == "__main__":

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from monotools.apps import AppDefinition, get_app
 from monotools.database import DatabasePreparation, create_session_factory, resolve_database_url
+from monotools.identity import DatabaseSchema
 
 
 class Clock(Protocol):
@@ -37,6 +38,7 @@ class AppContext:
 
 
 def create_app_context(app_name: str, *, metadata: MetaData | None = None,
+    schema: DatabaseSchema | None = None,
     default_database: Path | None = None, environment_key: str | None = None,
     database_url: str | None = None, prepare: DatabasePreparation | None = None,
     clock: Clock | None = None) -> AppContext:
@@ -44,9 +46,9 @@ def create_app_context(app_name: str, *, metadata: MetaData | None = None,
     definition = get_app(app_name)
     resolved_url = None
     sessions = None
-    if metadata is not None:
+    if metadata is not None or schema is not None:
         if default_database is None or environment_key is None:
             raise ValueError("database apps require a default path and environment key")
         resolved_url = resolve_database_url(database_url, environment_key, default_database)
-        sessions = create_session_factory(resolved_url, metadata, prepare)
+        sessions = create_session_factory(resolved_url, metadata, prepare, schema=schema)
     return AppContext(definition, resolved_url, sessions, clock)

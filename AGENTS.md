@@ -101,6 +101,12 @@ monotools: the canonical orchestration library.
   CLI only after its last compatibility assertions are migrated.
 - Design explicit board identity and ownership as Kanban's next product
   boundary before extending cards with peripheral metadata.
+- Canonical identity checkpoint 1 is complete: Monotools owns selective identity
+  schema groups, identity/authentication operations, and versioned migration
+  orchestration; app adoption remains pending.
+- Next establish modular Lit source graphs, strict TypeScript validation, and
+  recursive frontend watching, proving the boundary by decomposing Worminal
+  without changing its browser or deployment contracts.
 - Prove strict shared ORM templates on Chat and RPS realtime connection records;
   next evaluate UUID/timestamp and opaque-auth templates as separate checkpoints.
 - Extend Dispatch Ledger's proven payment and mail contracts with a live Stripe

@@ -12,7 +12,6 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, aliased, mapped_col
 from apps.microblog.backend.auth import PasswordHash, hash_password, normalize_handle, token_digest, verify_password
 from monotools.appkit import SystemClock
 from monotools.database import create_session_factory as _create_session_factory
-from monotools.orm import ClientProvenanceColumns
 
 
 SESSION_LIFETIME = timedelta(days=30)
@@ -57,7 +56,7 @@ class PasswordCredential(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-class AuthenticationSession(ClientProvenanceColumns, Base):
+class AuthenticationSession(Base):
     __tablename__ = "authentication_sessions"
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     account_id: Mapped[str] = mapped_column(ForeignKey("accounts.id"), index=True)
@@ -65,6 +64,9 @@ class AuthenticationSession(ClientProvenanceColumns, Base):
     issued_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    client_host: Mapped[str | None] = mapped_column(String(255))
+    user_agent: Mapped[str | None] = mapped_column(String(500))
+    origin: Mapped[str | None] = mapped_column(String(500))
 
 
 class Post(Base):

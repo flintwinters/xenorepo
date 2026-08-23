@@ -21,34 +21,25 @@ class ColumnContract:
     timezone: bool | None = None
 
 
-PROVENANCE_COLUMN_CONTRACTS = {
+REALTIME_CONNECTION_COLUMN_CONTRACTS = {
+    "id": ColumnContract(String, nullable=False, primary_key=True, length=36),
+    "connected_at": ColumnContract(DateTime, nullable=False, timezone=True),
+    "disconnected_at": ColumnContract(DateTime, nullable=True, timezone=True),
     "client_host": ColumnContract(String, nullable=True, length=255),
     "user_agent": ColumnContract(String, nullable=True, length=500),
     "origin": ColumnContract(String, nullable=True, length=500),
 }
 
-REALTIME_CONNECTION_COLUMN_CONTRACTS = {
-    "id": ColumnContract(String, nullable=False, primary_key=True, length=36),
-    "connected_at": ColumnContract(DateTime, nullable=False, timezone=True),
-    "disconnected_at": ColumnContract(DateTime, nullable=True, timezone=True),
-    **PROVENANCE_COLUMN_CONTRACTS,
-}
 
-
-class ClientProvenanceColumns:
-    """Canonical nullable transport facts for persisted client activity."""
-
-    client_host: Mapped[str | None] = mapped_column(String(255))
-    user_agent: Mapped[str | None] = mapped_column(String(500))
-    origin: Mapped[str | None] = mapped_column(String(500))
-
-
-class RealtimeConnectionTable(ClientProvenanceColumns):
+class RealtimeConnectionTable:
     """Canonical identity, lifecycle, and provenance for realtime connections."""
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     connected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     disconnected_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    client_host: Mapped[str | None] = mapped_column(String(255))
+    user_agent: Mapped[str | None] = mapped_column(String(500))
+    origin: Mapped[str | None] = mapped_column(String(500))
 
 
 def assert_column_conformance(

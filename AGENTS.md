@@ -44,7 +44,9 @@ monotools: the canonical orchestration library.
   application through one FastAPI service.
 - Central Lit UI is the shared frontend direction. New pages use reusable
   components only from the central Lit UI package; existing apps may remain
-  legacy documents until deliberately migrated.
+  legacy documents until deliberately migrated. Monotools also owns the generic
+  bundling path for those self-contained legacy TypeScript documents; apps do
+  not carry private Node projects or build scripts.
 - Treat persistence as an implementation detail behind a durable domain
   boundary. Use SQLAlchemy's ORM as the database abstraction layer so
   application behavior, schemas, and lifecycle utilities do not depend on
@@ -92,7 +94,10 @@ monotools: the canonical orchestration library.
   Playwright suites beneath their owning apps, remove legacy global discovery
   and CLI code, and update documentation and Worminal deployment commands.
   Checkpoint 2 added seven app managers and Xenorepo-owned strict discovery,
-  deterministic mounting, and aggregate root lifecycle commands.
+  deterministic mounting, and aggregate root lifecycle commands. Kanban is now
+  the eighth managed app and proves app-owned Python and Playwright suites.
+- Design explicit board identity and ownership as Kanban's next product
+  boundary before extending cards with peripheral metadata.
 - Prove strict shared ORM templates on Chat and RPS realtime connection records;
   next evaluate UUID/timestamp and opaque-auth templates as separate checkpoints.
 - Extend Dispatch Ledger's proven payment and mail contracts with a live Stripe

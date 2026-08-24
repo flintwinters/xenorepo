@@ -27,11 +27,9 @@ class RepositoryAppTests(unittest.TestCase):
         result = CliRunner().invoke(app, ["serve"])
 
         self.assertEqual(result.exit_code, 2)
-        self.assertIn(
-            "choose an application: calculator, chat, mailing_list, microblog, quiz,",
-            result.output,
-        )
-        self.assertIn("rps, worminal", result.output)
+        self.assertIn("choose an application:", result.output)
+        for definition in discover_apps():
+            self.assertIn(definition.name, result.output)
         self.assertIn("Example: manage.py serve calculator", result.output)
 
     def test_worminal_user_option_is_discoverable_from_the_managed_serve_command(self) -> None:

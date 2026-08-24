@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("a card can be created, dragged, deleted, undone, and redone", async ({ page }) => {
+test("a card can be created, dragged, deleted, undone, and redone", async ({ page }, testInfo) => {
   await page.goto("/");
 
   await expect(page.getByText("KANBAN // 01")).toBeVisible();
@@ -15,7 +15,18 @@ test("a card can be created, dragged, deleted, undone, and redone", async ({ pag
   await expect(card).toBeVisible();
   await expect(page.getByRole("button", { name: "UNDO" })).toBeEnabled();
 
-  await card.locator(".drag-handle").dragTo(doingCards);
+  if (testInfo.project.name === "mobile-chromium") {
+    const handle = card.locator(".drag-handle");
+    const destination = await doingCards.boundingBox();
+    if (!destination) throw new Error("Doing column has no drag destination");
+    await handle.dispatchEvent("pointerdown", { pointerId:7, pointerType:"touch", isPrimary:true });
+    await handle.dispatchEvent("pointermove", { pointerId:7, pointerType:"touch", isPrimary:true,
+      clientX:destination.x + destination.width / 2, clientY:destination.y + destination.height / 2 });
+    await handle.dispatchEvent("pointerup", { pointerId:7, pointerType:"touch", isPrimary:true,
+      clientX:destination.x + destination.width / 2, clientY:destination.y + destination.height / 2 });
+  } else {
+    await card.locator(".drag-handle").dragTo(doingCards);
+  }
   await expect(doingCards.locator(".card").filter({ hasText: title })).toBeVisible();
 
   const deleteButton = card.getByRole("button", { name: "Delete card" });

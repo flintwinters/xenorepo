@@ -18,6 +18,7 @@ class KanbanBoard extends LitElement {
   declare message: string;
   declare failed: boolean;
   declare openCardId: string | null;
+  private pointerDrag: { card: Card; element: HTMLElement; pointerId: number } | null = null;
 
   constructor() {
     super();
@@ -40,7 +41,7 @@ class KanbanBoard extends LitElement {
     .cards { min-height:0; overflow:auto; } .cards.drop-target { background:#30312d; box-shadow:inset 0 0 0 1px #d79921; }
     .card { position:relative; padding:6px 30px 5px 22px; border-bottom:1px solid #504945; border-left:2px solid #928374; background:#222526; cursor:pointer; }
     .card.dragging { opacity:.42; } .card.insert-before { box-shadow:inset 0 2px #fabd2f; } .card.insert-after { box-shadow:inset 0 -2px #fabd2f; }
-    .drag-handle { position:absolute; top:6px; left:5px; color:#a89984; cursor:grab; user-select:none; }
+    .drag-handle { position:absolute; top:6px; left:5px; color:#a89984; cursor:grab; touch-action:none; user-select:none; }
     .card-title { margin:0; overflow-wrap:anywhere; } .delete { position:absolute; top:3px; right:3px; }
     .delete::part(button) { min-width:20px; padding:0; color:#fb8b7d; }
     .modal-backdrop { position:fixed; z-index:10; inset:0; display:grid; place-items:center; padding:16px; background:#000a; }
@@ -107,13 +108,10 @@ class KanbanBoard extends LitElement {
     event.preventDefault(); event.stopPropagation();
     const dragged = this.board?.cards.find(card => card.id === event.dataTransfer?.getData("text/plain"));
     if (!dragged) return;
-    const cards = this.cards(destination.column_id);
     const target = event.currentTarget as HTMLElement;
-    let index = cards.findIndex(card => card.id === destination.id) + Number(target.classList.contains("insert-after"));
-    const source = cards.findIndex(card => card.id === dragged.id);
-    if (source >= 0 && source < index) index -= 1;
+    const after = target.classList.contains("insert-after");
     this.clearTargets();
-    void this.move(dragged, destination.column_id, index);
+    this.moveRelative(dragged, destination, after);
   }
 
   private dropOnColumn(event: DragEvent, column: Column): void {
@@ -121,6 +119,80 @@ class KanbanBoard extends LitElement {
     (event.currentTarget as HTMLElement).classList.remove("drop-target");
     const card = this.board?.cards.find(item => item.id === event.dataTransfer?.getData("text/plain"));
     if (card) void this.move(card, column.id);
+  }
+
+  private pointerStart(event: PointerEvent, card: Card): void {
+    if (event.pointerType === "mouse") return;
+    event.preventDefault();
+    const handle = event.currentTarget as HTMLElement;
+    const element = handle.closest(".card") as HTMLElement;
+    this.pointerDrag = { card, element, pointerId:event.pointerId };
+    element.classList.add("dragging");
+    try { handle.setPointerCapture(event.pointerId); } catch { /* Synthetic checks have no active OS pointer. */ }
+  }
+
+  private pointerMove(event: PointerEvent): void {
+    if (this.pointerDrag?.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    this.showPointerTarget(event.clientX, event.clientY);
+  }
+
+  private pointerEnd(event: PointerEvent): void {
+    const drag = this.pointerDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    event.preventDefault();
+    const target = this.pointerTarget(event.clientX, event.clientY);
+    this.finishPointerDrag();
+    if (!target) return;
+    if (target.card) {
+      this.moveRelative(drag.card, target.card, Boolean(target.after));
+    } else {
+      void this.move(drag.card, target.columnId);
+    }
+  }
+
+  private pointerCancel(event: PointerEvent): void {
+    if (this.pointerDrag?.pointerId === event.pointerId) this.finishPointerDrag();
+  }
+
+  private pointerTarget(x: number, y: number): { card?: Card; columnId: string; after?: boolean } | null {
+    const element = this.renderRoot.elementFromPoint(x, y) as HTMLElement | null;
+    const cardElement = element?.closest<HTMLElement>(".card");
+    if (cardElement) {
+      const card = this.board?.cards.find(item => item.id === cardElement.dataset.cardId);
+      if (card) return { card, columnId:card.column_id,
+        after:y >= cardElement.getBoundingClientRect().top + cardElement.offsetHeight / 2 };
+    }
+    const column = element?.closest<HTMLElement>(".cards");
+    return column?.dataset.columnId ? { columnId:column.dataset.columnId } : null;
+  }
+
+  private showPointerTarget(x: number, y: number): void {
+    this.clearTargets();
+    this.renderRoot.querySelectorAll(".drop-target").forEach(target => target.classList.remove("drop-target"));
+    const target = this.pointerTarget(x, y);
+    if (!target) return;
+    if (target.card) {
+      const element = this.renderRoot.querySelector<HTMLElement>(`[data-card-id="${target.card.id}"]`);
+      element?.classList.add(target.after ? "insert-after" : "insert-before");
+    } else {
+      this.renderRoot.querySelector<HTMLElement>(`.cards[data-column-id="${target.columnId}"]`)?.classList.add("drop-target");
+    }
+  }
+
+  private finishPointerDrag(): void {
+    this.pointerDrag?.element.classList.remove("dragging");
+    this.pointerDrag = null;
+    this.renderRoot.querySelectorAll(".drop-target").forEach(target => target.classList.remove("drop-target"));
+    this.clearTargets();
+  }
+
+  private moveRelative(dragged: Card, destination: Card, after: boolean): void {
+    const cards = this.cards(destination.column_id);
+    let index = cards.findIndex(card => card.id === destination.id) + Number(after);
+    const source = cards.findIndex(card => card.id === dragged.id);
+    if (source >= 0 && source < index) index -= 1;
+    void this.move(dragged, destination.column_id, index);
   }
 
   private async move(card: Card, columnId: string, index?: number): Promise<void> {
@@ -161,11 +233,13 @@ class KanbanBoard extends LitElement {
   }
 
   private renderCard(card: Card) {
-    return html`<article class="card" draggable="true" @click=${(event:Event) => {
+    return html`<article class="card" data-card-id=${card.id} draggable="true" @click=${(event:Event) => {
       if (!(event.target as Element).closest("x-command-button,.drag-handle")) this.openCardId = card.id;
     }} @dragstart=${(event:DragEvent) => this.dragStart(event, card)} @dragend=${this.dragEnd}
       @dragover=${this.dragOverCard} @drop=${(event:DragEvent) => this.dropOnCard(event, card)}>
-      <span class="drag-handle" draggable="true" title="Drag to move card" aria-hidden="true">⠿</span>
+      <span class="drag-handle" draggable="true" title="Drag to move card" aria-hidden="true"
+        @pointerdown=${(event:PointerEvent) => this.pointerStart(event, card)} @pointermove=${this.pointerMove}
+        @pointerup=${this.pointerEnd} @pointercancel=${this.pointerCancel}>⠿</span>
       <p class="card-title">${card.title}</p>
       <x-command-button class="delete" appearance="subtle" label="Delete card" @click=${() => void this.remove(card)}>×</x-command-button>
     </article>`;
@@ -183,7 +257,7 @@ class KanbanBoard extends LitElement {
           <input id=${`add-${column.id}`} name="title" maxlength="120" required placeholder="New card title">
           <x-command-button @click=${(event:Event) => (event.currentTarget as Element).closest("form")?.requestSubmit()}>ADD</x-command-button>
         </form>
-        <div class="cards" @dragover=${(event:DragEvent) => { event.preventDefault(); (event.currentTarget as Element).classList.add("drop-target"); this.clearTargets(); }}
+        <div class="cards" data-column-id=${column.id} @dragover=${(event:DragEvent) => { event.preventDefault(); (event.currentTarget as Element).classList.add("drop-target"); this.clearTargets(); }}
           @dragleave=${(event:DragEvent) => { if (!(event.currentTarget as Element).contains(event.relatedTarget as Node)) (event.currentTarget as Element).classList.remove("drop-target"); }}
           @drop=${(event:DragEvent) => this.dropOnColumn(event, column)}>
           ${cards.length ? cards.map(card => this.renderCard(card)) : html`<x-empty-state heading="NO CARDS"></x-empty-state>`}

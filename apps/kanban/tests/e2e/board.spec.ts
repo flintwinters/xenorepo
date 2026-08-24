@@ -1,4 +1,16 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
+
+async function dragWithMouse(page: Page, source: Locator, target: Locator,
+  targetPosition?: { x: number; y: number }): Promise<void> {
+  const sourceBox = await source.boundingBox();
+  const targetBox = await target.boundingBox();
+  if (!sourceBox || !targetBox) throw new Error("Drag source or destination has no bounds");
+  await page.mouse.move(sourceBox.x + sourceBox.width / 2, sourceBox.y + sourceBox.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(targetBox.x + (targetPosition?.x ?? targetBox.width / 2),
+    targetBox.y + (targetPosition?.y ?? targetBox.height / 2), { steps:5 });
+  await page.mouse.up();
+}
 
 test("a card can be created, dragged, deleted, undone, and redone", async ({ page }, testInfo) => {
   await page.goto("/");
@@ -25,7 +37,7 @@ test("a card can be created, dragged, deleted, undone, and redone", async ({ pag
     await handle.dispatchEvent("pointerup", { pointerId:7, pointerType:"touch", isPrimary:true,
       clientX:destination.x + destination.width / 2, clientY:destination.y + destination.height / 2 });
   } else {
-    await card.locator(".drag-handle").dragTo(doingCards);
+    await dragWithMouse(page, card, doingCards);
   }
   await expect(doingCards.locator(".card").filter({ hasText: title })).toBeVisible();
 
@@ -76,14 +88,14 @@ test("cards can be renamed, precisely ordered, and restored", async ({ page }) =
   );
 
   const second = page.locator(".card").filter({ hasText: secondTitle });
-  await second.dragTo(renamed, { targetPosition: { x: 10, y: 1 } });
+  await dragWithMouse(page, second, renamed, { x:10, y:1 });
   await expect.poll(async () => {
     const titles = await todo.locator(".card-title").allTextContents();
     return titles.indexOf(secondTitle) < titles.indexOf(renamedTitle);
   }).toBe(true);
 
   const firstDoingCard = doing.locator(".card").first();
-  await renamed.dragTo(firstDoingCard, { targetPosition: { x: 10, y: 1 } });
+  await dragWithMouse(page, renamed, firstDoingCard, { x:10, y:1 });
   await expect(doing.locator(".card").first()).toContainText(renamedTitle);
 
   await page.getByRole("button", { name: "UNDO" }).click();

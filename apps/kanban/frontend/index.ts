@@ -18,7 +18,10 @@ class KanbanBoard extends LitElement {
   declare message: string;
   declare failed: boolean;
   declare openCardId: string | null;
-  private pointerDrag: { card: Card; element: HTMLElement; pointerId: number } | null = null;
+  private pointerDrag: {
+    card: Card; element: HTMLElement; pointerId: number; originX: number; originY: number; active: boolean;
+  } | null = null;
+  private suppressCardClick = false;
 
   constructor() {
     super();
@@ -85,63 +88,33 @@ class KanbanBoard extends LitElement {
       target.classList.remove("insert-before", "insert-after"));
   }
 
-  private dragStart(event: DragEvent, card: Card): void {
-    event.dataTransfer?.setData("text/plain", card.id);
-    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
-    (event.currentTarget as HTMLElement).classList.add("dragging");
-  }
-
-  private dragEnd(event: DragEvent): void {
-    (event.currentTarget as HTMLElement).classList.remove("dragging");
-    this.renderRoot.querySelectorAll(".drop-target").forEach(target => target.classList.remove("drop-target"));
-    this.clearTargets();
-  }
-
-  private dragOverCard(event: DragEvent): void {
-    event.preventDefault(); event.stopPropagation(); this.clearTargets();
-    const card = event.currentTarget as HTMLElement;
-    const below = event.clientY >= card.getBoundingClientRect().top + card.offsetHeight / 2;
-    card.classList.add(below ? "insert-after" : "insert-before");
-  }
-
-  private dropOnCard(event: DragEvent, destination: Card): void {
-    event.preventDefault(); event.stopPropagation();
-    const dragged = this.board?.cards.find(card => card.id === event.dataTransfer?.getData("text/plain"));
-    if (!dragged) return;
-    const target = event.currentTarget as HTMLElement;
-    const after = target.classList.contains("insert-after");
-    this.clearTargets();
-    this.moveRelative(dragged, destination, after);
-  }
-
-  private dropOnColumn(event: DragEvent, column: Column): void {
-    event.preventDefault();
-    (event.currentTarget as HTMLElement).classList.remove("drop-target");
-    const card = this.board?.cards.find(item => item.id === event.dataTransfer?.getData("text/plain"));
-    if (card) void this.move(card, column.id);
-  }
-
   private pointerStart(event: PointerEvent, card: Card): void {
-    if (event.pointerType === "mouse") return;
-    event.preventDefault();
-    const handle = event.currentTarget as HTMLElement;
-    const element = handle.closest(".card") as HTMLElement;
-    this.pointerDrag = { card, element, pointerId:event.pointerId };
-    element.classList.add("dragging");
-    try { handle.setPointerCapture(event.pointerId); } catch { /* Synthetic checks have no active OS pointer. */ }
+    const target = event.target as Element;
+    if (!event.isPrimary || event.button !== 0 || target.closest("x-command-button") ||
+      (event.pointerType !== "mouse" && !target.closest(".drag-handle"))) return;
+    const element = event.currentTarget as HTMLElement;
+    this.pointerDrag = { card, element, pointerId:event.pointerId,
+      originX:event.clientX, originY:event.clientY, active:false };
+    try { element.setPointerCapture(event.pointerId); } catch { /* Synthetic checks have no active OS pointer. */ }
   }
 
   private pointerMove(event: PointerEvent): void {
-    if (this.pointerDrag?.pointerId !== event.pointerId) return;
+    const drag = this.pointerDrag;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag.active && Math.hypot(event.clientX - drag.originX, event.clientY - drag.originY) < 5) return;
     event.preventDefault();
+    if (!drag.active) { drag.active = true; drag.element.classList.add("dragging"); }
     this.showPointerTarget(event.clientX, event.clientY);
   }
 
   private pointerEnd(event: PointerEvent): void {
     const drag = this.pointerDrag;
     if (!drag || drag.pointerId !== event.pointerId) return;
+    if (!drag.active) { this.finishPointerDrag(); return; }
     event.preventDefault();
     const target = this.pointerTarget(event.clientX, event.clientY);
+    this.suppressCardClick = true;
+    setTimeout(() => { this.suppressCardClick = false; }, 0);
     this.finishPointerDrag();
     if (!target) return;
     if (target.card) {
@@ -233,13 +206,12 @@ class KanbanBoard extends LitElement {
   }
 
   private renderCard(card: Card) {
-    return html`<article class="card" data-card-id=${card.id} draggable="true" @click=${(event:Event) => {
+    return html`<article class="card" data-card-id=${card.id} @click=${(event:Event) => {
+      if (this.suppressCardClick) { this.suppressCardClick = false; return; }
       if (!(event.target as Element).closest("x-command-button,.drag-handle")) this.openCardId = card.id;
-    }} @dragstart=${(event:DragEvent) => this.dragStart(event, card)} @dragend=${this.dragEnd}
-      @dragover=${this.dragOverCard} @drop=${(event:DragEvent) => this.dropOnCard(event, card)}>
-      <span class="drag-handle" draggable="true" title="Drag to move card" aria-hidden="true"
-        @pointerdown=${(event:PointerEvent) => this.pointerStart(event, card)} @pointermove=${this.pointerMove}
-        @pointerup=${this.pointerEnd} @pointercancel=${this.pointerCancel}>⠿</span>
+    }} @pointerdown=${(event:PointerEvent) => this.pointerStart(event, card)} @pointermove=${this.pointerMove}
+      @pointerup=${this.pointerEnd} @pointercancel=${this.pointerCancel}>
+      <span class="drag-handle" title="Drag to move card" aria-hidden="true">⠿</span>
       <p class="card-title">${card.title}</p>
       <x-command-button class="delete" appearance="subtle" label="Delete card" @click=${() => void this.remove(card)}>×</x-command-button>
     </article>`;
@@ -257,9 +229,7 @@ class KanbanBoard extends LitElement {
           <input id=${`add-${column.id}`} name="title" maxlength="120" required placeholder="New card title">
           <x-command-button @click=${(event:Event) => (event.currentTarget as Element).closest("form")?.requestSubmit()}>ADD</x-command-button>
         </form>
-        <div class="cards" data-column-id=${column.id} @dragover=${(event:DragEvent) => { event.preventDefault(); (event.currentTarget as Element).classList.add("drop-target"); this.clearTargets(); }}
-          @dragleave=${(event:DragEvent) => { if (!(event.currentTarget as Element).contains(event.relatedTarget as Node)) (event.currentTarget as Element).classList.remove("drop-target"); }}
-          @drop=${(event:DragEvent) => this.dropOnColumn(event, column)}>
+        <div class="cards" data-column-id=${column.id}>
           ${cards.length ? cards.map(card => this.renderCard(card)) : html`<x-empty-state heading="NO CARDS"></x-empty-state>`}
         </div>
       </section>

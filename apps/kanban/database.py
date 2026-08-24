@@ -1,0 +1,284 @@
+"""Normalized board state and reversible mutation history."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from threading import Lock
+from typing import Annotated
+from uuid import uuid4
+
+from pydantic import BaseModel, ConfigDict, StringConstraints, model_validator
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String, UniqueConstraint, delete, select
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
+
+from monotools.database import create_session_factory as _create_session_factory
+
+
+CardTitle = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=120),
+]
+
+
+class Column(BaseModel):
+    id: str
+    title: str
+
+
+class Card(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    title: str
+    column_id: str
+
+
+class Board(BaseModel):
+    columns: list[Column]
+    cards: list[Card]
+    can_undo: bool
+    can_redo: bool
+    undo_description: str | None
+    redo_description: str | None
+
+
+class CardCreate(BaseModel):
+    title: CardTitle
+    column_id: str
+
+
+class CardUpdate(BaseModel):
+    title: CardTitle | None = None
+    column_id: str | None = None
+    index: int | None = None
+
+    @model_validator(mode="after")
+    def require_update(self) -> CardUpdate:
+        if self.title is None and self.column_id is None and self.index is None:
+            raise ValueError("At least one card field must be updated")
+        if self.index is not None and self.index < 0:
+            raise ValueError("Destination index must be non-negative")
+        return self
+
+
+class UnknownColumnError(ValueError):
+    pass
+
+
+class InvalidPositionError(ValueError):
+    pass
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class CardRecord(Base):
+    __tablename__ = "cards"
+    __table_args__ = (
+        CheckConstraint("position >= 0", name="card_nonnegative_position"),
+        UniqueConstraint("column_id", "position", name="card_column_position"),
+    )
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    title: Mapped[str] = mapped_column(String(120))
+    column_id: Mapped[str] = mapped_column(String(40), index=True)
+    position: Mapped[int] = mapped_column(Integer)
+
+
+class Mutation(Base):
+    __tablename__ = "mutations"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    description: Mapped[str | None] = mapped_column(String(300))
+    applied: Mapped[bool] = mapped_column(Boolean, index=True)
+
+
+class MutationCard(Base):
+    __tablename__ = "mutation_cards"
+    __table_args__ = (
+        CheckConstraint("phase IN ('before', 'after')", name="mutation_card_phase"),
+        CheckConstraint("position >= 0", name="mutation_card_nonnegative_position"),
+    )
+    mutation_id: Mapped[int] = mapped_column(
+        ForeignKey("mutations.id", ondelete="CASCADE"), primary_key=True
+    )
+    phase: Mapped[str] = mapped_column(String(6), primary_key=True)
+    card_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    title: Mapped[str] = mapped_column(String(120))
+    column_id: Mapped[str] = mapped_column(String(40))
+    position: Mapped[int] = mapped_column(Integer)
+
+
+def create_session_factory(database_url: str) -> sessionmaker[Session]:
+    return _create_session_factory(database_url, Base.metadata)
+
+
+@dataclass
+class BoardStore:
+    """Thread-safe authority for one fixed-column board."""
+
+    sessions: sessionmaker[Session]
+    columns: tuple[Column, ...] = (
+        Column(id="todo", title="To do"),
+        Column(id="doing", title="Doing"),
+        Column(id="done", title="Done"),
+    )
+
+    def __post_init__(self) -> None:
+        self._lock = Lock()
+
+    @classmethod
+    def with_demo_cards(cls, sessions: sessionmaker[Session]) -> BoardStore:
+        store = cls(sessions)
+        with sessions() as session:
+            persisted = session.scalar(select(CardRecord.id).limit(1)) is not None
+            history = session.scalar(select(Mutation.id).limit(1)) is not None
+        if not persisted and not history:
+            store.create(CardCreate(title="Shape the walking skeleton", column_id="doing"))
+            store.create(CardCreate(title="Ship the first useful slice", column_id="todo"))
+        return store
+
+    def snapshot(self) -> Board:
+        with self._lock, self.sessions() as session:
+            return self._snapshot(session)
+
+    def create(self, request: CardCreate) -> Card:
+        self._require_column(request.column_id)
+        card = Card(id=uuid4().hex, title=request.title, column_id=request.column_id)
+        with self._lock, self.sessions.begin() as session:
+            before = self._cards(session)
+            self._record(session, before, [*before, card], f'Create “{card.title}”')
+        return card
+
+    def update(self, card_id: str, request: CardUpdate) -> Card | None:
+        if request.column_id is not None:
+            self._require_column(request.column_id)
+        with self._lock, self.sessions.begin() as session:
+            before = self._cards(session)
+            card = next((item for item in before if item.id == card_id), None)
+            if card is None:
+                return None
+            updated, after, descriptions = self._apply_update(before, card, request)
+            if descriptions:
+                self._record(session, before, after, "; ".join(descriptions))
+            return updated
+
+    def delete(self, card_id: str) -> bool:
+        with self._lock, self.sessions.begin() as session:
+            before = self._cards(session)
+            after = [card for card in before if card.id != card_id]
+            if len(after) == len(before):
+                return False
+            removed = next(card for card in before if card.id == card_id)
+            self._record(session, before, after, f'Delete “{removed.title}”')
+        return True
+
+    def undo(self) -> Board | None:
+        return self._shift_history(applied=True)
+
+    def redo(self) -> Board | None:
+        return self._shift_history(applied=False)
+
+    def _shift_history(self, *, applied: bool) -> Board | None:
+        ordering = Mutation.id.desc() if applied else Mutation.id.asc()
+        with self._lock, self.sessions.begin() as session:
+            mutation = session.scalar(
+                select(Mutation).where(Mutation.applied == applied).order_by(ordering).limit(1)
+            )
+            if mutation is None:
+                return None
+            phase = "before" if applied else "after"
+            cards = self._historical_cards(session, mutation.id, phase)
+            self._replace_cards(session, cards)
+            mutation.applied = not applied
+            session.flush()
+            return self._snapshot(session)
+
+    def _apply_update(self, before: list[Card], card: Card, request: CardUpdate
+        ) -> tuple[Card, list[Card], list[str]]:
+        destination = request.column_id or card.column_id
+        updated = card.model_copy(update={
+            "title": request.title if request.title is not None else card.title,
+            "column_id": destination,
+        })
+        remaining = [item for item in before if item.id != card.id]
+        destination_cards = [item for item in remaining if item.column_id == destination]
+        old_index = [item.id for item in before if item.column_id == card.column_id].index(card.id)
+        reordering = request.column_id is not None or request.index is not None
+        index = old_index if not reordering else (
+            len(destination_cards) if request.index is None else request.index
+        )
+        if index > len(destination_cards):
+            raise InvalidPositionError(index)
+        insertion = len(remaining)
+        if index < len(destination_cards):
+            insertion = remaining.index(destination_cards[index])
+        elif destination_cards:
+            insertion = remaining.index(destination_cards[-1]) + 1
+        after = [*remaining[:insertion], updated, *remaining[insertion:]]
+        descriptions = self._describe_update(card, updated, destination, old_index, index, reordering)
+        return updated, after, descriptions
+
+    def _describe_update(self, card: Card, updated: Card, destination: str,
+        old_index: int, index: int, reordering: bool) -> list[str]:
+        descriptions: list[str] = []
+        if updated.title != card.title:
+            descriptions.append(f'Rename “{card.title}” to “{updated.title}”')
+        if reordering and (destination != card.column_id or index != old_index):
+            title = next(column.title for column in self.columns if column.id == destination)
+            descriptions.append(f'Move “{updated.title}” to {title}')
+        return descriptions
+
+    def _record(self, session: Session, before: list[Card], after: list[Card],
+        description: str) -> None:
+        session.execute(delete(Mutation).where(Mutation.applied.is_(False)))
+        self._replace_cards(session, after)
+        mutation = Mutation(description=description, applied=True)
+        session.add(mutation)
+        session.flush()
+        self._add_history(session, mutation.id, "before", before)
+        self._add_history(session, mutation.id, "after", after)
+
+    def _snapshot(self, session: Session) -> Board:
+        undo = session.scalar(
+            select(Mutation).where(Mutation.applied.is_(True)).order_by(Mutation.id.desc()).limit(1)
+        )
+        redo = session.scalar(
+            select(Mutation).where(Mutation.applied.is_(False)).order_by(Mutation.id.asc()).limit(1)
+        )
+        return Board(columns=list(self.columns), cards=self._cards(session),
+            can_undo=undo is not None, can_redo=redo is not None,
+            undo_description=(undo.description or "Update board") if undo else None,
+            redo_description=(redo.description or "Update board") if redo else None)
+
+    def _cards(self, session: Session) -> list[Card]:
+        records = session.scalars(select(CardRecord)).all()
+        column_order = {column.id: index for index, column in enumerate(self.columns)}
+        records.sort(key=lambda row: (column_order[row.column_id], row.position))
+        return [Card.model_validate(row) for row in records]
+
+    def _historical_cards(self, session: Session, mutation_id: int, phase: str) -> list[Card]:
+        rows = session.scalars(select(MutationCard).where(
+            MutationCard.mutation_id == mutation_id, MutationCard.phase == phase
+        ).order_by(MutationCard.position)).all()
+        return [Card(id=row.card_id, title=row.title, column_id=row.column_id) for row in rows]
+
+    def _replace_cards(self, session: Session, cards: list[Card]) -> None:
+        session.execute(delete(CardRecord))
+        positions = {column.id: 0 for column in self.columns}
+        for card in cards:
+            session.add(CardRecord(id=card.id, title=card.title, column_id=card.column_id,
+                position=positions[card.column_id]))
+            positions[card.column_id] += 1
+        session.flush()
+
+    def _add_history(self, session: Session, mutation_id: int, phase: str,
+        cards: list[Card]) -> None:
+        positions = {column.id: 0 for column in self.columns}
+        for card in cards:
+            session.add(MutationCard(mutation_id=mutation_id, phase=phase, card_id=card.id,
+                title=card.title, column_id=card.column_id, position=positions[card.column_id]))
+            positions[card.column_id] += 1
+
+    def _require_column(self, column_id: str) -> None:
+        if not any(column.id == column_id for column in self.columns):
+            raise UnknownColumnError(column_id)

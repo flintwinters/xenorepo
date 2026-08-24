@@ -66,19 +66,6 @@ def _build_lit(definition: AppDefinition, artifact: FrontendArtifact, workspace:
     )
 
 
-def _build_typescript(definition: AppDefinition, artifact: FrontendArtifact,
-    workspace: Path) -> None:
-    npm = shutil.which("npm")
-    if npm is None:
-        raise LifecycleError(
-            "npm not found; run python manage.py bootstrap before building TypeScript pages"
-        )
-    source = definition.directory / artifact.source
-    output = definition.dist_directory / artifact.output
-    _run([npm, "run", "build:typescript", "--", str(source.relative_to(workspace)),
-        str(output.relative_to(workspace))], workspace)
-
-
 def build_app(definition: AppDefinition, workspace: Path) -> None:
     definition.dist_directory.mkdir(exist_ok=True)
     for artifact in definition.artifacts:
@@ -88,8 +75,6 @@ def build_app(definition: AppDefinition, workspace: Path) -> None:
         if artifact.format == "lit":
             _build_lit(definition, artifact, workspace)
             continue
-        _build_typescript(definition, artifact, workspace)
-    return
 
 
 def validate_app(definition: AppDefinition, workspace: Path) -> None:

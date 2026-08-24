@@ -64,9 +64,10 @@ export class ConsolePane extends ConsoleElement {
 customElements.define("x-console-pane", ConsolePane);
 
 export class CommandButton extends ConsoleElement {
-  static properties = { disabled: { type: Boolean, reflect: true }, pressed: { type: Boolean, reflect: true } };
+  static properties = { disabled: { type: Boolean, reflect: true }, pressed: { type: Boolean, reflect: true }, label: { type: String }, title: { type: String } };
   disabled = false;
   pressed = false;
+  label = "";
   static styles = [consoleTokens, css`
     :host { display: inline-block; }
     button {
@@ -79,7 +80,7 @@ export class CommandButton extends ConsoleElement {
     button:active:not(:disabled), button[aria-pressed="true"]:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 3px 4px rgb(0 0 0 / 0.52), inset 0 -1px rgb(255 255 255 / 0.12); }
     button:disabled { color: var(--console-muted, #a89984); cursor: not-allowed; opacity: 0.65; }
   `];
-  render() { return html`<button part="button" ?disabled=${this.disabled} aria-pressed=${this.pressed ? "true" : "false"}><slot></slot></button>`; }
+  render() { return html`<button part="button" ?disabled=${this.disabled} aria-pressed=${this.pressed ? "true" : "false"} aria-label=${this.label || nothing} title=${this.title || nothing}><slot></slot></button>`; }
 }
 customElements.define("x-command-button", CommandButton);
 

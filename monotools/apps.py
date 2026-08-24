@@ -15,7 +15,7 @@ APPS_DIRECTORY = ROOT / "apps"
 _ARTIFACT_NAME = re.compile(r"^[a-z][a-z0-9_-]*$")
 _ROUTE_PATH = re.compile(r"^/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$")
 _RESERVED_ROUTES = frozenset({"/health"})
-_FORMATS = frozenset({"document", "lit", "typescript"})
+_FORMATS = frozenset({"document", "lit"})
 
 
 class AppDefinitionError(ValueError):

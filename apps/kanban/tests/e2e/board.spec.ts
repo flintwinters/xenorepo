@@ -5,14 +5,13 @@ test("a card can be created, dragged, deleted, undone, and redone", async ({ pag
 
   await expect(page.getByText("KANBAN // 01")).toBeVisible();
   await expect(page.locator(".column")).toHaveCount(3);
-  await expect(page.locator(".column").first().locator(":scope > *").nth(1)).toHaveClass("add-form");
 
   const title = `Browser-validated card ${Date.now()}`;
-  await page.getByLabel("New card for To do").fill(title);
-  await page.locator("#column-todo").locator("..").getByRole("button", { name: "Add" }).click();
+  await page.getByRole("textbox", { name: "New card for To do", exact: true }).fill(title);
+  await page.locator("#column-todo").getByRole("button", { name: "ADD", exact: true }).click();
 
   const card = page.locator(".card").filter({ hasText: title });
-  const doingCards = page.locator('section[aria-labelledby="column-doing"] .cards');
+  const doingCards = page.locator("#column-doing .cards");
   await expect(card).toBeVisible();
   await expect(page.getByRole("button", { name: "UNDO" })).toBeEnabled();
 
@@ -20,9 +19,7 @@ test("a card can be created, dragged, deleted, undone, and redone", async ({ pag
   await expect(doingCards.locator(".card").filter({ hasText: title })).toBeVisible();
 
   const deleteButton = card.getByRole("button", { name: "Delete card" });
-  await expect(deleteButton).toHaveText("×");
-  await expect(deleteButton).toHaveCSS("position", "static");
-  await expect(deleteButton.locator("..")).toHaveCSS("position", "absolute");
+  await expect(card.locator("x-command-button.delete")).toHaveCSS("position", "absolute");
   await deleteButton.click();
   await expect(card).toHaveCount(0);
 
@@ -39,9 +36,9 @@ test("cards can be renamed, precisely ordered, and restored", async ({ page }) =
   const firstTitle = `First ${marker}`;
   const renamedTitle = `Renamed ${marker}`;
   const secondTitle = `Second ${marker}`;
-  const todo = page.locator('section[aria-labelledby="column-todo"]');
-  const doing = page.locator('section[aria-labelledby="column-doing"]');
-  const addTodo = page.getByLabel("New card for To do");
+  const todo = page.locator("#column-todo");
+  const doing = page.locator("#column-doing");
+  const addTodo = page.getByRole("textbox", { name: "New card for To do", exact: true });
 
   await addTodo.fill(firstTitle);
   await todo.getByRole("button", { name: "Add" }).click();

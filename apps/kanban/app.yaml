@@ -6,8 +6,8 @@ capabilities:
 frontend:
   artifacts:
     index:
-      format: typescript
-      source: frontend/app.ts
+      format: lit
+      source: frontend/index.ts
       output: index.html
   routes:
     /: index

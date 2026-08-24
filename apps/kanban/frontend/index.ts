@@ -1,0 +1,224 @@
+/** Durable board interactions composed from central Lit UI primitives. */
+import { LitElement, css, html, nothing } from "lit";
+import "@xenorepo/lit-ui";
+
+interface Column { id: string; title: string; }
+interface Card { id: string; title: string; column_id: string; }
+interface Board {
+  columns: Column[]; cards: Card[]; can_undo: boolean; can_redo: boolean;
+  undo_description: string | null; redo_description: string | null;
+}
+
+class KanbanBoard extends LitElement {
+  static properties = {
+    board: { state: true }, message: { state: true }, failed: { state: true },
+    openCardId: { state: true },
+  };
+  declare board: Board | null;
+  declare message: string;
+  declare failed: boolean;
+  declare openCardId: string | null;
+
+  constructor() {
+    super();
+    this.board = null;
+    this.message = "Loading board…";
+    this.failed = false;
+    this.openCardId = null;
+  }
+
+  static styles = css`
+    :host { display:block; height:100%; color:#ebdbb2; font:12px/1.3 "Courier New",monospace; }
+    * { box-sizing:border-box; } x-console-shell { height:100%; }
+    .brand { color:#fabd2f; font-weight:bold; letter-spacing:.08em; }
+    .push { margin-left:auto; } .board { min-height:0; display:grid; grid-template-columns:repeat(3,minmax(220px,1fr)); gap:1px; background:#121414; }
+    x-console-pane { min-width:0; } .column { display:grid; min-height:100%; grid-template-rows:auto minmax(0,1fr); }
+    .count { margin-left:auto; color:#1d2021; font-weight:normal; }
+    .add-form { display:grid; grid-template-columns:minmax(0,1fr) auto; border-bottom:1px solid #504945; }
+    .add-form label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
+    input { min-width:0; padding:3px 6px; color:#ebdbb2; font:inherit; background:#181a1b; border:1px solid #665c54; }
+    .cards { min-height:0; overflow:auto; } .cards.drop-target { background:#30312d; box-shadow:inset 0 0 0 1px #d79921; }
+    .card { position:relative; padding:6px 30px 5px 22px; border-bottom:1px solid #504945; border-left:2px solid #928374; background:#222526; cursor:pointer; }
+    .card.dragging { opacity:.42; } .card.insert-before { box-shadow:inset 0 2px #fabd2f; } .card.insert-after { box-shadow:inset 0 -2px #fabd2f; }
+    .drag-handle { position:absolute; top:6px; left:5px; color:#a89984; cursor:grab; user-select:none; }
+    .card-title { margin:0; overflow-wrap:anywhere; } .delete { position:absolute; top:3px; right:3px; }
+    .delete::part(button) { min-width:20px; padding:0; color:#fb8b7d; }
+    .modal-backdrop { position:fixed; z-index:10; inset:0; display:grid; place-items:center; padding:16px; background:#000a; }
+    .modal { width:min(440px,100%); padding:14px; border:1px solid #83a598; background:#282828; box-shadow:0 12px 30px #000; }
+    .modal h2 { margin:0 0 10px; font-size:13px; } .modal form { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:5px; }
+    .error { color:#fb4934; }
+    @media(max-width:720px) { .board { grid-template-columns:1fr; overflow:auto; } x-console-pane { min-height:220px; } .context { display:none; } }
+  `;
+
+  connectedCallback(): void {
+    super.connectedCallback();
+    void this.perform(async () => {
+      await this.refresh();
+      this.message = `${this.board!.cards.length} active ${this.board!.cards.length === 1 ? "card" : "cards"} · durable workspace`;
+    });
+  }
+
+  private async request<T>(path: string, options?: RequestInit): Promise<T> {
+    const response = await fetch(path, { ...options,
+      headers: { "Content-Type": "application/json", ...options?.headers } });
+    if (!response.ok) throw new Error(`Request failed (${response.status})`);
+    return response.status === 204 ? undefined as T : response.json() as Promise<T>;
+  }
+
+  private async refresh(): Promise<void> { this.board = await this.request<Board>("/api/board"); }
+
+  private async perform(action: () => Promise<void>): Promise<void> {
+    try { await action(); this.failed = false; }
+    catch (error) { this.failed = true; this.message = error instanceof Error ? error.message : "Unexpected error"; }
+  }
+
+  private cards(columnId: string): Card[] {
+    return this.board?.cards.filter(card => card.column_id === columnId) ?? [];
+  }
+
+  private clearTargets(): void {
+    this.renderRoot.querySelectorAll(".insert-before,.insert-after").forEach(target =>
+      target.classList.remove("insert-before", "insert-after"));
+  }
+
+  private dragStart(event: DragEvent, card: Card): void {
+    event.dataTransfer?.setData("text/plain", card.id);
+    if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+    (event.currentTarget as HTMLElement).classList.add("dragging");
+    this.message = `Dragging “${card.title}”`;
+  }
+
+  private dragEnd(event: DragEvent): void {
+    (event.currentTarget as HTMLElement).classList.remove("dragging");
+    this.renderRoot.querySelectorAll(".drop-target").forEach(target => target.classList.remove("drop-target"));
+    this.clearTargets();
+  }
+
+  private dragOverCard(event: DragEvent): void {
+    event.preventDefault(); event.stopPropagation(); this.clearTargets();
+    const card = event.currentTarget as HTMLElement;
+    const below = event.clientY >= card.getBoundingClientRect().top + card.offsetHeight / 2;
+    card.classList.add(below ? "insert-after" : "insert-before");
+  }
+
+  private dropOnCard(event: DragEvent, destination: Card): void {
+    event.preventDefault(); event.stopPropagation();
+    const dragged = this.board?.cards.find(card => card.id === event.dataTransfer?.getData("text/plain"));
+    if (!dragged) return;
+    const cards = this.cards(destination.column_id);
+    const target = event.currentTarget as HTMLElement;
+    let index = cards.findIndex(card => card.id === destination.id) + Number(target.classList.contains("insert-after"));
+    const source = cards.findIndex(card => card.id === dragged.id);
+    if (source >= 0 && source < index) index -= 1;
+    this.clearTargets();
+    void this.move(dragged, destination.column_id, index);
+  }
+
+  private dropOnColumn(event: DragEvent, column: Column): void {
+    event.preventDefault();
+    (event.currentTarget as HTMLElement).classList.remove("drop-target");
+    const card = this.board?.cards.find(item => item.id === event.dataTransfer?.getData("text/plain"));
+    if (card) void this.move(card, column.id);
+  }
+
+  private async move(card: Card, columnId: string, index?: number): Promise<void> {
+    const destination = this.board!.columns.find(column => column.id === columnId)!;
+    await this.perform(async () => {
+      await this.request(`/api/cards/${card.id}`, { method:"PATCH",
+        body:JSON.stringify({ column_id:columnId, ...(index === undefined ? {} : { index }) }) });
+      await this.refresh(); this.message = `Moved “${card.title}” to ${destination.title}`;
+    });
+  }
+
+  private add(event: Event, column: Column): void {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement;
+    const input = form.elements.namedItem("title") as HTMLInputElement;
+    const title = input.value.trim();
+    if (!title) return;
+    void this.perform(async () => {
+      const card = await this.request<Card>("/api/cards", { method:"POST",
+        body:JSON.stringify({ title, column_id:column.id }) });
+      await this.refresh(); input.value = ""; this.message = `Added “${card.title}” to ${column.title}`;
+    });
+  }
+
+  private async remove(card: Card): Promise<void> {
+    await this.perform(async () => {
+      await this.request(`/api/cards/${card.id}`, { method:"DELETE" });
+      if (this.openCardId === card.id) this.openCardId = null;
+      await this.refresh(); this.message = `Deleted “${card.title}”`;
+    });
+  }
+
+  private async history(path: "undo" | "redo"): Promise<void> {
+    await this.perform(async () => {
+      this.board = await this.request<Board>(`/api/${path}`, { method:"POST" });
+      this.message = `${path === "undo" ? "Undid" : "Redid"} the board operation`;
+    });
+  }
+
+  private renderCard(card: Card) {
+    return html`<article class="card" draggable="true" @click=${(event:Event) => {
+      if (!(event.target as Element).closest("x-command-button,.drag-handle")) this.openCardId = card.id;
+    }} @dragstart=${(event:DragEvent) => this.dragStart(event, card)} @dragend=${this.dragEnd}
+      @dragover=${this.dragOverCard} @drop=${(event:DragEvent) => this.dropOnCard(event, card)}>
+      <span class="drag-handle" draggable="true" title="Drag to move card" aria-hidden="true">⠿</span>
+      <p class="card-title">${card.title}</p>
+      <x-command-button class="delete" label="Delete card" @click=${() => void this.remove(card)}>×</x-command-button>
+    </article>`;
+  }
+
+  private renderColumn(column: Column, index: number) {
+    const cards = this.cards(column.id);
+    const tones = ["orange", "blue", "green"];
+    return html`<x-console-pane class="column" id=${`column-${column.id}`} index=${String(index + 1).padStart(2,"0")}
+      title=${column.title} tone=${tones[index]}>
+      <span slot="title-end" class="count">${cards.length} ${cards.length === 1 ? "card" : "cards"}</span>
+      <section>
+        <form class="add-form" @submit=${(event:Event) => this.add(event, column)}>
+          <label for=${`add-${column.id}`}>New card for ${column.title}</label>
+          <input id=${`add-${column.id}`} name="title" maxlength="120" required placeholder="New card title">
+          <x-command-button @click=${(event:Event) => (event.currentTarget as Element).closest("form")?.requestSubmit()}>ADD</x-command-button>
+        </form>
+        <div class="cards" @dragover=${(event:DragEvent) => { event.preventDefault(); (event.currentTarget as Element).classList.add("drop-target"); this.clearTargets(); }}
+          @dragleave=${(event:DragEvent) => { if (!(event.currentTarget as Element).contains(event.relatedTarget as Node)) (event.currentTarget as Element).classList.remove("drop-target"); }}
+          @drop=${(event:DragEvent) => this.dropOnColumn(event, column)}>
+          ${cards.length ? cards.map(card => this.renderCard(card)) : html`<x-empty-state heading="NO CARDS"></x-empty-state>`}
+        </div>
+      </section>
+    </x-console-pane>`;
+  }
+
+  private renderModal() {
+    const card = this.board?.cards.find(item => item.id === this.openCardId);
+    if (!card) return nothing;
+    return html`<div class="modal-backdrop" @click=${(event:Event) => { if (event.target === event.currentTarget) this.openCardId = null; }}>
+      <section class="modal" role="dialog" aria-modal="true" aria-labelledby="card-modal-title" @keydown=${(event:KeyboardEvent) => { if (event.key === "Escape") this.openCardId = null; }}>
+        <h2 id="card-modal-title">Edit card</h2>
+        <form @submit=${(event:Event) => { event.preventDefault(); const input=(event.currentTarget as HTMLFormElement).elements.namedItem("title") as HTMLInputElement; const title=input.value.trim(); if (!title) return; this.openCardId=null; void this.perform(async()=>{ if(title!==card.title){ await this.request(`/api/cards/${card.id}`,{method:"PATCH",body:JSON.stringify({title})}); await this.refresh(); this.message=`Renamed “${card.title}” to “${title}”`; } }); }}>
+          <input name="title" aria-label="Card title" maxlength="120" required .value=${card.title} autofocus @keydown=${(event:KeyboardEvent) => { if (event.key === "Enter") (event.currentTarget as HTMLInputElement).form?.requestSubmit(); }}>
+          <x-command-button @click=${() => this.openCardId = null}>CANCEL</x-command-button>
+          <x-command-button @click=${(event:Event) => (event.currentTarget as Element).closest("form")?.requestSubmit()}>SAVE</x-command-button>
+        </form>
+      </section>
+    </div>`;
+  }
+
+  render() {
+    return html`<x-console-shell>
+      <x-utility-rail slot="header"><strong class="brand">KANBAN // 01</strong>
+        <x-command-button title=${this.board?.undo_description ?? "Nothing to undo"} .disabled=${!this.board?.can_undo} @click=${() => void this.history("undo")}>UNDO</x-command-button>
+        <x-command-button title=${this.board?.redo_description ?? "Nothing to redo"} .disabled=${!this.board?.can_redo} @click=${() => void this.history("redo")}>REDO</x-command-button>
+        <span class="context">DELIVERY CONTROL</span><x-status-indicator class="push" label=${this.failed ? "ERROR" : "LOCAL"} tone=${this.failed ? "orange" : "green"}></x-status-indicator>
+      </x-utility-rail>
+      <section class="board" aria-label="Kanban board">${this.board?.columns.map((column,index) => this.renderColumn(column,index))}</section>
+      <x-status-rail slot="footer" class=${this.failed ? "error" : ""}>${this.message}</x-status-rail>
+    </x-console-shell>${this.renderModal()}`;
+  }
+}
+customElements.define("x-kanban-board", KanbanBoard);
+
+export function mount(root: HTMLElement): void {
+  root.replaceChildren(document.createElement("x-kanban-board"));
+}

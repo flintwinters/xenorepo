@@ -44,9 +44,8 @@ monotools: the canonical orchestration library.
   application through one FastAPI service.
 - Central Lit UI is the shared frontend direction. New pages use reusable
   components only from the central Lit UI package; existing apps may remain
-  legacy documents until deliberately migrated. Monotools also owns the generic
-  bundling path for those self-contained legacy TypeScript documents; apps do
-  not carry private Node projects or build scripts.
+  legacy documents until deliberately migrated. Apps do not carry private Node
+  projects or build scripts.
 - Treat persistence as an implementation detail behind a durable domain
   boundary. Use SQLAlchemy's ORM as the database abstraction layer so
   application behavior, schemas, and lifecycle utilities do not depend on

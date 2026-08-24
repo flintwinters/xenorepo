@@ -85,6 +85,7 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: Path) -> Pat
     }
     if "database" in definition.capabilities:
         database = artifacts / "browser.db"
+        database.unlink(missing_ok=True)
         environment[f"{definition.name.upper()}_DATABASE_URL"] = f"sqlite:///{database}"
     command = [str(playwright), "test", str(suite.relative_to(workspace))]
     process: subprocess.Popen[bytes] | None = None

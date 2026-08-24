@@ -5,7 +5,7 @@ const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
 const launchOptions = executablePath ? { executablePath } : {};
 
 module.exports = defineConfig({
-  testDir: "tests/ui",
+  testDir: ".",
   outputDir: process.env.PLAYWRIGHT_OUTPUT_DIR || "apps/rps/data/ui-check/test-results",
   forbidOnly: Boolean(process.env.CI),
   fullyParallel: false,

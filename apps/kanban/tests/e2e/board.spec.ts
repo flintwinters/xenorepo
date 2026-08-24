@@ -1,0 +1,91 @@
+import { expect, test } from "@playwright/test";
+
+test("a card can be created, dragged, deleted, undone, and redone", async ({ page }) => {
+  await page.goto("/");
+
+  await expect(page.getByText("KANBAN // 01")).toBeVisible();
+  await expect(page.locator(".column")).toHaveCount(3);
+  await expect(page.locator(".column").first().locator(":scope > *").nth(1)).toHaveClass("add-form");
+
+  const title = `Browser-validated card ${Date.now()}`;
+  await page.getByLabel("New card for To do").fill(title);
+  await page.locator("#column-todo").locator("..").getByRole("button", { name: "Add" }).click();
+
+  const card = page.locator(".card").filter({ hasText: title });
+  const doingCards = page.locator('section[aria-labelledby="column-doing"] .cards');
+  await expect(card).toBeVisible();
+  await expect(page.getByRole("button", { name: "UNDO" })).toBeEnabled();
+
+  await card.locator(".drag-handle").dragTo(doingCards);
+  await expect(doingCards.locator(".card").filter({ hasText: title })).toBeVisible();
+
+  const deleteButton = card.getByRole("button", { name: "Delete card" });
+  await expect(deleteButton).toHaveText("×");
+  await expect(deleteButton).toHaveCSS("position", "static");
+  await expect(deleteButton.locator("..")).toHaveCSS("position", "absolute");
+  await deleteButton.click();
+  await expect(card).toHaveCount(0);
+
+  await page.getByRole("button", { name: "UNDO" }).click();
+  await expect(doingCards.locator(".card").filter({ hasText: title })).toBeVisible();
+
+  await page.getByRole("button", { name: "REDO" }).click();
+  await expect(page.locator(".card").filter({ hasText: title })).toHaveCount(0);
+});
+
+test("cards can be renamed, precisely ordered, and restored", async ({ page }) => {
+  await page.goto("/");
+  const marker = Date.now();
+  const firstTitle = `First ${marker}`;
+  const renamedTitle = `Renamed ${marker}`;
+  const secondTitle = `Second ${marker}`;
+  const todo = page.locator('section[aria-labelledby="column-todo"]');
+  const doing = page.locator('section[aria-labelledby="column-doing"]');
+  const addTodo = page.getByLabel("New card for To do");
+
+  await addTodo.fill(firstTitle);
+  await todo.getByRole("button", { name: "Add" }).click();
+  await expect(page.locator(".card").filter({ hasText: firstTitle })).toBeVisible();
+  await addTodo.fill(secondTitle);
+  await todo.getByRole("button", { name: "Add" }).click();
+  await expect(page.locator(".card").filter({ hasText: secondTitle })).toBeVisible();
+
+  const first = page.locator(".card").filter({ hasText: firstTitle });
+  await first.click();
+  const editor = page.getByRole("textbox", { name: "Card title" });
+  await expect(editor).toBeFocused();
+  await editor.fill(renamedTitle);
+  await editor.press("Enter");
+  const renamed = page.locator(".card").filter({ hasText: renamedTitle });
+  await expect(page.getByRole("button", { name: "UNDO" })).toHaveAttribute(
+    "title",
+    `Rename “${firstTitle}” to “${renamedTitle}”`,
+  );
+
+  const second = page.locator(".card").filter({ hasText: secondTitle });
+  await second.dragTo(renamed, { targetPosition: { x: 10, y: 1 } });
+  await expect.poll(async () => {
+    const titles = await todo.locator(".card-title").allTextContents();
+    return titles.indexOf(secondTitle) < titles.indexOf(renamedTitle);
+  }).toBe(true);
+
+  const firstDoingCard = doing.locator(".card").first();
+  await renamed.dragTo(firstDoingCard, { targetPosition: { x: 10, y: 1 } });
+  await expect(doing.locator(".card").first()).toContainText(renamedTitle);
+
+  await page.getByRole("button", { name: "UNDO" }).click();
+  await expect(todo.locator(".card").filter({ hasText: renamedTitle })).toBeVisible();
+  await page.getByRole("button", { name: "UNDO" }).click();
+  await expect.poll(async () => {
+    const titles = await todo.locator(".card-title").allTextContents();
+    return titles.indexOf(renamedTitle) < titles.indexOf(secondTitle);
+  }).toBe(true);
+
+  await page.getByRole("button", { name: "REDO" }).click();
+  await expect.poll(async () => {
+    const titles = await todo.locator(".card-title").allTextContents();
+    return titles.indexOf(secondTitle) < titles.indexOf(renamedTitle);
+  }).toBe(true);
+  await page.getByRole("button", { name: "REDO" }).click();
+  await expect(doing.locator(".card").first()).toContainText(renamedTitle);
+});

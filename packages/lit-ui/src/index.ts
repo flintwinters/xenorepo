@@ -64,10 +64,11 @@ export class ConsolePane extends ConsoleElement {
 customElements.define("x-console-pane", ConsolePane);
 
 export class CommandButton extends ConsoleElement {
-  static properties = { disabled: { type: Boolean, reflect: true }, pressed: { type: Boolean, reflect: true }, label: { type: String }, title: { type: String } };
+  static properties = { disabled: { type: Boolean, reflect: true }, pressed: { type: Boolean, reflect: true }, label: { type: String }, title: { type: String }, appearance: { type: String, reflect: true } };
   disabled = false;
   pressed = false;
   label = "";
+  appearance = "default";
   static styles = [consoleTokens, css`
     :host { display: inline-block; }
     button {
@@ -79,6 +80,19 @@ export class CommandButton extends ConsoleElement {
     button:hover:not(:disabled) { background: linear-gradient(#504b48, #383431); border-color: var(--console-button-border-hover, #d5c4a1); box-shadow: inset 0 1px rgb(255 255 255 / 0.14), 0 2px 4px rgb(0 0 0 / 0.4); }
     button:active:not(:disabled), button[aria-pressed="true"]:not(:disabled) { transform: translateY(1px); box-shadow: inset 0 3px 4px rgb(0 0 0 / 0.52), inset 0 -1px rgb(255 255 255 / 0.12); }
     button:disabled { color: var(--console-muted, #a89984); cursor: not-allowed; opacity: 0.65; }
+    :host([appearance="subtle"]) button {
+      min-height: 0; padding: 0 2px; color: var(--console-muted, #a89984);
+      background: transparent; border: 0; border-radius: 0; box-shadow: none;
+      text-decoration: underline; text-underline-offset: 2px;
+      text-shadow: 0 1px 1px rgb(0 0 0 / 0.8); cursor: pointer;
+    }
+    :host([appearance="subtle"]) button:hover:not(:disabled) {
+      color: var(--console-fg, #ebdbb2); background: transparent; border: 0;
+      box-shadow: none; text-shadow: 0 1px 1px #000, 0 0 3px rgb(235 219 178 / 0.25);
+    }
+    :host([appearance="subtle"]) button:active:not(:disabled) {
+      transform: translateY(1px); box-shadow: none;
+    }
   `];
   render() { return html`<button part="button" ?disabled=${this.disabled} aria-pressed=${this.pressed ? "true" : "false"} aria-label=${this.label || nothing} title=${this.title || nothing}><slot></slot></button>`; }
 }

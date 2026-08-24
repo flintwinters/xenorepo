@@ -88,7 +88,6 @@ class KanbanBoard extends LitElement {
     event.dataTransfer?.setData("text/plain", card.id);
     if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
     (event.currentTarget as HTMLElement).classList.add("dragging");
-    this.message = `Dragging “${card.title}”`;
   }
 
   private dragEnd(event: DragEvent): void {
@@ -168,7 +167,7 @@ class KanbanBoard extends LitElement {
       @dragover=${this.dragOverCard} @drop=${(event:DragEvent) => this.dropOnCard(event, card)}>
       <span class="drag-handle" draggable="true" title="Drag to move card" aria-hidden="true">⠿</span>
       <p class="card-title">${card.title}</p>
-      <x-command-button class="delete" label="Delete card" @click=${() => void this.remove(card)}>×</x-command-button>
+      <x-command-button class="delete" appearance="subtle" label="Delete card" @click=${() => void this.remove(card)}>×</x-command-button>
     </article>`;
   }
 

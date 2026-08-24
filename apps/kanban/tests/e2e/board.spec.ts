@@ -19,7 +19,12 @@ test("a card can be created, dragged, deleted, undone, and redone", async ({ pag
   await expect(doingCards.locator(".card").filter({ hasText: title })).toBeVisible();
 
   const deleteButton = card.getByRole("button", { name: "Delete card" });
-  await expect(card.locator("x-command-button.delete")).toHaveCSS("position", "absolute");
+  const deleteControl = card.locator("x-command-button.delete");
+  await expect(deleteControl).toHaveAttribute("appearance", "subtle");
+  await expect(deleteControl).toHaveCSS("position", "absolute");
+  await expect(deleteButton).toHaveCSS("border-style", "none");
+  await expect(deleteButton).toHaveCSS("box-shadow", "none");
+  await expect(deleteButton).not.toHaveCSS("text-shadow", "none");
   await deleteButton.click();
   await expect(card).toHaveCount(0);
 

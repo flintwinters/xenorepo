@@ -3,7 +3,9 @@
 Kanban Console is a compact, durable single-board workflow application. It
 supports card creation, renaming, ordering, movement, deletion, and linear
 undo/redo history through one FastAPI service and a self-contained browser
-artifact.
+artifact. The browser is a Lit application composed from Xenorepo's central Lit
+UI components; lifecycle, builds, runtime documents, database setup, HTTP error
+handling, and browser verification are owned by Monotools.
 
 From a Xenorepo checkout, use the repository cockpit:
 

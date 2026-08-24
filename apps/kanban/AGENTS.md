@@ -10,8 +10,12 @@ This project is a compact, dependable kanban console. Favor an operable end-to-e
   single MVP board in SQLite by default while retaining backend portability.
 - Every create, rename, reorder, move, and delete transaction records complete before/after card state plus a human-readable operation description. Undo and redo move a cursor through that history; a new mutation after undo discards the abandoned redo branch.
 - Card positions are column-local, contiguous integers. SQLite snapshots and every history transition preserve their visible order; omitted move indexes append within the destination column.
-- TypeScript in `frontend/` owns browser interactions and Monotools compiles it
-  ahead of time into the self-contained `dist/index.html` served by FastAPI.
+- A Lit application in `frontend/` owns board-specific browser interactions and
+  composes its shell, rails, panes, commands, status, and empty states from the
+  central Lit UI package. Monotools compiles it into the self-contained
+  `dist/index.html` served by FastAPI.
+- Mutating HTTP routes use Monotools same-origin enforcement and its canonical
+  domain-error envelope; the app owns only its error kinds and status mapping.
 - Xenorepo's root `manage.py` is the one entrypoint for bootstrap, build, tests,
   and local serving; the app manager only declares its owned suites.
 - Playwright validates the visible vertical slice against an isolated database

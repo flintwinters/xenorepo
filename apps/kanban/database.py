@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import re
 from threading import Lock
 from typing import Annotated
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, model_validator
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String, UniqueConstraint, delete, select
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String, UniqueConstraint, delete, select, update
+from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from monotools.database import create_session_factory as _create_session_factory
@@ -114,6 +116,57 @@ class MutationCard(Base):
     title: Mapped[str] = mapped_column(String(120))
     column_id: Mapped[str] = mapped_column(String(40))
     position: Mapped[int] = mapped_column(Integer)
+
+
+_BROWSER_FIXTURE_TITLE = re.compile(
+    r"^(?:Browser-validated card|First|Second|Renamed) \d{13}$"
+)
+
+
+def remove_browser_fixture_contamination(engine: Engine) -> None:
+    """Remove historical UI-check fixtures written by the former server-env bug."""
+    with engine.begin() as connection:
+        current = connection.execute(select(CardRecord.id, CardRecord.title)).all()
+        historical = connection.execute(
+            select(MutationCard.card_id, MutationCard.title)
+        ).all()
+        contaminated = {
+            identifier for identifier, title in [*current, *historical]
+            if _BROWSER_FIXTURE_TITLE.fullmatch(title)
+        }
+        descriptions = connection.execute(select(Mutation.id, Mutation.description)).all()
+        fixture_mutations = {
+            identifier for identifier, description in descriptions
+            if description and any(
+                _BROWSER_FIXTURE_TITLE.fullmatch(candidate)
+                for candidate in re.findall(r"“([^”]+)”", description)
+            )
+        }
+        if fixture_mutations:
+            connection.execute(delete(Mutation).where(Mutation.id.in_(fixture_mutations)))
+        if contaminated:
+            connection.execute(delete(CardRecord).where(CardRecord.id.in_(contaminated)))
+            connection.execute(delete(MutationCard).where(
+                MutationCard.card_id.in_(contaminated)))
+        _compact_positions(connection, CardRecord.__table__, ())
+        _compact_positions(connection, MutationCard.__table__,
+            (MutationCard.mutation_id, MutationCard.phase))
+
+
+def _compact_positions(connection, table, partition_columns: tuple) -> None:
+    columns = [*partition_columns, table.c.column_id, table.c.position]
+    identity = table.c.id if "id" in table.c else table.c.card_id
+    rows = connection.execute(select(identity, *columns).order_by(
+        *partition_columns, table.c.column_id, table.c.position)).all()
+    counters: dict[tuple[object, ...], int] = {}
+    for row in rows:
+        values = tuple(row[index + 1] for index in range(len(partition_columns) + 1))
+        position = counters.get(values, 0)
+        counters[values] = position + 1
+        conditions = [identity == row[0]]
+        conditions.extend(column == row[index + 1]
+            for index, column in enumerate(partition_columns))
+        connection.execute(update(table).where(*conditions).values(position=position))
 
 
 def create_session_factory(database_url: str) -> sessionmaker[Session]:

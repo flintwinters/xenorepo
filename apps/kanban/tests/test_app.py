@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from apps.kanban.database import (
     BoardStore, CardCreate, CardRecord, CardUpdate, Mutation, MutationCard,
-    create_session_factory,
+    create_session_factory, remove_browser_fixture_contamination,
 )
 from apps.kanban.server import create_app
 
@@ -143,6 +143,23 @@ class KanbanTests(unittest.TestCase):
         self.assertEqual(self.store.snapshot().undo_description, "Update board")
         self.assertEqual(self.store.undo().cards, [])
         self.assertEqual(self.store.snapshot().redo_description, "Update board")
+
+    def test_browser_fixture_repair_preserves_real_cards_and_history(self) -> None:
+        real = self.create("Write the release notes")
+        fixture = self.create("Browser-validated card 1787602265241")
+        self.client.patch(f"/api/cards/{fixture['id']}",
+            json={"title": "Renamed 1787602265241"})
+
+        remove_browser_fixture_contamination(self.sessions.kw["bind"])
+
+        snapshot = self.store.snapshot()
+        self.assertEqual([card.id for card in snapshot.cards], [real["id"]])
+        with self.sessions() as session:
+            titles = session.scalars(select(MutationCard.title)).all()
+            descriptions = session.scalars(select(Mutation.description)).all()
+        self.assertNotIn("Browser-validated card 1787602265241", titles)
+        self.assertNotIn("Renamed 1787602265241", titles)
+        self.assertEqual(descriptions, ['Create “Write the release notes”'])
 
     def test_build_is_a_self_contained_client(self) -> None:
         document = Path("apps/kanban/dist/index.html").read_text(encoding="utf-8")

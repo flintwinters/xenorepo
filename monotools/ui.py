@@ -95,6 +95,7 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: Path) -> Pat
             process = subprocess.Popen(
                 ["uv", "run", "uvicorn", definition.module + ":app", "--host", "127.0.0.1", "--port", str(port)],
                 cwd=workspace,
+                env=environment,
                 stdout=output,
                 stderr=subprocess.STDOUT,
                 start_new_session=True,

@@ -56,6 +56,8 @@ class BrowserLifecycleTests(unittest.TestCase):
             popen.call_args.args[0][:4],
             ["uv", "run", "uvicorn", "apps.rps.server:app"],
         )
+        self.assertEqual(popen.call_args.kwargs["env"]["RPS_DATABASE_URL"],
+            f"sqlite:///{artifacts / 'browser.db'}")
         self.assertEqual(run.call_args.args[0], [
             str(ROOT / "node_modules" / ".bin" / "playwright"), "test", "tests/ui/rps.spec.js",
         ])

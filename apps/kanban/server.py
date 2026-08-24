@@ -2,35 +2,23 @@
 
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, status
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, Request, status
 
 from apps.kanban.database import (
     Base,
     Board,
+    BoardError,
     BoardStore,
     Card,
     CardCreate,
     CardUpdate,
-    InvalidPositionError,
-    UnknownColumnError,
 )
 from monotools.appkit import create_app_context
+from monotools.http import domain_error_handler, enforce_same_origin
 from monotools.runtime import create_application
 
 
 DEFAULT_DATABASE = Path(__file__).parent / "data" / "kanban.db"
-
-
-async def unknown_column(_: Request, error: UnknownColumnError) -> JSONResponse:
-    return JSONResponse(status_code=422, content={"detail": f"Unknown column: {error}"})
-
-
-async def invalid_position(_: Request, error: InvalidPositionError) -> JSONResponse:
-    return JSONResponse(
-        status_code=422,
-        content={"detail": f"Invalid destination index: {error}"},
-    )
 
 
 def create_app(database_url: str | None = None, store: BoardStore | None = None) -> FastAPI:
@@ -44,41 +32,50 @@ def create_app(database_url: str | None = None, store: BoardStore | None = None)
     board = store or BoardStore.with_demo_cards(context.require_sessions())
     application = create_application("kanban")
     application.state.board = board
-    application.add_exception_handler(UnknownColumnError, unknown_column)
-    application.add_exception_handler(InvalidPositionError, invalid_position)
+    application.add_exception_handler(BoardError, domain_error_handler(statuses={
+        "conflict": 409, "forbidden": 403, "missing": 404, "validation": 422,
+    }))
+
+    def enforce_origin(request: Request) -> None:
+        enforce_same_origin(request, lambda message: BoardError(message, "forbidden"))
 
     @application.get("/api/board", response_model=Board)
     async def get_board() -> Board:
         return board.snapshot()
 
     @application.post("/api/cards", response_model=Card, status_code=status.HTTP_201_CREATED)
-    async def create_card(card: CardCreate) -> Card:
+    async def create_card(card: CardCreate, request: Request) -> Card:
+        enforce_origin(request)
         return board.create(card)
 
     @application.patch("/api/cards/{card_id}", response_model=Card)
-    async def update_card(card_id: str, update: CardUpdate) -> Card:
+    async def update_card(card_id: str, update: CardUpdate, request: Request) -> Card:
+        enforce_origin(request)
         card = board.update(card_id, update)
         if card is None:
-            raise HTTPException(status_code=404, detail="Card not found")
+            raise BoardError("Card not found", "missing")
         return card
 
     @application.delete("/api/cards/{card_id}", status_code=status.HTTP_204_NO_CONTENT)
-    async def delete_card(card_id: str) -> None:
+    async def delete_card(card_id: str, request: Request) -> None:
+        enforce_origin(request)
         if not board.delete(card_id):
-            raise HTTPException(status_code=404, detail="Card not found")
+            raise BoardError("Card not found", "missing")
 
     @application.post("/api/undo", response_model=Board)
-    async def undo() -> Board:
+    async def undo(request: Request) -> Board:
+        enforce_origin(request)
         snapshot = board.undo()
         if snapshot is None:
-            raise HTTPException(status_code=409, detail="Nothing to undo")
+            raise BoardError("Nothing to undo", "conflict")
         return snapshot
 
     @application.post("/api/redo", response_model=Board)
-    async def redo() -> Board:
+    async def redo(request: Request) -> Board:
+        enforce_origin(request)
         snapshot = board.redo()
         if snapshot is None:
-            raise HTTPException(status_code=409, detail="Nothing to redo")
+            raise BoardError("Nothing to redo", "conflict")
         return snapshot
 
     return application

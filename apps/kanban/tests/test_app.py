@@ -74,10 +74,16 @@ class KanbanTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/board").json()["cards"], [])
         self.assertEqual(self.client.post("/api/cards",
             json={"title": " ", "column_id": "todo"}).status_code, 422)
-        self.assertEqual(self.client.post("/api/cards",
-            json={"title": "Lost", "column_id": "missing"}).status_code, 422)
+        unknown = self.client.post("/api/cards",
+            json={"title": "Lost", "column_id": "missing"})
+        self.assertEqual((unknown.status_code, unknown.json()),
+            (422, {"error": "Unknown column: missing"}))
         self.assertEqual(self.client.patch("/api/cards/missing",
             json={"column_id": "done"}).status_code, 404)
+        forbidden = self.client.post("/api/cards", headers={"Origin": "https://foreign.test"},
+            json={"title": "Cross origin", "column_id": "todo"})
+        self.assertEqual((forbidden.status_code, forbidden.json()),
+            (403, {"error": "Request origin is not allowed."}))
 
     def test_history_reverses_mutations_and_discards_abandoned_redo(self) -> None:
         first = self.create("First")

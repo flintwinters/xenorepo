@@ -61,7 +61,10 @@ class KanbanBoard extends LitElement {
   private async request<T>(path: string, options?: RequestInit): Promise<T> {
     const response = await fetch(path, { ...options,
       headers: { "Content-Type": "application/json", ...options?.headers } });
-    if (!response.ok) throw new Error(`Request failed (${response.status})`);
+    if (!response.ok) {
+      const failure = await response.json().catch(() => null) as { error?: string; detail?: string } | null;
+      throw new Error(failure?.error ?? failure?.detail ?? `Request failed (${response.status})`);
+    }
     return response.status === 204 ? undefined as T : response.json() as Promise<T>;
   }
 

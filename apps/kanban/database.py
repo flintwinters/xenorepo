@@ -61,12 +61,20 @@ class CardUpdate(BaseModel):
         return self
 
 
-class UnknownColumnError(ValueError):
-    pass
+class BoardError(ValueError):
+    def __init__(self, message: str, kind: str = "validation") -> None:
+        super().__init__(message)
+        self.kind = kind
 
 
-class InvalidPositionError(ValueError):
-    pass
+class UnknownColumnError(BoardError):
+    def __init__(self, column_id: str) -> None:
+        super().__init__(f"Unknown column: {column_id}")
+
+
+class InvalidPositionError(BoardError):
+    def __init__(self, position: int) -> None:
+        super().__init__(f"Invalid destination index: {position}")
 
 
 class Base(DeclarativeBase):
@@ -79,7 +87,7 @@ class CardRecord(Base):
         CheckConstraint("position >= 0", name="card_nonnegative_position"),
         UniqueConstraint("column_id", "position", name="card_column_position"),
     )
-    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
     title: Mapped[str] = mapped_column(String(120))
     column_id: Mapped[str] = mapped_column(String(40), index=True)
     position: Mapped[int] = mapped_column(Integer)
@@ -102,7 +110,7 @@ class MutationCard(Base):
         ForeignKey("mutations.id", ondelete="CASCADE"), primary_key=True
     )
     phase: Mapped[str] = mapped_column(String(6), primary_key=True)
-    card_id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    card_id: Mapped[str] = mapped_column(String(36), primary_key=True)
     title: Mapped[str] = mapped_column(String(120))
     column_id: Mapped[str] = mapped_column(String(40))
     position: Mapped[int] = mapped_column(Integer)
@@ -143,7 +151,7 @@ class BoardStore:
 
     def create(self, request: CardCreate) -> Card:
         self._require_column(request.column_id)
-        card = Card(id=uuid4().hex, title=request.title, column_id=request.column_id)
+        card = Card(id=str(uuid4()), title=request.title, column_id=request.column_id)
         with self._lock, self.sessions.begin() as session:
             before = self._cards(session)
             self._record(session, before, [*before, card], f'Create “{card.title}”')

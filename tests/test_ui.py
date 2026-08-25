@@ -37,6 +37,7 @@ class BrowserLifecycleTests(unittest.TestCase):
         with TemporaryDirectory(dir=ROOT / "apps" / "rps" / "data", prefix="ui-test-") as temporary:
             artifacts = Path(temporary)
             with patch("monotools.ui.validate_app") as validate, \
+                 patch("monotools.browser.validate_browser_suite", return_value={}), \
                  patch("monotools.ui.build_app") as build, \
                  patch("monotools.ui.validate_dist") as validate_dist, \
                  patch("monotools.ui.ui_artifact_directory", return_value=artifacts), \
@@ -74,7 +75,7 @@ class BrowserLifecycleTests(unittest.TestCase):
         )
         with patch("monotools.ui.validate_app"), patch("monotools.ui.build_app"), \
              patch("monotools.ui.validate_dist"):
-            with self.assertRaisesRegex(LifecycleError, "has no browser suite"):
+            with self.assertRaisesRegex(LifecycleError, "BROWSER_SUITE_MISSING"):
                 run_ui_check(definition, ROOT, ROOT / "tests" / "ui" / "missing.spec.js")
 
 

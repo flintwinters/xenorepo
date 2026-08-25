@@ -10,7 +10,8 @@
   },
   "devDependencies": {
     "@playwright/test": "1.57.0",
-    "esbuild": "0.25.10"
+    "esbuild": "0.25.10",
+    "typescript": "^5.9.2"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",

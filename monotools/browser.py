@@ -1,0 +1,44 @@
+"""Static browser-proof validation which is safe to run before lifecycle mutation."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+import subprocess
+
+from monotools.lifecycle import LifecycleError
+from monotools.management import BrowserSuite
+
+
+def validate_browser_suite(suite: BrowserSuite, workspace: Path) -> dict[str, object]:
+    """Parse, enumerate, and enforce the declared minimum browser proof matrix."""
+    validator = workspace / "packages" / "browser-testing" / "src" / "validate.js"
+    static = subprocess.run(
+        ["node", str(validator), str(suite.path)], cwd=workspace,
+        check=False, text=True, capture_output=True,
+    )
+    if static.returncode:
+        raise LifecycleError(static.stderr.strip() or "BROWSER_STATIC_VALIDATION_FAILED")
+    try:
+        report = json.loads(static.stdout)
+    except json.JSONDecodeError as error:
+        raise LifecycleError("BROWSER_VALIDATOR_OUTPUT: invalid JSON") from error
+    missing = sorted(proof for proof in suite.proof_kinds
+        if not report["counts"].get(proof))
+    if missing:
+        raise LifecycleError(f"BROWSER_PROOF_COVERAGE: missing {', '.join(missing)}")
+    playwright = workspace / "node_modules" / ".bin" / "playwright"
+    listed = subprocess.run(
+        [str(playwright), "test", str(suite.path.relative_to(workspace)), "--list"],
+        cwd=workspace, check=False, text=True, capture_output=True,
+    )
+    if listed.returncode:
+        raise LifecycleError(f"BROWSER_LIST_FAILED: {listed.stderr.strip() or listed.stdout.strip()}")
+    if "Total:" not in listed.stdout:
+        raise LifecycleError("BROWSER_LIST_EMPTY: Playwright resolved no tests")
+    absent_viewports = sorted(name for name in suite.viewports if name not in listed.stdout)
+    if absent_viewports:
+        raise LifecycleError(
+            f"BROWSER_VIEWPORT_COVERAGE: missing {', '.join(absent_viewports)}"
+        )
+    return report

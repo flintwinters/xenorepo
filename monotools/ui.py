@@ -65,8 +65,13 @@ def _terminate(process: subprocess.Popen[bytes]) -> str | None:
     return None
 
 
-def run_ui_check(definition: AppDefinition, workspace: Path, suite: Path) -> Path:
+def run_ui_check(definition: AppDefinition, workspace: Path, suite: object) -> Path:
     """Build, serve, and browser-check one application with preserved evidence."""
+    from monotools.management import BrowserSuite
+    browser_suite = suite if isinstance(suite, BrowserSuite) else BrowserSuite(Path(suite))
+    suite = browser_suite.path
+    from monotools.browser import validate_browser_suite
+    validate_browser_suite(browser_suite, workspace)
     validate_app(definition, workspace)
     build_app(definition, workspace)
     validate_dist(definition)

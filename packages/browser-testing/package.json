@@ -1,0 +1,10 @@
+{
+  "name": "@xenorepo/browser-testing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "exports": {
+    ".": "./src/index.js",
+    "./validate": "./src/validate.js"
+  }
+}

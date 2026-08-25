@@ -14,7 +14,7 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole("heading", { name: "ENTER ARENA" })).toBeVisible();
 });
 
-test("loads a named player into the arena with accessible throw controls", async ({ page }) => {
+test("[acceptance] loads a named player into the arena with accessible throw controls", async ({ page }) => {
   const name = page.getByLabel("DISPLAY NAME");
   const play = page.getByRole("button", { name: "PLAY" });
   await expect(page.locator("#landing > header")).toBeVisible();
@@ -34,7 +34,7 @@ test("loads a named player into the arena with accessible throw controls", async
   await expect(page.getByRole("button", { name: /SCISSORS/ })).toBeVisible();
 });
 
-test("keeps the landing form usable on a narrow viewport", async ({ page }) => {
+test("[acceptance] keeps the landing form usable on a narrow viewport", async ({ page }) => {
   const form = page.locator("#play-form");
   const name = page.getByLabel("DISPLAY NAME");
   const play = page.getByRole("button", { name: "PLAY" });

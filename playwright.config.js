@@ -17,7 +17,7 @@ module.exports = defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "desktop-chromium", use: { browserName: "chromium", launchOptions, viewport: { width: 1280, height: 900 } } },
-    { name: "mobile-chromium", use: { ...devices["iPhone 13"], browserName: "chromium", launchOptions } },
+    { name: "wide-viewport-chromium", use: { browserName: "chromium", launchOptions, viewport: { width: 1280, height: 900 } } },
+    { name: "narrow-viewport-chromium", use: { ...devices["iPhone 13"], browserName: "chromium", launchOptions } },
   ],
 });

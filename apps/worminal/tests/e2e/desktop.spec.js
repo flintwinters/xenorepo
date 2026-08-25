@@ -12,7 +12,7 @@ async function openCleanDesktop(page) {
   await page.goto("/worminal");
 }
 
-test("uses a transparent pink tilde favicon", async ({ page }) => {
+test("[acceptance] uses a transparent pink tilde favicon", async ({ page }) => {
   await page.goto("/worminal");
   const href = await page.locator('link[rel="icon"]').getAttribute("href");
   const svg = decodeURIComponent(href.split(",")[1]);
@@ -22,7 +22,7 @@ test("uses a transparent pink tilde favicon", async ({ page }) => {
   expect(svg).not.toContain("<rect");
 });
 
-test("creates and manages independent terminal windows", async ({ page }) => {
+test("[browser-integration] creates and manages independent terminal windows", async ({ page }) => {
   await page.addInitScript(() => {
     globalThis.WebSocket = class SocketDouble {
       static OPEN = 1;
@@ -97,7 +97,7 @@ test("creates and manages independent terminal windows", async ({ page }) => {
   await expect(page.getByLabel("shell-2 terminal")).toHaveCount(0);
 });
 
-test("moves terminal tabs out to new windows and back into existing windows", async ({ page }) => {
+test("[acceptance] moves terminal tabs out to new windows and back into existing windows", async ({ page }) => {
   await page.addInitScript(() => {
     globalThis.WebSocket = class SocketDouble {
       static OPEN = 1;
@@ -139,7 +139,7 @@ test("moves terminal tabs out to new windows and back into existing windows", as
   })).toEqual([["shell-2", "shell-1"]]);
 });
 
-test("executes a command in a real localhost shell", async ({ page }) => {
+test("[acceptance] executes a command in a real localhost shell", async ({ page }) => {
   await openCleanDesktop(page);
   await expect(page.getByText("1 SHELL CONNECTED", { exact: true })).toBeVisible();
 
@@ -152,7 +152,7 @@ test("executes a command in a real localhost shell", async ({ page }) => {
   await expect(terminal.locator(".xterm-screen")).toContainText("worminal-live-check");
 });
 
-test("restores a server-saved desktop after reload", async ({ page }) => {
+test("[acceptance] restores a server-saved desktop after reload", async ({ page }) => {
   await page.addInitScript(() => {
     globalThis.WebSocket = class SocketDouble {
       static OPEN = 1;
@@ -187,7 +187,7 @@ test("restores a server-saved desktop after reload", async ({ page }) => {
   expect((await page.getByRole("region", { name: "shell-2" }).boundingBox()).x).toBe(Math.round(moved.x));
 });
 
-test("retries a rejected workspace save without restoring stale shell state", async ({ page }) => {
+test("[acceptance] retries a rejected workspace save without restoring stale shell state", async ({ page }) => {
   await page.addInitScript(() => {
     globalThis.WebSocket = class SocketDouble {
       static OPEN = 1;
@@ -218,7 +218,7 @@ test("retries a rejected workspace save without restoring stale shell state", as
   await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
 });
 
-test("customizes and restores the new-shell hotkey from settings", async ({ page }) => {
+test("[acceptance] customizes and restores the new-shell hotkey from settings", async ({ page }) => {
   await page.addInitScript(() => {
     globalThis.WebSocket = class SocketDouble {
       static OPEN = 1;
@@ -259,7 +259,7 @@ test("customizes and restores the new-shell hotkey from settings", async ({ page
   await expect(page.getByLabel("New shell shortcut")).toHaveValue("Ctrl + Alt + n");
 });
 
-test("changes the access password from settings", async ({ page }) => {
+test("[acceptance] changes the access password from settings", async ({ page }) => {
   let submitted;
   await page.route("**/api/access/password", async route => {
     submitted = route.request().postDataJSON();
@@ -278,7 +278,7 @@ test("changes the access password from settings", async ({ page }) => {
   });
 });
 
-test("uses browser dialogs to grant remote access", async ({ page }) => {
+test("[acceptance] uses browser dialogs to grant remote access", async ({ page }) => {
   let authorized = false;
   const submitted = [];
   await page.route("**/api/workspace", async route => {
@@ -317,7 +317,7 @@ test("uses browser dialogs to grant remote access", async ({ page }) => {
   ]);
 });
 
-test("mirrors windows and live terminal output across views", async ({ page, context }) => {
+test("[acceptance] mirrors windows and live terminal output across views", async ({ page, context }) => {
   await openCleanDesktop(page);
   await expect(page.getByText("1 SHELL CONNECTED", { exact: true })).toBeVisible();
   const second = await context.newPage();

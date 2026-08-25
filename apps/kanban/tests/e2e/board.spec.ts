@@ -12,7 +12,7 @@ async function dragWithMouse(page: Page, source: Locator, target: Locator,
   await page.mouse.up();
 }
 
-test("a card can be created, dragged, deleted, undone, and redone", async ({ page }, testInfo) => {
+test("[browser-integration] a card can be created, dragged, deleted, undone, and redone", async ({ page }, testInfo) => {
   await page.goto("/");
 
   await expect(page.getByText("KANBAN // 01")).toBeVisible();
@@ -58,7 +58,7 @@ test("a card can be created, dragged, deleted, undone, and redone", async ({ pag
   await expect(page.locator(".card").filter({ hasText: title })).toHaveCount(0);
 });
 
-test("cards can be renamed, precisely ordered, and restored", async ({ page }) => {
+test("[acceptance] cards can be renamed, precisely ordered, and restored", async ({ page }) => {
   await page.goto("/");
   const marker = Date.now();
   const firstTitle = `First ${marker}`;

@@ -131,7 +131,8 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
         def ui_check() -> None:
             """Build, serve, and run this application's browser suite."""
             try:
-                artifacts = run_ui_check(definition, workspace, browser_path)
+                artifacts = run_ui_check(definition, workspace,
+                    BrowserSuite(browser_path, proof_kinds, viewports, input_modalities))
             except LifecycleError as error:
                 _fail(error)
             console.print(f"[bold green]UI checks passed[/] {definition.name} ({artifacts})")

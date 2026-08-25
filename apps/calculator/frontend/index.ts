@@ -36,7 +36,7 @@ export function mount(root: HTMLElement): void {
       <x-console-pane class="ledger" index="04" title="OPERATION LEDGER" tone="purple"><table><thead><tr><th>SEQ</th><th>TIME</th><th>EXPRESSION</th><th>RESULT</th></tr></thead><tbody id="history"></tbody></table></x-console-pane></section>
       <x-status-rail slot="footer" class="status"><span>● NOMINAL · BASE 10</span><span class="hint">0–9 INPUT · ENTER EXECUTE · ESC CLEAR</span><span id="clock">--:--:--</span></x-status-rail>
     </x-console-shell>`, root);
-  const $ = (id: string) => root.querySelector<HTMLElement>(`#${id}`)!;
+  const $ = (id: string) => root.querySelector<HTMLElement & HTMLTableSectionElement>(`#${id}`)!;
   let current = "0", stored: number | null = null, operation: string | null = null, replace = true, memory = 0, sequence = 0, ledger: LedgerEntry[] = [], mode: "standard" | "scientific" = "standard";
   const format = (value: number) => Number.isFinite(value) ? Number.parseFloat(value.toPrecision(12)).toString() : "ERROR";
   const drawLedger = () => { const history = $("history"); history.replaceChildren(); if (!ledger.length) history.innerHTML = '<tr class="empty"><td colspan="4">NO COMPLETED OPERATIONS</td></tr>'; else ledger.forEach(entry => { const row = history.insertRow(); [entry.sequence, entry.time, entry.expression, entry.result].forEach(value => row.insertCell().textContent = value); }); };

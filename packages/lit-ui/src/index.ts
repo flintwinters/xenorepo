@@ -1,4 +1,4 @@
-import { LitElement, css, html, nothing } from "lit";
+import { LitElement, css, html, nothing, type CSSResultGroup } from "lit";
 import { consoleTokens, chrome } from "./styles.js";
 
 export type ConsoleTone = "blue" | "green" | "orange" | "purple" | "neutral";
@@ -21,7 +21,7 @@ const paneHeading = (title: string, index: string) => {
 };
 
 class ConsoleElement extends LitElement {
-  static styles = consoleTokens;
+  static styles: CSSResultGroup = consoleTokens;
 }
 
 export class ConsoleShell extends ConsoleElement {

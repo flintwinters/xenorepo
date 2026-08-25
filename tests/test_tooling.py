@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 from monotools.apps import AppDefinition, AppDefinitionError, FrontendArtifact, ROOT, discover_apps, get_app, load_app
 from monotools.cli import app
 from monotools.frontend import CONSOLE_SHELL, DocumentParts, compose_console
-from monotools.lifecycle import build_app, validate_app, validate_dist
+from monotools.lifecycle import LifecycleError, build_app, validate_app, validate_dist
 from monotools.watch import frontend_inputs, watch_frontend
 from tests.support import SocketDouble, run_async
 
@@ -51,7 +51,10 @@ class RepositoryAppTests(unittest.TestCase):
         inputs = frontend_inputs(definition, ROOT)
 
         self.assertIn(definition.directory / "frontend" / "index.ts", inputs)
+        self.assertIn(definition.directory / "frontend" / "services" / "api.ts", inputs)
         self.assertIn(ROOT / "packages" / "lit-ui" / "src" / "index.ts", inputs)
+        self.assertIn(ROOT / "packages" / "lit-ui" / "src" / "styles.ts", inputs)
+        self.assertIn(ROOT / "tsconfig.frontend.json", inputs)
         report = Mock()
         with patch("monotools.watch._snapshot", side_effect=[
                 ((Path("source"), 1),), ((Path("source"), 2),)
@@ -291,45 +294,35 @@ frontend:
         self.assertNotIn('src="', document)
         self.assertNotIn('href="', document)
 
-    def test_worminal_uses_xterm_with_one_local_shell_socket_per_tab(self) -> None:
+    def test_worminal_lit_entry_is_a_composition_boundary(self) -> None:
         definition = get_app("worminal")
         validate_app(definition, ROOT)
         self.assertEqual(definition.routes, (("/worminal", "index"),))
         build_app(definition, ROOT)
-        source = (definition.directory / definition.artifact("index").source).read_text(
-            encoding="utf-8"
-        )
+        frontend = definition.directory / "frontend"
+        source = frontend.joinpath("index.ts").read_text(encoding="utf-8")
         document = definition.dist_directory.joinpath("index.html").read_text(encoding="utf-8")
 
-        self.assertIn('from "@xterm/xterm"', source)
-        self.assertIn('new WebSocket(`${protocol}://${location.host}/ws/terminal/${id}`)', source)
-        self.assertIn('fetch("/api/workspace")', source)
-        self.assertIn('method: "PUT"', source)
-        self.assertIn('socket.send(JSON.stringify({ type: "input", data }))', source)
-        self.assertIn('type: "resize"', source)
-        self.assertIn("fontSize: TERMINAL_FONT_SIZE, lineHeight: 1, letterSpacing: 0", source)
-        self.assertIn("const TERMINAL_FONT_SIZE = 11", source)
-        self.assertIn("const TERMINAL_ROW_HEIGHT = 9", source)
-        self.assertIn(".xterm-rows > div", source)
-        self.assertIn("this.fitTerminal(id)", source)
-        self.assertIn("x: originX + next.clientX - startX", source)
-        self.assertIn("y: originY + next.clientY - startY", source)
-        self.assertNotIn("Math.max(0, originX", source)
-        self.assertIn("event.shiftKey", source)
-        self.assertIn("event.button === 0", source)
-        self.assertIn("else this.resizeWindow(event, id)", source)
-        self.assertIn("bounds?.width ?? window.width", source)
-        self.assertIn("bounds?.height ?? window.height", source)
-        self.assertIn('addEventListener("contextmenu", this.blockShiftContextMenu, { capture: true })', source)
-        self.assertIn("event.stopImmediatePropagation()", source)
-        self.assertIn('aria-label="Settings"', source)
-        self.assertIn('aria-label="New shell shortcut"', source)
-        self.assertIn("this.matchesShortcut(event, shortcut)", source)
-        self.assertIn("private captureShortcut", source)
-        self.assertNotIn("Pyodide", source)
+        self.assertLess(len(source.splitlines()), 20)
+        self.assertNotIn("LitElement", source)
+        for module in ("desktop.ts", "sessions.ts", "shortcuts.ts", "styles.ts", "types.ts", "services/api.ts"):
+            self.assertIn(frontend / module, frontend_inputs(definition, ROOT))
         self.assertIn("+ NEW SHELL", document)
         self.assertIn("LOCALHOST WORKSPACE", document)
         self.assertIn('<meta name="monotools-shell" content="console">', document)
+        self.assertNotIn('<script src=', document)
+        self.assertNotIn('<link rel="stylesheet"', document)
+
+    def test_lit_type_error_is_actionable_before_build_mutation(self) -> None:
+        definition = get_app("worminal")
+        output = definition.dist_directory / "index.html"
+        before = output.read_bytes()
+        failed = Mock(returncode=1, stdout="apps/worminal/frontend/nested/broken.ts:3:7 - error TS2322")
+
+        with patch("monotools.lifecycle.subprocess.run", return_value=failed):
+            with self.assertRaisesRegex(LifecycleError, "nested/broken.ts.*TS2322"):
+                validate_app(definition, ROOT)
+        self.assertEqual(output.read_bytes(), before)
 
     def test_quiz_has_a_non_diagnostic_psychometric_inventory(self) -> None:
         definition = get_app("quiz")

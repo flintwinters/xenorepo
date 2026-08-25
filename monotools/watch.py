@@ -12,9 +12,17 @@ def frontend_inputs(definition: AppDefinition, workspace: Path) -> tuple[Path, .
     """Return every authoritative input that can affect an app's frontend build."""
     inputs = [definition.directory / artifact.source for artifact in definition.artifacts]
     if any(artifact.format == "lit" for artifact in definition.artifacts):
-        inputs.extend((workspace / "packages" / "lit-ui" / "src").glob("*.ts"))
-        inputs.extend((workspace / name) for name in ("package.json", "package-lock.json"))
-        inputs.append(workspace / "scripts" / "build-lit.mjs")
+        inputs.extend(path for path in (definition.directory / "frontend").rglob("*")
+            if path.is_file())
+        inputs.extend(path for path in (workspace / "packages" / "lit-ui" / "src").rglob("*")
+            if path.is_file())
+        inputs.extend((workspace / name) for name in
+            ("package.json", "package-lock.json", "tsconfig.frontend.json"))
+        inputs.extend((workspace / "packages" / "lit-ui" / name)
+            for name in ("package.json",))
+        inputs.extend((workspace / "scripts" / name)
+            for name in ("build-lit.mjs", "check-lit.mjs"))
+        inputs.extend(path for path in (workspace / "types").rglob("*") if path.is_file())
     return tuple(sorted(path for path in inputs if path.is_file()))
 
 

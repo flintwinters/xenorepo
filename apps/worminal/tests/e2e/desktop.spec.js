@@ -12,6 +12,19 @@ async function openCleanDesktop(page) {
   await page.goto("/worminal");
 }
 
+async function installSocketDouble(page) {
+  await page.addInitScript(() => {
+    globalThis.WebSocket = class SocketDouble {
+      static OPEN = 1;
+      readyState = 0;
+      set onopen(handler) { this.readyState = 1; setTimeout(() => handler({}), 0); }
+      get onopen() { return undefined; }
+      send() {}
+      close() { this.readyState = 3; this.onclose?.({}); }
+    };
+  });
+}
+
 test("[acceptance] uses a transparent pink tilde favicon", async ({ page }) => {
   await page.goto("/worminal");
   const href = await page.locator('link[rel="icon"]').getAttribute("href");
@@ -270,6 +283,7 @@ test("[acceptance] changes the access password from settings", async ({ page }) 
 });
 
 test("[acceptance] uses browser dialogs to grant remote access", async ({ page }) => {
+  await installSocketDouble(page);
   acknowledgeHttpFailures(page, [401]);
   let authorized = false;
   const submitted = [];

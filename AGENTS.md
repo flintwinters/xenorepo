@@ -104,9 +104,10 @@ monotools: the canonical orchestration library.
 - Canonical identity checkpoint 1 is complete: Monotools owns selective identity
   schema groups, identity/authentication operations, and versioned migration
   orchestration; app adoption remains pending.
-- Next establish modular Lit source graphs, strict TypeScript validation, and
-  recursive frontend watching, proving the boundary by decomposing Worminal
-  without changing its browser or deployment contracts.
+- Modular Lit source graphs are established: app-rooted strict TypeScript
+  validation runs before build mutation, frontend watching is recursive, and
+  Worminal proves modular sources with unchanged self-contained delivery. Next
+  migrate one legacy document app rather than extending document composition.
 - Prove strict shared ORM templates on Chat and RPS realtime connection records;
   next evaluate UUID/timestamp and opaque-auth templates as separate checkpoints.
 - Extend Dispatch Ledger's proven payment and mail contracts with a live Stripe

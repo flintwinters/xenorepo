@@ -51,6 +51,10 @@ shared console shell at build time. Lit artifacts export `mount(root)` and are
 bundled centrally with esbuild; they import reusable elements only from
 `@xenorepo/lit-ui`. Every artifact is self-contained: embedded CSS and
 JavaScript, no external assets, and no separate frontend service. Use
+modular TypeScript freely beneath an app's `frontend/` directory: Monotools
+strictly validates the complete import graph rooted at each declared Lit entry
+before mutating `dist/`, and watch mode recursively observes both that app tree
+and the shared Lit UI sources. Imported modules require no metadata. Use
 `python manage.py bootstrap` to verify Node 22, synchronize locked Python
 dependencies, run `npm ci`, and install the locked Chromium browser before
 frontend work.

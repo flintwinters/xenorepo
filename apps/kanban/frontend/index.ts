@@ -129,7 +129,7 @@ class KanbanBoard extends LitElement {
   }
 
   private pointerTarget(x: number, y: number): { card?: Card; columnId: string; after?: boolean } | null {
-    const element = this.renderRoot.elementFromPoint(x, y) as HTMLElement | null;
+    const element = (this.renderRoot as ShadowRoot).elementFromPoint(x, y) as HTMLElement | null;
     const cardElement = element?.closest<HTMLElement>(".card");
     if (cardElement) {
       const card = this.board?.cards.find(item => item.id === cardElement.dataset.cardId);
@@ -190,7 +190,7 @@ class KanbanBoard extends LitElement {
     });
   }
 
-  private async remove(card: Card): Promise<void> {
+  private async removeCard(card: Card): Promise<void> {
     await this.perform(async () => {
       await this.request(`/api/cards/${card.id}`, { method:"DELETE" });
       if (this.openCardId === card.id) this.openCardId = null;
@@ -213,7 +213,7 @@ class KanbanBoard extends LitElement {
       @pointerup=${this.pointerEnd} @pointercancel=${this.pointerCancel}>
       <span class="drag-handle" title="Drag to move card" aria-hidden="true">⠿</span>
       <p class="card-title">${card.title}</p>
-      <x-command-button class="delete" appearance="subtle" label="Delete card" @click=${() => void this.remove(card)}>×</x-command-button>
+      <x-command-button class="delete" appearance="subtle" label="Delete card" @click=${() => void this.removeCard(card)}>×</x-command-button>
     </article>`;
   }
 

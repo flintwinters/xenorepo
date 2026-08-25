@@ -28,6 +28,23 @@ def _run(command: list[str], cwd: Path) -> None:
         raise LifecycleError(f"command failed ({completed.returncode}): {' '.join(command)}")
 
 
+def _validate_lit(definition: AppDefinition, workspace: Path) -> None:
+    entries = [definition.directory / artifact.source for artifact in definition.artifacts
+        if artifact.format == "lit"]
+    if not entries:
+        return
+    node = shutil.which("node")
+    if node is None:
+        raise LifecycleError("node not found; run python manage.py bootstrap before checking Lit pages")
+    command = [node, "scripts/check-lit.mjs",
+        *(str(entry.relative_to(workspace)) for entry in entries)]
+    completed = subprocess.run(command, cwd=workspace, check=False, text=True,
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    if completed.returncode:
+        detail = completed.stdout.strip()
+        raise LifecycleError(f"{definition.name} frontend type validation failed:\n{detail}")
+
+
 def _build_document(definition: AppDefinition, artifact: FrontendArtifact) -> None:
     source = definition.directory / artifact.source
     try:
@@ -93,6 +110,7 @@ def validate_app(definition: AppDefinition, workspace: Path) -> None:
     missing = [path.relative_to(workspace) for path in expected if not path.is_file()]
     if missing:
         raise LifecycleError(f"{definition.name} missing files: {', '.join(map(str, missing))}")
+    _validate_lit(definition, workspace)
     py_compile.compile(str(definition.backend_directory / "server.py"), doraise=True)
     module = import_module(definition.module)
     if not isinstance(getattr(module, "app", None), FastAPI):

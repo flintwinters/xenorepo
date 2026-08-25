@@ -6,6 +6,12 @@ pseudo-terminal and login shell process on the machine running Worminal, while
 windows are movable containers for one or more tabs. xterm.js provides ANSI/VT
 rendering, keyboard input, scrollback, and terminal resizing.
 
+The declared `frontend/index.ts` is only the registration and mount boundary.
+App-owned modules separate workspace payload types, shortcut policy, HTTP
+access, terminal-session resources, Worminal styling constants, and desktop
+coordination. Monotools follows and strictly validates this complete graph, then
+esbuild embeds it and xterm's CSS into the same self-contained `dist/index.html`.
+
 ## Run
 
 From the repository root:
@@ -20,7 +26,8 @@ suite; mocked WebSocket and synthetic context-menu checks are integration
 evidence, not trusted physical-device claims.
 
 Use `--watch` for a long-running development service. Monotools rebuilds the
-Worminal document when its TypeScript or central Lit UI inputs change; Uvicorn
+Worminal document when files anywhere in its frontend tree or the central Lit
+UI source tree are added, removed, or changed; Uvicorn
 continues serving the rebuilt `dist/index.html` without a backend restart.
 
 The included `worminal.service` runs this mode as a user-level systemd service.

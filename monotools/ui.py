@@ -81,18 +81,21 @@ def _run_browser(command: list[str], workspace: Path,
         return process.wait()
 
 
-def run_ui_check(definition: AppDefinition, workspace: Path, suite: object) -> Path:
+def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = None) -> Path:
     """Build, serve, and browser-check one application with preserved evidence."""
     from monotools.management import BrowserSuite
-    browser_suite = suite if isinstance(suite, BrowserSuite) else BrowserSuite(Path(suite))
-    suite = browser_suite.path
+    browser_suite = (suite if isinstance(suite, BrowserSuite)
+        else BrowserSuite(Path(suite)) if suite is not None else None)
+    universal_suite = BrowserSuite(
+        workspace / "tests" / "browser-framework" / "universal.spec.js"
+    )
     from monotools.browser import validate_browser_suite
-    proof_report = validate_browser_suite(browser_suite, workspace)
+    universal_report = validate_browser_suite(universal_suite, workspace)
+    proof_report = (validate_browser_suite(browser_suite, workspace)
+        if browser_suite else {"counts": {}})
     validate_app(definition, workspace)
     build_app(definition, workspace)
     validate_dist(definition)
-    if not suite.is_file():
-        raise LifecycleError(f"{definition.name} has no browser suite: {suite.relative_to(workspace)}")
     playwright = workspace / "node_modules" / ".bin" / "playwright"
     if not playwright.is_file():
         raise LifecycleError("Playwright is not installed; run python manage.py bootstrap first")
@@ -105,12 +108,19 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object) -> P
     environment = os.environ | {
         "BASE_URL": f"http://127.0.0.1:{port}",
         "PLAYWRIGHT_OUTPUT_DIR": str(artifacts / "test-results"),
+        "XENOREPO_FRONTEND_ROUTES": json.dumps([
+            {"path": route, "artifact": str(definition.artifact(name).output)}
+            for route, name in definition.routes
+        ]),
     }
     if "database" in definition.capabilities:
         database = artifacts / "browser.db"
         database.unlink(missing_ok=True)
         environment[f"{definition.name.upper()}_DATABASE_URL"] = f"sqlite:///{database}"
-    command = [str(playwright), "test", str(suite.relative_to(workspace))]
+    suites = [universal_suite.path]
+    if browser_suite:
+        suites.append(browser_suite.path)
+    command = [str(playwright), "test", *(str(path.relative_to(workspace)) for path in suites)]
     process: subprocess.Popen[bytes] | None = None
     primary_failure: Exception | None = None
     cleanup_failure: str | None = None
@@ -142,10 +152,11 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object) -> P
         summary_path.write_text(json.dumps({
             "schemaVersion": 1,
             "app": definition.name,
-            "suite": str(suite.relative_to(workspace)),
-            "proofCounts": proof_report["counts"],
-            "viewports": sorted(browser_suite.viewports),
-            "inputModalities": sorted(browser_suite.input_modalities),
+            "suites": [str(path.relative_to(workspace)) for path in suites],
+            "proofCounts": {key: universal_report["counts"].get(key, 0)
+                + proof_report["counts"].get(key, 0) for key in universal_report["counts"]},
+            "viewports": sorted(universal_suite.viewports),
+            "inputModalities": sorted(browser_suite.input_modalities) if browser_suite else [],
             "startedAt": started,
             "durationSeconds": time.time() - started,
             "browserStatus": browser_status,

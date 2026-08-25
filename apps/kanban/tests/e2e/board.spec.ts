@@ -1,4 +1,7 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { type Locator, type Page } from "@playwright/test";
+import {
+  expect, installInputEvidence, readInputEvidence, test, touchPath, validateInputEvidence,
+} from "@xenorepo/browser-testing";
 
 async function dragWithMouse(page: Page, source: Locator, target: Locator,
   targetPosition?: { x: number; y: number }): Promise<void> {
@@ -12,7 +15,8 @@ async function dragWithMouse(page: Page, source: Locator, target: Locator,
   await page.mouse.up();
 }
 
-test("[browser-integration] a card can be created, dragged, deleted, undone, and redone", async ({ page }, testInfo) => {
+test("[acceptance] a card can be created, dragged, deleted, undone, and redone", async ({ page }, testInfo) => {
+  await installInputEvidence(page);
   await page.goto("/");
 
   await expect(page.getByText("KANBAN // 01")).toBeVisible();
@@ -27,18 +31,32 @@ test("[browser-integration] a card can be created, dragged, deleted, undone, and
   await expect(card).toBeVisible();
   await expect(page.getByRole("button", { name: "UNDO" })).toBeEnabled();
 
-  if (testInfo.project.name === "mobile-chromium") {
+  const modality = testInfo.project.name === "narrow-viewport-chromium" ? "touch" : "mouse";
+  if (modality === "touch") {
     const handle = card.locator(".drag-handle");
+    const source = await handle.boundingBox();
     const destination = await doingCards.boundingBox();
-    if (!destination) throw new Error("Doing column has no drag destination");
-    await handle.dispatchEvent("pointerdown", { pointerId:7, pointerType:"touch", isPrimary:true });
-    await handle.dispatchEvent("pointermove", { pointerId:7, pointerType:"touch", isPrimary:true,
-      clientX:destination.x + destination.width / 2, clientY:destination.y + destination.height / 2 });
-    await handle.dispatchEvent("pointerup", { pointerId:7, pointerType:"touch", isPrimary:true,
-      clientX:destination.x + destination.width / 2, clientY:destination.y + destination.height / 2 });
+    if (!source || !destination) throw new Error("Card drag path has no bounds");
+    await touchPath(page, [
+      { x:source.x + source.width / 2, y:source.y + source.height / 2 },
+      { x:source.x + source.width / 2 + 20, y:source.y + source.height / 2 },
+      { x:destination.x + destination.width / 2, y:destination.y + destination.height / 2 },
+    ]);
   } else {
     await dragWithMouse(page, card, doingCards);
   }
+  await expect(doingCards.locator(".card").filter({ hasText: title })).toBeVisible();
+  const inputEvidence = await readInputEvidence(page);
+  expect(validateInputEvidence(inputEvidence, modality)).toMatchObject({ accepted:true });
+  await testInfo.attach("input-evidence.json", {
+    body:JSON.stringify({ schemaVersion:1, modality, records:inputEvidence }, null, 2),
+    contentType:"application/json",
+  });
+  const authoritative = await page.request.get("/api/board");
+  expect(authoritative.ok()).toBe(true);
+  expect((await authoritative.json()).cards.some((candidate:any) =>
+    candidate.column_id === "doing" && candidate.title === title)).toBe(true);
+  await page.reload();
   await expect(doingCards.locator(".card").filter({ hasText: title })).toBeVisible();
 
   const deleteButton = card.getByRole("button", { name: "Delete card" });

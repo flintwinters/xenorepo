@@ -36,7 +36,8 @@ def _build_document(definition: AppDefinition, artifact: FrontendArtifact) -> No
         raise LifecycleError(str(error)) from error
     output = definition.dist_directory / artifact.output
     output.parent.mkdir(parents=True, exist_ok=True)
-    output.write_text(document, encoding="utf-8")
+    marker = f'<meta name="xenorepo-artifact" content="{escape(str(artifact.output))}">\n'
+    output.write_text(document.replace("</head>", marker + "</head>", 1), encoding="utf-8")
 
 
 def _build_lit(definition: AppDefinition, artifact: FrontendArtifact, workspace: Path) -> None:
@@ -57,6 +58,7 @@ def _build_lit(definition: AppDefinition, artifact: FrontendArtifact, workspace:
         "<!doctype html>\n<html lang=\"en\">\n<head>\n"
         "<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
         "<meta name=\"monotools-shell\" content=\"console\">\n"
+        f"<meta name=\"xenorepo-artifact\" content=\"{escape(str(artifact.output))}\">\n"
         f"<title>{escape(definition.title)}</title>\n"
         "<style>html,body,#app{width:100%;height:100%;margin:0}"
         "html,body{overflow:hidden;background:#1d2021;color:#ebdbb2}</style>\n"

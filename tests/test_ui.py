@@ -63,6 +63,7 @@ class BrowserLifecycleTests(unittest.TestCase):
             f"sqlite:///{artifacts / 'browser.db'}")
         self.assertEqual(run.call_args.args[0], [
             str(ROOT / "node_modules" / ".bin" / "playwright"), "test",
+            "tests/browser-framework/universal.spec.js",
             "apps/rps/tests/e2e/arena.spec.js",
         ])
         self.assertEqual(run.call_args.args[2]["BASE_URL"], "http://127.0.0.1:8123")
@@ -71,14 +72,23 @@ class BrowserLifecycleTests(unittest.TestCase):
         self.assertEqual(summary["cleanup"], "clean")
         self.assertEqual(summary["browserStatus"], 0)
 
-    def test_runner_requires_an_app_specific_suite(self) -> None:
-        definition = AppDefinition(
-            "missing-ui", "Missing UI", Path("apps/missing-ui"), "tests.fixture", (), (), frozenset()
-        )
-        with patch("monotools.ui.validate_app"), patch("monotools.ui.build_app"), \
-             patch("monotools.ui.validate_dist"):
-            with self.assertRaisesRegex(LifecycleError, "BROWSER_SUITE_MISSING"):
-                run_ui_check(definition, ROOT, ROOT / "tests" / "ui" / "missing.spec.js")
+    def test_runner_supports_universal_journeys_without_an_app_suite(self) -> None:
+        definition = get_app("calculator")
+        process = Mock(spec=subprocess.Popen)
+        process.pid = 4201
+        with TemporaryDirectory(dir=definition.directory, prefix="ui-test-") as temporary, \
+             patch("monotools.browser.validate_browser_suite",
+                return_value={"counts": {"acceptance": 1}}), \
+             patch("monotools.ui.validate_app"), patch("monotools.ui.build_app"), \
+             patch("monotools.ui.validate_dist"), \
+             patch("monotools.ui.ui_artifact_directory", return_value=Path(temporary)), \
+             patch("monotools.ui.available_local_port", return_value=8124), \
+             patch("monotools.ui.subprocess.Popen", return_value=process), \
+             patch("monotools.ui.wait_for_health"), \
+             patch("monotools.ui._run_browser", return_value=0) as run, \
+             patch("monotools.ui._terminate", return_value=None):
+            run_ui_check(definition, ROOT)
+        self.assertEqual(run.call_args.args[0][-1], "tests/browser-framework/universal.spec.js")
 
 
 if __name__ == "__main__":

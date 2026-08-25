@@ -126,16 +126,19 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
             raise typer.Exit(result)
         console.print(f"[bold green]Tests passed[/] {definition.name}")
 
-    if browser_path is not None:
-        @app.command("ui-check")
-        def ui_check() -> None:
-            """Build, serve, and run this application's browser suite."""
-            try:
-                artifacts = run_ui_check(definition, workspace,
-                    BrowserSuite(browser_path, proof_kinds, viewports, input_modalities))
-            except LifecycleError as error:
-                _fail(error)
-            console.print(f"[bold green]UI checks passed[/] {definition.name} ({artifacts})")
+    @app.command("ui-check")
+    def ui_check() -> None:
+        """Run universal journeys and any app-owned browser suite."""
+        declared = (BrowserSuite(browser_path, proof_kinds, viewports, input_modalities)
+            if browser_path is not None else None)
+        try:
+            artifacts = run_ui_check(definition, workspace, declared)
+        except LifecycleError as error:
+            _fail(error)
+        matrix = "wide/narrow acceptance"
+        if declared and declared.input_modalities:
+            matrix += "; trusted " + "/".join(sorted(declared.input_modalities))
+        console.print(f"[bold green]{matrix}[/] {definition.name} ({artifacts})")
 
     if include_serve:
         @app.command()

@@ -20,6 +20,7 @@ from monotools.lifecycle import (
     validate_dist,
 )
 from monotools.management import ApplicationManager, PythonSuite, create_cli
+from monotools.ui import run_ui_check
 
 
 ROOT = Path(__file__).resolve().parent
@@ -180,6 +181,29 @@ def test() -> None:
     if browser_result:
         raise typer.Exit(browser_result)
     console.print("[bold green]Tests passed[/]")
+
+
+@app.command("ui-check")
+def ui_check(app_name: str | None = typer.Argument(None)) -> None:
+    """Run the deterministic universal and app-owned browser inventory."""
+    selected = [(definition, manager) for definition, manager in MANAGERS
+        if app_name is None or definition.name == app_name]
+    if not selected:
+        _fail(f"unknown app '{app_name}'; available: {', '.join(d.name for d, _ in MANAGERS)}")
+    try:
+        for definition, manager in selected:
+            run_ui_check(definition, ROOT, manager.browser_suite)
+    except LifecycleError as error:
+        _fail(error)
+    console.print(f"[bold green]wide/narrow acceptance[/] ({len(selected)} app(s))")
+
+
+@app.command()
+def verify() -> None:
+    """Run checks, all Python/framework tests, and the complete browser matrix."""
+    check()
+    test()
+    ui_check()
 
 
 if __name__ == "__main__":

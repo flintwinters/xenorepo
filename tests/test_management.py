@@ -112,7 +112,8 @@ frontend:
     def test_root_and_leaf_commands_have_distinct_ownership(self) -> None:
         root_commands = {command.name or command.callback.__name__.replace("_", "-")
             for command in repository_manager.app.registered_commands}
-        self.assertEqual(root_commands, {"bootstrap", "list", "status", "check", "test"})
+        self.assertEqual(root_commands,
+            {"bootstrap", "list", "status", "check", "test", "ui-check", "verify"})
 
         result = CliRunner().invoke(repository_manager.app, ["rps", "--help"])
         self.assertEqual(result.exit_code, 0)

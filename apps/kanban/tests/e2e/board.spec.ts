@@ -66,7 +66,7 @@ test("[acceptance] a card can be created, dragged, deleted, undone, and redone",
       { x:destination.x + destination.width / 2, y:destination.y + destination.height / 2 },
     ]);
   } else {
-    await dragWithMouse(page, card, doingCards);
+    await dragWithMouse(page, card.getByRole("button", { name:`Drag ${title}` }), doingCards);
   }
   await expect(doingCards.locator(".card").filter({ hasText: title })).toBeVisible();
   const inputEvidence = await readInputEvidence(page);
@@ -132,14 +132,16 @@ test("[acceptance] cards can be renamed, precisely ordered, and restored", async
   );
 
   const second = page.locator(".card").filter({ hasText: secondTitle });
-  await dragWithMouse(page, second, renamed, { x:10, y:1 });
+  await dragWithMouse(page, second.getByRole("button", { name:`Drag ${secondTitle}` }),
+    renamed, { x:10, y:1 });
   await expect.poll(async () => {
     const titles = await todo.locator(".card-title").allTextContents();
     return titles.indexOf(secondTitle) < titles.indexOf(renamedTitle);
   }).toBe(true);
 
   const firstDoingCard = doing.locator(".card").first();
-  await dragWithMouse(page, renamed, firstDoingCard, { x:10, y:1 });
+  await dragWithMouse(page, renamed.getByRole("button", { name:`Drag ${renamedTitle}` }),
+    firstDoingCard, { x:10, y:1 });
   await expect(doing.locator(".card").first()).toContainText(renamedTitle);
 
   await page.getByRole("button", { name: "UNDO" }).click();

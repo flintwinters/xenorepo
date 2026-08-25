@@ -45,11 +45,13 @@ class KanbanBoard extends LitElement {
     .add-form label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
     input,textarea { min-width:0; padding:3px 6px; color:#ebdbb2; font:inherit; background:#181a1b; border:1px solid #665c54; }
     .cards { min-height:0; overflow:auto; } .cards.drop-target { background:#30312d; box-shadow:inset 0 0 0 1px #d79921; }
-    .card { position:relative; padding:6px 30px 5px 44px; border-bottom:1px solid #504945; border-left:2px solid #928374; background:#222526; cursor:pointer; }
+    .card { position:relative; min-height:34px; padding:8px 30px 7px 50px; border-bottom:1px solid #504945; border-left:2px solid #928374; background:#222526; cursor:grab; user-select:none; }
     .card.needs-review { border-left-color:#fabd2f; background:#3b321f; box-shadow:inset 3px 0 #d79921; }
-    .review { position:absolute; top:6px; left:22px; margin:0; accent-color:#b8bb26; cursor:pointer; }
+    .review { position:absolute; top:8px; left:28px; margin:0; accent-color:#b8bb26; cursor:pointer; }
     .card.dragging { opacity:.42; } .card.insert-before { box-shadow:inset 0 2px #fabd2f; } .card.insert-after { box-shadow:inset 0 -2px #fabd2f; }
-    .drag-handle { position:absolute; top:6px; left:5px; color:#a89984; cursor:grab; touch-action:none; user-select:none; }
+    .drag-handle { position:absolute; inset:0 auto 0 0; width:24px; padding:0; color:#a89984; font:inherit; background:transparent; border:0; cursor:grab; touch-action:none; user-select:none; }
+    .drag-handle:hover,.drag-handle:focus-visible { color:#fabd2f; background:#3c3836; outline:1px solid #fabd2f; outline-offset:-1px; }
+    .drag-handle:active,.card.dragging { cursor:grabbing; }
     .card-title { margin:0; overflow-wrap:anywhere; } .delete { position:absolute; top:3px; right:3px; }
     .delete::part(button) { min-width:20px; padding:0; color:#fb8b7d; }
     .modal-backdrop { position:fixed; z-index:10; inset:0; display:grid; place-items:center; padding:16px; background:#000a; }
@@ -279,7 +281,8 @@ class KanbanBoard extends LitElement {
       if (!(event.target as Element).closest("x-command-button,.drag-handle")) this.openCardId = card.id;
     }} @pointerdown=${(event:PointerEvent) => this.pointerStart(event, card)} @pointermove=${this.pointerMove}
       @pointerup=${this.pointerEnd} @pointercancel=${this.pointerCancel}>
-      <span class="drag-handle" title="Drag to move card" aria-hidden="true">⠿</span>
+      <button class="drag-handle" type="button" title="Drag to move card"
+        aria-label=${`Drag ${card.title}`}>⠿</button>
       <input class="review" type="checkbox" aria-label=${`Reviewed ${card.title}`}
         title="Checked for 24 hours after review" .checked=${reviewed}
         @click=${(event:Event) => event.stopPropagation()}

@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import asyncio
+from datetime import UTC, datetime, timedelta
 import unittest
 
 import httpx
@@ -135,6 +136,27 @@ class KanbanTests(unittest.TestCase):
             self.assertTrue(snapshots)
             self.assertTrue(all(row.phase in {"before", "after"} for row in snapshots))
             self.assertEqual(session.scalars(select(CardRecord.position)).all(), [0])
+
+    def test_daily_review_timestamp_is_durable_and_reversible(self) -> None:
+        now = datetime(2026, 8, 25, 15, 30, tzinfo=UTC)
+        self.store.now = lambda: now
+        card = self.create("Review daily")
+
+        reviewed = self.client.patch(f"/api/cards/{card['id']}", json={"reviewed": True})
+
+        self.assertEqual(reviewed.status_code, 200)
+        expected = int(now.timestamp() * 1000)
+        self.assertEqual(reviewed.json()["reviewed_at_ms"], expected)
+        self.assertEqual(self.store.snapshot().undo_description,
+            'Mark reviewed “Review daily”')
+        restarted = BoardStore(self.sessions, now=lambda: now + timedelta(days=2))
+        self.assertEqual(restarted.snapshot().cards[0].reviewed_at_ms, expected)
+        self.assertIsNone(restarted.undo().cards[0].reviewed_at_ms)
+        self.assertEqual(restarted.redo().cards[0].reviewed_at_ms, expected)
+
+        reset = self.client.patch(f"/api/cards/{card['id']}", json={"reviewed": False})
+        self.assertEqual(reset.status_code, 200)
+        self.assertIsNone(reset.json()["reviewed_at_ms"])
 
     def test_history_descriptions_have_a_legacy_fallback(self) -> None:
         self.create("Legacy")

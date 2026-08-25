@@ -17,6 +17,7 @@ async function dragWithMouse(page: Page, source: Locator, target: Locator,
 
 test("[acceptance] a card can be created, dragged, deleted, undone, and redone", async ({ page }, testInfo) => {
   await installInputEvidence(page);
+  await page.clock.install();
   await page.goto("/");
 
   await expect(page.getByText("KANBAN // 01")).toBeVisible();
@@ -29,6 +30,20 @@ test("[acceptance] a card can be created, dragged, deleted, undone, and redone",
   const card = page.locator(".card").filter({ hasText: title });
   const doingCards = page.locator("#column-doing .cards");
   await expect(card).toBeVisible();
+  await expect(card).toHaveClass(/needs-review/);
+  const review = card.getByRole("checkbox", { name:`Reviewed ${title}` });
+  await expect(review).not.toBeChecked();
+  await review.check();
+  await expect(review).toBeChecked();
+  await expect(card).not.toHaveClass(/needs-review/);
+  const reviewedBoard = await page.request.get("/api/board");
+  const reviewedCard = (await reviewedBoard.json()).cards.find(
+    (candidate:any) => candidate.title === title,
+  );
+  expect(reviewedCard.reviewed_at_ms).toEqual(expect.any(Number));
+  await page.clock.fastForward(24 * 60 * 60 * 1000 + 1);
+  await expect(review).not.toBeChecked();
+  await expect(card).toHaveClass(/needs-review/);
   await expect(page.getByRole("button", { name: "UNDO" })).toBeEnabled();
 
   const modality = testInfo.project.name === "narrow-viewport-chromium" ? "touch" : "mouse";

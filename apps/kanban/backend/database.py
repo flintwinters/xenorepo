@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import UTC, datetime
 import re
 from threading import Lock
-from typing import Annotated
+from typing import Annotated, Callable
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, model_validator
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String, UniqueConstraint, delete, select, update
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, ForeignKey, Integer, String, UniqueConstraint, delete, inspect, select, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -33,6 +34,7 @@ class Card(BaseModel):
     id: str
     title: str
     column_id: str
+    reviewed_at_ms: int | None = None
 
 
 class Board(BaseModel):
@@ -53,10 +55,12 @@ class CardUpdate(BaseModel):
     title: CardTitle | None = None
     column_id: str | None = None
     index: int | None = None
+    reviewed: bool | None = None
 
     @model_validator(mode="after")
     def require_update(self) -> CardUpdate:
-        if self.title is None and self.column_id is None and self.index is None:
+        if (self.title is None and self.column_id is None and self.index is None
+            and self.reviewed is None):
             raise ValueError("At least one card field must be updated")
         if self.index is not None and self.index < 0:
             raise ValueError("Destination index must be non-negative")
@@ -93,6 +97,7 @@ class CardRecord(Base):
     title: Mapped[str] = mapped_column(String(120))
     column_id: Mapped[str] = mapped_column(String(40), index=True)
     position: Mapped[int] = mapped_column(Integer)
+    reviewed_at_ms: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
 
 class Mutation(Base):
@@ -116,11 +121,25 @@ class MutationCard(Base):
     title: Mapped[str] = mapped_column(String(120))
     column_id: Mapped[str] = mapped_column(String(40))
     position: Mapped[int] = mapped_column(Integer)
+    reviewed_at_ms: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
 
 
 _BROWSER_FIXTURE_TITLE = re.compile(
     r"^(?:Browser-validated card|First|Second|Renamed) \d{13}$"
 )
+
+
+def prepare_database(engine: Engine) -> None:
+    """Apply additive schema migrations before repairing historical fixture data."""
+    with engine.begin() as connection:
+        inspector = inspect(connection)
+        for table in ("cards", "mutation_cards"):
+            columns = {column["name"] for column in inspector.get_columns(table)}
+            if "reviewed_at_ms" not in columns:
+                connection.exec_driver_sql(
+                    f"ALTER TABLE {table} ADD COLUMN reviewed_at_ms BIGINT"
+                )
+    remove_browser_fixture_contamination(engine)
 
 
 def remove_browser_fixture_contamination(engine: Engine) -> None:
@@ -183,6 +202,7 @@ class BoardStore:
         Column(id="doing", title="Doing"),
         Column(id="done", title="Done"),
     )
+    now: Callable[[], datetime] = lambda: datetime.now(UTC)
 
     def __post_init__(self) -> None:
         self._lock = Lock()
@@ -260,6 +280,10 @@ class BoardStore:
         updated = card.model_copy(update={
             "title": request.title if request.title is not None else card.title,
             "column_id": destination,
+            "reviewed_at_ms": (
+                int(self.now().timestamp() * 1000) if request.reviewed is True
+                else None if request.reviewed is False else card.reviewed_at_ms
+            ),
         })
         remaining = [item for item in before if item.id != card.id]
         destination_cards = [item for item in remaining if item.column_id == destination]
@@ -287,6 +311,9 @@ class BoardStore:
         if reordering and (destination != card.column_id or index != old_index):
             title = next(column.title for column in self.columns if column.id == destination)
             descriptions.append(f'Move “{updated.title}” to {title}')
+        if updated.reviewed_at_ms != card.reviewed_at_ms:
+            action = "Mark reviewed" if updated.reviewed_at_ms is not None else "Reset review"
+            descriptions.append(f'{action} “{updated.title}”')
         return descriptions
 
     def _record(self, session: Session, before: list[Card], after: list[Card],
@@ -321,14 +348,15 @@ class BoardStore:
         rows = session.scalars(select(MutationCard).where(
             MutationCard.mutation_id == mutation_id, MutationCard.phase == phase
         ).order_by(MutationCard.position)).all()
-        return [Card(id=row.card_id, title=row.title, column_id=row.column_id) for row in rows]
+        return [Card(id=row.card_id, title=row.title, column_id=row.column_id,
+            reviewed_at_ms=row.reviewed_at_ms) for row in rows]
 
     def _replace_cards(self, session: Session, cards: list[Card]) -> None:
         session.execute(delete(CardRecord))
         positions = {column.id: 0 for column in self.columns}
         for card in cards:
             session.add(CardRecord(id=card.id, title=card.title, column_id=card.column_id,
-                position=positions[card.column_id]))
+                position=positions[card.column_id], reviewed_at_ms=card.reviewed_at_ms))
             positions[card.column_id] += 1
         session.flush()
 
@@ -337,7 +365,8 @@ class BoardStore:
         positions = {column.id: 0 for column in self.columns}
         for card in cards:
             session.add(MutationCard(mutation_id=mutation_id, phase=phase, card_id=card.id,
-                title=card.title, column_id=card.column_id, position=positions[card.column_id]))
+                title=card.title, column_id=card.column_id, position=positions[card.column_id],
+                reviewed_at_ms=card.reviewed_at_ms))
             positions[card.column_id] += 1
 
     def _require_column(self, column_id: str) -> None:

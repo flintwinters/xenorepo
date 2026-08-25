@@ -3,13 +3,14 @@ import { LitElement, css, html, nothing } from "lit";
 import "@xenorepo/lit-ui";
 
 interface Column { id: string; title: string; }
-interface Card { id: string; title: string; column_id: string; }
+interface Card { id: string; title: string; column_id: string; reviewed_at_ms: number | null; }
 interface Board {
   columns: Column[]; cards: Card[]; can_undo: boolean; can_redo: boolean;
   undo_description: string | null; redo_description: string | null;
 }
 
 class KanbanBoard extends LitElement {
+  private static readonly REVIEW_WINDOW_MS = 24 * 60 * 60 * 1000;
   static properties = {
     board: { state: true }, message: { state: true }, failed: { state: true },
     openCardId: { state: true },
@@ -22,6 +23,7 @@ class KanbanBoard extends LitElement {
     card: Card; element: HTMLElement; pointerId: number; originX: number; originY: number; active: boolean;
   } | null = null;
   private suppressCardClick = false;
+  private expiryTimer: number | null = null;
 
   constructor() {
     super();
@@ -42,7 +44,9 @@ class KanbanBoard extends LitElement {
     .add-form label { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); }
     input { min-width:0; padding:3px 6px; color:#ebdbb2; font:inherit; background:#181a1b; border:1px solid #665c54; }
     .cards { min-height:0; overflow:auto; } .cards.drop-target { background:#30312d; box-shadow:inset 0 0 0 1px #d79921; }
-    .card { position:relative; padding:6px 30px 5px 22px; border-bottom:1px solid #504945; border-left:2px solid #928374; background:#222526; cursor:pointer; }
+    .card { position:relative; padding:6px 30px 5px 44px; border-bottom:1px solid #504945; border-left:2px solid #928374; background:#222526; cursor:pointer; }
+    .card.needs-review { border-left-color:#fabd2f; background:#3b321f; box-shadow:inset 3px 0 #d79921; }
+    .review { position:absolute; top:6px; left:22px; margin:0; accent-color:#b8bb26; cursor:pointer; }
     .card.dragging { opacity:.42; } .card.insert-before { box-shadow:inset 0 2px #fabd2f; } .card.insert-after { box-shadow:inset 0 -2px #fabd2f; }
     .drag-handle { position:absolute; top:6px; left:5px; color:#a89984; cursor:grab; touch-action:none; user-select:none; }
     .card-title { margin:0; overflow-wrap:anywhere; } .delete { position:absolute; top:3px; right:3px; }
@@ -62,6 +66,11 @@ class KanbanBoard extends LitElement {
     });
   }
 
+  disconnectedCallback(): void {
+    if (this.expiryTimer !== null) window.clearTimeout(this.expiryTimer);
+    super.disconnectedCallback();
+  }
+
   private async request<T>(path: string, options?: RequestInit): Promise<T> {
     const response = await fetch(path, { ...options,
       headers: { "Content-Type": "application/json", ...options?.headers } });
@@ -72,7 +81,28 @@ class KanbanBoard extends LitElement {
     return response.status === 204 ? undefined as T : response.json() as Promise<T>;
   }
 
-  private async refresh(): Promise<void> { this.board = await this.request<Board>("/api/board"); }
+  private async refresh(): Promise<void> {
+    this.board = await this.request<Board>("/api/board");
+    this.scheduleExpiry();
+  }
+
+  private isReviewed(card: Card): boolean {
+    return card.reviewed_at_ms !== null &&
+      Date.now() - card.reviewed_at_ms < KanbanBoard.REVIEW_WINDOW_MS;
+  }
+
+  private scheduleExpiry(): void {
+    if (this.expiryTimer !== null) window.clearTimeout(this.expiryTimer);
+    const expiries = this.board?.cards.filter(card => this.isReviewed(card))
+      .map(card => card.reviewed_at_ms! + KanbanBoard.REVIEW_WINDOW_MS) ?? [];
+    if (!expiries.length) { this.expiryTimer = null; return; }
+    const delay = Math.max(0, Math.min(...expiries) - Date.now());
+    this.expiryTimer = window.setTimeout(() => {
+      this.expiryTimer = null;
+      this.requestUpdate();
+      this.scheduleExpiry();
+    }, Math.min(delay + 1, 2_147_483_647));
+  }
 
   private async perform(action: () => Promise<void>): Promise<void> {
     try { await action(); this.failed = false; }
@@ -90,7 +120,7 @@ class KanbanBoard extends LitElement {
 
   private pointerStart(event: PointerEvent, card: Card): void {
     const target = event.target as Element;
-    if (!event.isPrimary || event.button !== 0 || target.closest("x-command-button") ||
+    if (!event.isPrimary || event.button !== 0 || target.closest("x-command-button,input") ||
       (event.pointerType !== "mouse" && !target.closest(".drag-handle"))) return;
     const element = event.currentTarget as HTMLElement;
     this.pointerDrag = { card, element, pointerId:event.pointerId,
@@ -198,20 +228,35 @@ class KanbanBoard extends LitElement {
     });
   }
 
+  private async setReviewed(card: Card, reviewed: boolean): Promise<void> {
+    await this.perform(async () => {
+      await this.request(`/api/cards/${card.id}`, { method:"PATCH",
+        body:JSON.stringify({ reviewed }) });
+      await this.refresh();
+      this.message = `${reviewed ? "Reviewed" : "Reset review for"} “${card.title}”`;
+    });
+  }
+
   private async history(path: "undo" | "redo"): Promise<void> {
     await this.perform(async () => {
       this.board = await this.request<Board>(`/api/${path}`, { method:"POST" });
+      this.scheduleExpiry();
       this.message = `${path === "undo" ? "Undid" : "Redid"} the board operation`;
     });
   }
 
   private renderCard(card: Card) {
-    return html`<article class="card" data-card-id=${card.id} @click=${(event:Event) => {
+    const reviewed = this.isReviewed(card);
+    return html`<article class=${`card${reviewed ? "" : " needs-review"}`} data-card-id=${card.id} @click=${(event:Event) => {
       if (this.suppressCardClick) { this.suppressCardClick = false; return; }
       if (!(event.target as Element).closest("x-command-button,.drag-handle")) this.openCardId = card.id;
     }} @pointerdown=${(event:PointerEvent) => this.pointerStart(event, card)} @pointermove=${this.pointerMove}
       @pointerup=${this.pointerEnd} @pointercancel=${this.pointerCancel}>
       <span class="drag-handle" title="Drag to move card" aria-hidden="true">⠿</span>
+      <input class="review" type="checkbox" aria-label=${`Reviewed ${card.title}`}
+        title="Checked for 24 hours after review" .checked=${reviewed}
+        @click=${(event:Event) => event.stopPropagation()}
+        @change=${(event:Event) => void this.setReviewed(card, (event.currentTarget as HTMLInputElement).checked)}>
       <p class="card-title">${card.title}</p>
       <x-command-button class="delete" appearance="subtle" label="Delete card" @click=${() => void this.removeCard(card)}>×</x-command-button>
     </article>`;

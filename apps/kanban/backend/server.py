@@ -12,7 +12,7 @@ from apps.kanban.backend.database import (
     Card,
     CardCreate,
     CardUpdate,
-    remove_browser_fixture_contamination,
+    prepare_database,
 )
 from monotools.appkit import create_app_context
 from monotools.http import domain_error_handler, enforce_same_origin
@@ -29,7 +29,7 @@ def create_app(database_url: str | None = None, store: BoardStore | None = None)
         default_database=DEFAULT_DATABASE,
         environment_key="KANBAN_DATABASE_URL",
         database_url=database_url,
-        prepare=remove_browser_fixture_contamination,
+        prepare=prepare_database,
     )
     board = store or BoardStore.with_demo_cards(context.require_sessions())
     application = create_application("kanban")

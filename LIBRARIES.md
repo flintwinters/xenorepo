@@ -8,7 +8,7 @@ consumers; they do not import one another.
 | Library | Language | Location | Public responsibility | Consumers |
 | --- | --- | --- | --- | --- |
 | Monotools | Python + TypeScript tooling | `monotools/`, `scripts/check-lit.mjs`, `tsconfig.frontend.json` | `monotools.appkit` assembles the typed `AppContext` boundary; the platform provides declarative lifecycle, strict app-rooted Lit graph validation, recursive frontend watching, FastAPI runtime, portable SQLAlchemy, auth/transport primitives, provider-neutral hosted-payment and mail contracts, and an SMTP adapter. | Central `manage.py` and all apps as applicable. |
-| Console Lit UI | TypeScript | `packages/lit-ui/` | Reusable Lit console elements, design tokens, and chrome for browser artifacts. | Calculator, Kanban, Dispatch Ledger, and Worminal. |
+| Console Lit UI | TypeScript | `packages/lit-ui/` | Reusable Lit console shells, rails, panes, command controls, status indicators, empty states, data views, design tokens, and chrome for browser artifacts. | Calculator, Chat, Kanban, Dispatch Ledger, and Worminal. |
 | Browser Testing | JavaScript/TypeScript | `packages/browser-testing/` | Shared Playwright fixtures, strict browser diagnostics, trusted raw mouse/touch/keyboard drivers, schema-versioned input evidence, and static proof validation. Contains no app routes, selectors, entities, or gesture semantics. | Monotools framework canaries and app-owned browser suites. |
 
 ## Extraction rules

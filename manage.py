@@ -184,7 +184,9 @@ def test() -> None:
 
 
 @app.command("ui-check")
-def ui_check(app_name: str | None = typer.Argument(None)) -> None:
+def ui_check(app_name: str | None = typer.Argument(None),
+    evidence: bool = typer.Option(False, "--evidence",
+        help="Retain trace, video, and HAR evidence for successful checks.")) -> None:
     """Run the deterministic universal and app-owned browser inventory."""
     selected = [(definition, manager) for definition, manager in MANAGERS
         if app_name is None or definition.name == app_name]
@@ -192,7 +194,7 @@ def ui_check(app_name: str | None = typer.Argument(None)) -> None:
         _fail(f"unknown app '{app_name}'; available: {', '.join(d.name for d, _ in MANAGERS)}")
     try:
         for definition, manager in selected:
-            run_ui_check(definition, ROOT, manager.browser_suite)
+            run_ui_check(definition, ROOT, manager.browser_suite, evidence=evidence)
     except LifecycleError as error:
         _fail(error)
     console.print(f"[bold green]wide/narrow acceptance[/] ({len(selected)} app(s))")
@@ -203,7 +205,7 @@ def verify() -> None:
     """Run checks, all Python/framework tests, and the complete browser matrix."""
     check()
     test()
-    ui_check()
+    ui_check(app_name=None, evidence=False)
 
 
 if __name__ == "__main__":

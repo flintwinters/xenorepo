@@ -12,5 +12,8 @@ From the central repository, build, validate, and serve this app with:
 
 ```console
 python manage.py check
-python manage.py serve chat
+python manage.py chat serve
 ```
+
+Run `python manage.py chat test` for the app-owned Python suite and
+`python manage.py chat ui-check` for universal wide/narrow browser proof.

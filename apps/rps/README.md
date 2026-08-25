@@ -15,5 +15,8 @@ From the repository root:
 
 ```console
 python manage.py check
-python manage.py serve rps
+python manage.py rps serve
 ```
+
+`python manage.py rps ui-check` composes universal route proof with the
+app-owned arena acceptance suite at factual wide and narrow Chromium viewports.

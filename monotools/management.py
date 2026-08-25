@@ -127,12 +127,13 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
         console.print(f"[bold green]Tests passed[/] {definition.name}")
 
     @app.command("ui-check")
-    def ui_check() -> None:
+    def ui_check(evidence: bool = typer.Option(False, "--evidence",
+            help="Retain trace, video, and HAR evidence for successful checks.")) -> None:
         """Run universal journeys and any app-owned browser suite."""
         declared = (BrowserSuite(browser_path, proof_kinds, viewports, input_modalities)
             if browser_path is not None else None)
         try:
-            artifacts = run_ui_check(definition, workspace, declared)
+            artifacts = run_ui_check(definition, workspace, declared, evidence=evidence)
         except LifecycleError as error:
             _fail(error)
         matrix = "wide/narrow acceptance"

@@ -26,7 +26,7 @@ class WorminalTests(unittest.TestCase):
         self.assertIn("WantedBy=default.target", unit)
         self.assertIn("Environment=WORMINAL_ACCESS_TOKEN=felix", unit)
         self.assertIn("ExecStart=/usr/bin/authbind --deep %h/.local/bin/uv run python "
-            "manage.py serve worminal "
+            "manage.py worminal serve "
             "--watch --host 0.0.0.0 --port 80", unit)
         self.assertIn("Restart=on-failure", unit)
         self.assertNotIn("ExecStartPre", unit)

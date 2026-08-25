@@ -11,8 +11,13 @@ rendering, keyboard input, scrollback, and terminal resizing.
 From the repository root:
 
 ```console
-python manage.py serve worminal
+python manage.py worminal serve
 ```
+
+`python manage.py worminal test` owns the Python regressions. `python manage.py
+worminal ui-check` composes universal browser proof with the app-owned desktop
+suite; mocked WebSocket and synthetic context-menu checks are integration
+evidence, not trusted physical-device claims.
 
 Use `--watch` for a long-running development service. Monotools rebuilds the
 Worminal document when its TypeScript or central Lit UI inputs change; Uvicorn
@@ -38,7 +43,7 @@ for it once and retains only an HTTP-only session cookie:
 
 ```console
 export WORMINAL_ACCESS_TOKEN="$(openssl rand -hex 32)"
-uv run python manage.py serve worminal --host 0.0.0.0 --port 8000
+uv run python manage.py worminal serve --host 0.0.0.0 --port 8000
 ```
 
 Open `http://<server-lan-address>:8000/worminal`. For port 80, use your normal
@@ -48,7 +53,7 @@ requirement applies.
 To run every terminal as a selected Unix account, add `--user`:
 
 ```console
-uv run python manage.py serve worminal --host 0.0.0.0 --port 8000 --user alice
+uv run python manage.py worminal serve --host 0.0.0.0 --port 8000 --user alice
 ```
 
 Selecting a different account requires the hosting service to run with the

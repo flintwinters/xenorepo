@@ -14,5 +14,8 @@ From the repository root:
 ```console
 python manage.py check
 python manage.py test
-python manage.py serve microblog
+python manage.py microblog serve
 ```
+
+The leaf `test` command runs only this app's suite. `python manage.py microblog
+ui-check` runs the universal wide/narrow browser contract.

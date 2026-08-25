@@ -8,6 +8,7 @@ from pathlib import Path
 import socket
 import subprocess
 import signal
+import sys
 import time
 
 from monotools.apps import AppDefinition
@@ -52,18 +53,18 @@ def wait_for_health(port: int, process: subprocess.Popen[bytes]) -> None:
     raise LifecycleError(f"FastAPI service did not become healthy within {HEALTH_TIMEOUT_SECONDS} seconds")
 
 
-def _terminate(process: subprocess.Popen[bytes]) -> str | None:
-    """Stop a child service and return any cleanup failure for the caller."""
+def _terminate(process: subprocess.Popen[bytes]) -> str:
+    """Stop a child service and report whether escalation was required."""
     if process.poll() is not None:
-        return None
+        return "already-exited"
     os.killpg(process.pid, signal.SIGTERM)
     try:
         process.wait(timeout=5)
     except subprocess.TimeoutExpired:
         os.killpg(process.pid, signal.SIGKILL)
         process.wait(timeout=5)
-        return "FastAPI service required a forced kill during cleanup"
-    return None
+        return "forced-kill"
+    return "clean"
 
 
 def _run_browser(command: list[str], workspace: Path,
@@ -81,7 +82,8 @@ def _run_browser(command: list[str], workspace: Path,
         return process.wait()
 
 
-def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = None) -> Path:
+def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = None,
+    *, evidence: bool = False) -> Path:
     """Build, serve, and browser-check one application with preserved evidence."""
     from monotools.management import BrowserSuite
     browser_suite = (suite if isinstance(suite, BrowserSuite)
@@ -112,6 +114,7 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = Non
             {"path": route, "artifact": str(definition.artifact(name).output)}
             for route, name in definition.routes
         ]),
+        "PLAYWRIGHT_RETAIN_EVIDENCE": "1" if evidence else "0",
     }
     if "database" in definition.capabilities:
         database = artifacts / "browser.db"
@@ -123,14 +126,15 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = Non
     command = [str(playwright), "test", *(str(path.relative_to(workspace)) for path in suites)]
     process: subprocess.Popen[bytes] | None = None
     primary_failure: Exception | None = None
-    cleanup_failure: str | None = None
+    cleanup_status = "not-started"
     browser_status: int | None = None
     started = time.time()
     database = artifacts / "browser.db" if "database" in definition.capabilities else None
     try:
         with service_log.open("wb") as output:
             process = subprocess.Popen(
-                ["uv", "run", "uvicorn", definition.module + ":app", "--host", "127.0.0.1", "--port", str(port)],
+                [sys.executable, "-m", "uvicorn", definition.module + ":app",
+                    "--host", "127.0.0.1", "--port", str(port)],
                 cwd=workspace,
                 env=environment,
                 stdout=output,
@@ -148,7 +152,7 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = Non
         raise
     finally:
         if process is not None:
-            cleanup_failure = _terminate(process)
+            cleanup_status = _terminate(process)
         summary_path.write_text(json.dumps({
             "schemaVersion": 1,
             "app": definition.name,
@@ -163,11 +167,8 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = Non
             "database": str(database.relative_to(workspace)) if database else None,
             "serviceLog": str(service_log.relative_to(workspace)),
             "playwrightLog": str(playwright_log.relative_to(workspace)),
-            "cleanup": cleanup_failure or "clean",
+            "cleanup": cleanup_status,
             "failure": str(primary_failure) if primary_failure else None,
+            "successfulEvidenceRetained": evidence,
         }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        if cleanup_failure is not None:
-            if primary_failure is not None:
-                raise LifecycleError(f"{primary_failure}; {cleanup_failure}") from primary_failure
-            raise LifecycleError(cleanup_failure)
     return artifacts

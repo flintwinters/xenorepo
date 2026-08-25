@@ -12,8 +12,11 @@ From the repository root:
 
 ```console
 python manage.py check
-python manage.py serve calculator
+python manage.py calculator serve
 ```
+
+Run `python manage.py calculator test` for the app-owned Python suite and
+`python manage.py calculator ui-check` for universal wide/narrow browser proof.
 
 Use the on-screen controls or the number keys, `+`, `-`, `*`, `/`, decimal
 point, `Enter` (or `=`), and `Esc` to operate the calculator.

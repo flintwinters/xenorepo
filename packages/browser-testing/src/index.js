@@ -3,6 +3,11 @@
 const { expect, test: base } = require("@playwright/test");
 
 const EVIDENCE_SCHEMA_VERSION = 1;
+const acknowledgedHttpStatuses = new WeakMap();
+
+function acknowledgeHttpFailures(page, statuses) {
+  acknowledgedHttpStatuses.set(page, new Set(statuses));
+}
 
 async function installInputEvidence(page) {
   await page.addInitScript(({ schemaVersion }) => {
@@ -54,20 +59,35 @@ function validateInputEvidence(records, claim) {
 
 /** Domain-neutral fixture which records browser failures and same-origin violations. */
 const test = base.extend({
-  auditedPage: async ({ page }, use) => {
+  _browserAudit: [async ({ page }, use) => {
     const failures = [];
-    const origin = new URL(base.info().project.use.baseURL).origin;
+    const origin = new URL(base.info().project.use.baseURL || page.url()).origin;
     page.on("console", message => {
-      if (message.type() === "error") failures.push(`console: ${message.text()}`);
+      if (message.type() === "error" && !message.text().startsWith("Failed to load resource:")) {
+        failures.push(`console: ${message.text()}`);
+      }
     });
     page.on("pageerror", error => failures.push(`page: ${error.message}`));
-    page.on("requestfailed", request => failures.push(`request: ${request.url()}`));
-    page.on("request", request => {
-      if (new URL(request.url()).origin !== origin) failures.push(`external-origin: ${request.url()}`);
+    page.on("requestfailed", request => {
+      const reason = request.failure()?.errorText || "unknown";
+      if (reason !== "net::ERR_ABORTED") failures.push(`request: ${request.url()} (${reason})`);
     });
+    page.on("request", request => {
+      if (["http:", "https:"].includes(new URL(request.url()).protocol)
+          && new URL(request.url()).origin !== origin) failures.push(`external-origin: ${request.url()}`);
+    });
+    page.on("response", response => {
+      if (response.status() >= 400
+          && !acknowledgedHttpStatuses.get(page)?.has(response.status())) {
+        failures.push(`http: ${response.status()} ${response.url()}`);
+      }
+    });
+    await use();
+    expect(failures, failures.join("\n")).toEqual([]);
+  }, { auto: true }],
+  auditedPage: async ({ page }, use) => {
     await installInputEvidence(page);
     await use(page);
-    expect(failures, failures.join("\n")).toEqual([]);
   },
 });
 
@@ -101,6 +121,7 @@ async function keyboardSequence(page, keys) {
 }
 
 module.exports = {
-  EVIDENCE_SCHEMA_VERSION, expect, installInputEvidence, keyboardSequence, mousePath,
+  EVIDENCE_SCHEMA_VERSION, acknowledgeHttpFailures, expect, installInputEvidence,
+  keyboardSequence, mousePath,
   readInputEvidence, test, touchPath, validateInputEvidence,
 };

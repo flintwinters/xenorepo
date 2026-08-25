@@ -89,12 +89,13 @@ monotools: the canonical orchestration library.
 
 ## 3. Current tasks
 
-- Complete the Typer-native manager migration at checkpoint 3: move Python and
-  Playwright suites beneath their owning apps, remove legacy global discovery
-  and CLI code, and update documentation and Worminal deployment commands.
-  Checkpoint 2 added seven app managers and Xenorepo-owned strict discovery,
-  deterministic mounting, and aggregate root lifecycle commands. Kanban is now
-  the eighth managed app and proves app-owned Python and Playwright suites.
+- Maintain the completed browser-proof checkpoint: typed app-owned suite
+  inventory, truthful proof tags, pre-mutation TypeScript/Playwright validation,
+  trusted input evidence, universal wide/narrow route journeys, durable
+  diagnostics, and aggregate `test`, `ui-check`, and `verify` commands.
+- Finish extracting the remaining Calculator, Chat, Quiz, and Worminal product
+  assertions from the mixed platform tooling suite; remove the legacy global
+  CLI only after its last compatibility assertions are migrated.
 - Design explicit board identity and ownership as Kanban's next product
   boundary before extending cards with peripheral metadata.
 - Prove strict shared ORM templates on Chat and RPS realtime connection records;

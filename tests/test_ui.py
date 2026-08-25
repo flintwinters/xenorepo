@@ -44,7 +44,7 @@ class BrowserLifecycleTests(unittest.TestCase):
                  patch("monotools.ui.subprocess.Popen", return_value=process) as popen, \
                  patch("monotools.ui.wait_for_health") as health, \
                  patch("monotools.ui._run_browser", return_value=0) as run, \
-                 patch("monotools.ui._terminate", return_value=None):
+                 patch("monotools.ui._terminate", return_value="clean"):
                 actual = run_ui_check(
                     definition, ROOT, definition.directory / "tests" / "e2e" / "arena.spec.js"
                 )
@@ -57,7 +57,7 @@ class BrowserLifecycleTests(unittest.TestCase):
         health.assert_called_once_with(8123, process)
         self.assertEqual(
             popen.call_args.args[0][:4],
-            ["uv", "run", "uvicorn", "apps.rps.server:app"],
+            [__import__("sys").executable, "-m", "uvicorn", "apps.rps.server:app"],
         )
         self.assertEqual(popen.call_args.kwargs["env"]["RPS_DATABASE_URL"],
             f"sqlite:///{artifacts / 'browser.db'}")
@@ -86,7 +86,7 @@ class BrowserLifecycleTests(unittest.TestCase):
              patch("monotools.ui.subprocess.Popen", return_value=process), \
              patch("monotools.ui.wait_for_health"), \
              patch("monotools.ui._run_browser", return_value=0) as run, \
-             patch("monotools.ui._terminate", return_value=None):
+             patch("monotools.ui._terminate", return_value="clean"):
             run_ui_check(definition, ROOT)
         self.assertEqual(run.call_args.args[0][-1], "tests/browser-framework/universal.spec.js")
 

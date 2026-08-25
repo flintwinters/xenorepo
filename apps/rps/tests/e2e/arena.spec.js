@@ -1,4 +1,4 @@
-const { expect, test } = require("@playwright/test");
+const { expect, test } = require("@xenorepo/browser-testing");
 
 async function onlyManagedService(page) {
   const allowedOrigin = new URL(test.info().project.use.baseURL || process.env.BASE_URL).origin;

@@ -8,7 +8,8 @@ consumers; they do not import one another.
 | Library | Language | Location | Public responsibility | Consumers |
 | --- | --- | --- | --- | --- |
 | Monotools | Python | `monotools/` | `monotools.appkit` assembles the typed `AppContext` boundary; the package provides declarative lifecycle, FastAPI runtime, portable SQLAlchemy, auth/transport primitives, provider-neutral hosted-payment and mail contracts, and an SMTP adapter. | Central `manage.py` and all apps as applicable. |
-| Console Lit UI | TypeScript | `packages/lit-ui/` | Reusable Lit console elements, design tokens, and chrome for browser artifacts. | Calculator today; new Lit pages. |
+| Console Lit UI | TypeScript | `packages/lit-ui/` | Reusable Lit console elements, design tokens, and chrome for browser artifacts. | Calculator, Kanban, Dispatch Ledger, and Worminal. |
+| Browser Testing | JavaScript/TypeScript | `packages/browser-testing/` | Shared Playwright fixtures, strict browser diagnostics, trusted raw mouse/touch/keyboard drivers, schema-versioned input evidence, and static proof validation. Contains no app routes, selectors, entities, or gesture semantics. | Monotools framework canaries and app-owned browser suites. |
 
 ## Extraction rules
 

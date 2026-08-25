@@ -57,18 +57,27 @@ frontend work.
 
 ## Required verification
 
-All recurring checks run through `manage.py`. Add platform contract coverage
-for every new shared primitive and keep app regression coverage in its app test
-module. Before a checkpoint is complete run `python manage.py check` and
-`python manage.py test`; runtime, HTTP, realtime, and frontend tests must
-exercise every discovered app where the contract is cross-app.
+All recurring checks run through `manage.py`. Every app manager exports a typed
+`ApplicationManager` whose Python suite and optional browser suite live beneath
+that app's `tests/` directory. `python manage.py test` runs the platform suite,
+every app suite exactly once, and Monotools' trusted-input browser canaries.
+`python manage.py verify` composes repository checks, all tests, and the complete
+browser inventory.
 
 ## Browser verification
 
-`python manage.py ui-check rps` builds and validates RPS, starts its real
-FastAPI service on an available loopback port, waits for `/health`, and runs the
-Chromium smoke suite at desktop and mobile sizes. The suite permits requests
-only to that managed service. Failure screenshots, traces, and service output
-remain in `apps/rps/data/ui-check/`; the directory is ignored runtime state and
-can be inspected or removed between runs. RPS is the first supported browser
-suite; add an app-specific `tests/ui/<app>.spec.js` before enabling another app.
+`python manage.py ui-check [app]` checks one app or all apps in deterministic
+order. Every metadata-declared frontend route receives Monotools' universal
+wide/narrow Chromium journey. Domain scenarios remain in
+`apps/<app>/tests/e2e/` and use exactly one proof tag: `acceptance`,
+`browser-integration`, `visual`, or `accessibility`. Viewport names never imply
+input modality; trusted mouse, native Chromium touch, and keyboard evidence are
+separate claims. Synthetic events may support browser-integration tests but
+cannot satisfy trusted-input acceptance.
+
+Static TypeScript parsing and Playwright enumeration run before builds or other
+browser-lifecycle mutation. Each run retains `summary.json`, `playwright.log`,
+`service.log`, the isolated browser database where applicable, and failure
+screenshots/traces under `apps/<app>/data/ui-check/`. Pass `--evidence` to retain
+trace, video, and HAR output for successful runs. Chromium automation is a
+browser-input claim, not evidence about Safari or physical mobile hardware.

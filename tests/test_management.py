@@ -158,6 +158,15 @@ frontend:
         self.assertEqual(len(expected), len(set(expected)))
         browser.assert_called_once_with(ROOT)
 
+    def test_verify_composes_checks_tests_and_complete_browser_inventory(self) -> None:
+        with patch("manage.check") as check, patch("manage.test") as test, \
+             patch("manage.ui_check") as browser:
+            result = CliRunner().invoke(repository_manager.app, ["verify"])
+        self.assertEqual(result.exit_code, 0)
+        check.assert_called_once_with()
+        test.assert_called_once_with()
+        browser.assert_called_once_with(app_name=None, evidence=False)
+
     def test_worminal_custom_serve_delegates_user_policy_to_shared_lifecycle(self) -> None:
         with patch("apps.worminal.manage.serve_app", return_value=0) as serve:
             result = CliRunner().invoke(worminal_manager.app,

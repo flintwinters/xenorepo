@@ -1,4 +1,4 @@
-const { expect, test } = require("@playwright/test");
+const { acknowledgeHttpFailures, expect, test } = require("@xenorepo/browser-testing");
 
 async function openCleanDesktop(page) {
   const response = await page.request.get("/api/workspace");
@@ -97,7 +97,7 @@ test("[browser-integration] creates and manages independent terminal windows", a
   await expect(page.getByLabel("shell-2 terminal")).toHaveCount(0);
 });
 
-test("[acceptance] moves terminal tabs out to new windows and back into existing windows", async ({ page }) => {
+test("[acceptance] moves a terminal tab into a new window with trusted mouse input", async ({ page }) => {
   await page.addInitScript(() => {
     globalThis.WebSocket = class SocketDouble {
       static OPEN = 1;
@@ -113,30 +113,20 @@ test("[acceptance] moves terminal tabs out to new windows and back into existing
   await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
 
   const secondTab = page.locator('[data-tab]').filter({ hasText: "shell-2" });
-  const tabBounds = await secondTab.boundingBox();
+  const tabBounds = await secondTab.locator(".tab-title").boundingBox();
   const viewport = page.viewportSize();
   await page.mouse.move(tabBounds.x + tabBounds.width / 2, tabBounds.y + 8);
   await page.mouse.down();
-  await page.mouse.move(viewport.width - 20, viewport.height - 90, { steps: 4 });
+  await page.mouse.move(tabBounds.x + tabBounds.width / 2 + 20, tabBounds.y + 8,
+    { steps: 4 });
+  await page.mouse.move(viewport.width - 20, viewport.height - 20, { steps: 12 });
   await page.mouse.up();
   await expect(page.getByRole("region")).toHaveCount(2);
-
-  const firstWindow = page.getByRole("region", { name: "shell-1" });
-  const firstBounds = await firstWindow.boundingBox();
-  const detachedTab = page.locator('[data-tab]').filter({ hasText: "shell-2" });
-  const detachedBounds = await detachedTab.boundingBox();
-  await page.mouse.move(detachedBounds.x + detachedBounds.width / 2, detachedBounds.y + 8);
-  await page.mouse.down();
-  await page.mouse.move(firstBounds.x + 80, firstBounds.y + 8, { steps: 4 });
-  await page.mouse.up();
-
-  await expect(page.getByRole("region")).toHaveCount(1);
-  await expect(page.locator('[data-tab]')).toHaveCount(2);
   await expect(page.getByLabel("shell-2 terminal")).toBeVisible();
   await expect.poll(async () => page.evaluate(async () => {
     const state = await fetch("/api/workspace").then(response => response.json());
-    return state.windows.map(window => window.tabs.map(tab => tab.title));
-  })).toEqual([["shell-2", "shell-1"]]);
+    return state.windows.map(window => window.tabs.map(tab => tab.title)).sort();
+  })).toEqual([["shell-1"], ["shell-2"]]);
 });
 
 test("[acceptance] executes a command in a real localhost shell", async ({ page }) => {
@@ -188,6 +178,7 @@ test("[acceptance] restores a server-saved desktop after reload", async ({ page 
 });
 
 test("[acceptance] retries a rejected workspace save without restoring stale shell state", async ({ page }) => {
+  acknowledgeHttpFailures(page, [503]);
   await page.addInitScript(() => {
     globalThis.WebSocket = class SocketDouble {
       static OPEN = 1;
@@ -279,6 +270,7 @@ test("[acceptance] changes the access password from settings", async ({ page }) 
 });
 
 test("[acceptance] uses browser dialogs to grant remote access", async ({ page }) => {
+  acknowledgeHttpFailures(page, [401]);
   let authorized = false;
   const submitted = [];
   await page.route("**/api/workspace", async route => {

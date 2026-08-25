@@ -9,5 +9,8 @@ From the repository root:
 
 ```console
 python manage.py check
-python manage.py serve quiz
+python manage.py quiz serve
 ```
+
+Run `python manage.py quiz test` for the app-owned Python suite and
+`python manage.py quiz ui-check` for universal wide/narrow browser proof.

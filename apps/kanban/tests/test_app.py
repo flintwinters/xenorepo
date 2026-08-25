@@ -7,11 +7,11 @@ import unittest
 import httpx
 from sqlalchemy import select
 
-from apps.kanban.database import (
+from apps.kanban.backend.database import (
     BoardStore, CardCreate, CardRecord, CardUpdate, Mutation, MutationCard,
     create_session_factory, remove_browser_fixture_contamination,
 )
-from apps.kanban.server import create_app
+from apps.kanban.backend.server import create_app
 
 
 class AppClient:

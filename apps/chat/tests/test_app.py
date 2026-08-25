@@ -3,7 +3,7 @@
 from pathlib import Path
 import unittest
 
-from apps.chat.database import ChatRepository, create_session_factory
+from apps.chat.backend.database import ChatRepository, create_session_factory
 
 
 class ChatTests(unittest.TestCase):

@@ -4,7 +4,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Request, status
 
-from apps.kanban.database import (
+from apps.kanban.backend.database import (
     Base,
     Board,
     BoardError,
@@ -19,7 +19,7 @@ from monotools.http import domain_error_handler, enforce_same_origin
 from monotools.runtime import create_application
 
 
-DEFAULT_DATABASE = Path(__file__).parent / "data" / "kanban.db"
+DEFAULT_DATABASE = Path(__file__).parent.parent / "data" / "kanban.db"
 
 
 def create_app(database_url: str | None = None, store: BoardStore | None = None) -> FastAPI:

@@ -1,6 +1,6 @@
 name: kanban
 title: Kanban Console
-module: apps.kanban.server
+module: apps.kanban.backend.server
 capabilities:
   - database
 frontend:

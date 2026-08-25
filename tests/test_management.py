@@ -9,8 +9,8 @@ from unittest.mock import ANY, patch
 import typer
 from typer.testing import CliRunner
 
-from monotools.apps import ROOT
-from monotools.management import create_app_cli, create_cli, resolve_local_app
+from monotools.apps import AppDefinitionError, ROOT
+from monotools.management import create_app_cli, create_app_manager, create_cli, resolve_local_app
 import manage as repository_manager
 from apps.worminal import manage as worminal_manager
 
@@ -58,6 +58,9 @@ frontend:
         )
         manage_file = directory / "manage.py"
         manage_file.touch()
+        (directory / "tests").mkdir()
+        if ui_suite is not None:
+            ui_suite = f"tests/{ui_suite}"
         return create_app_cli(manage_file, tests="tests", ui_suite=ui_suite,
             include_serve=include_serve), manage_file
 
@@ -146,7 +149,11 @@ frontend:
             result = CliRunner().invoke(repository_manager.app, ["test"])
 
         self.assertEqual(result.exit_code, 0)
-        run.assert_called_once_with(ROOT, ROOT / "tests")
+        expected = [ROOT / "tests"] + [manager.python_suite.path
+            for _, manager in repository_manager.MANAGERS]
+        self.assertEqual([call.args for call in run.call_args_list],
+            [(ROOT, suite) for suite in expected])
+        self.assertEqual(len(expected), len(set(expected)))
 
     def test_worminal_custom_serve_delegates_user_policy_to_shared_lifecycle(self) -> None:
         with patch("apps.worminal.manage.serve_app", return_value=0) as serve:
@@ -173,13 +180,20 @@ frontend:
                 repository_manager.discover_managers(apps_directory)
 
             (unmanaged / "manage.py").write_text("app = object()\n", encoding="utf-8")
-            with self.assertRaisesRegex(repository_manager.ManagerError, "must export 'app'"):
+            with self.assertRaisesRegex(repository_manager.ManagerError, "must export 'manager'"):
                 repository_manager.discover_managers(apps_directory)
 
             (unmanaged / "manage.py").write_text("raise RuntimeError('broken manager')\n",
                 encoding="utf-8")
             with self.assertRaisesRegex(repository_manager.ManagerError, "broken manager"):
                 repository_manager.discover_managers(apps_directory)
+
+    def test_manager_rejects_absolute_escaping_and_non_test_suite_paths(self) -> None:
+        _, manage_file = self._manager()
+        for path in (ROOT / "tests", "../tests", "frontend"):
+            with self.subTest(path=path), self.assertRaisesRegex(
+                    AppDefinitionError, "app-owned|beneath tests"):
+                create_app_manager(manage_file, tests=path)
 
     def test_root_and_mounted_managers_are_working_directory_independent(self) -> None:
         original = Path.cwd()

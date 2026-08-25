@@ -4,15 +4,16 @@ import typer
 from rich.console import Console
 
 from monotools.lifecycle import LifecycleError, serve_app
-from monotools.management import create_app_cli, resolve_local_app
+from monotools.management import create_app_manager, resolve_local_app
 
 
-app = create_app_cli(
+manager = create_app_manager(
     __file__,
-    tests="../../tests",
-    ui_suite="../../tests/ui/worminal.spec.js",
+    tests="tests",
+    ui_suite="tests/e2e/desktop.spec.js",
     include_serve=False,
 )
+app = manager.app
 console = Console()
 definition = resolve_local_app(__file__)
 workspace = definition.directory.parent.parent

@@ -45,7 +45,9 @@ class BrowserLifecycleTests(unittest.TestCase):
                  patch("monotools.ui.wait_for_health") as health, \
                  patch("monotools.ui.subprocess.run", return_value=completed) as run, \
                  patch("monotools.ui._terminate", return_value=None):
-                actual = run_ui_check(definition, ROOT, ROOT / "tests" / "ui" / "rps.spec.js")
+                actual = run_ui_check(
+                    definition, ROOT, definition.directory / "tests" / "e2e" / "arena.spec.js"
+                )
 
         self.assertEqual(actual, artifacts)
         validate.assert_called_once_with(definition, ROOT)
@@ -59,7 +61,8 @@ class BrowserLifecycleTests(unittest.TestCase):
         self.assertEqual(popen.call_args.kwargs["env"]["RPS_DATABASE_URL"],
             f"sqlite:///{artifacts / 'browser.db'}")
         self.assertEqual(run.call_args.args[0], [
-            str(ROOT / "node_modules" / ".bin" / "playwright"), "test", "tests/ui/rps.spec.js",
+            str(ROOT / "node_modules" / ".bin" / "playwright"), "test",
+            "apps/rps/tests/e2e/arena.spec.js",
         ])
         self.assertEqual(run.call_args.kwargs["env"]["BASE_URL"], "http://127.0.0.1:8123")
         self.assertEqual(run.call_args.kwargs["env"]["RPS_DATABASE_URL"],

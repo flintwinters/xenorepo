@@ -1,5 +1,6 @@
 """Typer-native building blocks for application managers."""
 
+from dataclasses import dataclass
 from pathlib import Path
 
 import typer
@@ -18,6 +19,44 @@ from monotools.ui import run_ui_check
 
 
 console = Console()
+
+
+@dataclass(frozen=True)
+class PythonSuite:
+    """One app-owned unittest discovery root."""
+
+    path: Path
+
+
+@dataclass(frozen=True)
+class BrowserSuite:
+    """One app-owned browser suite and the minimum facts it must prove."""
+
+    path: Path
+    proof_kinds: frozenset[str] = frozenset({"acceptance"})
+    viewports: frozenset[str] = frozenset({"wide-viewport-chromium", "narrow-viewport-chromium"})
+    input_modalities: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
+class ApplicationManager:
+    """Typed public contract exported by every application manager."""
+
+    app: typer.Typer
+    definition: AppDefinition
+    python_suite: PythonSuite
+    browser_suite: BrowserSuite | None = None
+
+
+def _owned_path(definition: AppDefinition, declared: str | Path, *, kind: str) -> Path:
+    raw = Path(declared)
+    if raw.is_absolute() or ".." in raw.parts:
+        raise AppDefinitionError(f"{definition.name} {kind} path must be app-owned and relative: {raw}")
+    resolved = (definition.directory / raw).resolve()
+    tests_root = (definition.directory / "tests").resolve()
+    if not resolved.is_relative_to(tests_root):
+        raise AppDefinitionError(f"{definition.name} {kind} path must be beneath tests/: {raw}")
+    return resolved
 
 
 def create_cli(help: str) -> typer.Typer:
@@ -45,13 +84,17 @@ def _fail(error: Exception) -> None:
     raise typer.Exit(1)
 
 
-def create_app_cli(manage_file: str | Path, tests: str | Path,
-    ui_suite: str | Path | None = None, include_serve: bool = True) -> typer.Typer:
+def create_app_manager(manage_file: str | Path, tests: str | Path,
+    ui_suite: str | Path | None = None, include_serve: bool = True,
+    *, proof_kinds: frozenset[str] = frozenset({"acceptance"}),
+    viewports: frozenset[str] = frozenset({"wide-viewport-chromium", "narrow-viewport-chromium"}),
+    input_modalities: frozenset[str] = frozenset()) -> ApplicationManager:
     """Create the standard lifecycle CLI for one metadata-declared application."""
     definition = resolve_local_app(manage_file)
     workspace = _workspace_for(definition)
-    test_suite = definition.directory / tests
-    browser_suite = definition.directory / ui_suite if ui_suite is not None else None
+    test_suite = _owned_path(definition, tests, kind="Python suite")
+    browser_path = (_owned_path(definition, ui_suite, kind="browser suite")
+        if ui_suite is not None else None)
     app = create_cli(f"Build, validate, test, and run {definition.title}.")
 
     @app.command()
@@ -83,12 +126,12 @@ def create_app_cli(manage_file: str | Path, tests: str | Path,
             raise typer.Exit(result)
         console.print(f"[bold green]Tests passed[/] {definition.name}")
 
-    if browser_suite is not None:
+    if browser_path is not None:
         @app.command("ui-check")
         def ui_check() -> None:
             """Build, serve, and run this application's browser suite."""
             try:
-                artifacts = run_ui_check(definition, workspace, browser_suite)
+                artifacts = run_ui_check(definition, workspace, browser_path)
             except LifecycleError as error:
                 _fail(error)
             console.print(f"[bold green]UI checks passed[/] {definition.name} ({artifacts})")
@@ -108,4 +151,16 @@ def create_app_cli(manage_file: str | Path, tests: str | Path,
             if result:
                 raise typer.Exit(result)
 
-    return app
+    return ApplicationManager(
+        app=app,
+        definition=definition,
+        python_suite=PythonSuite(test_suite),
+        browser_suite=(BrowserSuite(browser_path, proof_kinds, viewports, input_modalities)
+            if browser_path is not None else None),
+    )
+
+
+def create_app_cli(manage_file: str | Path, tests: str | Path,
+    ui_suite: str | Path | None = None, include_serve: bool = True) -> typer.Typer:
+    """Compatibility wrapper; new managers export ``manager`` explicitly."""
+    return create_app_manager(manage_file, tests, ui_suite, include_serve).app

@@ -18,7 +18,7 @@ from monotools.lifecycle import (
     validate_app,
     validate_dist,
 )
-from monotools.management import create_cli
+from monotools.management import ApplicationManager, PythonSuite, create_cli
 
 
 ROOT = Path(__file__).resolve().parent
@@ -37,7 +37,7 @@ def _visible_directories(apps_directory: Path) -> tuple[Path, ...]:
         if directory.is_dir() and not directory.name.startswith((".", "_")))
 
 
-def _import_manager(path: Path) -> typer.Typer:
+def _import_manager(path: Path) -> ApplicationManager:
     module_name = f"xenorepo_app_manager_{path.parent.name}"
     spec = spec_from_file_location(module_name, path)
     if spec is None or spec.loader is None:
@@ -47,16 +47,22 @@ def _import_manager(path: Path) -> typer.Typer:
         spec.loader.exec_module(module)
     except Exception as error:
         raise ManagerError(f"failed to import app manager {path}: {error}") from error
-    manager = getattr(module, "app", None)
-    if not isinstance(manager, typer.Typer):
-        raise ManagerError(f"app manager {path} must export 'app' as typer.Typer")
+    manager = getattr(module, "manager", None)
+    if not isinstance(manager, ApplicationManager):
+        raise ManagerError(f"app manager {path} must export 'manager' as ApplicationManager")
+    if manager.definition.directory.resolve() != path.parent.resolve():
+        raise ManagerError(f"app manager {path} describes another application")
+    if not manager.python_suite.path.is_dir():
+        raise ManagerError(f"app manager {path} has no Python suite: {manager.python_suite.path}")
+    if manager.browser_suite is not None and not manager.browser_suite.path.is_file():
+        raise ManagerError(f"app manager {path} has no browser suite: {manager.browser_suite.path}")
     return manager
 
 
 def discover_managers(apps_directory: Path = APPS_DIRECTORY
-    ) -> tuple[tuple[AppDefinition, typer.Typer], ...]:
+    ) -> tuple[tuple[AppDefinition, ApplicationManager], ...]:
     """Load every immediate visible Xenorepo app and its explicit manager."""
-    managers: list[tuple[AppDefinition, typer.Typer]] = []
+    managers: list[tuple[AppDefinition, ApplicationManager]] = []
     names: set[str] = set()
     for directory in _visible_directories(apps_directory):
         manager_path = directory / "manage.py"
@@ -69,7 +75,13 @@ def discover_managers(apps_directory: Path = APPS_DIRECTORY
         if definition.name in names:
             raise ManagerError(f"duplicate managed app name: {definition.name}")
         names.add(definition.name)
-        managers.append((definition, _import_manager(manager_path)))
+        manager = _import_manager(manager_path)
+        if manager.definition != definition:
+            raise ManagerError(f"app manager {manager_path} definition does not match app.yaml")
+        managers.append((definition, manager))
+    suite_paths = [manager.python_suite.path for _, manager in managers]
+    if len(suite_paths) != len(set(suite_paths)):
+        raise ManagerError("application Python suite paths must be unique")
     return tuple(managers)
 
 
@@ -87,7 +99,7 @@ def _run_bootstrap(command: list[str], recovery: str) -> None:
 app = create_cli("Manage Xenorepo and its immediate applications.")
 MANAGERS = discover_managers()
 for definition, manager in MANAGERS:
-    app.add_typer(manager, name=definition.name)
+    app.add_typer(manager.app, name=definition.name)
 
 
 @app.command()
@@ -158,9 +170,11 @@ def check() -> None:
 @app.command()
 def test() -> None:
     """Run the curated platform and application regression suite exactly once."""
-    result = run_test_suite(ROOT, ROOT / "tests")
-    if result:
-        raise typer.Exit(result)
+    suites = (PythonSuite(ROOT / "tests"), *(manager.python_suite for _, manager in MANAGERS))
+    for suite in suites:
+        result = run_test_suite(ROOT, suite.path)
+        if result:
+            raise typer.Exit(result)
     console.print("[bold green]Tests passed[/]")
 
 

@@ -11,6 +11,8 @@ from apps.kanban.backend.database import (
     BoardStore,
     Card,
     CardCreate,
+    CardNote,
+    CardNoteCreate,
     CardUpdate,
     prepare_database,
 )
@@ -57,6 +59,16 @@ def create_app(database_url: str | None = None, store: BoardStore | None = None)
         if card is None:
             raise BoardError("Card not found", "missing")
         return card
+
+    @application.post("/api/cards/{card_id}/notes", response_model=CardNote,
+        status_code=status.HTTP_201_CREATED)
+    async def append_card_note(card_id: str, note: CardNoteCreate,
+        request: Request) -> CardNote:
+        enforce_origin(request)
+        appended = board.append_note(card_id, note)
+        if appended is None:
+            raise BoardError("Card not found", "missing")
+        return appended
 
     @application.delete("/api/cards/{card_id}", status_code=status.HTTP_204_NO_CONTENT)
     async def delete_card(card_id: str, request: Request) -> None:

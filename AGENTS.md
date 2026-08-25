@@ -100,7 +100,8 @@ monotools: the canonical orchestration library.
   assertions from the mixed platform tooling suite; remove the legacy global
   CLI only after its last compatibility assertions are migrated.
 - Design explicit board identity and ownership as Kanban's next product
-  boundary before extending cards with peripheral metadata.
+  boundary while preserving the proven stable card identities, daily review,
+  and append-only timestamped note logs.
 - Canonical identity checkpoint 1 is complete: Monotools owns selective identity
   schema groups, identity/authentication operations, and versioned migration
   orchestration; app adoption remains pending.

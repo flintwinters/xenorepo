@@ -9,6 +9,9 @@ application composed from Xenorepo's central Lit UI components; lifecycle,
 builds, runtime documents, database setup, HTTP error
 handling, and browser verification are owned by Monotools.
 
+Opening a card exposes its timestamped activity log. Notes are append-only and
+remain attached to the card through renames, moves, restarts, and delete/undo.
+
 `python manage.py kanban ui-check` proves universal wide/narrow rendering plus
 continuous trusted Chromium mouse and native-touch paths. It asserts the
 network mutation, rendered destination, authoritative API state, and reload

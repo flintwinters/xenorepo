@@ -10,7 +10,7 @@ from typing import Annotated, Callable
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, model_validator
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, ForeignKey, Integer, String, UniqueConstraint, delete, inspect, select, update
+from sqlalchemy import BigInteger, Boolean, CheckConstraint, ForeignKey, Index, Integer, String, Text, UniqueConstraint, delete, inspect, select, update
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -20,6 +20,10 @@ from monotools.database import create_session_factory as _create_session_factory
 CardTitle = Annotated[
     str,
     StringConstraints(strip_whitespace=True, min_length=1, max_length=120),
+]
+NoteBody = Annotated[
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=2000),
 ]
 
 
@@ -37,9 +41,19 @@ class Card(BaseModel):
     reviewed_at_ms: int | None = None
 
 
+class CardNote(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    card_id: str
+    body: str
+    created_at_ms: int
+
+
 class Board(BaseModel):
     columns: list[Column]
     cards: list[Card]
+    notes: list[CardNote]
     can_undo: bool
     can_redo: bool
     undo_description: str | None
@@ -49,6 +63,10 @@ class Board(BaseModel):
 class CardCreate(BaseModel):
     title: CardTitle
     column_id: str
+
+
+class CardNoteCreate(BaseModel):
+    body: NoteBody
 
 
 class CardUpdate(BaseModel):
@@ -87,17 +105,37 @@ class Base(DeclarativeBase):
     pass
 
 
+class CardIdentity(Base):
+    __tablename__ = "card_identities"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+
+
 class CardRecord(Base):
     __tablename__ = "cards"
     __table_args__ = (
         CheckConstraint("position >= 0", name="card_nonnegative_position"),
         UniqueConstraint("column_id", "position", name="card_column_position"),
     )
-    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("card_identities.id"), primary_key=True
+    )
     title: Mapped[str] = mapped_column(String(120))
     column_id: Mapped[str] = mapped_column(String(40), index=True)
     position: Mapped[int] = mapped_column(Integer)
     reviewed_at_ms: Mapped[int | None] = mapped_column(BigInteger, nullable=True)
+
+
+class CardNoteRecord(Base):
+    __tablename__ = "card_notes"
+    __table_args__ = (
+        Index("note_card_created", "card_id", "created_at_ms", "id"),
+    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    card_id: Mapped[str] = mapped_column(
+        ForeignKey("card_identities.id"), nullable=False
+    )
+    body: Mapped[str] = mapped_column(Text)
+    created_at_ms: Mapped[int] = mapped_column(BigInteger)
 
 
 class Mutation(Base):
@@ -117,7 +155,9 @@ class MutationCard(Base):
         ForeignKey("mutations.id", ondelete="CASCADE"), primary_key=True
     )
     phase: Mapped[str] = mapped_column(String(6), primary_key=True)
-    card_id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    card_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("card_identities.id"), primary_key=True
+    )
     title: Mapped[str] = mapped_column(String(120))
     column_id: Mapped[str] = mapped_column(String(40))
     position: Mapped[int] = mapped_column(Integer)
@@ -139,6 +179,11 @@ def prepare_database(engine: Engine) -> None:
                 connection.exec_driver_sql(
                     f"ALTER TABLE {table} ADD COLUMN reviewed_at_ms BIGINT"
                 )
+        known_ids = connection.execute(select(CardIdentity.id)).scalars().all()
+        card_ids = connection.execute(select(CardRecord.id)).scalars().all()
+        historical_ids = connection.execute(select(MutationCard.card_id)).scalars().all()
+        for card_id in set([*card_ids, *historical_ids]) - set(known_ids):
+            connection.execute(CardIdentity.__table__.insert().values(id=card_id))
     remove_browser_fixture_contamination(engine)
 
 
@@ -243,6 +288,15 @@ class BoardStore:
                 self._record(session, before, after, "; ".join(descriptions))
             return updated
 
+    def append_note(self, card_id: str, request: CardNoteCreate) -> CardNote | None:
+        with self._lock, self.sessions.begin() as session:
+            if session.get(CardRecord, card_id) is None:
+                return None
+            note = CardNote(id=str(uuid4()), card_id=card_id, body=request.body,
+                created_at_ms=int(self.now().timestamp() * 1000))
+            session.add(CardNoteRecord(**note.model_dump()))
+            return note
+
     def delete(self, card_id: str) -> bool:
         with self._lock, self.sessions.begin() as session:
             before = self._cards(session)
@@ -333,7 +387,13 @@ class BoardStore:
         redo = session.scalar(
             select(Mutation).where(Mutation.applied.is_(False)).order_by(Mutation.id.asc()).limit(1)
         )
-        return Board(columns=list(self.columns), cards=self._cards(session),
+        cards = self._cards(session)
+        card_ids = [card.id for card in cards]
+        notes = [] if not card_ids else session.scalars(select(CardNoteRecord).where(
+            CardNoteRecord.card_id.in_(card_ids)).order_by(
+                CardNoteRecord.created_at_ms, CardNoteRecord.id)).all()
+        return Board(columns=list(self.columns), cards=cards,
+            notes=[CardNote.model_validate(note) for note in notes],
             can_undo=undo is not None, can_redo=redo is not None,
             undo_description=(undo.description or "Update board") if undo else None,
             redo_description=(redo.description or "Update board") if redo else None)
@@ -355,6 +415,9 @@ class BoardStore:
         session.execute(delete(CardRecord))
         positions = {column.id: 0 for column in self.columns}
         for card in cards:
+            if session.get(CardIdentity, card.id) is None:
+                session.add(CardIdentity(id=card.id))
+                session.flush()
             session.add(CardRecord(id=card.id, title=card.title, column_id=card.column_id,
                 position=positions[card.column_id], reviewed_at_ms=card.reviewed_at_ms))
             positions[card.column_id] += 1

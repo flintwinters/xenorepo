@@ -9,7 +9,7 @@ import httpx
 from sqlalchemy import select
 
 from apps.kanban.backend.database import (
-    BoardStore, CardCreate, CardRecord, CardUpdate, Mutation, MutationCard,
+    BoardStore, CardCreate, CardNoteRecord, CardRecord, CardUpdate, Mutation, MutationCard,
     create_session_factory, remove_browser_fixture_contamination,
 )
 from apps.kanban.backend.server import create_app
@@ -157,6 +157,39 @@ class KanbanTests(unittest.TestCase):
         reset = self.client.patch(f"/api/cards/{card['id']}", json={"reviewed": False})
         self.assertEqual(reset.status_code, 200)
         self.assertIsNone(reset.json()["reviewed_at_ms"])
+
+    def test_timestamped_notes_survive_card_changes_delete_and_undo(self) -> None:
+        now = datetime(2026, 8, 25, 16, 45, tzinfo=UTC)
+        self.store.now = lambda: now
+        card = self.create("Track investigation")
+        undo_before_note = self.store.snapshot().undo_description
+
+        response = self.client.post(f"/api/cards/{card['id']}/notes",
+            json={"body": "  Confirmed the reproduction steps.  "})
+
+        self.assertEqual(response.status_code, 201)
+        note = response.json()
+        self.assertEqual(note["body"], "Confirmed the reproduction steps.")
+        self.assertEqual(note["created_at_ms"], int(now.timestamp() * 1000))
+        self.assertEqual(self.store.snapshot().undo_description, undo_before_note)
+        self.client.patch(f"/api/cards/{card['id']}", json={"column_id": "done"})
+        self.assertEqual(self.client.get("/api/board").json()["notes"], [note])
+
+        self.client.delete(f"/api/cards/{card['id']}")
+        self.assertEqual(self.client.get("/api/board").json()["notes"], [])
+        restored = self.client.post("/api/undo").json()
+        self.assertEqual(restored["notes"], [note])
+        self.assertEqual(restored["cards"][0]["column_id"], "done")
+        restarted = BoardStore(self.sessions)
+        self.assertEqual(restarted.snapshot().notes[0].id, note["id"])
+        with self.sessions() as session:
+            self.assertEqual(session.scalar(select(CardNoteRecord.body)),
+                "Confirmed the reproduction steps.")
+
+        self.assertEqual(self.client.post(f"/api/cards/{card['id']}/notes",
+            json={"body": " "}).status_code, 422)
+        self.assertEqual(self.client.post("/api/cards/missing/notes",
+            json={"body": "Cannot attach"}).status_code, 404)
 
     def test_history_descriptions_have_a_legacy_fallback(self) -> None:
         self.create("Legacy")

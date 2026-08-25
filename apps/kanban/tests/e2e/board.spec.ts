@@ -41,6 +41,14 @@ test("[acceptance] a card can be created, dragged, deleted, undone, and redone",
     (candidate:any) => candidate.title === title,
   );
   expect(reviewedCard.reviewed_at_ms).toEqual(expect.any(Number));
+  const noteText = `Observed at ${Date.now()}`;
+  await card.click();
+  await page.getByRole("textbox", { name:"New note" }).fill(noteText);
+  await page.getByRole("button", { name:"LOG", exact:true }).click();
+  const loggedNote = page.locator(".note").filter({ hasText:noteText });
+  await expect(loggedNote).toBeVisible();
+  await expect(loggedNote.locator("time")).toHaveAttribute("datetime", /T/);
+  await page.getByRole("button", { name:"CANCEL", exact:true }).click();
   await page.clock.fastForward(24 * 60 * 60 * 1000 + 1);
   await expect(review).not.toBeChecked();
   await expect(card).toHaveClass(/needs-review/);
@@ -73,6 +81,9 @@ test("[acceptance] a card can be created, dragged, deleted, undone, and redone",
     candidate.column_id === "doing" && candidate.title === title)).toBe(true);
   await page.reload();
   await expect(doingCards.locator(".card").filter({ hasText: title })).toBeVisible();
+  await card.click();
+  await expect(page.locator(".note").filter({ hasText:noteText })).toBeVisible();
+  await page.getByRole("button", { name:"CANCEL", exact:true }).click();
 
   const deleteButton = card.getByRole("button", { name: "Delete card" });
   const deleteControl = card.locator("x-command-button.delete");

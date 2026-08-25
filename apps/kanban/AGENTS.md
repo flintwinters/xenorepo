@@ -10,6 +10,7 @@ This project is a compact, dependable kanban console. Favor an operable end-to-e
   single MVP board in SQLite by default while retaining backend portability.
 - Every create, rename, reorder, move, delete, and daily-review transaction records complete before/after card state plus a human-readable operation description. Undo and redo move a cursor through that history; a new mutation after undo discards the abandoned redo branch.
 - Daily review is a nullable UTC epoch timestamp, not a scheduled database mutation. The client derives checkbox freshness at the 24-hour boundary and highlights cards that need review, including after offline time or restart.
+- Card identities are durable independently of current board membership. Timestamped notes are normalized, append-only facts owned by that identity, so ordinary board mutations cannot rewrite the log and delete/undo can restore it intact. Note appends do not alter the board-history cursor.
 - Card positions are column-local, contiguous integers. SQLite snapshots and every history transition preserve their visible order; omitted move indexes append within the destination column.
 - A Lit application in `frontend/` owns board-specific browser interactions and
   composes its shell, rails, panes, commands, status, and empty states from the
@@ -25,5 +26,5 @@ This project is a compact, dependable kanban console. Favor an operable end-to-e
 
 ## Current big tasks
 
-- The walking skeleton is established: one durable board supports creating, renaming, precisely ordering, moving, deleting, daily review acknowledgement, undoing, and redoing across the API boundary, with a reproducibly compiled client.
+- The walking skeleton is established: one durable board supports creating, renaming, precisely ordering, moving, deleting, daily review acknowledgement, timestamped activity logging, undoing, and redoing across the API boundary, with a reproducibly compiled client.
 - The next meaningful product boundary is explicit board identity; do not add peripheral card metadata before multi-board ownership is designed.

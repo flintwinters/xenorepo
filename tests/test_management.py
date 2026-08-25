@@ -145,7 +145,8 @@ frontend:
         self.assertEqual([call.args[0] for call in validate_dist.call_args_list], definitions)
 
     def test_root_test_executes_the_curated_suite_once(self) -> None:
-        with patch("manage.run_test_suite", return_value=0) as run:
+        with patch("manage.run_test_suite", return_value=0) as run, \
+             patch("manage.run_browser_framework_suite", return_value=0) as browser:
             result = CliRunner().invoke(repository_manager.app, ["test"])
 
         self.assertEqual(result.exit_code, 0)
@@ -154,6 +155,7 @@ frontend:
         self.assertEqual([call.args for call in run.call_args_list],
             [(ROOT, suite) for suite in expected])
         self.assertEqual(len(expected), len(set(expected)))
+        browser.assert_called_once_with(ROOT)
 
     def test_worminal_custom_serve_delegates_user_policy_to_shared_lifecycle(self) -> None:
         with patch("apps.worminal.manage.serve_app", return_value=0) as serve:

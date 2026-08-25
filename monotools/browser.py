@@ -42,3 +42,18 @@ def validate_browser_suite(suite: BrowserSuite, workspace: Path) -> dict[str, ob
             f"BROWSER_VIEWPORT_COVERAGE: missing {', '.join(absent_viewports)}"
         )
     return report
+
+
+def run_browser_framework_suite(workspace: Path) -> int:
+    """Run Monotools' own trusted-input canaries without an application service."""
+    suite = BrowserSuite(
+        workspace / "tests" / "browser-framework" / "evidence.spec.js",
+        frozenset({"acceptance", "browser-integration"}),
+    )
+    validate_browser_suite(suite, workspace)
+    completed = subprocess.run(
+        [str(workspace / "node_modules" / ".bin" / "playwright"), "test",
+            str(suite.path.relative_to(workspace))],
+        cwd=workspace, check=False,
+    )
+    return completed.returncode

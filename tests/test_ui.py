@@ -33,22 +33,22 @@ class BrowserLifecycleTests(unittest.TestCase):
         definition = get_app("rps")
         process = Mock(spec=subprocess.Popen)
         process.pid = 4200
-        completed = Mock(returncode=0)
         with TemporaryDirectory(dir=ROOT / "apps" / "rps" / "data", prefix="ui-test-") as temporary:
             artifacts = Path(temporary)
             with patch("monotools.ui.validate_app") as validate, \
-                 patch("monotools.browser.validate_browser_suite", return_value={}), \
+                 patch("monotools.browser.validate_browser_suite", return_value={"counts": {}}), \
                  patch("monotools.ui.build_app") as build, \
                  patch("monotools.ui.validate_dist") as validate_dist, \
                  patch("monotools.ui.ui_artifact_directory", return_value=artifacts), \
                  patch("monotools.ui.available_local_port", return_value=8123), \
                  patch("monotools.ui.subprocess.Popen", return_value=process) as popen, \
                  patch("monotools.ui.wait_for_health") as health, \
-                 patch("monotools.ui.subprocess.run", return_value=completed) as run, \
+                 patch("monotools.ui._run_browser", return_value=0) as run, \
                  patch("monotools.ui._terminate", return_value=None):
                 actual = run_ui_check(
                     definition, ROOT, definition.directory / "tests" / "e2e" / "arena.spec.js"
                 )
+                summary = __import__("json").loads((artifacts / "summary.json").read_text())
 
         self.assertEqual(actual, artifacts)
         validate.assert_called_once_with(definition, ROOT)
@@ -65,9 +65,11 @@ class BrowserLifecycleTests(unittest.TestCase):
             str(ROOT / "node_modules" / ".bin" / "playwright"), "test",
             "apps/rps/tests/e2e/arena.spec.js",
         ])
-        self.assertEqual(run.call_args.kwargs["env"]["BASE_URL"], "http://127.0.0.1:8123")
-        self.assertEqual(run.call_args.kwargs["env"]["RPS_DATABASE_URL"],
+        self.assertEqual(run.call_args.args[2]["BASE_URL"], "http://127.0.0.1:8123")
+        self.assertEqual(run.call_args.args[2]["RPS_DATABASE_URL"],
             f"sqlite:///{artifacts / 'browser.db'}")
+        self.assertEqual(summary["cleanup"], "clean")
+        self.assertEqual(summary["browserStatus"], 0)
 
     def test_runner_requires_an_app_specific_suite(self) -> None:
         definition = AppDefinition(

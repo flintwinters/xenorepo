@@ -10,6 +10,7 @@ from rich.table import Table
 import typer
 
 from monotools.apps import AppDefinition, AppDefinitionError, load_app
+from monotools.browser import run_browser_framework_suite
 from monotools.lifecycle import (
     LifecycleError,
     build_app,
@@ -175,6 +176,9 @@ def test() -> None:
         result = run_test_suite(ROOT, suite.path)
         if result:
             raise typer.Exit(result)
+    browser_result = run_browser_framework_suite(ROOT)
+    if browser_result:
+        raise typer.Exit(browser_result)
     console.print("[bold green]Tests passed[/]")
 
 

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 import socket
 import subprocess
@@ -65,13 +66,28 @@ def _terminate(process: subprocess.Popen[bytes]) -> str | None:
     return None
 
 
+def _run_browser(command: list[str], workspace: Path,
+    environment: dict[str, str], log: Path) -> int:
+    """Stream Playwright output while retaining the exact same bytes."""
+    with log.open("w", encoding="utf-8") as retained:
+        process = subprocess.Popen(
+            command, cwd=workspace, env=environment, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        )
+        assert process.stdout is not None
+        for line in process.stdout:
+            print(line, end="")
+            retained.write(line)
+        return process.wait()
+
+
 def run_ui_check(definition: AppDefinition, workspace: Path, suite: object) -> Path:
     """Build, serve, and browser-check one application with preserved evidence."""
     from monotools.management import BrowserSuite
     browser_suite = suite if isinstance(suite, BrowserSuite) else BrowserSuite(Path(suite))
     suite = browser_suite.path
     from monotools.browser import validate_browser_suite
-    validate_browser_suite(browser_suite, workspace)
+    proof_report = validate_browser_suite(browser_suite, workspace)
     validate_app(definition, workspace)
     build_app(definition, workspace)
     validate_dist(definition)
@@ -83,6 +99,8 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object) -> P
     artifacts = ui_artifact_directory(definition)
     artifacts.mkdir(parents=True, exist_ok=True)
     service_log = artifacts / "service.log"
+    playwright_log = artifacts / "playwright.log"
+    summary_path = artifacts / "summary.json"
     port = available_local_port()
     environment = os.environ | {
         "BASE_URL": f"http://127.0.0.1:{port}",
@@ -95,6 +113,10 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object) -> P
     command = [str(playwright), "test", str(suite.relative_to(workspace))]
     process: subprocess.Popen[bytes] | None = None
     primary_failure: Exception | None = None
+    cleanup_failure: str | None = None
+    browser_status: int | None = None
+    started = time.time()
+    database = artifacts / "browser.db" if "database" in definition.capabilities else None
     try:
         with service_log.open("wb") as output:
             process = subprocess.Popen(
@@ -106,10 +128,10 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object) -> P
                 start_new_session=True,
             )
             wait_for_health(port, process)
-            completed = subprocess.run(command, cwd=workspace, env=environment, check=False)
-            if completed.returncode:
+            browser_status = _run_browser(command, workspace, environment, playwright_log)
+            if browser_status:
                 raise LifecycleError(
-                    f"browser checks failed ({completed.returncode}); inspect {artifacts.relative_to(workspace)}"
+                    f"browser checks failed ({browser_status}); inspect {artifacts.relative_to(workspace)}"
                 )
     except (FileNotFoundError, LifecycleError) as error:
         primary_failure = error
@@ -117,8 +139,24 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object) -> P
     finally:
         if process is not None:
             cleanup_failure = _terminate(process)
-            if cleanup_failure is not None:
-                if primary_failure is not None:
-                    raise LifecycleError(f"{primary_failure}; {cleanup_failure}") from primary_failure
-                raise LifecycleError(cleanup_failure)
+        summary_path.write_text(json.dumps({
+            "schemaVersion": 1,
+            "app": definition.name,
+            "suite": str(suite.relative_to(workspace)),
+            "proofCounts": proof_report["counts"],
+            "viewports": sorted(browser_suite.viewports),
+            "inputModalities": sorted(browser_suite.input_modalities),
+            "startedAt": started,
+            "durationSeconds": time.time() - started,
+            "browserStatus": browser_status,
+            "database": str(database.relative_to(workspace)) if database else None,
+            "serviceLog": str(service_log.relative_to(workspace)),
+            "playwrightLog": str(playwright_log.relative_to(workspace)),
+            "cleanup": cleanup_failure or "clean",
+            "failure": str(primary_failure) if primary_failure else None,
+        }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        if cleanup_failure is not None:
+            if primary_failure is not None:
+                raise LifecycleError(f"{primary_failure}; {cleanup_failure}") from primary_failure
+            raise LifecycleError(cleanup_failure)
     return artifacts

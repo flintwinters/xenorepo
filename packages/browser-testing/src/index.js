@@ -2,6 +2,56 @@
 
 const { expect, test: base } = require("@playwright/test");
 
+const EVIDENCE_SCHEMA_VERSION = 1;
+
+async function installInputEvidence(page) {
+  await page.addInitScript(({ schemaVersion }) => {
+    const records = [];
+    const types = ["pointerdown", "pointermove", "pointerup", "pointercancel",
+      "touchstart", "touchmove", "touchend", "touchcancel", "mousedown", "mousemove",
+      "mouseup", "click", "keydown", "keyup"];
+    for (const type of types) document.addEventListener(type, event => {
+      records.push({
+        schemaVersion,
+        type: event.type,
+        trusted: event.isTrusted,
+        timestamp: performance.timeOrigin + event.timeStamp,
+        pointerId: event.pointerId ?? null,
+        pointerType: event.pointerType ?? null,
+        key: event.key ?? null,
+        canceled: event.type.endsWith("cancel"),
+        target: event.composedPath()[0]?.tagName?.toLowerCase() ?? null,
+      });
+    }, { capture: true });
+    Object.defineProperty(window, "__xenorepoInputEvidence", { value: records });
+  }, { schemaVersion: EVIDENCE_SCHEMA_VERSION });
+}
+
+async function readInputEvidence(page) {
+  return page.evaluate(() => window.__xenorepoInputEvidence || []);
+}
+
+function validateInputEvidence(records, claim) {
+  const trusted = records.filter(record => record.trusted);
+  const reject = reason => ({ accepted: false, reason, records });
+  if (!trusted.length) return reject("EVIDENCE_UNTRUSTED");
+  if (claim === "keyboard") {
+    const downs = trusted.filter(record => record.type === "keydown");
+    const ups = trusted.filter(record => record.type === "keyup");
+    return downs.length && downs.length === ups.length
+      ? { accepted: true, records } : reject("EVIDENCE_KEYBOARD_UNBALANCED");
+  }
+  const pointerType = claim === "touch" ? "touch" : "mouse";
+  const pointer = trusted.filter(record => record.pointerType === pointerType);
+  if (pointer.some(record => record.canceled)) return reject("EVIDENCE_POINTER_CANCELED");
+  const phases = pointer.map(record => record.type);
+  if (!phases.includes("pointerdown") || !phases.includes("pointermove")
+      || !phases.includes("pointerup")) return reject("EVIDENCE_POINTER_INCOMPLETE");
+  const ids = new Set(pointer.map(record => record.pointerId));
+  if (ids.size !== 1) return reject("EVIDENCE_POINTER_IDENTITY");
+  return { accepted: true, records };
+}
+
 /** Domain-neutral fixture which records browser failures and same-origin violations. */
 const test = base.extend({
   auditedPage: async ({ page }, use) => {
@@ -15,6 +65,7 @@ const test = base.extend({
     page.on("request", request => {
       if (new URL(request.url()).origin !== origin) failures.push(`external-origin: ${request.url()}`);
     });
+    await installInputEvidence(page);
     await use(page);
     expect(failures, failures.join("\n")).toEqual([]);
   },
@@ -49,4 +100,7 @@ async function keyboardSequence(page, keys) {
   }
 }
 
-module.exports = { expect, keyboardSequence, mousePath, test, touchPath };
+module.exports = {
+  EVIDENCE_SCHEMA_VERSION, expect, installInputEvidence, keyboardSequence, mousePath,
+  readInputEvidence, test, touchPath, validateInputEvidence,
+};

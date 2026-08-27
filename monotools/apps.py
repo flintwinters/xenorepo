@@ -23,6 +23,18 @@ class AppDefinitionError(ValueError):
 
 
 @dataclass(frozen=True)
+class PlannedApp:
+    """A deliberately non-runnable app represented only by its specification."""
+
+    name: str
+    directory: Path
+
+    @property
+    def specification(self) -> Path:
+        return self.directory / "SPEC.md"
+
+
+@dataclass(frozen=True)
 class FrontendArtifact:
     """One independently-built document declared by an application."""
 
@@ -240,7 +252,21 @@ def discover_apps() -> tuple[AppDefinition, ...]:
     if not APPS_DIRECTORY.is_dir():
         return ()
     return tuple(load_app(directory) for directory in sorted(APPS_DIRECTORY.iterdir())
-                 if directory.is_dir() and not directory.name.startswith((".", "_")))
+                 if directory.is_dir() and not directory.name.startswith((".", "_"))
+                 and not is_planned_app(directory))
+
+
+def is_planned_app(directory: Path) -> bool:
+    """Return whether a visible directory is intentionally specification-only."""
+    return (directory / "SPEC.md").is_file() and set(path.name for path in directory.iterdir()) == {"SPEC.md"}
+
+
+def discover_planned_apps(apps_directory: Path = APPS_DIRECTORY) -> tuple[PlannedApp, ...]:
+    """Discover plans without admitting incomplete apps to the runnable catalog."""
+    if not apps_directory.is_dir():
+        return ()
+    return tuple(PlannedApp(directory.name, directory) for directory in sorted(apps_directory.iterdir())
+        if directory.is_dir() and not directory.name.startswith((".", "_")) and is_planned_app(directory))
 
 
 def get_app(name: str) -> AppDefinition:

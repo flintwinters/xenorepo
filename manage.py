@@ -9,7 +9,7 @@ from rich.console import Console
 from rich.table import Table
 import typer
 
-from monotools.apps import AppDefinition, AppDefinitionError, load_app
+from monotools.apps import AppDefinition, AppDefinitionError, discover_planned_apps, is_planned_app, load_app
 from monotools.browser import run_browser_framework_suite
 from monotools.lifecycle import (
     LifecycleError,
@@ -67,6 +67,8 @@ def discover_managers(apps_directory: Path = APPS_DIRECTORY
     managers: list[tuple[AppDefinition, ApplicationManager]] = []
     names: set[str] = set()
     for directory in _visible_directories(apps_directory):
+        if is_planned_app(directory):
+            continue
         manager_path = directory / "manage.py"
         if not manager_path.is_file():
             raise ManagerError(f"visible app directory has no manage.py: {directory}")
@@ -131,9 +133,11 @@ def bootstrap() -> None:
 @app.command("list")
 def list_apps() -> None:
     """List applications explicitly managed by Xenorepo."""
-    table = Table("Name", "Title", "Module")
+    table = Table("Name", "Title", "State", "Module")
     for definition, _ in MANAGERS:
-        table.add_row(definition.name, definition.title, definition.module)
+        table.add_row(definition.name, definition.title, "active", definition.module)
+    for planned in discover_planned_apps(APPS_DIRECTORY):
+        table.add_row(planned.name, "—", "planned", "—")
     console.print(table)
 
 
@@ -151,8 +155,14 @@ def status() -> None:
             "[green]ok[/]" if health["data"] else "—",
             "[green]built[/]" if health["dist"] else "[yellow]pending[/]",
         )
+    planned = discover_planned_apps(APPS_DIRECTORY)
+    for item in planned:
+        table.add_row(item.name, "—", "[cyan]planned[/]", "—", "—", "—")
     console.print(table)
-    console.print(f"{len(MANAGERS)} managed app(s); run [bold]manage.py check[/] for validation.")
+    console.print(
+        f"{len(MANAGERS)} managed app(s), {len(planned)} planned; "
+        "run [bold]manage.py check[/] for validation."
+    )
 
 
 @app.command()

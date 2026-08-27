@@ -204,6 +204,27 @@ frontend:
             with self.assertRaisesRegex(repository_manager.ManagerError, "broken manager"):
                 repository_manager.discover_managers(apps_directory)
 
+    def test_specification_only_apps_are_visible_but_not_active(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="inventory-") as temporary:
+            apps_directory = Path(temporary) / "apps"
+            planned = apps_directory / "future"
+            planned.mkdir(parents=True)
+            (planned / "SPEC.md").write_text("# Future\n", encoding="utf-8")
+
+            self.assertEqual(repository_manager.discover_managers(apps_directory), ())
+            with patch.object(repository_manager, "APPS_DIRECTORY", apps_directory):
+                listed = CliRunner().invoke(repository_manager.app, ["list"])
+                status = CliRunner().invoke(repository_manager.app, ["status"])
+            self.assertEqual(listed.exit_code, 0)
+            self.assertIn("future", listed.output)
+            self.assertIn("planned", listed.output)
+            self.assertEqual(status.exit_code, 0)
+            self.assertIn("future", status.output)
+
+            (planned / "README.md").write_text("incomplete\n", encoding="utf-8")
+            with self.assertRaisesRegex(repository_manager.ManagerError, "has no manage.py"):
+                repository_manager.discover_managers(apps_directory)
+
     def test_manager_rejects_absolute_escaping_and_non_test_suite_paths(self) -> None:
         _, manage_file = self._manager()
         for path in (ROOT / "tests", "../tests", "frontend"):

@@ -34,27 +34,9 @@ monotools: the canonical orchestration library.
 - Monotools owns planning, scaffolding, discovery, startup, shutdown,
   building, validation, testing, and status reporting. Apps declare facts and
   capabilities; they do not duplicate lifecycle orchestration.
-- App creation is specification-gated. Whenever an AI is asked to create a
-  monoapp, it must first create `apps/<app>/SPEC.md` and stop before writing
-  implementation code until the specification exists. The specification is
-  the authoritative product plan: state the user and real-world problem,
-  inventory the intended features at high level, and define the smallest
-  shippable walking skeleton that exercises the product end to end through its
-  real frontend, FastAPI service, and persistence or external boundaries where
-  applicable. Distinguish skeleton scope from deferred scope so "all features"
-  means all are planned, not all are prematurely built.
-- Each new app's `SPEC.md` must make validation executable rather than
-  aspirational. Record the principal user journey, observable acceptance
-  outcomes, realistic test or pilot conditions, required data and integrations,
-  major risks and explicit non-goals, and the evidence that would justify the
-  next increment. Prefer the smallest vertical slice that can be shipped to and
-  evaluated by real users; a collection of disconnected stubs, mock-only paths,
-  or infrastructure without a usable journey is not a walking skeleton.
-- After the specification checkpoint, implement the walking skeleton before
-  expanding deferred features. Keep `SPEC.md` current when evidence changes
-  product scope or authoritative decisions, and route repeatable specification
-  creation and validation through Monotools once concrete app work proves the
-  reusable boundary.
+- Before creating a monoapp, first write `apps/<app>/SPEC.md` that plans its
+  features as a high-level, shippable walking skeleton with real-world
+  validation criteria; only then implement the app.
 - App definitions are declarative, typed, and capability-driven. Monotools must
   discover behavior from metadata rather than hard-coded app names or implicit
   directory knowledge.

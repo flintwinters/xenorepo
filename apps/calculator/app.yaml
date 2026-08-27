@@ -1,6 +1,6 @@
-name: arithmetic
+name: calculator
 title: Calculator
-module: apps.arithmetic.backend.server
+module: apps.calculator.backend.server
 frontend:
   artifacts:
     index:

@@ -8,7 +8,7 @@ from monotools.lifecycle import build_app
 
 class CalculatorTests(unittest.TestCase):
     def test_calculator_build_is_self_contained_lit(self) -> None:
-        definition = get_app("arithmetic")
+        definition = get_app("calculator")
         build_app(definition, ROOT)
         document = definition.document_for_route("/").read_text(encoding="utf-8")
         self.assertIn('<meta name="monotools-shell" content="console">', document)

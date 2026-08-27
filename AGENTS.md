@@ -95,10 +95,10 @@ monotools: the canonical orchestration library.
 
 ## 3. Current tasks
 
-- The independent `arithmetic` Calculator checkpoint is complete: a central Lit
+- The canonical `calculator` checkpoint is complete: a central Lit
   UI, isolated arithmetic state model, keyboard and pointer operation, resilient
   error recovery, and app-owned wide/narrow browser proofs. The historic
-  calculator remains intentionally uninspected and untouched.
+  calculator remains intentionally uninspected and preserved outside app discovery.
 - Maintain the completed browser-proof checkpoint: typed app-owned suite
   inventory, truthful proof tags, pre-mutation TypeScript/Playwright validation,
   trusted input evidence, universal wide/narrow route journeys, durable

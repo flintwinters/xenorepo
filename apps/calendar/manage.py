@@ -7,6 +7,7 @@ manager = create_app_manager(
     __file__,
     tests="tests",
     ui_suite="tests/e2e/calendar.spec.ts",
+    input_modalities=frozenset({"mouse", "touch"}),
 )
 app = manager.app
 

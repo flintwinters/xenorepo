@@ -93,6 +93,12 @@ class CalendarTests(unittest.TestCase):
         self.assertEqual(self.client.request("GET",
             "/api/calendar?start=2026-09-01&end=2026-08-01").status_code, 422)
 
+    def test_build_is_a_self_contained_modular_lit_client(self) -> None:
+        document = Path("apps/calendar/dist/index.html").read_text(encoding="utf-8")
+        self.assertIn("CALENDAR // 01", document)
+        self.assertIn("/api/calendar", document)
+        self.assertNotIn("APP_BUNDLE", document)
+
 
 if __name__ == "__main__":
     unittest.main()

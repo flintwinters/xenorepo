@@ -125,13 +125,13 @@ class CalculatorApp extends LitElement {
     output.error { color:#fb4934; letter-spacing:0; }
     .keys { display:grid; grid-template-columns:repeat(4,1fr); gap:7px; }
     .tabs { display:flex; gap:2px; padding:5px; background:#181a1b; }
-    .tabs button { flex:1; padding:5px; color:#a89984; font:inherit; background:#35312f; border:1px solid #504945; }
+    .tabs button { flex:1; padding:5px; color:#a89984; font:inherit; background:#35312f; border:1px solid #928374; }
     .tabs button[aria-selected="true"] { color:#fabd2f; background:#1f1e1d; border-color:#fabd2f; }
     .scientific-keys { display:grid; grid-template-columns:repeat(2,1fr); gap:5px; padding:7px; }
     .history { margin:0; padding:0; list-style:none; } .history li { padding:6px; border-bottom:1px solid #504945; overflow-wrap:anywhere; }
-    x-command-button { height:52px; font-size:18px; --console-button-border:#504945; }
+    x-command-button { height:52px; font-size:18px; --console-button-border:#a89984; }
     x-command-button.function { color:#fabd2f; }
-    x-command-button.operator { color:#8ec07c; --console-button-border:#5f7f75; }
+    x-command-button.operator { color:#8ec07c; --console-button-border:#83a598; }
     x-command-button.equals { color:#1d2021; --console-fg:#1d2021; --console-button-border:#d5d87a; --console-button-background:linear-gradient(#dadd82,#a7aa20); --console-button-hover-background:linear-gradient(#e4e78c,#b8bb26); --console-button-pressed-background:linear-gradient(#77790f,#4f5009); }
     x-command-button.equals::part(button) { font-weight:bold; }
     x-command-button.zero { grid-column:span 2; }

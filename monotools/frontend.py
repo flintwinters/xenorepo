@@ -108,9 +108,9 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   padding: 1px 6px;
   color: var(--fg);
   background: linear-gradient(#45413f, #302d2b);
-  border: 1px solid #111;
-  border-top-color: #7c6f64;
-  border-left-color: #665c54;
+  border: 1px solid #928374;
+  border-top-color: #c6b58f;
+  border-left-color: #a89984;
   box-shadow: inset -1px -1px #1d2021, 0 2px #101112;
   cursor: pointer;
 }

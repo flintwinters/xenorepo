@@ -328,6 +328,8 @@ frontend:
         pressed_rule = 'button:active:not(:disabled), button[aria-pressed="true"]:not(:disabled)'
         self.assertIn(pressed_rule, components)
         self.assertIn("linear-gradient(#4a4643, #35312f)", components)
+        self.assertIn("var(--console-button-border, #c6b58f)", components)
+        self.assertIn("var(--console-button-border-hover, #f0dfb8)", components)
         self.assertIn("transform: translateY(1px)", components)
         self.assertIn("linear-gradient(#242220, #181716)", components)
         self.assertIn("inset 0 3px 4px rgb(0 0 0 / 0.65)", components)

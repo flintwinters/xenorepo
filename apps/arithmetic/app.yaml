@@ -1,0 +1,11 @@
+name: arithmetic
+title: Calculator
+module: apps.arithmetic.backend.server
+frontend:
+  artifacts:
+    index:
+      format: lit
+      source: frontend/index.ts
+      output: index.html
+  routes:
+    /: index

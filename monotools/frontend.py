@@ -107,7 +107,7 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
   min-height: 18px;
   padding: 1px 6px;
   color: var(--fg);
-  background: linear-gradient(#3c3836, #282828);
+  background: linear-gradient(#45413f, #302d2b);
   border: 1px solid #111;
   border-top-color: #7c6f64;
   border-left-color: #665c54;
@@ -116,7 +116,8 @@ button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-
 }
 .key:active, button:active, .key.pressed {
   transform: translateY(1px);
-  box-shadow: inset 0 3px 3px #181a1b, inset 0 -1px #665c54;
+  background: linear-gradient(#242220, #181716);
+  box-shadow: inset 0 3px 3px #0e0f0f, inset 0 -1px #504945;
 }
 .key:disabled, button:disabled { color: #665c54; cursor: not-allowed; }
 @media (max-width: 620px) {

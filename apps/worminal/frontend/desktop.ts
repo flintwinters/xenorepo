@@ -57,8 +57,9 @@ export class WorminalDesktop extends LitElement {
     .tab-close { width:auto !important; padding:0 2px !important; color:#282828 !important; background:transparent !important; border:0 !important; }
     .new-tab { width:24px; color:#282828 !important; background:transparent !important; border:0 !important; }
     .phase { color: #282828; font-weight: normal; } .controls { display: flex; align-self: stretch; margin-left: auto; }
-    .titlebar button { width: 24px; padding: 0; color: #ebdbb2; font: inherit; background: #282828; border: 0; border-left: 1px solid #111; cursor: pointer; }
-    .titlebar button:hover { background: #3c3836; }
+    .titlebar button { width: 24px; padding: 0; color: #ebdbb2; font: inherit; background: #35312f; border: 0; border-left: 1px solid #111; cursor: pointer; }
+    .titlebar button:hover { background: #45413f; }
+    .titlebar button:active { background: #181716; }
     .terminal-stack { position:relative; min-width:0; min-height:0; }
     .terminal-host { position:absolute; inset:0; min-width: 0; min-height: 0; padding: 5px; overflow: hidden; background: #181a1b; }
     .terminal-host:not(.active) { visibility:hidden; pointer-events:none; }

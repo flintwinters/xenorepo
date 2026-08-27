@@ -3,6 +3,8 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import os
+import subprocess
+import sys
 import unittest
 from unittest.mock import ANY, patch
 
@@ -113,6 +115,20 @@ frontend:
         self.assertEqual(result.exit_code, 0)
         for definition in definitions:
             self.assertIn(definition.name, result.output)
+
+    def test_root_cockpit_cold_start_discovers_the_complete_inventory(self) -> None:
+        """Prove the real entrypoint imports before in-process test fixtures can mask it."""
+        result = subprocess.run(
+            [sys.executable, "manage.py", "list"],
+            cwd=ROOT,
+            check=False,
+            text=True,
+            capture_output=True,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        for definition, _ in repository_manager.MANAGERS:
+            self.assertIn(definition.name, result.stdout)
 
     def test_root_and_leaf_commands_have_distinct_ownership(self) -> None:
         root_commands = {command.name or command.callback.__name__.replace("_", "-")

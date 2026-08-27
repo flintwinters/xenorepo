@@ -99,6 +99,9 @@ monotools: the canonical orchestration library.
   UI, isolated arithmetic state model, keyboard and pointer operation, resilient
   error recovery, and app-owned wide/narrow browser proofs. The historic
   calculator remains intentionally uninspected and preserved outside app discovery.
+- Every monoapp checkpoint must finish with root-level `uv run manage.py verify`;
+  leaf-manager checks are diagnostic only. The platform suite cold-starts
+  `manage.py list` in a subprocess so an undiscoverable app fails the checkpoint.
 - Maintain the completed browser-proof checkpoint: typed app-owned suite
   inventory, truthful proof tags, pre-mutation TypeScript/Playwright validation,
   trusted input evidence, universal wide/narrow route journeys, durable

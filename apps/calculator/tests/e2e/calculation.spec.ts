@@ -31,3 +31,18 @@ test("[acceptance] keyboard, correction, percent, sign, and error recovery work"
   await page.keyboard.press("7");
   await expect(output).toHaveText("7");
 });
+
+test("[acceptance] visible work and scientific mode survive a reload", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name:"Clear" }).click();
+  await page.keyboard.type("9*9");
+  await page.keyboard.press("Enter");
+  await page.getByRole("tab", { name:"Scientific" }).click();
+  await page.reload();
+
+  await expect(page.getByLabel("Display")).toHaveText("81");
+  await expect(page.getByRole("tab", { name:"Scientific" })).toHaveAttribute("aria-selected", "true");
+  await expect(page.getByRole("listitem").filter({ hasText:"9 × 9 = 81" })).toBeVisible();
+  await page.getByRole("button", { name:"square", exact:true }).click();
+  await expect(page.getByLabel("Display")).toHaveText("6561");
+});

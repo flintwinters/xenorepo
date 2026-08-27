@@ -108,8 +108,8 @@ frontend:
 
         self.assertEqual(
             [definition.name for definition in definitions],
-            ["calendar", "chat", "kanban", "mailing_list", "microblog", "quiz", "rps",
-                "worminal"],
+            ["calculator", "calendar", "chat", "kanban", "mailing_list", "microblog",
+                "quiz", "rps", "worminal"],
         )
         result = CliRunner().invoke(repository_manager.app, ["--help"])
         self.assertEqual(result.exit_code, 0)

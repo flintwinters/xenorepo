@@ -61,7 +61,7 @@ class RpsTests(unittest.TestCase):
             'class="utility"', 'class="mosaic"',
             'class="pane arena-index"', 'class="pane battle"',
             'class="pane ledger"',
-            'class="index">01', 'id="round-log"', "position:sticky",
+            'class="pane-title">ARENA', 'id="round-log"', "position:sticky",
             'id="top-matches"', 'id="recent-results"', 'data-watch',
             '"spectator_state"', '"arena_snapshot"',
             'id="landing"', 'id="play-form"', 'id="landing-matches"',

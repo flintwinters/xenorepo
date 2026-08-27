@@ -14,12 +14,6 @@ const tone = (value: ConsoleTone) => ({
   neutral: ["#665c54", "#3c3836", "#928374", "#282828"],
 }[value]);
 
-/** Preserve the legacy numbered-title shorthand while favoring explicit indices. */
-const paneHeading = (title: string, index: string) => {
-  const numbered = /^\s*(\d{1,3})\s+(.+?)\s*$/.exec(title);
-  return { index: index || numbered?.[1] || "", title: numbered?.[2] || title };
-};
-
 class ConsoleElement extends LitElement {
   static styles: CSSResultGroup = consoleTokens;
 }
@@ -45,21 +39,18 @@ export class StatusRail extends UtilityRail {}
 customElements.define("x-status-rail", StatusRail);
 
 export class ConsolePane extends ConsoleElement {
-  static properties = { title: { type: String }, index: { type: String }, tone: { type: String } };
+  static properties = { title: { type: String }, tone: { type: String } };
   declare title: string;
-  declare index: string;
   declare tone: ConsoleTone;
-  constructor() { super(); this.title = ""; this.index = ""; this.tone = "blue"; }
+  constructor() { super(); this.title = ""; this.tone = "blue"; }
   static styles = [consoleTokens, chrome, css`
     :host { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; background: var(--console-panel, #282828); }
-    .index { align-self: stretch; display: grid; place-items: center; min-width: 21px; padding: 0 4px; color: var(--console-fg, #ebdbb2); background: var(--console-panel, #282828); border-right: 1px solid #111; }
     .body { min-height: 0; overflow: auto; }
   `];
   render() {
     const [light, dark, rim, shadow] = tone(this.tone);
     const style = `--console-tone-light:${light};--console-tone-dark:${dark};--console-tone-rim:${rim};--console-tone-shadow:${shadow}`;
-    const heading = paneHeading(this.title, this.index);
-    return html`<div class="chrome" style=${style}>${heading.index ? html`<span class="index">${heading.index}</span>` : nothing}<span>${heading.title}</span><slot name="title-end"></slot></div><div class="body"><slot></slot></div>`;
+    return html`<div class="chrome" style=${style}><span>${this.title}</span><slot name="title-end"></slot></div><div class="body"><slot></slot></div>`;
   }
 }
 customElements.define("x-console-pane", ConsolePane);

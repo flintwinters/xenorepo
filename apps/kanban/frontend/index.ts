@@ -295,7 +295,7 @@ class KanbanBoard extends LitElement {
   private renderColumn(column: Column, index: number) {
     const cards = this.cards(column.id);
     const tones = ["orange", "blue", "green"];
-    return html`<x-console-pane class="column" id=${`column-${column.id}`} index=${String(index + 1).padStart(2,"0")}
+    return html`<x-console-pane class="column" id=${`column-${column.id}`}
       title=${column.title} tone=${tones[index]}>
       <span slot="title-end" class="count">${cards.length} ${cards.length === 1 ? "card" : "cards"}</span>
       <section>

@@ -14,7 +14,7 @@ export const consoleTokens = css`
 export const chrome = css`
   :host { display: block; min-width: 0; }
   .chrome {
-    display: flex; align-items: center; gap: 5px; min-height: 18px;
+    display: flex; align-items: center; gap: 5px; min-height: 18px; padding-inline: 5px;
     color: var(--console-ink, #1d2021); font-weight: bold;
     background: linear-gradient(var(--console-tone-light, #83a598), var(--console-tone-dark, #5f7f75));
     border-top: 1px solid var(--console-tone-rim, #b7cfca);

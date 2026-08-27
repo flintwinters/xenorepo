@@ -149,7 +149,7 @@ class CalculatorApp extends LitElement {
     return html`<x-console-shell>
       <x-utility-rail slot="header"><span class="brand">CALCULATOR</span><span class="context">ARITHMETIC / DESK</span><span class="mode">READY</span></x-utility-rail>
       <section class="workspace">
-        <x-console-pane class="display-pane" title="CALCULATION" index="01" tone="green">
+        <x-console-pane class="display-pane" title="CALCULATION" tone="green">
           <div class="calculator">
             <div class="readout" aria-live="polite">
               <div class="expression">${this.state.expression || "\u00a0"}</div>
@@ -157,7 +157,7 @@ class CalculatorApp extends LitElement {
             </div>
           </div>
         </x-console-pane>
-        <x-console-pane class="keypad-pane" title="KEYPAD" index="02" tone="blue">
+        <x-console-pane class="keypad-pane" title="KEYPAD" tone="blue">
           <div class="calculator"><div class="keys">
               ${this.key("C", "function")}${this.key("±", "function")}${this.key("%", "function")}${this.key("÷", "operator")}
               ${this.key("7")}${this.key("8")}${this.key("9")}${this.key("×", "operator")}
@@ -167,7 +167,7 @@ class CalculatorApp extends LitElement {
           </div></div>
         </x-console-pane>
         <section class="side">
-          <x-console-pane title="MODES" index="03" tone="orange">
+          <x-console-pane title="MODES" tone="orange">
             <div class="tabs" role="tablist" aria-label="Calculation mode">
               <button role="tab" aria-selected=${this.mode === "standard"} data-mode="standard"
                 @click=${() => { this.mode="standard"; this.persist(); }}>STANDARD</button>
@@ -180,7 +180,7 @@ class CalculatorApp extends LitElement {
                   @click=${() => this.scientific(action)}>${action}</x-command-button>`)}
             </div>` : ""}
           </x-console-pane>
-          <x-console-pane title="HISTORY" index="04" tone="purple">
+          <x-console-pane title="HISTORY" tone="purple">
             <ol class="history">${this.ledger.map((entry) => html`<li>${entry}</li>`)}</ol>
           </x-console-pane>
         </section>

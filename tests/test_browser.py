@@ -14,6 +14,17 @@ from monotools.ui import run_ui_check
 
 
 class BrowserProofContractTests(unittest.TestCase):
+    def test_universal_route_check_is_not_mislabeled_product_acceptance(self) -> None:
+        suite = BrowserSuite(
+            ROOT / "tests/browser-framework/universal.spec.js",
+            frozenset({"browser-integration"}),
+        )
+
+        report = validate_browser_suite(suite, ROOT)
+
+        self.assertEqual(report["counts"]["acceptance"], 0)
+        self.assertGreater(report["counts"]["browser-integration"], 0)
+
     def test_owned_suites_parse_and_enumerate_with_required_proofs(self) -> None:
         cases = (
             ("chat", "chat.spec.js"),

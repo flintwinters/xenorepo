@@ -89,7 +89,8 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = Non
     browser_suite = (suite if isinstance(suite, BrowserSuite)
         else BrowserSuite(Path(suite)) if suite is not None else None)
     universal_suite = BrowserSuite(
-        workspace / "tests" / "browser-framework" / "universal.spec.js"
+        workspace / "tests" / "browser-framework" / "universal.spec.js",
+        frozenset({"browser-integration"}),
     )
     from monotools.browser import validate_browser_suite
     universal_report = validate_browser_suite(universal_suite, workspace)

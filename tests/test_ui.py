@@ -72,13 +72,13 @@ class BrowserLifecycleTests(unittest.TestCase):
         self.assertEqual(summary["cleanup"], "clean")
         self.assertEqual(summary["browserStatus"], 0)
 
-    def test_runner_supports_universal_journeys_without_an_app_suite(self) -> None:
+    def test_runner_supports_route_smoke_checks_without_an_app_suite(self) -> None:
         definition = get_app("calendar")
         process = Mock(spec=subprocess.Popen)
         process.pid = 4201
         with TemporaryDirectory(dir=definition.directory, prefix="ui-test-") as temporary, \
              patch("monotools.browser.validate_browser_suite",
-                return_value={"counts": {"acceptance": 1}}), \
+                return_value={"counts": {"browser-integration": 1}}), \
              patch("monotools.ui.validate_app"), patch("monotools.ui.build_app"), \
              patch("monotools.ui.validate_dist"), \
              patch("monotools.ui.ui_artifact_directory", return_value=Path(temporary)), \

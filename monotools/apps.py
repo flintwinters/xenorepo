@@ -22,6 +22,11 @@ class AppDefinitionError(ValueError):
     """Raised when application metadata violates its contract."""
 
 
+def specification_path(directory: Path) -> Path:
+    """Return the canonical product specification path for any app state."""
+    return directory / "SPEC.md"
+
+
 @dataclass(frozen=True)
 class PlannedApp:
     """A deliberately non-runnable app represented only by its specification."""
@@ -31,7 +36,7 @@ class PlannedApp:
 
     @property
     def specification(self) -> Path:
-        return self.directory / "SPEC.md"
+        return specification_path(self.directory)
 
 
 @dataclass(frozen=True)
@@ -54,6 +59,10 @@ class AppDefinition:
     artifacts: tuple[FrontendArtifact, ...]
     routes: tuple[tuple[str, str], ...]
     capabilities: frozenset[str]
+
+    @property
+    def specification(self) -> Path:
+        return specification_path(self.directory)
 
     @property
     def source_directory(self) -> Path:

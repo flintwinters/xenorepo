@@ -4,7 +4,7 @@ const routes = JSON.parse(process.env.XENOREPO_FRONTEND_ROUTES
   || '[{"path":"/","artifact":"index.html"}]');
 
 for (const route of routes) {
-  test(`[acceptance] declared route ${route.path} renders its self-contained artifact`,
+  test(`[browser-integration] declared route ${route.path} renders its self-contained artifact`,
     async ({ auditedPage: page }) => {
       const response = await page.goto(route.path);
       expect(response?.ok(), `HTTP ${response?.status()} for ${route.path}`).toBe(true);

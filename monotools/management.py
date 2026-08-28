@@ -95,6 +95,10 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
     test_suite = _owned_path(definition, tests, kind="Python suite")
     browser_path = (_owned_path(definition, ui_suite, kind="browser suite")
         if ui_suite is not None else None)
+    if definition.specification.is_file() and browser_path is None:
+        raise AppDefinitionError(
+            f"{definition.name} has a product specification but no app-owned browser suite"
+        )
     app = create_cli(f"Build, validate, test, and run {definition.title}.")
 
     @app.command()
@@ -136,7 +140,9 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
             artifacts = run_ui_check(definition, workspace, declared, evidence=evidence)
         except LifecycleError as error:
             _fail(error)
-        matrix = "wide/narrow acceptance"
+        matrix = "wide/narrow route smoke"
+        if declared:
+            matrix += "; app-owned " + "/".join(sorted(declared.proof_kinds))
         if declared and declared.input_modalities:
             matrix += "; trusted " + "/".join(sorted(declared.input_modalities))
         console.print(f"[bold green]{matrix}[/] {definition.name} ({artifacts})")

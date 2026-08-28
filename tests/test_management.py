@@ -249,6 +249,20 @@ frontend:
                     AppDefinitionError, "app-owned|beneath tests"):
                 create_app_manager(manage_file, tests=path)
 
+    def test_specified_app_requires_an_owned_product_browser_journey(self) -> None:
+        _, manage_file = self._manager()
+        (manage_file.parent / "SPEC.md").write_text(
+            "# Product\n\nA shippable journey.\n", encoding="utf-8"
+        )
+
+        with self.assertRaisesRegex(AppDefinitionError, "no app-owned browser suite"):
+            create_app_manager(manage_file, tests="tests")
+
+        manager = create_app_manager(
+            manage_file, tests="tests", ui_suite="tests/product.spec.js"
+        )
+        self.assertEqual(manager.browser_suite.path, manage_file.parent / "tests/product.spec.js")
+
     def test_root_and_mounted_managers_are_working_directory_independent(self) -> None:
         original = Path.cwd()
         foreign = ROOT / "tests"

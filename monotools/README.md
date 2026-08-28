@@ -72,12 +72,18 @@ browser inventory.
 
 `python manage.py ui-check [app]` checks one app or all apps in deterministic
 order. Every metadata-declared frontend route receives Monotools' universal
-wide/narrow Chromium journey. Domain scenarios remain in
+wide/narrow Chromium smoke journey; this proves delivery and self-containment,
+not product acceptance. Domain scenarios remain in
 `apps/<app>/tests/e2e/` and use exactly one proof tag: `acceptance`,
 `browser-integration`, `visual`, or `accessibility`. Viewport names never imply
 input modality; trusted mouse, native Chromium touch, and keyboard evidence are
 separate claims. Synthetic events may support browser-integration tests but
 cannot satisfy trusted-input acceptance.
+
+Once an app has a `SPEC.md`, its manager must declare an app-owned browser suite.
+This makes promotion from a product plan to a runnable monoapp contingent on an
+executable user journey instead of allowing the universal route smoke check to
+stand in for the specification's acceptance criteria.
 
 Static TypeScript parsing and Playwright enumeration run before builds or other
 browser-lifecycle mutation. Each run retains `summary.json`, `playwright.log`,

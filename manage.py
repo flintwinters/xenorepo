@@ -209,7 +209,7 @@ def ui_check(app_name: str | None = typer.Argument(None),
             run_ui_check(definition, ROOT, manager.browser_suite, evidence=evidence)
     except LifecycleError as error:
         _fail(error)
-    console.print(f"[bold green]wide/narrow acceptance[/] ({len(selected)} app(s))")
+    console.print(f"[bold green]browser proofs passed[/] ({len(selected)} app(s))")
 
 
 @app.command()

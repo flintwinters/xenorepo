@@ -216,11 +216,12 @@ def check() -> None:
     try:
         validate_source_lines(ROOT)
         report = _collect_audit()
-        if report.architecture:
+        violations = report.architecture + report.large_files + report.complex_functions
+        if violations:
             details = "; ".join(
-                f"{item.category} {item.path}: {item.detail}" for item in report.architecture
+                f"{item.category} {item.path}: {item.detail}" for item in violations
             )
-            raise LifecycleError(f"architecture audit failed: {details}")
+            raise LifecycleError(f"structural audit failed: {details}")
         current = discover_managers()
         for definition, _ in current:
             validate_app(definition, ROOT)
@@ -229,9 +230,7 @@ def check() -> None:
     except (ManagerError, LifecycleError) as error:
         _fail(error)
     console.print(
-        f"[bold green]All checks passed[/] ({len(current)} app(s); "
-        f"{len(report.large_files)} large file(s), "
-        f"{len(report.complex_functions)} complex function(s) recorded)"
+        f"[bold green]All checks passed[/] ({len(current)} app(s); structural audit clean)"
     )
 
 

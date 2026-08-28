@@ -197,7 +197,7 @@ def _script_complexity(workspace: Path, paths: tuple[Path, ...]) -> list[AuditVi
 
 def audit_workspace(workspace: Path,
     definitions: tuple[AppDefinition, ...]) -> AuditReport:
-    """Collect architecture violations and non-gating structural debt."""
+    """Collect architecture, file-size, and function-complexity violations."""
     sources = _source_files(workspace)
     large = [AuditViolation("large-file", str(path.relative_to(workspace)),
         f"{len(path.read_text(encoding='utf-8').splitlines())} lines (maximum {MAX_SOURCE_LINES})")

@@ -12,6 +12,7 @@ import typer
 from typer.testing import CliRunner
 
 from monotools.apps import AppDefinitionError, ROOT
+from monotools.audit import AuditReport, AuditViolation
 from monotools.management import create_app_manager, create_cli, resolve_local_app
 import manage as repository_manager
 
@@ -172,6 +173,30 @@ frontend:
         self.assertEqual([call.args[0] for call in validate.call_args_list], definitions)
         self.assertEqual([call.args[0] for call in build.call_args_list], definitions)
         self.assertEqual([call.args[0] for call in validate_dist.call_args_list], definitions)
+
+    def test_root_check_rejects_every_structural_violation_category_before_building(self) -> None:
+        categories = (
+            ("architecture", "central-app-identity"),
+            ("large_files", "large-file"),
+            ("complex_functions", "complex-function"),
+        )
+        for field, category in categories:
+            with self.subTest(category=category):
+                violation = AuditViolation(category, "fixture/source.py:1", "fixture violation")
+                values = {name: () for name, _ in categories}
+                values[field] = (violation,)
+                report = AuditReport(**values)
+                with patch("manage._collect_audit", return_value=report), \
+                     patch("manage.validate_app") as validate, \
+                     patch("manage.build_app") as build:
+                    result = CliRunner().invoke(repository_manager.app, ["check"], color=False)
+
+                self.assertEqual(result.exit_code, 1)
+                self.assertIn("structural audit failed:", result.output)
+                self.assertIn(f"{category} fixture/source.py:1:", result.output)
+                self.assertIn("fixture violation", " ".join(result.output.split()))
+                validate.assert_not_called()
+                build.assert_not_called()
 
     def test_root_test_executes_the_curated_suite_once(self) -> None:
         with patch("manage.run_test_suite", return_value=0) as run, \

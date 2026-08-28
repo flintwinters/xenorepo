@@ -29,7 +29,7 @@ app identities at runtime, excludes `historic/` and generated data, limits
 source files to 600 physical lines, and computes cyclomatic complexity with a
 maximum of 8 for Python, TypeScript, JavaScript, and source HTML functions.
 
-The checkpoint 7 baseline is:
+The checkpoint 8 baseline is:
 
 - Architecture: 0 violations across central identity isolation, cross-app
   imports, frontend package boundaries, and shared custom-element adoption.
@@ -50,6 +50,8 @@ The checkpoint 7 baseline is:
   preserved.
 - App-owned controllers, transactions, realtime handlers, and browser views are
   decomposed without crossing product boundaries or changing their contracts.
+- Root `check` and `verify` permanently reject every recorded architecture,
+  file-size, and function-complexity violation before app builds begin.
 
 ## Checkpoint status
 
@@ -90,11 +92,15 @@ The checkpoint 7 baseline is:
    is below 600 physical lines. Persistence transaction boundaries, realtime
    and process protocols, browser behavior, and artifact contracts are
    preserved. The complete verification matrix passed on 2026-08-28.
-8. **Activate permanent gates — pending.**
+8. **Activate permanent gates — complete.** Root `check` and therefore
+   `verify` reject architecture, file-size, and function-complexity violations
+   before building any monoapp. The read-only `audit` inventory remains
+   available, synthetic management tests prove each violation category is a
+   hard failure, and the complete verification matrix passed on 2026-08-28.
 
 ## Next action
 
-Begin checkpoint 8 by making root `check` and therefore `verify` reject any
-file-size or complexity violation in addition to architecture drift. Preserve
-the read-only `audit` inventory and lock the permanent zero-debt gate with
-synthetic and repository-level management tests.
+Stabilization is complete. Keep `uv run manage.py verify` as the permanent
+change gate, preserve the zero-violation structural baseline, and select the
+next product or platform investment from measured monoapp needs rather than
+adding speculative shared abstractions.

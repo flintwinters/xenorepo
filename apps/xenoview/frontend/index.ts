@@ -100,9 +100,10 @@ class XenorepoCockpit extends LitElement {
   private async capture(): Promise<void> {
     await this.perform(async () => {
       const result = await this.request<{ created: boolean }>("/api/snapshots", { method: "POST" });
-      [this.overview, this.history] = await Promise.all([
-        this.request<Overview>("/api/overview"), this.request<Snapshot[]>("/api/history"),
-      ]);
+      this.history = await this.request<Snapshot[]>("/api/history");
+      if (this.overview) this.overview.delta = Object.fromEntries(
+        Object.keys(this.overview.metrics).map((key) => [key, 0]),
+      );
       this.message = result.created ? "Snapshot recorded" : "Current repository state was already recorded";
       this.page = "history";
     });
@@ -210,8 +211,9 @@ class XenorepoCockpit extends LitElement {
       <nav>${pages.map((page) => html`<x-command-button label=${page} .pressed=${this.page === page}
         @click=${() => { this.page = page; }}></x-command-button>`)}</nav>
       <span class="push"></span><x-command-button label="RESCAN" ?disabled=${this.busy}
-        @click=${this.load}></x-command-button>
-      <x-command-button label="RECORD SNAPSHOT" ?disabled=${this.busy} @click=${this.capture}></x-command-button>
+        @click=${() => void this.load()}></x-command-button>
+      <x-command-button label="RECORD SNAPSHOT" ?disabled=${this.busy}
+        @click=${() => void this.capture()}></x-command-button>
       </x-utility-rail>
       <main>${this.page === "overview" ? this.overviewPage() : this.page === "modules" ? this.modulesPage()
         : this.page === "explorer" ? this.explorerPage() : this.page === "architecture"

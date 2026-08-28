@@ -59,6 +59,7 @@ class AppDefinition:
     artifacts: tuple[FrontendArtifact, ...]
     routes: tuple[tuple[str, str], ...]
     capabilities: frozenset[str]
+    imports: tuple[str, ...] = ()
 
     @property
     def specification(self) -> Path:
@@ -137,6 +138,21 @@ def _relative_path(value: object, path: Path, label: str) -> Path:
     if raw == ".":
         raise AppDefinitionError(f"{_display(path)} {label} must name a file")
     return Path(*candidate.parts)
+
+
+def _imports(value: object, path: Path) -> tuple[str, ...]:
+    if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
+        raise AppDefinitionError(f"{_display(path)} imports must be a list of non-empty strings")
+    if value != sorted(set(value)):
+        raise AppDefinitionError(f"{_display(path)} imports must be unique and sorted")
+    unsupported = [item for item in value
+        if not (item.startswith("monotools.") or item.startswith("@xenorepo/"))]
+    if unsupported:
+        raise AppDefinitionError(
+            f"{_display(path)} imports must name shared Monotools or Xenorepo modules: "
+            f"{', '.join(unsupported)}"
+        )
+    return tuple(value)
 
 
 def _load_yaml(path: Path) -> Mapping[str, object]:
@@ -233,7 +249,7 @@ def load_app(directory: Path) -> AppDefinition:
     if not metadata_path.is_file():
         raise AppDefinitionError(f"missing metadata: {_display(metadata_path)}")
     data = _load_yaml(metadata_path)
-    _only_keys(data, frozenset({"name", "title", "module", "capabilities", "frontend"}), metadata_path,
+    _only_keys(data, frozenset({"name", "title", "module", "capabilities", "imports", "frontend"}), metadata_path,
         "document")
     name = _string(data.get("name"), metadata_path, "name")
     title = _string(data.get("title"), metadata_path, "title")
@@ -254,7 +270,8 @@ def load_app(directory: Path) -> AppDefinition:
         raise AppDefinitionError(
             f"{_display(metadata_path)} has unsupported capabilities: {', '.join(sorted(unsupported))}"
         )
-    return AppDefinition(name, title, directory, module, artifacts, routes, capabilities)
+    imports = _imports(data.get("imports", []), metadata_path)
+    return AppDefinition(name, title, directory, module, artifacts, routes, capabilities, imports)
 
 
 def discover_apps() -> tuple[AppDefinition, ...]:

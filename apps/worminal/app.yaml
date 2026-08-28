@@ -4,6 +4,15 @@ module: apps.worminal.backend.server
 capabilities:
   - database
   - realtime
+imports:
+  - "@xenorepo/lit-ui"
+  - monotools.appkit
+  - monotools.database
+  - monotools.http
+  - monotools.lifecycle
+  - monotools.management
+  - monotools.realtime
+  - monotools.runtime
 frontend:
   artifacts:
     index:

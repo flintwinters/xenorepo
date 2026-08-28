@@ -3,6 +3,15 @@ title: Dispatch Ledger
 module: apps.mailing_list.backend.server
 capabilities:
   - database
+imports:
+  - "@xenorepo/lit-ui"
+  - monotools.appkit
+  - monotools.commerce
+  - monotools.database
+  - monotools.http
+  - monotools.mailer
+  - monotools.management
+  - monotools.runtime
 frontend:
   artifacts:
     index:

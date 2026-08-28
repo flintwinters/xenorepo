@@ -3,6 +3,13 @@ title: Kanban Console
 module: apps.kanban.backend.server
 capabilities:
   - database
+imports:
+  - "@xenorepo/lit-ui"
+  - monotools.appkit
+  - monotools.database
+  - monotools.http
+  - monotools.management
+  - monotools.runtime
 frontend:
   artifacts:
     index:

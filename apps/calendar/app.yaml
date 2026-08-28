@@ -3,6 +3,12 @@ title: Calendar Console
 module: apps.calendar.backend.server
 capabilities:
   - database
+imports:
+  - "@xenorepo/lit-ui"
+  - monotools.appkit
+  - monotools.http
+  - monotools.management
+  - monotools.runtime
 frontend:
   artifacts:
     index:

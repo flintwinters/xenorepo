@@ -3,6 +3,13 @@ title: WIRE/98
 module: apps.microblog.backend.server
 capabilities:
   - database
+imports:
+  - monotools.appkit
+  - monotools.auth
+  - monotools.database
+  - monotools.http
+  - monotools.management
+  - monotools.runtime
 frontend:
   artifacts:
     index:

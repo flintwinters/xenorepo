@@ -6,8 +6,11 @@ only after more than one app has proved their boundary.
 
 ## App contract
 
-Each app declares its name, title, importable FastAPI module, capabilities, and
-frontend artifacts in `app.yaml`. Artifact source, output, and format are
+Each app declares its name, title, importable FastAPI module, capabilities,
+cross-boundary production imports, and frontend artifacts in `app.yaml`. The
+import list is the agent-visible inventory of `monotools.*` modules and shared
+`@xenorepo/*` packages used by app-owned production source; validation rejects
+drift between that declaration and source. Artifact source, output, and format are
 independent facts; routes map server-owned URL paths to logical artifact names.
 `python manage.py check` discovers every definition, validates its source
 contract, imports its service, builds its browser documents, and validates the

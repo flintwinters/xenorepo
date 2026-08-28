@@ -76,7 +76,7 @@ contracts, and real browser interaction. Browser checks belong in the same
 Monotools lifecycle as every other check. Success means the requested state was
 proved; failure means the operator has the output and artifacts needed to act.
 
-## Current state: 2026-08-18
+## Current state
 
 The repository has a strong platform foundation and is now moving from
 framework construction toward systematic extraction and product refinement.
@@ -84,18 +84,18 @@ framework construction toward systematic extraction and product refinement.
 | Vision area | Current position | Remaining work |
 | --- | --- | --- |
 | Central lifecycle | `manage.py` discovers, builds, validates, tests, serves, bootstraps, and runs `ui-check`. | Add planning, scaffolding, richer status, and deployment workflows as repeated app work proves their boundaries. |
-| Declarative app contract | YAML metadata defines app identity, capabilities, artifacts, and routes for five apps. | Expand capability contracts without hard-coded exceptions; make lifecycle state and recovery more visible. |
+| Declarative app contract | YAML metadata defines app identity, capabilities, artifacts, and routes. | Expand capability contracts without hard-coded exceptions; make lifecycle state and recovery more visible. |
 | Single FastAPI service | Every discovered app exposes `/health`, declared documents, and domain routes through FastAPI. | Continue removing legacy assumptions and strengthen production startup and deployment checks. |
-| Frontend system | Self-contained document and Lit artifacts build through the platform; Console Lit UI is shared by Calculator and new Lit work. | Migrate legacy pages deliberately and extract only genuinely reusable components into the catalog. |
+| Frontend system | Self-contained document and Lit artifacts build through the platform, with a restrained shared primitive layer. | Migrate legacy pages deliberately and extract only genuinely reusable components into the catalog. |
 | Persistence | SQLAlchemy repositories, SQLite data directories, migrations, constraints, provenance, and realtime models are established in several apps. | Exercise migrations more broadly and validate PostgreSQL compatibility where the domain requires it. |
-| Quality infrastructure | The Python suite covers platform, HTTP, realtime, persistence, and app behavior. Playwright now verifies RPS against the real service at desktop and mobile sizes, with traces and screenshots on failure. | Add browser suites as apps mature, then introduce approved visual baselines and broader lifecycle failure tests. |
-| Product proving ground | RPS is the current UI-quality proving ground, with an arena hierarchy, realtime matchmaking, durable rounds, and responsive behavior. Calculator, Quiz, Chat, and Microblog prove different platform boundaries. | Finish the RPS reveal direction, keep player ownership instantly legible, and use lessons from each app to improve shared contracts. |
+| Quality infrastructure | Platform and app-owned suites cover Python behavior, HTTP, realtime, persistence, and real browser interaction with preserved evidence. | Broaden lifecycle failure coverage and app-owned browser proof where it reduces demonstrated risk. |
+| Product proving grounds | Independent monoapps exercise distinct lifecycle, interface, persistence, realtime, and process boundaries. | Keep product policy app-owned and promote only independently reusable findings into shared contracts. |
 | Library governance | `LIBRARIES.md` catalogs Monotools and Console Lit UI and defines extraction rules. | Keep the catalog authoritative and continue separating app domain code from shared platform code. |
 
 ## Strategic sequence
 
-1. Make the RPS arena and reveal unmistakably readable at desktop and mobile
-   sizes; treat the browser suite as a regression guard for the approved state.
+1. Establish and enforce the architectural firewall between central tooling
+   and independently declared monoapps.
 2. Turn repeated app lessons into small, tested Monotools capabilities rather
    than app-specific scripts.
 3. Migrate or replace legacy frontend surfaces when a shared component boundary

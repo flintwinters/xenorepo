@@ -1,10 +1,12 @@
 """Reusable build and validation operations."""
 
 from importlib import import_module
+import ast
 from html import escape
 from pathlib import Path
 import os
 import py_compile
+import re
 import shutil
 import subprocess
 import sys
@@ -127,6 +129,40 @@ def build_app(definition: AppDefinition, workspace: Path) -> None:
             continue
 
 
+_SHARED_PACKAGE_IMPORT = re.compile(
+    r"(?:from\s+|import\s*(?:\([^)]*?from\s+)?)[\"'](@xenorepo/[^/\"']+)[\"']"
+)
+
+
+def _declared_source_imports(definition: AppDefinition) -> tuple[str, ...]:
+    """Discover cross-boundary production imports owned by one monoapp."""
+    discovered: set[str] = set()
+    python_sources = (definition.directory / "manage.py", *definition.backend_directory.rglob("*.py"))
+    for source in python_sources:
+        tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+        for node in ast.walk(tree):
+            names = [node.module] if isinstance(node, ast.ImportFrom) else (
+                [alias.name for alias in node.names] if isinstance(node, ast.Import) else [])
+            discovered.update(name for name in names if name and name.startswith("monotools."))
+    for source in definition.source_directory.rglob("*"):
+        if source.suffix in {".ts", ".js"}:
+            discovered.update(_SHARED_PACKAGE_IMPORT.findall(source.read_text(encoding="utf-8")))
+    return tuple(sorted(discovered))
+
+
+def _validate_declared_imports(definition: AppDefinition) -> None:
+    discovered = _declared_source_imports(definition)
+    if definition.imports != discovered:
+        missing = sorted(set(discovered) - set(definition.imports))
+        unused = sorted(set(definition.imports) - set(discovered))
+        details = []
+        if missing:
+            details.append(f"undeclared: {', '.join(missing)}")
+        if unused:
+            details.append(f"not imported: {', '.join(unused)}")
+        raise LifecycleError(f"{definition.name} app.yaml imports do not match source ({'; '.join(details)})")
+
+
 def validate_app(definition: AppDefinition, workspace: Path) -> None:
     expected = [
         definition.directory / "app.yaml",
@@ -141,6 +177,7 @@ def validate_app(definition: AppDefinition, workspace: Path) -> None:
     missing = [path.relative_to(workspace) for path in expected if not path.is_file()]
     if missing:
         raise LifecycleError(f"{definition.name} missing files: {', '.join(map(str, missing))}")
+    _validate_declared_imports(definition)
     _validate_lit(definition, workspace)
     py_compile.compile(str(definition.backend_directory / "server.py"), doraise=True)
     module = import_module(definition.module)

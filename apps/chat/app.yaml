@@ -4,6 +4,15 @@ module: apps.chat.backend.server
 capabilities:
   - database
   - realtime
+imports:
+  - "@xenorepo/lit-ui"
+  - monotools.appkit
+  - monotools.database
+  - monotools.http
+  - monotools.management
+  - monotools.orm
+  - monotools.realtime
+  - monotools.runtime
 frontend:
   artifacts:
     index:

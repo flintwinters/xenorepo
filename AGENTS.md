@@ -57,19 +57,15 @@ it, and **Monotools** is the canonical orchestration library.
 
 ## 3. Current tasks
 
-- Extract the remaining Calculator, Chat, Quiz, and Worminal product assertions
-  from mixed platform tooling; remove the legacy global CLI after its final
-  compatibility assertions move.
-- Design Kanban board identity and ownership while preserving stable card
-  identities, daily review, and append-only timestamped notes.
-- Adopt canonical identity schemas in apps, and evaluate shared UUID/timestamp
-  and opaque-auth ORM templates after Chat and RPS connection records.
-- Extend Dispatch Ledger's proven contracts with Stripe Checkout (including
-  Link), signed webhooks, and SMTP after sandbox lifecycle acceptance.
-- Validate Worminal's loopback-only PTY bridge, process cleanup, terminal
-  emulation, and browser window management.
-- Center RPS reveal in a dominant arena with distinguishable hand silhouettes
-  and stable spatial/color ownership.
-- Continue evidence-driven frontend/backend and shared-library extraction;
-  maintain `LIBRARIES.md` as the catalog and preserve app-owned wide/narrow
-  browser proofs.
+- Enforce the dependency direction `monoapp -> generic Monotools contract`,
+  with no static monoapp identity or product policy in central code or tests.
+- Move product assertions and compatibility behavior into app-owned suites,
+  then remove obsolete central compatibility surfaces.
+- Admit shared code only after independent consumers prove a generic boundary;
+  keep `LIBRARIES.md` authoritative for contracts and extraction policy.
+- Add stable architecture and structural audits to the root management entrypoint,
+  drive their recorded violations to zero, and make them permanent verification gates.
+- Decompose platform internals without changing lifecycle commands, diagnostics,
+  failure behavior, or artifact contracts.
+- Keep the active checkpoint, violation inventory, and next action in
+  `STABILIZATION.md` so work can resume safely after context clearing.

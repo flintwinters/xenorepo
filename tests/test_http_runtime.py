@@ -2,12 +2,14 @@
 
 import asyncio
 from pathlib import Path
+from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import patch
 
 from fastapi.responses import JSONResponse
 from starlette.requests import Request
 
-from monotools.apps import discover_apps
+from monotools.apps import ROOT
 from monotools.http import (
     client_provenance,
     delete_session_cookie,
@@ -19,6 +21,8 @@ from monotools.http import (
     same_origin_allowed,
     set_session_cookie,
 )
+from monotools.runtime import create_application
+from tests.support import synthetic_app_definition
 
 
 def request(scheme: str = "http", headers: dict[str, str] | None = None) -> Request:
@@ -78,19 +82,19 @@ class HttpPlatformTests(unittest.TestCase):
 
 
 class RuntimePlatformTests(unittest.TestCase):
-    def test_every_discovered_app_exposes_health_and_metadata_declared_documents(self) -> None:
-        for definition in discover_apps():
-            with self.subTest(app=definition.name):
-                module = __import__(definition.module, fromlist=["app"])
-                application = module.app
-                routes = {route.path: route for route in application.routes if hasattr(route, "path")}
-                self.assertEqual(routes["/health"].endpoint(), {"status": "ok"})
-                for path, artifact_name in definition.routes:
-                    with self.subTest(route=path):
-                        document = routes[path].endpoint()
-                        self.assertEqual(
-                            Path(document), definition.dist_directory / definition.artifact(artifact_name).output
-                        )
+    def test_runtime_exposes_health_and_metadata_declared_documents(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="runtime-") as temporary:
+            definition = synthetic_app_definition(Path(temporary))
+            with patch("monotools.runtime.get_app", return_value=definition) as get_app:
+                application = create_application(definition.name)
+
+        get_app.assert_called_once_with(definition.name)
+        routes = {route.path: route for route in application.routes if hasattr(route, "path")}
+        self.assertEqual(routes["/health"].endpoint(), {"status": "ok"})
+        for path, artifact_name in definition.routes:
+            with self.subTest(route=path):
+                self.assertEqual(Path(routes[path].endpoint()),
+                    definition.dist_directory / definition.artifact(artifact_name).output)
 
 
 if __name__ == "__main__":

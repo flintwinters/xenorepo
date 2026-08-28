@@ -6,19 +6,17 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import Mock, patch
 
-from monotools.apps import AppDefinition, ROOT, get_app
-from monotools.lifecycle import LifecycleError
+from monotools.apps import ROOT
 from monotools.ui import available_local_port, run_ui_check, ui_artifact_directory
+from tests.support import synthetic_app_definition
 
 
 class BrowserLifecycleTests(unittest.TestCase):
     def test_ui_artifacts_are_visible_and_app_owned(self) -> None:
-        definition = get_app("rps")
-
-        self.assertEqual(
-            ui_artifact_directory(definition),
-            definition.directory / "data" / "ui-check",
-        )
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="ui-app-") as temporary:
+            definition = synthetic_app_definition(Path(temporary))
+            self.assertEqual(ui_artifact_directory(definition),
+                definition.directory / "data" / "ui-check")
 
     def test_available_port_is_a_valid_loopback_port(self) -> None:
         listener = Mock()
@@ -30,11 +28,14 @@ class BrowserLifecycleTests(unittest.TestCase):
         factory.assert_called_once()
 
     def test_runner_uses_the_built_service_and_preserves_app_artifacts(self) -> None:
-        definition = get_app("rps")
         process = Mock(spec=subprocess.Popen)
         process.pid = 4200
-        with TemporaryDirectory(dir=ROOT / "apps" / "rps" / "data", prefix="ui-test-") as temporary:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="ui-app-") as app_temporary, \
+             TemporaryDirectory(dir=ROOT / "tests", prefix="ui-artifacts-") as temporary:
+            definition = synthetic_app_definition(Path(app_temporary),
+                capabilities=frozenset({"database"}))
             artifacts = Path(temporary)
+            suite = definition.directory / "tests" / "e2e" / "journey.spec.js"
             with patch("monotools.ui.validate_app") as validate, \
                  patch("monotools.browser.validate_browser_suite", return_value={"counts": {}}), \
                  patch("monotools.ui.build_app") as build, \
@@ -46,7 +47,7 @@ class BrowserLifecycleTests(unittest.TestCase):
                  patch("monotools.ui._run_browser", return_value=0) as run, \
                  patch("monotools.ui._terminate", return_value="clean"):
                 actual = run_ui_check(
-                    definition, ROOT, definition.directory / "tests" / "e2e" / "arena.spec.js"
+                    definition, ROOT, suite
                 )
                 summary = __import__("json").loads((artifacts / "summary.json").read_text())
 
@@ -57,26 +58,27 @@ class BrowserLifecycleTests(unittest.TestCase):
         health.assert_called_once_with(8123, process)
         self.assertEqual(
             popen.call_args.args[0][:4],
-            [__import__("sys").executable, "-m", "uvicorn", "apps.rps.backend.server:app"],
+            [__import__("sys").executable, "-m", "uvicorn", definition.module + ":app"],
         )
-        self.assertEqual(popen.call_args.kwargs["env"]["RPS_DATABASE_URL"],
+        database_key = f"{definition.name.upper()}_DATABASE_URL"
+        self.assertEqual(popen.call_args.kwargs["env"][database_key],
             f"sqlite:///{artifacts / 'browser.db'}")
         self.assertEqual(run.call_args.args[0], [
             str(ROOT / "node_modules" / ".bin" / "playwright"), "test",
             "tests/browser-framework/universal.spec.js",
-            "apps/rps/tests/e2e/arena.spec.js",
+            str(suite.relative_to(ROOT)),
         ])
         self.assertEqual(run.call_args.args[2]["BASE_URL"], "http://127.0.0.1:8123")
-        self.assertEqual(run.call_args.args[2]["RPS_DATABASE_URL"],
+        self.assertEqual(run.call_args.args[2][database_key],
             f"sqlite:///{artifacts / 'browser.db'}")
         self.assertEqual(summary["cleanup"], "clean")
         self.assertEqual(summary["browserStatus"], 0)
 
     def test_runner_supports_route_smoke_checks_without_an_app_suite(self) -> None:
-        definition = get_app("calendar")
         process = Mock(spec=subprocess.Popen)
         process.pid = 4201
-        with TemporaryDirectory(dir=definition.directory, prefix="ui-test-") as temporary, \
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="ui-app-") as app_temporary, \
+             TemporaryDirectory(dir=ROOT / "tests", prefix="ui-artifacts-") as temporary, \
              patch("monotools.browser.validate_browser_suite",
                 return_value={"counts": {"browser-integration": 1}}), \
              patch("monotools.ui.validate_app"), patch("monotools.ui.build_app"), \
@@ -87,6 +89,7 @@ class BrowserLifecycleTests(unittest.TestCase):
              patch("monotools.ui.wait_for_health"), \
              patch("monotools.ui._run_browser", return_value=0) as run, \
              patch("monotools.ui._terminate", return_value="clean"):
+            definition = synthetic_app_definition(Path(app_temporary))
             run_ui_check(definition, ROOT)
         self.assertEqual(run.call_args.args[0][-1], "tests/browser-framework/universal.spec.js")
 

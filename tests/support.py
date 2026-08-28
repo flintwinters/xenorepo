@@ -3,11 +3,30 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 import json
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Coroutine, TypeVar
 
+from monotools.apps import AppDefinition, FrontendArtifact
+
 
 Result = TypeVar("Result")
+
+
+def synthetic_app_definition(directory: Path, *, name: str = "orion",
+    capabilities: frozenset[str] = frozenset()) -> AppDefinition:
+    """Describe an invented app for platform tests without importing a monoapp."""
+    artifact = FrontendArtifact("index", "document", Path("frontend/index.html"),
+        Path("index.html"), "console")
+    return AppDefinition(
+        name=name,
+        title=name.title(),
+        directory=directory,
+        module=f"fixtures.{name}.backend.server",
+        artifacts=(artifact,),
+        routes=(("/", "index"),),
+        capabilities=capabilities,
+    )
 
 
 def run_async(operation: Coroutine[Any, Any, Result]) -> Result:

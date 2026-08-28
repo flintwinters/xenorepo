@@ -14,7 +14,6 @@ from typer.testing import CliRunner
 from monotools.apps import AppDefinitionError, ROOT
 from monotools.management import create_app_cli, create_app_manager, create_cli, resolve_local_app
 import manage as repository_manager
-from apps.worminal import manage as worminal_manager
 
 
 class ManagementTests(unittest.TestCase):
@@ -106,11 +105,9 @@ frontend:
     def test_root_mounts_the_complete_immediate_manager_inventory_in_order(self) -> None:
         definitions = [definition for definition, _ in repository_manager.MANAGERS]
 
-        self.assertEqual(
-            [definition.name for definition in definitions],
-            ["calculator", "calendar", "chat", "kanban", "mailing_list", "microblog",
-                "quiz", "rps", "worminal"],
-        )
+        expected = [directory.name for directory in sorted(repository_manager.APPS_DIRECTORY.iterdir())
+            if directory.is_dir() and (directory / "manage.py").is_file()]
+        self.assertEqual([definition.name for definition in definitions], expected)
         result = CliRunner().invoke(repository_manager.app, ["--help"])
         self.assertEqual(result.exit_code, 0)
         for definition in definitions:
@@ -136,7 +133,8 @@ frontend:
         self.assertEqual(root_commands,
             {"bootstrap", "list", "status", "check", "test", "ui-check", "verify"})
 
-        result = CliRunner().invoke(repository_manager.app, ["rps", "--help"])
+        mounted_name = repository_manager.MANAGERS[0][0].name
+        result = CliRunner().invoke(repository_manager.app, [mounted_name, "--help"])
         self.assertEqual(result.exit_code, 0)
         for command in ("build", "check", "test", "serve", "ui-check"):
             self.assertIn(command, result.output)
@@ -187,22 +185,6 @@ frontend:
         check.assert_called_once_with()
         test.assert_called_once_with()
         browser.assert_called_once_with(app_name=None, evidence=False)
-
-    def test_worminal_custom_serve_delegates_user_policy_to_shared_lifecycle(self) -> None:
-        with patch("apps.worminal.manage.serve_app", return_value=0) as serve:
-            result = CliRunner().invoke(worminal_manager.app,
-                ["serve", "--user", "alice", "--watch", "--port", "8124"])
-
-        self.assertEqual(result.exit_code, 0)
-        serve.assert_called_once_with(
-            worminal_manager.definition,
-            ROOT,
-            host="127.0.0.1",
-            port=8124,
-            watch=True,
-            environment={"WORMINAL_SHELL_USER": "alice"},
-            report=ANY,
-        )
 
     def test_discovery_rejects_unmanaged_and_invalid_manager_directories(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="inventory-") as temporary:
@@ -269,14 +251,16 @@ frontend:
         try:
             os.chdir(foreign)
             root_result = CliRunner().invoke(repository_manager.app, ["list"])
-            leaf_result = CliRunner().invoke(repository_manager.app, ["worminal", "serve", "--help"])
+            definition, manager = repository_manager.MANAGERS[0]
+            leaf_result = CliRunner().invoke(repository_manager.app,
+                [definition.name, "serve", "--help"])
         finally:
             os.chdir(original)
 
         self.assertEqual(root_result.exit_code, 0)
-        self.assertIn("calendar", root_result.output)
+        self.assertIn(definition.name, root_result.output)
         self.assertEqual(leaf_result.exit_code, 0)
-        self.assertIn("--user", leaf_result.output)
+        self.assertEqual(resolve_local_app(manager.definition.directory / "manage.py"), definition)
 
 
 if __name__ == "__main__":

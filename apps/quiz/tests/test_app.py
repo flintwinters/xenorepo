@@ -14,6 +14,10 @@ class QuizTests(unittest.TestCase):
         self.assertEqual(source.count("dimension:"), 8)
         self.assertIn("There are no right answers.", source)
         self.assertIn("NOT A CLINICAL ASSESSMENT", source)
+        self.assertIn("profile recorded", source.lower())
+        self.assertIn('<div class="pane-body"><ol class="review-list"', source)
+        document = definition.dist_directory.joinpath("index.html").read_text()
+        self.assertIn('meta name="monotools-shell" content="console"', document)
 
 
 if __name__ == "__main__":

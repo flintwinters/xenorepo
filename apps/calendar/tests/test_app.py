@@ -95,9 +95,12 @@ class CalendarTests(unittest.TestCase):
 
     def test_build_is_a_self_contained_modular_lit_client(self) -> None:
         document = Path("apps/calendar/dist/index.html").read_text(encoding="utf-8")
+        source = Path("apps/calendar/frontend/index.ts").read_text(encoding="utf-8")
         self.assertIn("CALENDAR // 01", document)
         self.assertIn("/api/calendar", document)
         self.assertNotIn("APP_BUNDLE", document)
+        self.assertIn('import { consoleControls } from "@xenorepo/lit-ui";', source)
+        self.assertNotIn("resize: vertical", source)
 
 
 if __name__ == "__main__":

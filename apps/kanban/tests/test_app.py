@@ -218,9 +218,12 @@ class KanbanTests(unittest.TestCase):
 
     def test_build_is_a_self_contained_client(self) -> None:
         document = Path("apps/kanban/dist/index.html").read_text(encoding="utf-8")
+        source = Path("apps/kanban/frontend/index.ts").read_text(encoding="utf-8")
         self.assertIn("KANBAN // 01", document)
         self.assertIn("/api/board", document)
         self.assertNotIn("APP_BUNDLE", document)
+        self.assertIn('import { consoleControls } from "@xenorepo/lit-ui";', source)
+        self.assertNotIn("resize: vertical", source)
 
 
 if __name__ == "__main__":

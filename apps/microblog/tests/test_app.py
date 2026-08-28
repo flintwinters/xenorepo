@@ -10,7 +10,7 @@ import unittest
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from apps.microblog.backend.auth import token_digest
+from apps.microblog.backend.auth import issue_token, token_digest
 from apps.microblog.backend.database import (
     Account,
     AuthenticationSession,
@@ -22,6 +22,7 @@ from apps.microblog.backend.database import (
     create_session_factory,
     now,
 )
+from monotools.auth import opaque_credential_digest
 
 
 class MicroblogTests(unittest.TestCase):
@@ -38,6 +39,18 @@ class MicroblogTests(unittest.TestCase):
 
     def register(self, handle: str = "ada_l", password: str = "analytical1") -> Account:
         return self.repository.register(handle, password)
+
+    def test_session_adapter_preserves_opaque_credentials_and_provenance(self) -> None:
+        self.assertRegex(issue_token(), r"^[A-Za-z0-9_-]{43}$")
+        self.assertEqual(token_digest("opaque-test"),
+            opaque_credential_digest("opaque-test"))
+        provenance = {"client_host": "127.0.0.1", "user_agent": "tests",
+            "origin": "http://microblog.test"}
+        expected_lengths = {"client_host": 255, "user_agent": 500, "origin": 500}
+        self.assertEqual({name: AuthenticationSession.__table__.c[name].type.length
+            for name in expected_lengths}, expected_lengths)
+        session = AuthenticationSession(**provenance)
+        self.assertEqual({name: getattr(session, name) for name in provenance}, provenance)
 
     def test_accounts_are_normalized_unique_and_credentials_verify(self) -> None:
         account = self.register("  ada_l  ")

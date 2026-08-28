@@ -5,7 +5,9 @@ from pathlib import Path
 import pwd
 from types import SimpleNamespace
 import unittest
-from unittest.mock import patch
+from unittest.mock import ANY, patch
+
+from typer.testing import CliRunner
 
 from fastapi import HTTPException
 from starlette.requests import Request
@@ -15,10 +17,58 @@ from apps.worminal.backend.database import ServerSettings, WorkspaceRepository, 
 from apps.worminal.backend.server import (ACCESS_COOKIE, TerminalManager, access_cookie_value, app,
     create_app, PasswordChangeInput, remote_access_authorized)
 from apps.worminal.backend.terminal import PtySession, is_loopback_client, resolve_shell_account
+from apps.worminal import manage as worminal_manager
+from monotools.apps import ROOT, get_app
+from monotools.lifecycle import build_app, validate_app
+from monotools.watch import frontend_inputs
 
 
 class WorminalTests(unittest.TestCase):
     database = Path("apps/worminal/data/test-worminal.db")
+
+    def test_custom_serve_delegates_terminal_user_policy_to_shared_lifecycle(self) -> None:
+        with patch("apps.worminal.manage.serve_app", return_value=0) as serve:
+            result = CliRunner().invoke(worminal_manager.app,
+                ["serve", "--user", "alice", "--watch", "--port", "8124"])
+
+        self.assertEqual(result.exit_code, 0)
+        serve.assert_called_once_with(
+            worminal_manager.definition,
+            ROOT,
+            host="127.0.0.1",
+            port=8124,
+            watch=True,
+            environment={"WORMINAL_SHELL_USER": "alice"},
+            report=ANY,
+        )
+
+    def test_terminal_user_option_is_discoverable(self) -> None:
+        result = CliRunner().invoke(worminal_manager.app, ["serve", "--help"])
+
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("--user", result.output)
+        self.assertIn("Unix user for Worminal terminal", result.output)
+
+    def test_lit_entry_is_a_small_composition_boundary(self) -> None:
+        definition = get_app("worminal")
+        validate_app(definition, ROOT)
+        self.assertEqual(definition.routes, (("/worminal", "index"),))
+        build_app(definition, ROOT)
+        frontend = definition.directory / "frontend"
+        source = frontend.joinpath("index.ts").read_text(encoding="utf-8")
+        document = definition.dist_directory.joinpath("index.html").read_text(encoding="utf-8")
+
+        self.assertLess(len(source.splitlines()), 20)
+        self.assertNotIn("LitElement", source)
+        modules = ("desktop.ts", "sessions.ts", "shortcuts.ts", "styles.ts", "types.ts",
+            "services/api.ts")
+        for module in modules:
+            self.assertIn(frontend / module, frontend_inputs(definition, ROOT))
+        self.assertIn("+ NEW SHELL", document)
+        self.assertIn("LOCALHOST WORKSPACE", document)
+        self.assertIn('<meta name="monotools-shell" content="console">', document)
+        self.assertNotIn('<script src=', document)
+        self.assertNotIn('<link rel="stylesheet"', document)
 
     def test_user_service_runs_managed_uvicorn_with_live_frontend_builds(self) -> None:
         unit = Path("apps/worminal/worminal.service").read_text(encoding="utf-8")

@@ -27,8 +27,9 @@ and validation rejects declarations that drift from the app-owned source.
 The stabilization campaign begins with these known categories. Counts become
 authoritative when the read-only audit command is introduced at checkpoint 5.
 
-- Root tests still contain product assertions, production app imports, and
-  statically encoded inventories and browser-suite identities.
+- Root tests now use invented fixture apps or runtime-discovered values; product
+  assertions, production imports, and owned suite identities have been removed
+  from the central suite and preserved beside their owning monoapps.
 - Platform code still contains a legacy global CLI, app-specific runtime
   policy, compatibility APIs, and name-aware behavior.
 - The shared UI barrel still exposes elements whose independent consumer count
@@ -46,7 +47,11 @@ authoritative when the read-only audit command is introduced at checkpoint 5.
    documentation are generic, product roadmaps are app-owned, cross-boundary
    imports are visible and validated from app metadata, and the complete
    verification matrix passed on 2026-08-27.
-2. **Evacuate monoapp behavior from root tests — pending.**
+2. **Evacuate monoapp behavior from root tests — complete.** Generic metadata,
+   lifecycle, HTTP, realtime, ORM, browser, and evidence contracts use synthetic
+   fixtures. Product persistence, migration, copy, composition, runtime policy,
+   selectors, adapters, and suite assertions are app-owned. The complete
+   verification matrix passed on 2026-08-27.
 3. **Remove domain-aware platform code — pending.**
 4. **Audit shared libraries — pending.**
 5. **Make structural debt measurable — pending.**
@@ -56,7 +61,7 @@ authoritative when the read-only audit command is introduced at checkpoint 5.
 
 ## Next action
 
-Begin checkpoint 2 by inventorying every root test that imports production app
-code, asserts product-specific behavior, or encodes a fixed real-app inventory.
-Move each assertion to its owning app before replacing central coverage with a
-synthetic declarative fixture.
+Begin checkpoint 3 by moving the remaining app-specific runtime policy out of
+the legacy global CLI, migrating all callers to app-owned managers and generic
+`serve_app` parameters, then removing the compatibility module and single-page
+`AppDefinition` views.

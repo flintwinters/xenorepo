@@ -4,13 +4,14 @@ from pathlib import Path
 import subprocess
 from tempfile import TemporaryDirectory
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-from monotools.apps import ROOT, get_app
+from monotools.apps import ROOT
 from monotools.browser import validate_browser_suite
 from monotools.lifecycle import LifecycleError
 from monotools.management import BrowserSuite
 from monotools.ui import run_ui_check
+from tests.support import synthetic_app_definition
 
 
 class BrowserProofContractTests(unittest.TestCase):
@@ -25,21 +26,24 @@ class BrowserProofContractTests(unittest.TestCase):
         self.assertEqual(report["counts"]["acceptance"], 0)
         self.assertGreater(report["counts"]["browser-integration"], 0)
 
-    def test_owned_suites_parse_and_enumerate_with_required_proofs(self) -> None:
-        cases = (
-            ("chat", "chat.spec.js"),
-            ("kanban", "board.spec.ts"),
-            ("rps", "arena.spec.js"),
-            ("worminal", "desktop.spec.js"),
-        )
-        for app_name, filename in cases:
-            with self.subTest(app=app_name):
-                suite = BrowserSuite(
-                    get_app(app_name).directory / "tests" / "e2e" / filename,
-                    frozenset({"acceptance"}),
-                )
-                report = validate_browser_suite(suite, ROOT)
-                self.assertGreater(report["tests"], 0)
+    def test_owned_suite_contract_parses_and_enumerates_required_proofs(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="browser-suite-") as temporary:
+            path = Path(temporary) / "journey.spec.js"
+            path.write_text(
+                'const { expect, test } = require("@xenorepo/browser-testing");\n'
+                'test("[acceptance] completes an invented journey", async ({ page }) => {\n'
+                '  await page.goto("/");\n'
+                '  const action = page.getByRole("button", { name: "Continue" });\n'
+                '  await expect(action).toBeEnabled();\n'
+                '  await action.click();\n'
+                '  await expect(page.getByText("Complete")).toBeVisible();\n'
+                '});\n',
+                encoding="utf-8",
+            )
+            report = validate_browser_suite(
+                BrowserSuite(path, frozenset({"acceptance"})), ROOT)
+
+        self.assertGreater(report["tests"], 0)
 
     def test_static_validator_reports_stable_category_and_parse_errors(self) -> None:
         validator = ROOT / "packages" / "browser-testing" / "src" / "validate.js"
@@ -64,14 +68,15 @@ class BrowserProofContractTests(unittest.TestCase):
                     self.assertIn(code, result.stderr)
 
     def test_static_failure_occurs_before_build_database_or_service_mutation(self) -> None:
-        definition = get_app("kanban")
-        with patch("monotools.browser.validate_browser_suite",
-                side_effect=LifecycleError("BROWSER_PROOF_TAG_COUNT: bad")), \
-             patch("monotools.ui.validate_app") as validate, \
-             patch("monotools.ui.build_app") as build, \
-             patch("monotools.ui.subprocess.Popen") as start:
-            with self.assertRaisesRegex(LifecycleError, "BROWSER_PROOF_TAG_COUNT"):
-                run_ui_check(definition, ROOT, BrowserSuite(Path("bad")))
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="browser-app-") as temporary:
+            definition = synthetic_app_definition(Path(temporary))
+            with patch("monotools.browser.validate_browser_suite",
+                    side_effect=LifecycleError("BROWSER_PROOF_TAG_COUNT: bad")), \
+                 patch("monotools.ui.validate_app") as validate, \
+                 patch("monotools.ui.build_app") as build, \
+                 patch("monotools.ui.subprocess.Popen") as start:
+                with self.assertRaisesRegex(LifecycleError, "BROWSER_PROOF_TAG_COUNT"):
+                    run_ui_check(definition, ROOT, BrowserSuite(Path("bad")))
         validate.assert_not_called()
         build.assert_not_called()
         start.assert_not_called()

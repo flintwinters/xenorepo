@@ -2,12 +2,18 @@
 
 import json
 from pathlib import Path
+import subprocess
+from tempfile import TemporaryDirectory
 import unittest
+from unittest.mock import Mock, patch
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from apps.rps.backend.auth import credential_digest
+from monotools.apps import ROOT, get_app
+from monotools.ui import run_ui_check
+
+from apps.rps.backend.auth import credential_digest, issue_credential
 from apps.rps.backend.database import (
     ConnectionSession,
     DomainError,
@@ -23,10 +29,38 @@ from apps.rps.backend.database import (
     now,
     throw_result,
 )
+from monotools.auth import opaque_credential_digest
+from monotools.orm import (
+    REALTIME_CONNECTION_COLUMN_CONTRACTS,
+    assert_realtime_connection_conformance,
+)
 
 
 class RpsTests(unittest.TestCase):
     database = Path("apps/rps/data/test-rps.db")
+
+    def test_browser_lifecycle_uses_the_owned_database_and_arena_suite(self) -> None:
+        definition = get_app("rps")
+        process = Mock(spec=subprocess.Popen)
+        process.pid = 4200
+        with TemporaryDirectory(dir=definition.directory / "data", prefix="ui-policy-") as temporary:
+            artifacts = Path(temporary)
+            with patch("monotools.ui.validate_app"), \
+                 patch("monotools.browser.validate_browser_suite", return_value={"counts": {}}), \
+                 patch("monotools.ui.build_app"), patch("monotools.ui.validate_dist"), \
+                 patch("monotools.ui.ui_artifact_directory", return_value=artifacts), \
+                 patch("monotools.ui.available_local_port", return_value=8123), \
+                 patch("monotools.ui.subprocess.Popen", return_value=process), \
+                 patch("monotools.ui.wait_for_health"), \
+                 patch("monotools.ui._run_browser", return_value=0) as run, \
+                 patch("monotools.ui._terminate", return_value="clean"):
+                run_ui_check(definition, ROOT,
+                    definition.directory / "tests" / "e2e" / "arena.spec.js")
+
+        environment = run.call_args.args[2]
+        self.assertEqual(environment["RPS_DATABASE_URL"],
+            f"sqlite:///{artifacts / 'browser.db'}")
+        self.assertEqual(run.call_args.args[0][-1], "apps/rps/tests/e2e/arena.spec.js")
 
     def setUp(self) -> None:
         self.database.unlink(missing_ok=True)
@@ -39,6 +73,25 @@ class RpsTests(unittest.TestCase):
 
     def guest(self, token: str) -> Player:
         return self.repository.create_guest(token)
+
+    def test_connection_and_credential_adapters_preserve_shared_contracts(self) -> None:
+        self.assertRegex(issue_credential(), r"^[A-Za-z0-9_-]{43}$")
+        self.assertEqual(credential_digest("opaque-test"),
+            opaque_credential_digest("opaque-test"))
+        assert_realtime_connection_conformance(ConnectionSession)
+        extensions = set(ConnectionSession.__table__.c.keys()) - set(
+            REALTIME_CONNECTION_COLUMN_CONTRACTS)
+        self.assertEqual(extensions, {"player_id"})
+        player_id = ConnectionSession.__table__.c.player_id
+        self.assertTrue(player_id.index)
+        self.assertEqual(len(player_id.foreign_keys), 1)
+
+        timestamp = now()
+        connection = ConnectionSession(id="rps", player_id="player",
+            connected_at=timestamp, disconnected_at=timestamp, client_host=None,
+            user_agent="tests", origin="http://rps.test")
+        self.assertEqual((connection.player_id, connection.disconnected_at),
+            ("player", timestamp))
 
     def test_every_application_title_is_rock_paper_scissors(self) -> None:
         from apps.rps.backend.server import create_app

@@ -8,12 +8,39 @@ from typer.testing import CliRunner
 from monotools.apps import AppDefinition, AppDefinitionError, FrontendArtifact, ROOT, discover_apps, get_app, load_app
 from monotools.cli import app
 from monotools.frontend import CONSOLE_SHELL, DocumentParts, compose_console
-from monotools.lifecycle import LifecycleError, build_app, validate_app, validate_dist
+from monotools.lifecycle import (
+    LifecycleError,
+    build_app,
+    validate_app,
+    validate_dist,
+    validate_source_lines,
+)
 from monotools.watch import frontend_inputs, watch_frontend
 from tests.support import SocketDouble, run_async
 
 
 class RepositoryAppTests(unittest.TestCase):
+    def test_source_line_validation_covers_python_and_typescript(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="source-lines-") as temporary:
+            workspace = Path(temporary)
+            source = workspace / "apps" / "fixture"
+            source.mkdir(parents=True)
+            python = source / "example.py"
+            typescript = source / "example.ts"
+            python.write_text("answer = 42\n", encoding="utf-8")
+            typescript.write_text("export const answer = 42;\n", encoding="utf-8")
+
+            validate_source_lines(workspace)
+            python.write_text(f'value = "{"p" * 121}"\n', encoding="utf-8")
+            typescript.write_text(f'const value = "{"t" * 121}";\n', encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                LifecycleError,
+                r"apps/fixture/example\.py:1: 131 characters \(maximum 120\)[\s\S]*"
+                r"apps/fixture/example\.ts:1: 138 characters \(maximum 120\)",
+            ):
+                validate_source_lines(workspace)
+
     def test_library_catalog_describes_the_shared_frontend_and_backend_boundaries(self) -> None:
         catalog = (ROOT / "LIBRARIES.md").read_text(encoding="utf-8")
 
@@ -311,22 +338,25 @@ frontend:
         components = (ROOT / "packages" / "lit-ui" / "src" / "index.ts").read_text(
             encoding="utf-8"
         )
+        compact_components = " ".join(components.split())
 
         self.assertIn(".pane-body { min-height: 0; overflow: auto; }", shell)
-        self.assertIn(":host { display: block; min-height: 0; overflow: auto; } table", components)
+        self.assertIn(":host { display: block; min-height: 0; overflow: auto; }", compact_components)
+        self.assertIn('slot[name="title-end"] { display: flex;', compact_components)
 
     def test_console_command_buttons_reverse_their_shadow_when_pressed(self) -> None:
         shell = (ROOT / "monotools" / "frontend.py").read_text(encoding="utf-8")
         components = (ROOT / "packages" / "lit-ui" / "src" / "index.ts").read_text(
             encoding="utf-8"
         )
+        compact_components = " ".join(components.split())
 
         self.assertIn("transform: translateY(1px)", shell)
         self.assertIn("linear-gradient(#45413f, #302d2b)", shell)
         self.assertIn("linear-gradient(#242220, #181716)", shell)
         self.assertIn("inset 0 3px 3px #0e0f0f, inset 0 -1px #504945", shell)
         pressed_rule = 'button:active:not(:disabled), button[aria-pressed="true"]:not(:disabled)'
-        self.assertIn(pressed_rule, components)
+        self.assertIn(pressed_rule, compact_components)
         self.assertIn("linear-gradient(#4a4643, #35312f)", components)
         self.assertIn("var(--console-button-border, #c6b58f)", components)
         self.assertIn("var(--console-button-border-hover, #f0dfb8)", components)
@@ -346,15 +376,16 @@ frontend:
         kanban = (ROOT / "apps" / "kanban" / "frontend" / "index.ts").read_text(
             encoding="utf-8"
         )
+        compact_styles = " ".join(styles.split())
 
-        self.assertIn('input[type="checkbox"] {', styles)
-        self.assertIn('input[type="checkbox"]:checked::before', styles)
-        self.assertIn('textarea {\n    border-radius: 3px;\n    resize: none;', styles)
-        self.assertIn('[role="dialog"] { border-radius: 4px; }', styles)
-        self.assertIn("static styles=[consoleControls,css`", calendar)
-        self.assertIn("static styles = [consoleControls, css`", kanban)
-        self.assertNotIn("resize:vertical", calendar)
-        self.assertNotIn("resize:vertical", kanban)
+        self.assertIn('input[type="checkbox"] {', compact_styles)
+        self.assertIn('input[type="checkbox"]:checked::before', compact_styles)
+        self.assertIn('textarea { border-radius: 3px; resize: none;', compact_styles)
+        self.assertIn('[role="dialog"] { border-radius: 4px; }', compact_styles)
+        self.assertIn('import { consoleControls } from "@xenorepo/lit-ui";', calendar)
+        self.assertIn('import { consoleControls } from "@xenorepo/lit-ui";', kanban)
+        self.assertNotIn("resize: vertical", calendar)
+        self.assertNotIn("resize: vertical", kanban)
 
     def test_chat_persists_history_and_broadcasts_to_every_connection(self) -> None:
         from apps.chat.backend.database import (

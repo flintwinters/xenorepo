@@ -17,6 +17,7 @@ from monotools.lifecycle import (
     collect_app_status,
     run_test_suite,
     validate_app,
+    validate_source_lines,
     validate_dist,
 )
 from monotools.management import ApplicationManager, PythonSuite, create_cli
@@ -169,6 +170,7 @@ def status() -> None:
 def check() -> None:
     """Validate Xenorepo's manager inventory and every application build."""
     try:
+        validate_source_lines(ROOT)
         current = discover_managers()
         for definition, _ in current:
             validate_app(definition, ROOT)

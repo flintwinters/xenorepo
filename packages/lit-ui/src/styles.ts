@@ -6,14 +6,28 @@ export const consoleTokens = css`
     color: var(--console-fg, #ebdbb2);
     font: var(--console-font, 12px/1.3 "Courier New", monospace);
   }
-  *, *::before, *::after { box-sizing: border-box; }
-  button, input { font: inherit; }
-  :focus-visible { outline: 2px solid var(--console-focus, #fabd2f); outline-offset: 2px; }
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  button,
+  input {
+    font: inherit;
+  }
+  :focus-visible {
+    outline: 2px solid var(--console-focus, #fabd2f);
+    outline-offset: 2px;
+  }
 `;
 
 /** Recessed form controls and contained overlays shared by Lit applications. */
 export const consoleControls = css`
-  input, textarea, select { font: inherit; }
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
   textarea {
     border-radius: 3px;
     resize: none;
@@ -39,19 +53,36 @@ export const consoleControls = css`
     height: 8px;
     content: "";
     background: var(--console-accent, #b8bb26);
-    box-shadow: inset 0 1px rgb(255 255 255 / 0.22), 0 0 2px rgb(184 187 38 / 0.35);
+    box-shadow:
+      inset 0 1px rgb(255 255 255 / 0.22),
+      0 0 2px rgb(184 187 38 / 0.35);
     transform: scale(0);
   }
-  input[type="checkbox"]:checked::before { transform: scale(1); }
-  input[type="checkbox"]:disabled { cursor: not-allowed; opacity: 0.6; }
-  [role="dialog"] { border-radius: 4px; }
+  input[type="checkbox"]:checked::before {
+    transform: scale(1);
+  }
+  input[type="checkbox"]:disabled {
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  [role="dialog"] {
+    border-radius: 4px;
+  }
 `;
 
 export const chrome = css`
-  :host { display: block; min-width: 0; }
+  :host {
+    display: block;
+    min-width: 0;
+  }
   .chrome {
-    display: flex; align-items: center; gap: 5px; min-height: 18px; padding-inline: 5px;
-    color: var(--console-ink, #1d2021); font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 18px;
+    padding-inline: 5px;
+    color: var(--console-ink, #1d2021);
+    font-weight: bold;
     background: linear-gradient(var(--console-tone-light, #83a598), var(--console-tone-dark, #5f7f75));
     border-top: 1px solid var(--console-tone-rim, #b7cfca);
     border-bottom: 2px solid var(--console-tone-shadow, #354a44);

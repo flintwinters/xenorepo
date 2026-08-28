@@ -60,7 +60,11 @@ def resolve_shell_account(name: str | None) -> ShellAccount | None:
     home = Path(record.pw_dir)
     if not home.is_dir():
         raise ValueError(f"Terminal user {name} has no usable home directory: {home}")
-    shell = record.pw_shell if Path(record.pw_shell).is_absolute() and os.access(record.pw_shell, os.X_OK) else login_shell()
+    shell = (
+        record.pw_shell
+        if Path(record.pw_shell).is_absolute() and os.access(record.pw_shell, os.X_OK)
+        else login_shell()
+    )
     return ShellAccount(record.pw_name, record.pw_uid, record.pw_gid, home, shell)
 
 

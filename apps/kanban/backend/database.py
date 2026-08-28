@@ -10,7 +10,10 @@ from typing import Annotated, Callable
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, StringConstraints, model_validator
-from sqlalchemy import BigInteger, Boolean, CheckConstraint, ForeignKey, Index, Integer, String, Text, UniqueConstraint, delete, inspect, select, update
+from sqlalchemy import (
+    BigInteger, Boolean, CheckConstraint, ForeignKey, Index, Integer, String,
+    Text, UniqueConstraint, delete, inspect, select, update,
+)
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 

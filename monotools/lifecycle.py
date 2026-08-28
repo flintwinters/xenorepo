@@ -22,6 +22,37 @@ class LifecycleError(RuntimeError):
     """Raised when a lifecycle operation cannot complete."""
 
 
+MAX_SOURCE_LINE_LENGTH = 120
+SOURCE_DIRECTORIES = ("apps", "monotools", "packages", "scripts", "tests")
+SOURCE_EXCLUDED_DIRECTORIES = frozenset({".venv", "__pycache__", "data", "dist", "node_modules"})
+SOURCE_SUFFIXES = frozenset({".py", ".ts", ".tsx"})
+
+
+def validate_source_lines(workspace: Path) -> None:
+    """Reject unreadably wide Python and TypeScript source lines."""
+    candidates = [
+        path
+        for directory in SOURCE_DIRECTORIES
+        if (root := workspace / directory).is_dir()
+        for path in root.rglob("*")
+        if path.suffix in SOURCE_SUFFIXES
+        and not SOURCE_EXCLUDED_DIRECTORIES.intersection(path.parts)
+    ]
+    candidates.extend(path for path in workspace.glob("*") if path.suffix in SOURCE_SUFFIXES)
+    violations: list[str] = []
+    for path in sorted(candidates):
+        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if len(line) > MAX_SOURCE_LINE_LENGTH:
+                relative = path.relative_to(workspace)
+                violations.append(
+                    f"{relative}:{line_number}: {len(line)} characters "
+                    f"(maximum {MAX_SOURCE_LINE_LENGTH})"
+                )
+    if violations:
+        detail = "\n".join(violations)
+        raise LifecycleError(f"source line length validation failed:\n{detail}")
+
+
 def _run(command: list[str], cwd: Path) -> None:
     completed = subprocess.run(command, cwd=cwd, check=False)
     if completed.returncode:

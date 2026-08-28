@@ -52,13 +52,18 @@ export const chooseOperator = (state: CalculatorState, next: BinaryOperator): Ca
   if (state.operator && state.replaceDisplay) {
     return { ...state, operator: next, expression: `${formatted(state.accumulator ?? current)} ${next}` };
   }
-  const result = state.accumulator !== null && state.operator
-    ? calculate(state.accumulator, state.operator, current)
-    : current;
+  const result =
+    state.accumulator !== null && state.operator ? calculate(state.accumulator, state.operator, current) : current;
   const display = formatted(result);
   if (display === "Error") return { ...initialState(), display, error: true, replaceDisplay: true };
-  return { display, accumulator: result, operator: next, replaceDisplay: true,
-    expression: `${display} ${next}`, error: false };
+  return {
+    display,
+    accumulator: result,
+    operator: next,
+    replaceDisplay: true,
+    expression: `${display} ${next}`,
+    error: false,
+  };
 };
 
 export const equals = (state: CalculatorState): CalculatorState => {
@@ -66,8 +71,14 @@ export const equals = (state: CalculatorState): CalculatorState => {
   const right = Number(state.display);
   const result = formatted(calculate(state.accumulator, state.operator, right));
   if (result === "Error") return { ...initialState(), display: result, error: true, replaceDisplay: true };
-  return { display: result, accumulator: null, operator: null, replaceDisplay: true,
-    expression: `${formatted(state.accumulator)} ${state.operator} ${formatted(right)} =`, error: false };
+  return {
+    display: result,
+    accumulator: null,
+    operator: null,
+    replaceDisplay: true,
+    expression: `${formatted(state.accumulator)} ${state.operator} ${formatted(right)} =`,
+    error: false,
+  };
 };
 
 export const toggleSign = (state: CalculatorState): CalculatorState => {

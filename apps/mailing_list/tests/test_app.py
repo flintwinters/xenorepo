@@ -7,7 +7,10 @@ from unittest.mock import MagicMock, patch
 
 from sqlalchemy import func, select
 
-from apps.mailing_list.backend.database import Checkout, DomainError, MailingListRepository, PaymentEvent, Subscriber, create_session_factory
+from apps.mailing_list.backend.database import (
+    Checkout, DomainError, MailingListRepository, PaymentEvent, Subscriber,
+    create_session_factory,
+)
 from apps.mailing_list.backend.providers import SandboxGateway
 from monotools.commerce import PaymentNotification
 from monotools.mailer import Mail, SmtpMailer

@@ -6,11 +6,13 @@
     "packages/*"
   ],
   "scripts": {
-    "build:lit": "node scripts/build-lit.mjs"
+    "build:lit": "node scripts/build-lit.mjs",
+    "format:ts": "prettier --write \"apps/**/*.ts\" \"packages/**/*.ts\""
   },
   "devDependencies": {
     "@playwright/test": "1.57.0",
     "esbuild": "0.25.10",
+    "prettier": "^3.6.2",
     "typescript": "^5.9.2"
   },
   "dependencies": {

@@ -9,6 +9,16 @@ automation, short feedback loops, and actionable failures. Promote recurring
 operations and protections into Monotools instead of accumulating app-specific
 scripts.
 
+Make decisions as the owner accountable for the whole outcome, not as an
+implementer optimizing one requested task. Identify the real objective and
+binding constraint; compare doing nothing, using an existing solution, and the
+simplest adequate intervention. Allocate time, attention, complexity, and
+maintenance by expected value and opportunity cost. Move quickly on reversible
+choices, preserve optionality around costly commitments, and test the cheapest
+uncertainty that could change the decision. Consider execution risk, failure
+modes, and second-order effects; prefer high-leverage systems that eliminate
+recurring work, and state what evidence would reverse a consequential choice.
+
 Terminology: the **monorepo** is this repository, a **monoapp** is an app within
 it, and **Monotools** is the canonical orchestration library.
 

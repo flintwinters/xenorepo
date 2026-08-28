@@ -29,13 +29,13 @@ app identities at runtime, excludes `historic/` and generated data, limits
 source files to 600 physical lines, and computes cyclomatic complexity with a
 maximum of 8 for Python, TypeScript, JavaScript, and source HTML functions.
 
-The checkpoint 5 baseline is:
+The checkpoint 6 baseline is:
 
 - Architecture: 0 violations across central identity isolation, cross-app
   imports, frontend package boundaries, and shared custom-element adoption.
 - File size: 3 violations, all app-owned; central/shared code has 0.
-- Function complexity: 31 violations: 14 in root/shared platform code and 17
-  in app-owned code.
+- Function complexity: 17 violations, all app-owned; root/shared platform code
+  has 0.
 
 - Root tests now use invented fixture apps or runtime-discovered values; product
   assertions, production imports, and owned suite identities have been removed
@@ -46,8 +46,9 @@ The checkpoint 5 baseline is:
   in `LIBRARIES.md`; the shared UI surface contains only proved elements.
 - Central and app-owned Python, TypeScript, JavaScript, and source HTML have the
   exact size and complexity debt recorded above.
-- Lifecycle, metadata, browser-validation, migration, watching, and UI-runner
-  internals require decomposition while preserving their observable contracts.
+- Lifecycle, metadata, browser-validation, watching, and UI-runner internals
+  are decomposed below the complexity ceiling with their observable contracts
+  preserved.
 - Several app-owned controllers, transactions, and realtime or process handlers
   require independent characterization and simplification.
 
@@ -80,14 +81,17 @@ The checkpoint 5 baseline is:
    architecture violation was removed, the inventory is locked by synthetic
    and repository-level tests, and the complete verification matrix passed on
    2026-08-28.
-6. **Repair central builder internals — pending.**
+6. **Repair central builder internals — complete.** Manager discovery,
+   metadata parsing, lifecycle validation, browser-proof validation, frontend
+   watching, UI evidence orchestration, and shared browser-test analysis are
+   decomposed to complexity 8 or lower. Architecture remains clean and the
+   complete verification matrix passed on 2026-08-28.
 7. **Repair monoapps independently — pending.**
 8. **Activate permanent gates — pending.**
 
 ## Next action
 
-Begin checkpoint 6 by decomposing the 14 recorded root/shared-platform complex
-functions to complexity 8 or lower without changing lifecycle commands,
-diagnostics, failure behavior, browser evidence, or artifact contracts. Keep
-the 3 app-owned large files and 17 app-owned complex functions unchanged for
-checkpoint 7.
+Begin checkpoint 7 by repairing the three app-owned large files and 17
+app-owned complex functions independently, preserving product behavior,
+persistence boundaries, realtime protocols, browser interactions, and artifact
+contracts. Keep central/shared code at zero structural violations.

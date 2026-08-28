@@ -17,6 +17,37 @@ function textOf(node, source) {
     ? node.text : node?.getText(source);
 }
 
+function testCall(node) {
+  if (!ts.isCallExpression(node)) return null;
+  const expression = node.expression;
+  const direct = ts.isIdentifier(expression) && expression.text === "test";
+  const only = ts.isPropertyAccessExpression(expression)
+    && ts.isIdentifier(expression.expression) && expression.expression.text === "test"
+    && expression.name.text === "only";
+  return direct || only ? { node, only } : null;
+}
+
+function validateTest(call, filename, source, counts) {
+  const { node, only } = call;
+  if (only) fail("BROWSER_FORBID_ONLY", `${path.basename(filename)}:${source.getLineAndCharacterOfPosition(node.pos).line + 1}`);
+  const title = textOf(node.arguments[0], source) || "";
+  const tags = [...PROOFS].filter(proof => title.includes(`[${proof}]`));
+  if (tags.length !== 1) {
+    fail("BROWSER_PROOF_TAG_COUNT", `${title || "unnamed test"} has ${tags.length} proof tags`);
+    return;
+  }
+  counts[tags[0]] += 1;
+  validateTrustedAcceptance(node, title, tags[0], source);
+}
+
+function validateTrustedAcceptance(node, title, proof, source) {
+  const body = node.arguments[1]?.getText(source) || "";
+  const synthetic = /\.dispatchEvent\s*\(|new\s+(PointerEvent|MouseEvent|TouchEvent|KeyboardEvent)\s*\(/;
+  if (proof !== "browser-integration" && synthetic.test(body)) {
+    fail("BROWSER_UNTRUSTED_ACCEPTANCE", title);
+  }
+}
+
 function validate(filename) {
   let contents;
   try { contents = fs.readFileSync(filename, "utf8"); }
@@ -26,26 +57,10 @@ function validate(filename) {
   const counts = Object.fromEntries([...PROOFS].map(proof => [proof, 0]));
   let tests = 0;
   function visit(node) {
-    if (ts.isCallExpression(node)) {
-      const expression = node.expression;
-      const directTest = ts.isIdentifier(expression) && expression.text === "test";
-      const testOnly = ts.isPropertyAccessExpression(expression)
-        && ts.isIdentifier(expression.expression) && expression.expression.text === "test"
-        && expression.name.text === "only";
-      if (testOnly) fail("BROWSER_FORBID_ONLY", `${path.basename(filename)}:${source.getLineAndCharacterOfPosition(node.pos).line + 1}`);
-      if (directTest || testOnly) {
-        tests += 1;
-        const title = textOf(node.arguments[0], source) || "";
-        const tags = [...PROOFS].filter(proof => title.includes(`[${proof}]`));
-        if (tags.length !== 1) fail("BROWSER_PROOF_TAG_COUNT", `${title || "unnamed test"} has ${tags.length} proof tags`);
-        else {
-          counts[tags[0]] += 1;
-          const body = node.arguments[1]?.getText(source) || "";
-          if (tags[0] !== "browser-integration" && /\.dispatchEvent\s*\(|new\s+(PointerEvent|MouseEvent|TouchEvent|KeyboardEvent)\s*\(/.test(body)) {
-            fail("BROWSER_UNTRUSTED_ACCEPTANCE", title);
-          }
-        }
-      }
+    const call = testCall(node);
+    if (call) {
+      tests += 1;
+      validateTest(call, filename, source, counts);
     }
     ts.forEachChild(node, visit);
   }

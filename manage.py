@@ -52,6 +52,12 @@ def _import_manager(path: Path) -> ApplicationManager:
     except Exception as error:
         raise ManagerError(f"failed to import app manager {path}: {error}") from error
     manager = getattr(module, "manager", None)
+    _validate_manager(manager, path)
+    return manager
+
+
+def _validate_manager(manager: object, path: Path) -> None:
+    """Validate one imported manager without obscuring its exact diagnostic."""
     if not isinstance(manager, ApplicationManager):
         raise ManagerError(f"app manager {path} must export 'manager' as ApplicationManager")
     if manager.definition.directory.resolve() != path.parent.resolve():
@@ -60,7 +66,20 @@ def _import_manager(path: Path) -> ApplicationManager:
         raise ManagerError(f"app manager {path} has no Python suite: {manager.python_suite.path}")
     if manager.browser_suite is not None and not manager.browser_suite.path.is_file():
         raise ManagerError(f"app manager {path} has no browser suite: {manager.browser_suite.path}")
-    return manager
+
+
+def _load_managed_app(directory: Path) -> tuple[AppDefinition, ApplicationManager]:
+    manager_path = directory / "manage.py"
+    if not manager_path.is_file():
+        raise ManagerError(f"visible app directory has no manage.py: {directory}")
+    try:
+        definition = load_app(directory)
+    except AppDefinitionError as error:
+        raise ManagerError(str(error)) from error
+    manager = _import_manager(manager_path)
+    if manager.definition != definition:
+        raise ManagerError(f"app manager {manager_path} definition does not match app.yaml")
+    return definition, manager
 
 
 def discover_managers(apps_directory: Path = APPS_DIRECTORY
@@ -71,19 +90,10 @@ def discover_managers(apps_directory: Path = APPS_DIRECTORY
     for directory in _visible_directories(apps_directory):
         if is_planned_app(directory):
             continue
-        manager_path = directory / "manage.py"
-        if not manager_path.is_file():
-            raise ManagerError(f"visible app directory has no manage.py: {directory}")
-        try:
-            definition = load_app(directory)
-        except AppDefinitionError as error:
-            raise ManagerError(str(error)) from error
+        definition, manager = _load_managed_app(directory)
         if definition.name in names:
             raise ManagerError(f"duplicate managed app name: {definition.name}")
         names.add(definition.name)
-        manager = _import_manager(manager_path)
-        if manager.definition != definition:
-            raise ManagerError(f"app manager {manager_path} definition does not match app.yaml")
         managers.append((definition, manager))
     suite_paths = [manager.python_suite.path for _, manager in managers]
     if len(suite_paths) != len(set(suite_paths)):

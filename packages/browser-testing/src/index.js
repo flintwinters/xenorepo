@@ -40,12 +40,18 @@ function validateInputEvidence(records, claim) {
   const trusted = records.filter(record => record.trusted);
   const reject = reason => ({ accepted: false, reason, records });
   if (!trusted.length) return reject("EVIDENCE_UNTRUSTED");
-  if (claim === "keyboard") {
-    const downs = trusted.filter(record => record.type === "keydown");
-    const ups = trusted.filter(record => record.type === "keyup");
-    return downs.length && downs.length === ups.length
-      ? { accepted: true, records } : reject("EVIDENCE_KEYBOARD_UNBALANCED");
-  }
+  if (claim === "keyboard") return validateKeyboardEvidence(trusted, records, reject);
+  return validatePointerEvidence(trusted, records, claim, reject);
+}
+
+function validateKeyboardEvidence(trusted, records, reject) {
+  const downs = trusted.filter(record => record.type === "keydown");
+  const ups = trusted.filter(record => record.type === "keyup");
+  return downs.length && downs.length === ups.length
+    ? { accepted: true, records } : reject("EVIDENCE_KEYBOARD_UNBALANCED");
+}
+
+function validatePointerEvidence(trusted, records, claim, reject) {
   const pointerType = claim === "touch" ? "touch" : "mouse";
   const pointer = trusted.filter(record => record.pointerType === pointerType);
   if (pointer.some(record => record.canceled)) return reject("EVIDENCE_POINTER_CANCELED");

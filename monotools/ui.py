@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import json
+from dataclasses import dataclass
 from pathlib import Path
 import socket
 import subprocess
@@ -17,6 +18,14 @@ from monotools.lifecycle import LifecycleError, build_app, validate_app, validat
 
 HEALTH_TIMEOUT_SECONDS = 15
 POLL_INTERVAL_SECONDS = 0.1
+
+
+@dataclass
+class _BrowserRun:
+    process: subprocess.Popen[bytes] | None = None
+    failure: Exception | None = None
+    cleanup: str = "not-started"
+    status: int | None = None
 
 
 def ui_artifact_directory(definition: AppDefinition) -> Path:
@@ -82,20 +91,91 @@ def _run_browser(command: list[str], workspace: Path,
         return process.wait()
 
 
-def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = None,
-    *, evidence: bool = False) -> Path:
-    """Build, serve, and browser-check one application with preserved evidence."""
+def _browser_suites(workspace: Path, suite: object) -> tuple[object, object | None, dict, dict]:
     from monotools.management import BrowserSuite
+    from monotools.browser import validate_browser_suite
+
     browser_suite = (suite if isinstance(suite, BrowserSuite)
         else BrowserSuite(Path(suite)) if suite is not None else None)
     universal_suite = BrowserSuite(
         workspace / "tests" / "browser-framework" / "universal.spec.js",
         frozenset({"browser-integration"}),
     )
-    from monotools.browser import validate_browser_suite
     universal_report = validate_browser_suite(universal_suite, workspace)
     proof_report = (validate_browser_suite(browser_suite, workspace)
         if browser_suite else {"counts": {}})
+    return universal_suite, browser_suite, universal_report, proof_report
+
+
+def _browser_environment(definition: AppDefinition, artifacts: Path, port: int,
+    evidence: bool) -> tuple[dict[str, str], Path | None]:
+    environment = os.environ | {
+        "BASE_URL": f"http://127.0.0.1:{port}",
+        "PLAYWRIGHT_OUTPUT_DIR": str(artifacts / "test-results"),
+        "XENOREPO_FRONTEND_ROUTES": json.dumps([
+            {"path": route, "artifact": str(definition.artifact(name).output)}
+            for route, name in definition.routes
+        ]),
+        "PLAYWRIGHT_RETAIN_EVIDENCE": "1" if evidence else "0",
+    }
+    database = artifacts / "browser.db" if "database" in definition.capabilities else None
+    if database:
+        database.unlink(missing_ok=True)
+        environment[f"{definition.name.upper()}_DATABASE_URL"] = f"sqlite:///{database}"
+    return environment, database
+
+
+def _execute_browser(definition: AppDefinition, workspace: Path, environment: dict[str, str],
+    command: list[str], service_log: Path, playwright_log: Path, artifacts: Path,
+    run: _BrowserRun) -> None:
+    try:
+        with service_log.open("wb") as output:
+            run.process = subprocess.Popen(
+                [sys.executable, "-m", "uvicorn", definition.module + ":app",
+                    "--host", "127.0.0.1", "--port", environment["BASE_URL"].rsplit(":", 1)[1]],
+                cwd=workspace, env=environment, stdout=output, stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            wait_for_health(int(environment["BASE_URL"].rsplit(":", 1)[1]), run.process)
+            run.status = _run_browser(command, workspace, environment, playwright_log)
+            if run.status:
+                raise LifecycleError(
+                    f"browser checks failed ({run.status}); inspect {artifacts.relative_to(workspace)}"
+                )
+    except (FileNotFoundError, LifecycleError) as error:
+        run.failure = error
+        raise
+    finally:
+        if run.process is not None:
+            run.cleanup = _terminate(run.process)
+
+
+def _write_summary(path: Path, definition: AppDefinition, workspace: Path, suites: list[Path],
+    universal_suite: object, browser_suite: object, reports: tuple[dict, dict], started: float,
+    run: _BrowserRun, database: Path | None, logs: tuple[Path, Path], evidence: bool) -> None:
+    universal_report, proof_report = reports
+    service_log, playwright_log = logs
+    path.write_text(json.dumps({
+        "schemaVersion": 1, "app": definition.name,
+        "suites": [str(item.relative_to(workspace)) for item in suites],
+        "proofCounts": {key: universal_report["counts"].get(key, 0)
+            + proof_report["counts"].get(key, 0) for key in universal_report["counts"]},
+        "viewports": sorted(universal_suite.viewports),
+        "inputModalities": sorted(browser_suite.input_modalities) if browser_suite else [],
+        "startedAt": started, "durationSeconds": time.time() - started,
+        "browserStatus": run.status,
+        "database": str(database.relative_to(workspace)) if database else None,
+        "serviceLog": str(service_log.relative_to(workspace)),
+        "playwrightLog": str(playwright_log.relative_to(workspace)),
+        "cleanup": run.cleanup, "failure": str(run.failure) if run.failure else None,
+        "successfulEvidenceRetained": evidence,
+    }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = None,
+    *, evidence: bool = False) -> Path:
+    """Build, serve, and browser-check one application with preserved evidence."""
+    universal_suite, browser_suite, universal_report, proof_report = _browser_suites(workspace, suite)
     validate_app(definition, workspace)
     build_app(definition, workspace)
     validate_dist(definition)
@@ -108,68 +188,18 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = Non
     playwright_log = artifacts / "playwright.log"
     summary_path = artifacts / "summary.json"
     port = available_local_port()
-    environment = os.environ | {
-        "BASE_URL": f"http://127.0.0.1:{port}",
-        "PLAYWRIGHT_OUTPUT_DIR": str(artifacts / "test-results"),
-        "XENOREPO_FRONTEND_ROUTES": json.dumps([
-            {"path": route, "artifact": str(definition.artifact(name).output)}
-            for route, name in definition.routes
-        ]),
-        "PLAYWRIGHT_RETAIN_EVIDENCE": "1" if evidence else "0",
-    }
-    if "database" in definition.capabilities:
-        database = artifacts / "browser.db"
-        database.unlink(missing_ok=True)
-        environment[f"{definition.name.upper()}_DATABASE_URL"] = f"sqlite:///{database}"
+    environment, database = _browser_environment(definition, artifacts, port, evidence)
     suites = [universal_suite.path]
     if browser_suite:
         suites.append(browser_suite.path)
     command = [str(playwright), "test", *(str(path.relative_to(workspace)) for path in suites)]
-    process: subprocess.Popen[bytes] | None = None
-    primary_failure: Exception | None = None
-    cleanup_status = "not-started"
-    browser_status: int | None = None
     started = time.time()
-    database = artifacts / "browser.db" if "database" in definition.capabilities else None
+    run = _BrowserRun()
     try:
-        with service_log.open("wb") as output:
-            process = subprocess.Popen(
-                [sys.executable, "-m", "uvicorn", definition.module + ":app",
-                    "--host", "127.0.0.1", "--port", str(port)],
-                cwd=workspace,
-                env=environment,
-                stdout=output,
-                stderr=subprocess.STDOUT,
-                start_new_session=True,
-            )
-            wait_for_health(port, process)
-            browser_status = _run_browser(command, workspace, environment, playwright_log)
-            if browser_status:
-                raise LifecycleError(
-                    f"browser checks failed ({browser_status}); inspect {artifacts.relative_to(workspace)}"
-                )
-    except (FileNotFoundError, LifecycleError) as error:
-        primary_failure = error
-        raise
+        _execute_browser(definition, workspace, environment, command, service_log,
+            playwright_log, artifacts, run)
     finally:
-        if process is not None:
-            cleanup_status = _terminate(process)
-        summary_path.write_text(json.dumps({
-            "schemaVersion": 1,
-            "app": definition.name,
-            "suites": [str(path.relative_to(workspace)) for path in suites],
-            "proofCounts": {key: universal_report["counts"].get(key, 0)
-                + proof_report["counts"].get(key, 0) for key in universal_report["counts"]},
-            "viewports": sorted(universal_suite.viewports),
-            "inputModalities": sorted(browser_suite.input_modalities) if browser_suite else [],
-            "startedAt": started,
-            "durationSeconds": time.time() - started,
-            "browserStatus": browser_status,
-            "database": str(database.relative_to(workspace)) if database else None,
-            "serviceLog": str(service_log.relative_to(workspace)),
-            "playwrightLog": str(playwright_log.relative_to(workspace)),
-            "cleanup": cleanup_status,
-            "failure": str(primary_failure) if primary_failure else None,
-            "successfulEvidenceRetained": evidence,
-        }, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        _write_summary(summary_path, definition, workspace, suites, universal_suite, browser_suite,
+            (universal_report, proof_report), started, run, database,
+            (service_log, playwright_log), evidence)
     return artifacts

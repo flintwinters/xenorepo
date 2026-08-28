@@ -23,10 +23,21 @@ def validate_browser_suite(suite: BrowserSuite, workspace: Path) -> dict[str, ob
         report = json.loads(static.stdout)
     except json.JSONDecodeError as error:
         raise LifecycleError("BROWSER_VALIDATOR_OUTPUT: invalid JSON") from error
+    _validate_proof_coverage(suite, report)
+    _validate_playwright_inventory(suite, workspace)
+    return report
+
+
+def _validate_proof_coverage(suite: BrowserSuite, report: dict[str, object]) -> None:
+    counts = report["counts"]
+    assert isinstance(counts, dict)
     missing = sorted(proof for proof in suite.proof_kinds
-        if not report["counts"].get(proof))
+        if not counts.get(proof))
     if missing:
         raise LifecycleError(f"BROWSER_PROOF_COVERAGE: missing {', '.join(missing)}")
+
+
+def _validate_playwright_inventory(suite: BrowserSuite, workspace: Path) -> None:
     playwright = workspace / "node_modules" / ".bin" / "playwright"
     listed = subprocess.run(
         [str(playwright), "test", str(suite.path.relative_to(workspace)), "--list"],
@@ -41,7 +52,6 @@ def validate_browser_suite(suite: BrowserSuite, workspace: Path) -> dict[str, ob
         raise LifecycleError(
             f"BROWSER_VIEWPORT_COVERAGE: missing {', '.join(absent_viewports)}"
         )
-    return report
 
 
 def run_browser_framework_suite(workspace: Path) -> int:

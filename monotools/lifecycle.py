@@ -32,6 +32,14 @@ SOURCE_SUFFIXES = frozenset({".py", ".ts", ".tsx"})
 
 def validate_source_lines(workspace: Path) -> None:
     """Reject unreadably wide Python and TypeScript source lines."""
+    violations = [violation for path in _source_candidates(workspace)
+        for violation in _line_violations(path, workspace)]
+    if violations:
+        detail = "\n".join(violations)
+        raise LifecycleError(f"source line length validation failed:\n{detail}")
+
+
+def _source_candidates(workspace: Path) -> tuple[Path, ...]:
     candidates = [
         path
         for directory in SOURCE_DIRECTORIES
@@ -41,18 +49,16 @@ def validate_source_lines(workspace: Path) -> None:
         and not SOURCE_EXCLUDED_DIRECTORIES.intersection(path.parts)
     ]
     candidates.extend(path for path in workspace.glob("*") if path.suffix in SOURCE_SUFFIXES)
-    violations: list[str] = []
-    for path in sorted(candidates):
-        for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if len(line) > MAX_SOURCE_LINE_LENGTH:
-                relative = path.relative_to(workspace)
-                violations.append(
-                    f"{relative}:{line_number}: {len(line)} characters "
-                    f"(maximum {MAX_SOURCE_LINE_LENGTH})"
-                )
-    if violations:
-        detail = "\n".join(violations)
-        raise LifecycleError(f"source line length validation failed:\n{detail}")
+    return tuple(sorted(candidates))
+
+
+def _line_violations(path: Path, workspace: Path) -> tuple[str, ...]:
+    relative = path.relative_to(workspace)
+    return tuple(
+        f"{relative}:{number}: {len(line)} characters (maximum {MAX_SOURCE_LINE_LENGTH})"
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1)
+        if len(line) > MAX_SOURCE_LINE_LENGTH
+    )
 
 
 def _run(command: list[str], cwd: Path) -> None:
@@ -139,15 +145,22 @@ def _declared_source_imports(definition: AppDefinition) -> tuple[str, ...]:
     discovered: set[str] = set()
     python_sources = (definition.directory / "manage.py", *definition.backend_directory.rglob("*.py"))
     for source in python_sources:
-        tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
-        for node in ast.walk(tree):
-            names = [node.module] if isinstance(node, ast.ImportFrom) else (
-                [alias.name for alias in node.names] if isinstance(node, ast.Import) else [])
-            discovered.update(name for name in names if name and name.startswith("monotools."))
+        discovered.update(_python_shared_imports(source))
     for source in definition.source_directory.rglob("*"):
         if source.suffix in {".ts", ".js"}:
             discovered.update(_SHARED_PACKAGE_IMPORT.findall(source.read_text(encoding="utf-8")))
     return tuple(sorted(discovered))
+
+
+def _python_shared_imports(source: Path) -> tuple[str, ...]:
+    tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
+    names: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            names.append(node.module)
+        elif isinstance(node, ast.Import):
+            names.extend(alias.name for alias in node.names)
+    return tuple(name for name in names if name.startswith("monotools."))
 
 
 def _validate_declared_imports(definition: AppDefinition) -> None:
@@ -164,6 +177,18 @@ def _validate_declared_imports(definition: AppDefinition) -> None:
 
 
 def validate_app(definition: AppDefinition, workspace: Path) -> None:
+    missing = [path.relative_to(workspace) for path in _required_sources(definition)
+        if not path.is_file()]
+    if missing:
+        raise LifecycleError(f"{definition.name} missing files: {', '.join(map(str, missing))}")
+    _validate_declared_imports(definition)
+    _validate_lit(definition, workspace)
+    py_compile.compile(str(definition.backend_directory / "server.py"), doraise=True)
+    module = import_module(definition.module)
+    _validate_runtime_contract(definition, module)
+
+
+def _required_sources(definition: AppDefinition) -> tuple[Path, ...]:
     expected = [
         definition.directory / "app.yaml",
         definition.backend_directory / "server.py",
@@ -174,13 +199,10 @@ def validate_app(definition: AppDefinition, workspace: Path) -> None:
             [definition.backend_directory / "database.py",
                 definition.directory / "data" / "README.md"]
         )
-    missing = [path.relative_to(workspace) for path in expected if not path.is_file()]
-    if missing:
-        raise LifecycleError(f"{definition.name} missing files: {', '.join(map(str, missing))}")
-    _validate_declared_imports(definition)
-    _validate_lit(definition, workspace)
-    py_compile.compile(str(definition.backend_directory / "server.py"), doraise=True)
-    module = import_module(definition.module)
+    return tuple(expected)
+
+
+def _validate_runtime_contract(definition: AppDefinition, module: object) -> None:
     if not isinstance(getattr(module, "app", None), FastAPI):
         raise LifecycleError(f"{definition.module} does not expose a FastAPI 'app'")
     if "realtime" in definition.capabilities and not any(

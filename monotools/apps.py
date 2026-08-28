@@ -135,14 +135,17 @@ def _imports(value: object, path: Path) -> tuple[str, ...]:
         raise AppDefinitionError(f"{_display(path)} imports must be a list of non-empty strings")
     if value != sorted(set(value)):
         raise AppDefinitionError(f"{_display(path)} imports must be unique and sorted")
-    unsupported = [item for item in value
-        if not (item.startswith("monotools.") or item.startswith("@xenorepo/"))]
+    unsupported = [item for item in value if not _is_shared_import(item)]
     if unsupported:
         raise AppDefinitionError(
             f"{_display(path)} imports must name shared Monotools or Xenorepo modules: "
             f"{', '.join(unsupported)}"
         )
     return tuple(value)
+
+
+def _is_shared_import(name: str) -> bool:
+    return name.startswith("monotools.") or name.startswith("@xenorepo/")
 
 
 def _load_yaml(path: Path) -> Mapping[str, object]:
@@ -157,33 +160,38 @@ def _load_yaml(path: Path) -> Mapping[str, object]:
     return _mapping(data, path, "document")
 
 
+def _artifact(name: str, raw: object, path: Path) -> FrontendArtifact:
+    if not _ARTIFACT_NAME.fullmatch(name):
+        raise AppDefinitionError(f"{_display(path)} invalid frontend artifact name: {name!r}")
+    label = f"frontend.artifacts.{name}"
+    item = _mapping(raw, path, label)
+    _only_keys(item, frozenset({"format", "source", "output", "shell"}), path, label)
+    format_name = _string(item.get("format"), path, f"{label}.format")
+    if format_name not in _FORMATS:
+        raise AppDefinitionError(f"{_display(path)} has unsupported frontend format: {format_name!r}")
+    source = _relative_path(item.get("source"), path, f"{label}.source")
+    output = _relative_path(item.get("output"), path, f"{label}.output")
+    if output.suffix != ".html":
+        raise AppDefinitionError(f"{_display(path)} frontend artifact output must end in .html")
+    shell = item.get("shell")
+    _validate_shell(format_name, shell, path)
+    return FrontendArtifact(name, format_name, source, output, shell)
+
+
+def _validate_shell(format_name: str, shell: object, path: Path) -> None:
+    if shell is not None and shell != "console":
+        raise AppDefinitionError(f"{_display(path)} has unsupported frontend shell: {shell!r}")
+    if format_name == "document" and shell is None:
+        raise AppDefinitionError(f"{_display(path)} document frontend must declare a shell")
+    if format_name not in {"document", "lit"} and shell is not None:
+        raise AppDefinitionError(f"{_display(path)} shell requires document or Lit frontend format")
+
+
 def _artifacts(value: object, path: Path) -> tuple[FrontendArtifact, ...]:
     declared = _mapping(value, path, "frontend.artifacts")
     if not declared:
         raise AppDefinitionError(f"{_display(path)} frontend.artifacts must not be empty")
-    result: list[FrontendArtifact] = []
-    for name, raw in declared.items():
-        if not _ARTIFACT_NAME.fullmatch(name):
-            raise AppDefinitionError(f"{_display(path)} invalid frontend artifact name: {name!r}")
-        item = _mapping(raw, path, f"frontend.artifacts.{name}")
-        _only_keys(item, frozenset({"format", "source", "output", "shell"}), path,
-            f"frontend.artifacts.{name}")
-        format_name = _string(item.get("format"), path, f"frontend.artifacts.{name}.format")
-        if format_name not in _FORMATS:
-            raise AppDefinitionError(f"{_display(path)} has unsupported frontend format: {format_name!r}")
-        source = _relative_path(item.get("source"), path, f"frontend.artifacts.{name}.source")
-        output = _relative_path(item.get("output"), path, f"frontend.artifacts.{name}.output")
-        if output.suffix != ".html":
-            raise AppDefinitionError(f"{_display(path)} frontend artifact output must end in .html")
-        shell = item.get("shell")
-        if shell is not None and shell != "console":
-            raise AppDefinitionError(f"{_display(path)} has unsupported frontend shell: {shell!r}")
-        if format_name == "document" and shell is None:
-            raise AppDefinitionError(f"{_display(path)} document frontend must declare a shell")
-        if format_name not in {"document", "lit"} and shell is not None:
-            raise AppDefinitionError(f"{_display(path)} shell requires document or Lit frontend format")
-        result.append(FrontendArtifact(name, format_name, source, output, shell))
-    return tuple(result)
+    return tuple(_artifact(name, raw, path) for name, raw in declared.items())
 
 
 def _routes(value: object, artifacts: tuple[FrontendArtifact, ...], path: Path) -> tuple[tuple[str, str], ...]:
@@ -191,18 +199,21 @@ def _routes(value: object, artifacts: tuple[FrontendArtifact, ...], path: Path) 
     if not declared:
         raise AppDefinitionError(f"{_display(path)} frontend.routes must not be empty")
     artifact_names = {artifact.name for artifact in artifacts}
-    result: list[tuple[str, str]] = []
-    for route, artifact_name in declared.items():
-        if not _ROUTE_PATH.fullmatch(route) or "//" in route or "?" in route or "#" in route:
-            raise AppDefinitionError(f"{_display(path)} has invalid route: {route!r}")
-        if route in _RESERVED_ROUTES:
-            raise AppDefinitionError(f"{_display(path)} route {route!r} is reserved by the platform")
-        if not isinstance(artifact_name, str) or artifact_name not in artifact_names:
-            raise AppDefinitionError(
-                f"{_display(path)} route {route!r} references unknown frontend artifact {artifact_name!r}"
-            )
-        result.append((route, artifact_name))
-    return tuple(result)
+    return tuple(_route(route, artifact_name, artifact_names, path)
+        for route, artifact_name in declared.items())
+
+
+def _route(route: str, artifact_name: object, artifact_names: set[str],
+    path: Path) -> tuple[str, str]:
+    if not _ROUTE_PATH.fullmatch(route) or any(marker in route for marker in ("//", "?", "#")):
+        raise AppDefinitionError(f"{_display(path)} has invalid route: {route!r}")
+    if route in _RESERVED_ROUTES:
+        raise AppDefinitionError(f"{_display(path)} route {route!r} is reserved by the platform")
+    if not isinstance(artifact_name, str) or artifact_name not in artifact_names:
+        raise AppDefinitionError(
+            f"{_display(path)} route {route!r} references unknown frontend artifact {artifact_name!r}"
+        )
+    return route, artifact_name
 
 
 def _validate_structure(directory: Path, name: str, module: str,
@@ -214,23 +225,25 @@ def _validate_structure(directory: Path, name: str, module: str,
         raise AppDefinitionError(
             f"{_display(directory)} missing required directories: {', '.join(missing)}"
         )
-    root_python = sorted(path.name for path in directory.glob("*.py"))
-    if root_python != ["manage.py"]:
-        found = ", ".join(root_python) or "none"
-        raise AppDefinitionError(
-            f"{_display(directory)} root Python files must be exactly manage.py; found: {found}"
-        )
+    _validate_administrative_root(directory)
     expected_module = f"apps.{name}.backend.server"
     if module != expected_module:
-        raise AppDefinitionError(
-            f"{_display(directory)} module must be {expected_module!r}"
-        )
+        raise AppDefinitionError(f"{_display(directory)} module must be {expected_module!r}")
     outside_frontend = sorted(str(artifact.source) for artifact in artifacts
         if not artifact.source.parts or artifact.source.parts[0] != "frontend")
     if outside_frontend:
         raise AppDefinitionError(
             f"{_display(directory)} frontend sources must be beneath frontend/: "
             f"{', '.join(outside_frontend)}"
+        )
+
+
+def _validate_administrative_root(directory: Path) -> None:
+    root_python = sorted(path.name for path in directory.glob("*.py"))
+    if root_python != ["manage.py"]:
+        found = ", ".join(root_python) or "none"
+        raise AppDefinitionError(
+            f"{_display(directory)} root Python files must be exactly manage.py; found: {found}"
         )
 
 

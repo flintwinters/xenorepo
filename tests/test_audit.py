@@ -71,7 +71,8 @@ class AuditTests(unittest.TestCase):
 
         self.assertEqual(report.architecture, ())
         self.assertEqual(len(report.large_files), 3)
-        self.assertEqual(len(report.complex_functions), 31)
+        self.assertEqual(len(report.complex_functions), 17)
+        self.assertTrue(all(item.path.startswith("apps/") for item in report.complex_functions))
 
 
 if __name__ == "__main__":

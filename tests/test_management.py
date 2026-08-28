@@ -148,7 +148,7 @@ frontend:
         self.assertEqual(result.exit_code, 0)
         self.assertIn("Architecture violations: 0", result.output)
         self.assertIn("3 large file(s)", result.output)
-        self.assertRegex(result.output, r"31 complex\s+function\(s\)")
+        self.assertRegex(result.output, r"17 complex\s+function\(s\)")
 
     def test_targeted_check_executes_only_the_selected_application(self) -> None:
         selected = repository_manager.MANAGERS[0][0]

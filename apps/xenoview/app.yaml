@@ -1,0 +1,21 @@
+name: xenoview
+title: Xenorepo Cockpit
+module: apps.xenoview.backend.server
+capabilities:
+  - database
+imports:
+  - "@xenorepo/lit-ui"
+  - monotools.appkit
+  - monotools.apps
+  - monotools.audit
+  - monotools.http
+  - monotools.management
+  - monotools.runtime
+frontend:
+  artifacts:
+    index:
+      format: lit
+      source: frontend/index.ts
+      output: index.html
+  routes:
+    /: index

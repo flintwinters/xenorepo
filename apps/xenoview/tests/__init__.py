@@ -1,0 +1,1 @@
+"""Cockpit test suite."""

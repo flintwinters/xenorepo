@@ -39,7 +39,7 @@ FastAPI serves a Lit client and four read-only views backed by one deterministic
 - `GET /api/architecture` returns typed nodes and edges derived from repository structure and app metadata.
 - `GET /api/history` returns saved snapshots; `POST /api/snapshots` explicitly records the current stable metrics after same-origin validation.
 
-SQLite stores snapshots in `data/cockpit.db`; `COCKPIT_DATABASE_URL` may select another SQLAlchemy database. Scans never write to source control or execute repository code. Results use a short process-local cache invalidated by the explicit snapshot operation.
+SQLite stores snapshots in `data/xenoview.db`; `XENOVIEW_DATABASE_URL` may select another SQLAlchemy database. Scans never write to source control or execute repository code. Results use a short process-local cache invalidated by the explicit snapshot operation.
 
 ## Real-world pilot and acceptance
 

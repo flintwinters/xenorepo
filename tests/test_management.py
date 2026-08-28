@@ -106,7 +106,7 @@ frontend:
 
         self.assertEqual(
             [definition.name for definition in definitions],
-            ["calculator", "calendar", "chat", "kanban", "mailing_list", "microblog", "quiz", "rps",
+            ["calendar", "chat", "kanban", "mailing_list", "microblog", "quiz", "rps",
                 "worminal"],
         )
         result = CliRunner().invoke(repository_manager.app, ["--help"])
@@ -128,13 +128,13 @@ frontend:
         self.assertNotIn("status", result.output)
 
     def test_targeted_check_executes_only_the_selected_application(self) -> None:
+        selected = repository_manager.MANAGERS[0][0]
         with patch("monotools.management.validate_app") as validate, \
              patch("monotools.management.build_app") as build, \
              patch("monotools.management.validate_dist") as validate_dist:
-            result = CliRunner().invoke(repository_manager.app, ["calculator", "check"])
+            result = CliRunner().invoke(repository_manager.app, [selected.name, "check"])
 
         self.assertEqual(result.exit_code, 0)
-        selected = repository_manager.MANAGERS[0][0]
         validate.assert_called_once_with(selected, ROOT)
         build.assert_called_once_with(selected, ROOT)
         validate_dist.assert_called_once_with(selected)
@@ -244,7 +244,7 @@ frontend:
             os.chdir(original)
 
         self.assertEqual(root_result.exit_code, 0)
-        self.assertIn("calculator", root_result.output)
+        self.assertIn("calendar", root_result.output)
         self.assertEqual(leaf_result.exit_code, 0)
         self.assertIn("--user", leaf_result.output)
 

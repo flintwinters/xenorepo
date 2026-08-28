@@ -48,7 +48,7 @@ class SharedFrameworkTests(unittest.TestCase):
 
     def test_declared_capabilities_describe_existing_apps(self) -> None:
         capabilities = {app.name: app.capabilities for app in discover_apps()}
-        self.assertEqual(capabilities["calculator"], frozenset())
+        self.assertEqual(capabilities["calendar"], frozenset({"database"}))
         self.assertEqual(capabilities["chat"], frozenset({"database", "realtime"}))
         self.assertEqual(capabilities["kanban"], frozenset({"database"}))
         self.assertEqual(capabilities["microblog"], frozenset({"database"}))

@@ -30,7 +30,8 @@ class RepositoryAppTests(unittest.TestCase):
         self.assertIn("choose an application:", result.output)
         for definition in discover_apps():
             self.assertIn(definition.name, result.output)
-        self.assertIn("Example: manage.py serve calculator", result.output)
+        first_app = discover_apps()[0]
+        self.assertIn(f"Example: manage.py serve {first_app.name}", result.output)
 
     def test_worminal_user_option_is_discoverable_from_the_managed_serve_command(self) -> None:
         result = CliRunner().invoke(app, ["serve", "--help"])
@@ -259,40 +260,6 @@ frontend:
             with self.subTest(app=definition.name):
                 if definition.frontend_format == "document":
                     self.assertEqual(definition.frontend_shell, "console")
-
-    def test_calculator_preserves_visible_work_across_reload(self) -> None:
-        build_app(get_app("calculator"), ROOT)
-        definition = get_app("calculator")
-        source = (definition.directory / definition.artifact("index").source).read_text(
-            encoding="utf-8"
-        )
-        document = definition.dist_directory.joinpath("index.html").read_text(encoding="utf-8")
-
-        self.assertIn('storageKey = "calc98-state-v1"', source)
-        self.assertIn("localStorage.setItem(storageKey", source)
-        self.assertIn("localStorage.getItem(storageKey)", source)
-        self.assertIn("ledger.unshift", source)
-        self.assertIn("x-console-shell", source)
-        self.assertIn('<x-command-button class="calc-key', source)
-        self.assertNotIn('<button class="calc-key', source)
-        self.assertIn('role="tablist" aria-label="Calculation mode"', source)
-        self.assertIn('data-mode="scientific">SCIENTIFIC</button>', source)
-        self.assertIn('["sin","cos","tan","ln","log","square","pi"]', source)
-        self.assertIn('mode=state.mode ?? "standard"', source)
-        for index in ("01", "02", "03", "04"):
-            with self.subTest(index=index):
-                self.assertIn(f'index="{index}"', source)
-        pane_component = Path("packages/lit-ui/src/index.ts").read_text(encoding="utf-8")
-        self.assertIn("const paneHeading", pane_component)
-        self.assertIn("numbered?.[1]", pane_component)
-        self.assertIn("numbered?.[2]", pane_component)
-        self.assertIn("declare label: string", pane_component)
-        self.assertIn("calc98-state-v1", document)
-        self.assertIn("x-console-shell", document)
-        self.assertIn('<meta name="monotools-shell" content="console">', document)
-        self.assertIn("html,body,#app{width:100%;height:100%;margin:0}", document)
-        self.assertNotIn('src="', document)
-        self.assertNotIn('href="', document)
 
     def test_worminal_lit_entry_is_a_composition_boundary(self) -> None:
         definition = get_app("worminal")

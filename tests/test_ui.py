@@ -73,7 +73,7 @@ class BrowserLifecycleTests(unittest.TestCase):
         self.assertEqual(summary["browserStatus"], 0)
 
     def test_runner_supports_universal_journeys_without_an_app_suite(self) -> None:
-        definition = get_app("calculator")
+        definition = get_app("calendar")
         process = Mock(spec=subprocess.Popen)
         process.pid = 4201
         with TemporaryDirectory(dir=definition.directory, prefix="ui-test-") as temporary, \

@@ -68,3 +68,4 @@ apps/*/data/*.db
 
 # Temporary app/runtime artifacts
 apps/*/data/ui-check/
+tests/data/

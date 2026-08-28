@@ -132,7 +132,7 @@ frontend:
         root_commands = {command.name or command.callback.__name__.replace("_", "-")
             for command in repository_manager.app.registered_commands}
         self.assertEqual(root_commands,
-            {"bootstrap", "list", "status", "check", "test", "ui-check", "verify"})
+            {"audit", "bootstrap", "list", "status", "check", "test", "ui-check", "verify"})
 
         mounted_name = repository_manager.MANAGERS[0][0].name
         result = CliRunner().invoke(repository_manager.app, [mounted_name, "--help"])
@@ -141,6 +141,14 @@ frontend:
             self.assertIn(command, result.output)
         self.assertNotIn("bootstrap", result.output)
         self.assertNotIn("status", result.output)
+
+    def test_root_audit_reports_zero_architecture_and_recorded_structural_debt(self) -> None:
+        result = CliRunner().invoke(repository_manager.app, ["audit"])
+
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("Architecture violations: 0", result.output)
+        self.assertIn("3 large file(s)", result.output)
+        self.assertRegex(result.output, r"31 complex\s+function\(s\)")
 
     def test_targeted_check_executes_only_the_selected_application(self) -> None:
         selected = repository_manager.MANAGERS[0][0]

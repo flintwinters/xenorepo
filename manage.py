@@ -10,6 +10,7 @@ from rich.table import Table
 import typer
 
 from monotools.apps import AppDefinition, AppDefinitionError, discover_planned_apps, is_planned_app, load_app
+from monotools.audit import AuditReport, audit_workspace
 from monotools.browser import run_browser_framework_suite
 from monotools.lifecycle import (
     LifecycleError,
@@ -101,6 +102,20 @@ def _run_bootstrap(command: list[str], recovery: str) -> None:
         raise LifecycleError(f"{' '.join(command)} failed ({completed.returncode}). {recovery}")
 
 
+def _collect_audit() -> AuditReport:
+    try:
+        return audit_workspace(ROOT, tuple(definition for definition, _ in discover_managers()))
+    except (OSError, RuntimeError, SyntaxError) as error:
+        raise LifecycleError(f"structural audit failed: {error}") from error
+
+
+def _print_violations(title: str, violations: tuple[object, ...]) -> None:
+    table = Table(title, "Path", "Detail")
+    for violation in violations:
+        table.add_row(violation.category, violation.path, violation.detail)
+    console.print(table)
+
+
 app = create_cli("Manage Xenorepo and its immediate applications.")
 MANAGERS = discover_managers()
 for definition, manager in MANAGERS:
@@ -167,10 +182,35 @@ def status() -> None:
 
 
 @app.command()
+def audit() -> None:
+    """Report architecture violations and measured structural debt without mutation."""
+    try:
+        report = _collect_audit()
+    except LifecycleError as error:
+        _fail(error)
+    _print_violations("Architecture", report.architecture)
+    _print_violations("Large source files", report.large_files)
+    _print_violations("Complex functions", report.complex_functions)
+    console.print(
+        f"[bold green]Architecture violations: {len(report.architecture)}[/]; "
+        f"structural debt: {len(report.large_files)} large file(s), "
+        f"{len(report.complex_functions)} complex function(s)"
+    )
+    if report.architecture:
+        raise typer.Exit(1)
+
+
+@app.command()
 def check() -> None:
     """Validate Xenorepo's manager inventory and every application build."""
     try:
         validate_source_lines(ROOT)
+        report = _collect_audit()
+        if report.architecture:
+            details = "; ".join(
+                f"{item.category} {item.path}: {item.detail}" for item in report.architecture
+            )
+            raise LifecycleError(f"architecture audit failed: {details}")
         current = discover_managers()
         for definition, _ in current:
             validate_app(definition, ROOT)
@@ -178,7 +218,11 @@ def check() -> None:
             validate_dist(definition)
     except (ManagerError, LifecycleError) as error:
         _fail(error)
-    console.print(f"[bold green]All checks passed[/] ({len(current)} app(s))")
+    console.print(
+        f"[bold green]All checks passed[/] ({len(current)} app(s); "
+        f"{len(report.large_files)} large file(s), "
+        f"{len(report.complex_functions)} complex function(s) recorded)"
+    )
 
 
 @app.command()

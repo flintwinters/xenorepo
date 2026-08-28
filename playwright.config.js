@@ -4,7 +4,7 @@ const baseURL = process.env.BASE_URL || "http://127.0.0.1:8000";
 const executablePath = process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE;
 const launchOptions = executablePath ? { executablePath } : {};
 const retainEvidence = process.env.PLAYWRIGHT_RETAIN_EVIDENCE === "1";
-const outputDir = process.env.PLAYWRIGHT_OUTPUT_DIR || "apps/rps/data/ui-check/test-results";
+const outputDir = process.env.PLAYWRIGHT_OUTPUT_DIR || "tests/data/browser-framework/test-results";
 
 module.exports = defineConfig({
   testDir: ".",

@@ -1,1 +1,0 @@
-"""Calculator-owned regression suite."""

@@ -46,9 +46,10 @@ customElements.define("x-status-rail", StatusRail);
 
 export class ConsolePane extends ConsoleElement {
   static properties = { title: { type: String }, index: { type: String }, tone: { type: String } };
-  title = "";
-  index = "";
-  tone: ConsoleTone = "blue";
+  declare title: string;
+  declare index: string;
+  declare tone: ConsoleTone;
+  constructor() { super(); this.title = ""; this.index = ""; this.tone = "blue"; }
   static styles = [consoleTokens, chrome, css`
     :host { display: grid; min-height: 0; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; background: var(--console-panel, #282828); }
     .index { align-self: stretch; display: grid; place-items: center; min-width: 21px; padding: 0 4px; color: var(--console-fg, #ebdbb2); background: var(--console-panel, #282828); border-right: 1px solid #111; }
@@ -65,10 +66,11 @@ customElements.define("x-console-pane", ConsolePane);
 
 export class CommandButton extends ConsoleElement {
   static properties = { disabled: { type: Boolean, reflect: true }, pressed: { type: Boolean, reflect: true }, label: { type: String }, title: { type: String }, appearance: { type: String, reflect: true } };
-  disabled = false;
-  pressed = false;
-  label = "";
-  appearance = "default";
+  declare disabled: boolean;
+  declare pressed: boolean;
+  declare label: string;
+  declare appearance: string;
+  constructor() { super(); this.disabled = false; this.pressed = false; this.label = ""; this.appearance = "default"; }
   static styles = [consoleTokens, css`
     :host { display: inline-block; }
     button {
@@ -100,7 +102,8 @@ customElements.define("x-command-button", CommandButton);
 
 export class ConsoleField extends ConsoleElement {
   static properties = { label: { type: String }, value: { type: String }, type: { type: String } };
-  label = ""; value = ""; type = "text";
+  declare label: string; declare value: string; declare type: string;
+  constructor() { super(); this.label = ""; this.value = ""; this.type = "text"; }
   static styles = [consoleTokens, css`
     label { display: grid; gap: 3px; color: var(--console-muted, #a89984); } input { width: 100%; min-height: 24px; padding: 2px 6px; color: inherit; background: var(--console-well, #181a1b); border: 1px solid #111; border-right-color: var(--console-line, #504945); border-bottom-color: var(--console-line, #504945); }
   `];
@@ -110,7 +113,8 @@ customElements.define("x-console-field", ConsoleField);
 
 export class DataGrid extends ConsoleElement {
   static properties = { columns: { attribute: false }, rows: { attribute: false }, empty: { type: String } };
-  columns: GridColumn[] = []; rows: GridRow[] = []; empty = "NO RECORDS";
+  declare columns: GridColumn[]; declare rows: GridRow[]; declare empty: string;
+  constructor() { super(); this.columns = []; this.rows = []; this.empty = "NO RECORDS"; }
   static styles = [consoleTokens, css`
     :host { display: block; min-height: 0; overflow: auto; } table { width: 100%; border-collapse: collapse; table-layout: fixed; } th, td { padding: 4px 7px; text-align: left; border-right: 1px solid var(--console-line, #504945); border-bottom: 1px solid var(--console-line, #504945); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } th { position: sticky; top: 0; color: var(--console-accent, #fabd2f); background: #32302f; } .empty { padding: 18px; color: var(--console-muted, #a89984); text-align: center; }
   `];
@@ -136,7 +140,8 @@ customElements.define("x-status-indicator", StatusIndicator);
 
 export class EmptyState extends ConsoleElement {
   static properties = { heading: { type: String }, detail: { type: String } };
-  heading = "NO RECORDS"; detail = "";
+  declare heading: string; declare detail: string;
+  constructor() { super(); this.heading = "NO RECORDS"; this.detail = ""; }
   static styles = [consoleTokens, css`
     :host { display: grid; min-height: 100px; place-content: center; gap: 4px; padding: 16px; text-align: center; color: var(--console-muted, #a89984); } strong { color: var(--console-fg, #ebdbb2); } p { margin: 0; }
   `];
@@ -146,7 +151,8 @@ customElements.define("x-empty-state", EmptyState);
 
 export class EventFeed extends ConsoleElement {
   static properties = { events: { attribute: false } };
-  events: FeedEvent[] = [];
+  declare events: FeedEvent[];
+  constructor() { super(); this.events = []; }
   static styles = [consoleTokens, css`
     :host { display: block; } article { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; padding: 6px; border-bottom: 1px solid var(--console-line, #504945); } strong { color: var(--console-fg, #ebdbb2); } p, time { margin: 0; color: var(--console-muted, #a89984); } time { grid-column: 2; grid-row: 1; } p { grid-column: 1 / -1; }
   `];

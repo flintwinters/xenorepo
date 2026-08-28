@@ -16,6 +16,7 @@ from monotools.ui import run_ui_check
 class BrowserProofContractTests(unittest.TestCase):
     def test_owned_suites_parse_and_enumerate_with_required_proofs(self) -> None:
         cases = (
+            ("chat", "chat.spec.js"),
             ("kanban", "board.spec.ts"),
             ("rps", "arena.spec.js"),
             ("worminal", "desktop.spec.js"),

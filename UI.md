@@ -26,6 +26,8 @@ Tabs are not command buttons. Render them as contiguous flat segments in a shall
 
 Inputs, text areas, and selectors use compact recessed dark fields, fine neutral borders, modest padding, and visible labels. Their depth must be quieter than the command buttons and must not introduce a second, harsher bevel language. Disabled controls remain legible but subdued. Use a clear high-contrast treatment on every interactive control.
 
+When introducing a new control or contained surface, derive its shape, depth, state, and color from its role in this material hierarchy rather than prescribing a novel widget treatment. Recessed controls may use a slight radius where it improves their tactile boundary, and temporary overlays may be gently rounded to distinguish their containment; keep both subtle enough that the rectilinear pane grid remains dominant. Reuse the shared implementation once a treatment is established so related controls acquire the same states and proportions by construction.
+
 ## Information surfaces
 
 Render tables and event streams as rigorous ledgers with aligned columns, thin cell rules, clipped overflow, and sticky headings where useful. Render charts directly on ruled dark plotting fields with simple luminous marks and restrained shading. Render meters as narrow recessed tracks with polished bright fills. Keep semantic colors consistent for selected, nominal, caution, critical, and secondary states.

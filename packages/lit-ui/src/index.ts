@@ -1,6 +1,8 @@
 import { LitElement, css, html, nothing, type CSSResultGroup } from "lit";
 import { consoleTokens, chrome } from "./styles.js";
 
+export { consoleControls } from "./styles.js";
+
 export type ConsoleTone = "blue" | "green" | "orange" | "purple" | "neutral";
 export interface GridColumn { key: string; label: string; }
 export interface GridRow { [key: string]: string | number | null | undefined; }

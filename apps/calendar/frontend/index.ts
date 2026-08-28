@@ -1,6 +1,6 @@
 /** Month-first durable planning composed from central Lit UI primitives. */
 import {LitElement, css, html, nothing} from 'lit';
-import '@xenorepo/lit-ui';
+import {consoleControls} from '@xenorepo/lit-ui';
 
 interface CalendarEvent { id:string; title:string; date:string; all_day:boolean; start_time:string|null; end_time:string|null; location:string|null; notes:string|null; }
 interface CalendarView { time_zone:string|null; events:CalendarEvent[]; }
@@ -20,7 +20,7 @@ class CalendarConsole extends LitElement {
   private suppressClick=false;
   constructor(){ super(); this.view=null; this.selected=today(); this.anchor=monthOf(this.selected); this.editing=null; this.creating=false; this.message='Loading month…'; this.failed=false; this.allDay=false; }
 
-  static styles=css`
+  static styles=[consoleControls,css`
     :host{display:block;height:100%;color:#ebdbb2;font:12px/1.35 "Courier New",monospace}*{box-sizing:border-box}x-console-shell{height:100%}
     .brand{color:#fabd2f;font-weight:bold;letter-spacing:.08em}.push{margin-left:auto}.error{color:#fb4934}
     .workspace{display:grid;min-height:0;grid-template-columns:minmax(500px,2.2fr) minmax(260px,1fr);gap:1px;background:#111}x-console-pane{min-width:0}
@@ -33,7 +33,7 @@ class CalendarConsole extends LitElement {
     .agenda-row{position:relative;display:grid;grid-template-columns:64px minmax(0,1fr);gap:8px;min-height:48px;padding:8px 7px;border-bottom:1px solid #504945;background:#222526;cursor:pointer}.agenda-row:hover,.agenda-row:focus-visible{background:#30302d;outline:1px solid #83a598;outline-offset:-1px}.when{color:#83a598}.agenda-row.all-day .when{color:#b8bb26}.details{min-width:0}.details strong,.details span{display:block;overflow-wrap:anywhere}.details span{margin-top:2px;color:#a89984}.drag-handle{display:none;position:absolute;inset:0 auto 0 0;width:28px;color:#a89984;background:transparent;border:0;touch-action:none;cursor:grab}
     .backdrop{position:fixed;z-index:10;inset:0;display:grid;place-items:center;padding:16px;background:#000b}.dialog{width:min(520px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:14px;border:1px solid #83a598;background:#282828;box-shadow:0 14px 34px #000}.dialog h2{margin:0 0 12px;color:#fabd2f;font-size:14px}form{display:grid;gap:9px}label{display:grid;gap:3px;color:#a89984}input,textarea{width:100%;min-width:0;padding:5px 7px;color:#ebdbb2;font:inherit;background:#181a1b;border:1px solid #665c54}textarea{min-height:76px;resize:vertical}.all-day-field{display:flex;align-items:center;gap:7px}.all-day-field input{width:auto}.times{display:grid;grid-template-columns:1fr 1fr;gap:8px}.actions{display:flex;gap:6px;justify-content:flex-end;margin-top:4px}.delete-action{margin-right:auto}
     @media(max-width:720px){.workspace{grid-template-columns:1fr;grid-template-rows:minmax(330px,52vh) minmax(240px,1fr);overflow:auto}.grid{grid-template-rows:repeat(6,minmax(45px,1fr))}.day{padding:20px 2px 2px}.chip{font-size:0;min-height:5px;padding:0;border-width:0 0 0 3px}.agenda-row{padding-left:34px}.drag-handle{display:block}.context{display:none}}
-  `;
+  `];
 
   connectedCallback(){ super.connectedCallback(); void this.perform(async()=>{await this.refresh(true);this.message='Calendar ready';}); }
   private async request<T>(path:string,options?:RequestInit):Promise<T>{ const response=await fetch(path,{...options,headers:{'Content-Type':'application/json',...options?.headers}}); if(!response.ok){const body=await response.json().catch(()=>null) as {error?:string;detail?:unknown}|null;throw new Error(body?.error??(typeof body?.detail==='string'?body.detail:`Request failed (${response.status})`));} return response.status===204?undefined as T:response.json() as Promise<T>; }

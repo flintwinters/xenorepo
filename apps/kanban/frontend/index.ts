@@ -1,6 +1,6 @@
 /** Durable board interactions composed from central Lit UI primitives. */
 import { LitElement, css, html, nothing } from "lit";
-import "@xenorepo/lit-ui";
+import { consoleControls } from "@xenorepo/lit-ui";
 
 interface Column { id: string; title: string; }
 interface Card { id: string; title: string; column_id: string; reviewed_at_ms: number | null; }
@@ -34,7 +34,7 @@ class KanbanBoard extends LitElement {
     this.openCardId = null;
   }
 
-  static styles = css`
+  static styles = [consoleControls, css`
     :host { display:block; height:100%; color:#ebdbb2; font:12px/1.3 "Courier New",monospace; }
     * { box-sizing:border-box; } x-console-shell { height:100%; }
     .brand { color:#fabd2f; font-weight:bold; letter-spacing:.08em; }
@@ -66,7 +66,7 @@ class KanbanBoard extends LitElement {
     .note-form textarea { min-height:54px; resize:vertical; }
     .error { color:#fb4934; }
     @media(max-width:720px) { .board { grid-template-columns:1fr; overflow:auto; } x-console-pane { min-height:220px; } .context { display:none; } }
-  `;
+  `];
 
   connectedCallback(): void {
     super.connectedCallback();

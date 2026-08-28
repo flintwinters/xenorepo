@@ -336,6 +336,24 @@ frontend:
         self.assertIn("inset 0 -1px rgb(255 255 255 / 0.08)", components)
         self.assertNotIn("transition:", components)
 
+    def test_lit_apps_share_recessed_control_and_overlay_treatment(self) -> None:
+        styles = (ROOT / "packages" / "lit-ui" / "src" / "styles.ts").read_text(
+            encoding="utf-8"
+        )
+        calendar = (ROOT / "apps" / "calendar" / "frontend" / "index.ts").read_text(
+            encoding="utf-8"
+        )
+        kanban = (ROOT / "apps" / "kanban" / "frontend" / "index.ts").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn('input[type="checkbox"] {', styles)
+        self.assertIn('input[type="checkbox"]:checked::before', styles)
+        self.assertIn('textarea {\n    border-radius: 3px;', styles)
+        self.assertIn('[role="dialog"] { border-radius: 4px; }', styles)
+        self.assertIn("static styles=[consoleControls,css`", calendar)
+        self.assertIn("static styles = [consoleControls, css`", kanban)
+
     def test_chat_persists_history_and_broadcasts_to_every_connection(self) -> None:
         from apps.chat.backend.database import (
             ChatMessage,

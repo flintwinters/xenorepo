@@ -98,25 +98,27 @@ class RpsTests(unittest.TestCase):
         from monotools.apps import get_app
 
         title = "Rock Paper Scissors"
-        document = Path("apps/rps/frontend/index.html").read_text(encoding="utf-8")
+        source = Path("apps/rps/frontend/view.js").read_text(encoding="utf-8")
         self.assertEqual(get_app("rps").title, title)
         application = create_app(f"sqlite:///{self.database}")
         try:
             self.assertEqual(application.title, title)
         finally:
             application.state.repository.sessions.kw["bind"].dispose()
-        self.assertIn(f"<title>{title}</title>", document)
-        self.assertIn(f'<span class="brand">{title}</span>', document)
+        self.assertIn(f'<span class="brand">{title}</span>', source)
 
-    def test_operator_console_document_follows_repository_ui_direction(self) -> None:
-        document = Path("apps/rps/frontend/index.html").read_text(encoding="utf-8")
+    def test_operator_console_frontend_follows_repository_ui_direction(self) -> None:
+        frontend = Path("apps/rps/frontend")
+        document = "\n".join(path.read_text(encoding="utf-8")
+            for path in sorted(frontend.glob("*.js")))
+        compact = "".join(document.split())
         for marker in ("grid-template-rows:22px 1fr",
             'class="utility"', 'class="mosaic"',
             'class="pane arena-index"', 'class="pane battle"',
             'class="pane ledger"',
             'class="pane-title">ARENA', 'id="round-log"', "position:sticky",
             'id="top-matches"', 'id="recent-results"', 'data-watch',
-            '"spectator_state"', '"arena_snapshot"',
+            "spectator_state:", "arena_snapshot:",
             'id="landing"', 'id="play-form"', 'id="landing-matches"',
             'class="key play"', 'p.competitive_streak', 'send("queue_join")',
             'id="rematch"', 'send("rematch"',
@@ -136,14 +138,14 @@ class RpsTests(unittest.TestCase):
             'icons={rock:"🪨",paper:"📄",scissors:"✂️"}',
             "@media(max-width:850px)", "@media(max-width:590px)"):
             with self.subTest(marker=marker):
-                self.assertIn(marker, document)
+                self.assertIn("".join(marker.split()), compact)
         for marker in ("@keyframes queue-scan", "@keyframes reveal-in",
             "animation:selection-lock", "animation:reveal-in",
             "animation:win-flash", "animation:loss-shake",
             "@media(prefers-reduced-motion:reduce)", "function replay(",
             'classList.toggle("searching"'):
             with self.subTest(marker=marker):
-                self.assertIn(marker, document)
+                self.assertIn("".join(marker.split()), compact)
         for forbidden in ("radial-gradient", "border-radius"):
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, document)

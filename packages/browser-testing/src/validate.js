@@ -29,7 +29,10 @@ function testCall(node) {
 
 function validateTest(call, filename, source, counts) {
   const { node, only } = call;
-  if (only) fail("BROWSER_FORBID_ONLY", `${path.basename(filename)}:${source.getLineAndCharacterOfPosition(node.pos).line + 1}`);
+  if (only) {
+    const line = source.getLineAndCharacterOfPosition(node.pos).line + 1;
+    fail("BROWSER_FORBID_ONLY", `${path.basename(filename)}:${line}`);
+  }
   const title = textOf(node.arguments[0], source) || "";
   const tags = [...PROOFS].filter(proof => title.includes(`[${proof}]`));
   if (tags.length !== 1) {

@@ -33,8 +33,10 @@ it, and **Monotools** is the canonical orchestration library.
   administration, structure, entrypoints, and information. Its sole root-level
   Python file is `manage.py`, and it has a standalone-deployment README.
 - FastAPI is each app's only runtime service. App YAML maps server-owned URLs to
-  self-contained `dist/` artifacts; do not add separate frontend services,
-  private Node projects, or build scripts.
+  self-contained compiled `dist/` HTML artifacts; HTML is never application
+  source. Frontend sources are JavaScript or TypeScript entries compiled by
+  Monotools. Do not add separate frontend services, private Node projects, or
+  build scripts.
 - New pages compose reusable components from central Lit UI. Migrate legacy
   pages only when concrete duplication justifies a narrow shared extraction.
 - Persist durable domain facts through SQLAlchemy ORM, with SQLite as the local

@@ -16,9 +16,8 @@ imports:
 frontend:
   artifacts:
     index:
-      format: document
-      source: frontend/index.html
+      format: lit
+      source: frontend/index.js
       output: index.html
-      shell: console
   routes:
     /: index

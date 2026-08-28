@@ -17,7 +17,6 @@ from fastapi import FastAPI
 from fastapi.routing import APIWebSocketRoute
 
 from monotools.apps import AppDefinition, FrontendArtifact
-from monotools.frontend import FrontendCompositionError, compose_document
 
 
 class LifecycleError(RuntimeError):
@@ -27,7 +26,7 @@ class LifecycleError(RuntimeError):
 MAX_SOURCE_LINE_LENGTH = 120
 SOURCE_DIRECTORIES = ("apps", "monotools", "packages", "scripts", "tests")
 SOURCE_EXCLUDED_DIRECTORIES = frozenset({".venv", "__pycache__", "data", "dist", "node_modules"})
-SOURCE_SUFFIXES = frozenset({".py", ".ts", ".tsx"})
+SOURCE_SUFFIXES = frozenset({".py", ".js", ".ts", ".tsx"})
 
 
 def validate_source_lines(workspace: Path) -> None:
@@ -84,18 +83,6 @@ def _validate_lit(definition: AppDefinition, workspace: Path) -> None:
         raise LifecycleError(f"{definition.name} frontend type validation failed:\n{detail}")
 
 
-def _build_document(definition: AppDefinition, artifact: FrontendArtifact) -> None:
-    source = definition.directory / artifact.source
-    try:
-        document = compose_document(source, artifact.shell or "")
-    except FrontendCompositionError as error:
-        raise LifecycleError(str(error)) from error
-    output = definition.dist_directory / artifact.output
-    output.parent.mkdir(parents=True, exist_ok=True)
-    marker = f'<meta name="xenorepo-artifact" content="{escape(str(artifact.output))}">\n'
-    output.write_text(document.replace("</head>", marker + "</head>", 1), encoding="utf-8")
-
-
 def _build_lit(definition: AppDefinition, artifact: FrontendArtifact, workspace: Path) -> None:
     npm = shutil.which("npm")
     if npm is None:
@@ -127,12 +114,7 @@ def _build_lit(definition: AppDefinition, artifact: FrontendArtifact, workspace:
 def build_app(definition: AppDefinition, workspace: Path) -> None:
     definition.dist_directory.mkdir(exist_ok=True)
     for artifact in definition.artifacts:
-        if artifact.format == "document":
-            _build_document(definition, artifact)
-            continue
-        if artifact.format == "lit":
-            _build_lit(definition, artifact, workspace)
-            continue
+        _build_lit(definition, artifact, workspace)
 
 
 _SHARED_PACKAGE_IMPORT = re.compile(

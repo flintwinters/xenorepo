@@ -27,9 +27,10 @@ and validation rejects declarations that drift from the app-owned source.
 `uv run manage.py audit` is the authoritative read-only inventory. It derives
 app identities at runtime, excludes `historic/` and generated data, limits
 source files to 600 physical lines, and computes cyclomatic complexity with a
-maximum of 8 for Python, TypeScript, JavaScript, and source HTML functions.
+maximum of 8 for Python, TypeScript, and JavaScript functions. Authored HTML is
+an architecture violation; HTML exists only as generated `dist/` output.
 
-The checkpoint 8 baseline is:
+The checkpoint 9 baseline is:
 
 - Architecture: 0 violations across central identity isolation, cross-app
   imports, frontend package boundaries, and shared custom-element adoption.
@@ -43,8 +44,8 @@ The checkpoint 8 baseline is:
   runtime policy, and the legacy global CLI and compatibility views are gone.
 - Shared-library exports and their independent consumer counts are inventoried
   in `LIBRARIES.md`; the shared UI surface contains only proved elements.
-- Central and app-owned Python, TypeScript, JavaScript, and source HTML are all
-  within the recorded size and complexity ceilings.
+- Central and app-owned Python, TypeScript, and JavaScript are all within the
+  recorded size, line-length, and complexity ceilings.
 - Lifecycle, metadata, browser-validation, watching, and UI-runner internals
   are decomposed below the complexity ceiling with their observable contracts
   preserved.
@@ -52,6 +53,9 @@ The checkpoint 8 baseline is:
   decomposed without crossing product boundaries or changing their contracts.
 - Root `check` and `verify` permanently reject every recorded architecture,
   file-size, and function-complexity violation before app builds begin.
+- Application HTML exists only as ignored compiled `dist/` output. Metadata
+  accepts only JavaScript or TypeScript frontend entries, and architecture
+  auditing rejects authored HTML anywhere in a monoapp.
 
 ## Checkpoint status
 
@@ -97,6 +101,12 @@ The checkpoint 8 baseline is:
    before building any monoapp. The read-only `audit` inventory remains
    available, synthetic management tests prove each violation category is a
    hard failure, and the complete verification matrix passed on 2026-08-28.
+9. **Eliminate authored HTML — complete.** Every monoapp frontend is compiled
+   from JavaScript or TypeScript through the Lit bundle pipeline. The legacy
+   document parser and metadata format are removed, app metadata rejects HTML
+   sources, architecture auditing rejects any app-owned HTML outside generated
+   directories, and JavaScript is covered by the source line-length gate. The
+   complete verification matrix passed on 2026-08-28.
 
 ## Next action
 

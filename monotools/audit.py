@@ -139,6 +139,17 @@ def _custom_element_violations(workspace: Path,
     return violations
 
 
+def _app_source_html_violations(workspace: Path) -> list[AuditViolation]:
+    """Reject authored HTML while permitting generated deployment artifacts."""
+    apps_directory = workspace / "apps"
+    if not apps_directory.is_dir():
+        return []
+    return [AuditViolation("app-source-html", str(path.relative_to(workspace)),
+        "HTML is a compiled artifact; application source must be JavaScript or TypeScript")
+        for path in sorted(apps_directory.rglob("*.html"))
+        if not EXCLUDED_PARTS.intersection(path.relative_to(workspace).parts)]
+
+
 def audit_architecture(workspace: Path,
     definitions: tuple[AppDefinition, ...]) -> tuple[AuditViolation, ...]:
     """Return deterministic dependency and shared-boundary violations."""
@@ -146,6 +157,7 @@ def audit_architecture(workspace: Path,
     violations.extend(_python_app_import_violations(workspace, definitions))
     violations.extend(_frontend_boundary_violations(workspace, definitions))
     violations.extend(_custom_element_violations(workspace, definitions))
+    violations.extend(_app_source_html_violations(workspace))
     return tuple(sorted(violations))
 
 

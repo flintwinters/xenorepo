@@ -26,6 +26,11 @@ class AuditTests(unittest.TestCase):
                 'import "../../../packages/lit-ui/src/index.js";\n<x-proved><x-lonely>\n',
                 encoding="utf-8",
             )
+            (first / "frontend" / "legacy.html").write_text("<p>authored HTML</p>\n",
+                encoding="utf-8")
+            (first / "dist").mkdir()
+            (first / "dist" / "index.html").write_text("<p>compiled HTML</p>\n",
+                encoding="utf-8")
             (second / "frontend" / "index.ts").write_text("<x-proved>\n", encoding="utf-8")
             barrel = workspace / "packages" / "lit-ui" / "src" / "index.ts"
             barrel.parent.mkdir(parents=True)
@@ -43,8 +48,10 @@ class AuditTests(unittest.TestCase):
 
         self.assertEqual({item.category for item in violations}, {
             "central-app-identity", "cross-app-import", "frontend-boundary-import",
-            "unproved-custom-element",
+            "unproved-custom-element", "app-source-html",
         })
+        html_violations = [item for item in violations if item.category == "app-source-html"]
+        self.assertEqual([item.path for item in html_violations], ["apps/orion/frontend/legacy.html"])
 
     def test_structural_audit_reports_large_files_and_python_complexity(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="audit-") as temporary:

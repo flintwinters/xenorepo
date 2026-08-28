@@ -18,10 +18,18 @@ module.exports = defineConfig({
     screenshot: "only-on-failure",
     trace: retainEvidence ? "on" : "retain-on-failure",
     video: retainEvidence ? "on" : "retain-on-failure",
-    recordHar: retainEvidence ? { path: `${outputDir}/network.har`, mode: "full", content: "embed" } : undefined,
+    recordHar: retainEvidence
+      ? { path: `${outputDir}/network.har`, mode: "full", content: "embed" }
+      : undefined,
   },
   projects: [
-    { name: "wide-viewport-chromium", use: { browserName: "chromium", launchOptions, viewport: { width: 1280, height: 900 } } },
-    { name: "narrow-viewport-chromium", use: { ...devices["iPhone 13"], browserName: "chromium", launchOptions } },
+    {
+      name: "wide-viewport-chromium",
+      use: { browserName: "chromium", launchOptions, viewport: { width: 1280, height: 900 } },
+    },
+    {
+      name: "narrow-viewport-chromium",
+      use: { ...devices["iPhone 13"], browserName: "chromium", launchOptions },
+    },
   ],
 });

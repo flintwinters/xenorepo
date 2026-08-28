@@ -15,7 +15,7 @@ APPS_DIRECTORY = ROOT / "apps"
 _ARTIFACT_NAME = re.compile(r"^[a-z][a-z0-9_-]*$")
 _ROUTE_PATH = re.compile(r"^/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$")
 _RESERVED_ROUTES = frozenset({"/health"})
-_FORMATS = frozenset({"document", "lit"})
+_FORMATS = frozenset({"lit"})
 
 
 class AppDefinitionError(ValueError):
@@ -47,7 +47,6 @@ class FrontendArtifact:
     format: str
     source: Path
     output: Path
-    shell: str | None = None
 
 
 @dataclass(frozen=True)
@@ -165,26 +164,19 @@ def _artifact(name: str, raw: object, path: Path) -> FrontendArtifact:
         raise AppDefinitionError(f"{_display(path)} invalid frontend artifact name: {name!r}")
     label = f"frontend.artifacts.{name}"
     item = _mapping(raw, path, label)
-    _only_keys(item, frozenset({"format", "source", "output", "shell"}), path, label)
+    _only_keys(item, frozenset({"format", "source", "output"}), path, label)
     format_name = _string(item.get("format"), path, f"{label}.format")
     if format_name not in _FORMATS:
         raise AppDefinitionError(f"{_display(path)} has unsupported frontend format: {format_name!r}")
     source = _relative_path(item.get("source"), path, f"{label}.source")
+    if source.suffix not in {".js", ".ts"}:
+        raise AppDefinitionError(
+            f"{_display(path)} frontend artifact source must be compilable JavaScript or TypeScript"
+        )
     output = _relative_path(item.get("output"), path, f"{label}.output")
     if output.suffix != ".html":
         raise AppDefinitionError(f"{_display(path)} frontend artifact output must end in .html")
-    shell = item.get("shell")
-    _validate_shell(format_name, shell, path)
-    return FrontendArtifact(name, format_name, source, output, shell)
-
-
-def _validate_shell(format_name: str, shell: object, path: Path) -> None:
-    if shell is not None and shell != "console":
-        raise AppDefinitionError(f"{_display(path)} has unsupported frontend shell: {shell!r}")
-    if format_name == "document" and shell is None:
-        raise AppDefinitionError(f"{_display(path)} document frontend must declare a shell")
-    if format_name not in {"document", "lit"} and shell is not None:
-        raise AppDefinitionError(f"{_display(path)} shell requires document or Lit frontend format")
+    return FrontendArtifact(name, format_name, source, output)
 
 
 def _artifacts(value: object, path: Path) -> tuple[FrontendArtifact, ...]:

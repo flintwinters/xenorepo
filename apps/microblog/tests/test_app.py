@@ -215,10 +215,12 @@ class MicroblogTests(unittest.TestCase):
             self.assertTrue(workers.submit(condition_can_be_acquired).result(timeout=1))
         events.close()
 
-    def test_document_has_operational_responsive_and_accessible_contracts(self) -> None:
-        document = Path("apps/microblog/frontend/index.html").read_text(encoding="utf-8")
+    def test_frontend_has_operational_responsive_and_accessible_contracts(self) -> None:
+        frontend = Path("apps/microblog/frontend")
+        document = "\n".join(path.read_text(encoding="utf-8")
+            for path in sorted(frontend.glob("*.js")))
         for marker in ('aria-live="polite"', 'aria-labelledby="feed-title"',
-            ":focus-visible", "@media(max-width:620px)", "EventSource", "REFRESH",
+            ":focus-visible", "@media (max-width: 620px)", "EventSource", "REFRESH",
             "maxlength=\"280\"", 'id="authMessage" role="alert"',
             "REGISTER THIS HANDLE", 'minlength="8"', '!event.shiftKey',
             '$("postForm").requestSubmit()'):

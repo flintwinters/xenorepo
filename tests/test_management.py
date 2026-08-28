@@ -29,10 +29,9 @@ module: apps.{name}.backend.server
 frontend:
   artifacts:
     index:
-      format: document
-      source: frontend/index.html
+      format: lit
+      source: frontend/index.ts
       output: index.html
-      shell: console
   routes:
     /: index
 """,
@@ -53,10 +52,9 @@ module: apps.{name}.backend.server
 frontend:
   artifacts:
     index:
-      format: document
-      source: frontend/index.html
+      format: lit
+      source: frontend/index.ts
       output: index.html
-      shell: console
   routes:
     /: index
 """,

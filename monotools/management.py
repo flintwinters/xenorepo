@@ -169,9 +169,3 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
         browser_suite=(BrowserSuite(browser_path, proof_kinds, viewports, input_modalities)
             if browser_path is not None else None),
     )
-
-
-def create_app_cli(manage_file: str | Path, tests: str | Path,
-    ui_suite: str | Path | None = None, include_serve: bool = True) -> typer.Typer:
-    """Compatibility wrapper; new managers export ``manager`` explicitly."""
-    return create_app_manager(manage_file, tests, ui_suite, include_serve).app

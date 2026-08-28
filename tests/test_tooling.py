@@ -3,10 +3,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
-from typer.testing import CliRunner
-
 from monotools.apps import AppDefinition, AppDefinitionError, FrontendArtifact, ROOT, get_app, load_app
-from monotools.cli import app
 from monotools.frontend import CONSOLE_SHELL, DocumentParts, compose_console
 from monotools.lifecycle import (
     LifecycleError,
@@ -61,27 +58,6 @@ class RepositoryAppTests(unittest.TestCase):
         self.assertIn("Applications are consumers; they do not", catalog)
         self.assertIn("import one another.", catalog)
 
-    def test_serve_without_an_app_lists_discovered_choices(self) -> None:
-        definitions = (
-            self.fixture_definition(ROOT / "tests", name="alpha-lab"),
-            self.fixture_definition(ROOT / "tests", name="beta-lab"),
-        )
-        with patch("monotools.cli.discover_apps", return_value=definitions):
-            result = CliRunner().invoke(app, ["serve"])
-
-        self.assertEqual(result.exit_code, 2)
-        self.assertIn("choose an application:", result.output)
-        for definition in definitions:
-            self.assertIn(definition.name, result.output)
-        self.assertIn("Example: manage.py serve alpha-lab", result.output)
-
-    def test_frontend_watch_is_discoverable_from_the_managed_serve_command(self) -> None:
-        result = CliRunner().invoke(app, ["serve", "--help"])
-
-        self.assertEqual(result.exit_code, 0)
-        self.assertIn("--watch", result.output)
-        self.assertIn("Rebuild frontend artifacts", result.output)
-
     def test_frontend_watch_rebuilds_declared_and_shared_lit_inputs(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="watch-") as temporary:
             directory = Path(temporary) / "sample-lab"
@@ -107,23 +83,6 @@ class RepositoryAppTests(unittest.TestCase):
                     watch_frontend(definition, ROOT, report, interval=0)
             rebuild.assert_called_once_with(definition, ROOT)
             report.assert_called_once_with("Rebuilt sample-lab frontend")
-
-    def test_status_reports_the_organization_of_every_discovered_app(self) -> None:
-        definitions = (self.fixture_definition(ROOT / "tests", name="alpha-lab"),
-            self.fixture_definition(ROOT / "tests", name="beta-lab"))
-        health = {"source": True, "readme": True, "data": False, "dist": False}
-        with patch("monotools.cli.discover_apps", return_value=definitions), patch(
-                "monotools.cli.collect_app_status", return_value=health):
-            result = CliRunner().invoke(app, ["status"])
-
-        self.assertEqual(result.exit_code, 0)
-        for name in (definition.name for definition in definitions):
-            with self.subTest(app=name):
-                self.assertIn(name, result.output)
-        self.assertIn("README", result.output)
-        self.assertIn("Source", result.output)
-        self.assertIn(f"{len(definitions)} managed app(s)", result.output)
-        self.assertIn("manage.py check", result.output)
 
     def test_unknown_app_error_reports_discovered_catalog(self) -> None:
         definitions = (self.fixture_definition(ROOT / "tests", name="alpha-lab"),

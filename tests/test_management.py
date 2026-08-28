@@ -12,7 +12,7 @@ import typer
 from typer.testing import CliRunner
 
 from monotools.apps import AppDefinitionError, ROOT
-from monotools.management import create_app_cli, create_app_manager, create_cli, resolve_local_app
+from monotools.management import create_app_manager, create_cli, resolve_local_app
 import manage as repository_manager
 
 
@@ -66,8 +66,9 @@ frontend:
         (directory / "tests").mkdir()
         if ui_suite is not None:
             ui_suite = f"tests/{ui_suite}"
-        return create_app_cli(manage_file, tests="tests", ui_suite=ui_suite,
-            include_serve=include_serve), manage_file
+        manager = create_app_manager(manage_file, tests="tests", ui_suite=ui_suite,
+            include_serve=include_serve)
+        return manager.app, manage_file
 
     def test_plain_cli_has_no_repository_or_fastapi_requirements(self) -> None:
         app = create_cli("Independent commands.")

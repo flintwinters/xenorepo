@@ -79,16 +79,6 @@ class AppDefinition:
     def dist_directory(self) -> Path:
         return self.directory / "dist"
 
-    @property
-    def frontend_format(self) -> str:
-        """Compatibility view for legacy single-page callers."""
-        return self.artifacts[0].format
-
-    @property
-    def frontend_shell(self) -> str | None:
-        """Compatibility view for legacy single-page callers."""
-        return self.artifacts[0].shell
-
     def artifact(self, name: str) -> FrontendArtifact:
         for artifact in self.artifacts:
             if artifact.name == name:

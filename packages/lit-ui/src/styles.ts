@@ -16,6 +16,7 @@ export const consoleControls = css`
   input, textarea, select { font: inherit; }
   textarea {
     border-radius: 3px;
+    resize: none;
   }
   input[type="checkbox"] {
     appearance: none;

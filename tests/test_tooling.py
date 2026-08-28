@@ -349,10 +349,12 @@ frontend:
 
         self.assertIn('input[type="checkbox"] {', styles)
         self.assertIn('input[type="checkbox"]:checked::before', styles)
-        self.assertIn('textarea {\n    border-radius: 3px;', styles)
+        self.assertIn('textarea {\n    border-radius: 3px;\n    resize: none;', styles)
         self.assertIn('[role="dialog"] { border-radius: 4px; }', styles)
         self.assertIn("static styles=[consoleControls,css`", calendar)
         self.assertIn("static styles = [consoleControls, css`", kanban)
+        self.assertNotIn("resize:vertical", calendar)
+        self.assertNotIn("resize:vertical", kanban)
 
     def test_chat_persists_history_and_broadcasts_to_every_connection(self) -> None:
         from apps.chat.backend.database import (

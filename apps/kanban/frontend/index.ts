@@ -63,7 +63,7 @@ class KanbanBoard extends LitElement {
     .note { display:grid; gap:3px; padding:7px; background:#1d2021; }
     .note time { color:#a89984; font-size:10px; } .note p { margin:0; white-space:pre-wrap; overflow-wrap:anywhere; }
     .note-form { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:5px; align-items:end; }
-    .note-form textarea { min-height:54px; resize:vertical; }
+    .note-form textarea { min-height:54px; }
     .error { color:#fb4934; }
     @media(max-width:720px) { .board { grid-template-columns:1fr; overflow:auto; } x-console-pane { min-height:220px; } .context { display:none; } }
   `];

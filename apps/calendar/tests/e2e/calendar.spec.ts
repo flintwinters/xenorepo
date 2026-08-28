@@ -13,7 +13,7 @@ function nextDate(value:string){const result=new Date(`${value}T12:00:00Z`);resu
 
 test('[acceptance] creates, edits, drags, reloads, and deletes a durable event',async({page},testInfo)=>{
   await installInputEvidence(page);await page.goto('/');
-  await expect(page.getByText('CALENDAR // 01')).toBeVisible();await expect(page.locator('.day')).toHaveCount(42);
+  await expect(page.getByText('CALENDAR // 01')).toBeVisible();await expect(page.locator('calendar-console')).toBeInViewport();await expect(page.locator('.day')).toHaveCount(42);
   const title=`Commitment ${Date.now()}`;
   await page.getByRole('button',{name:'ADD',exact:true}).click();await page.getByLabel('Title').fill(title);
   await page.getByLabel('Location').fill('Studio B');await page.getByLabel('Notes').fill('Bring the planning ledger');

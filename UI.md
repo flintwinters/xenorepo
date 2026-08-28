@@ -4,7 +4,7 @@ Create a self-contained, full-viewport application in a polished Gruvbox Dark op
 
 Use warm charcoal backgrounds, cream foreground text, muted secondary text, and the recognizable Gruvbox red, green, yellow, blue, purple, aqua, and orange accents. Keep pane bodies within one quiet neutral family. Use the bright colors to locate regions and communicate meaning: chiefly on slim pane title strips, selected states, small signals, chart marks, and important values. Do not color large command faces or large areas of pane content.
 
-Place every UI element as close as practical—visually and semantically—to the content, state, or region it affects. Prefer controls embedded in the relevant pane chrome or local content header over detached global controls; reserve the utility rail for application-wide actions and context. Proximity must make scope evident without explanatory text, while alignment and spacing keep local controls distinct from the data they operate.
+Place every UI element as close as practical—visually, aesthetically (color, shape, etc), and semantically—to the content, state, or region it affects. Prefer controls embedded in the relevant pane chrome or local content header over detached global controls; reserve the utility rail for application-wide actions and context. Proximity must make scope evident without explanatory text, while alignment and spacing keep local controls distinct from the data they operate.
 
 ## Colored pane chrome
 

@@ -128,6 +128,17 @@ class TerminalManager:
             self.close(tab_id)
 
 
+async def relay_terminal_input(socket: WebSocket, session: PtySession) -> None:
+    """Relay the established JSON protocol without owning socket lifecycle."""
+    while True:
+        payload = await socket.receive_json()
+        message_type = payload.get("type")
+        if message_type == "input" and isinstance(payload.get("data"), str):
+            session.write(payload["data"])
+        elif message_type == "resize":
+            session.resize(payload.get("columns", 100), payload.get("rows", 30))
+
+
 def access_cookie_value(access_session_version: str) -> str:
     """Derive the browser cookie from an opaque, rotatable server generation."""
     return hmac.digest(access_session_version.encode(), b"worminal remote access", "sha256").hex()
@@ -266,12 +277,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
             if transcript:
                 await socket.send_bytes(transcript)
             session = manager.attach(tab_id, socket)
-            while True:
-                payload = await socket.receive_json()
-                if payload.get("type") == "input" and isinstance(payload.get("data"), str):
-                    session.write(payload["data"])
-                elif payload.get("type") == "resize":
-                    session.resize(payload.get("columns", 100), payload.get("rows", 30))
+            await relay_terminal_input(socket, session)
         except (OSError, TypeError, ValueError, WebSocketDisconnect):
             pass
         finally:

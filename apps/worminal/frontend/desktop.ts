@@ -1,20 +1,14 @@
-import { FitAddon } from "@xterm/addon-fit";
-import { Terminal } from "@xterm/xterm";
-import xtermCss from "@xterm/xterm/css/xterm.css";
-import { LitElement, css, html, nothing, unsafeCSS } from "lit";
+import { FitAddon } from "@xterm/addon-fit"; import { Terminal } from "@xterm/xterm";
+import { LitElement } from "lit";
 import "@xenorepo/lit-ui";
 import { WorminalClient } from "./services/api.js";
+import { desktopStyles } from "./desktop-styles.js";
+import { renderDesktop, type DesktopView } from "./desktop-view.js";
 import { captureShortcut, defaultShortcut, isStandaloneModifier, matchesShortcut, shortcutLabel } from "./shortcuts.js";
 import { SessionRegistry, type TerminalSession } from "./sessions.js";
 import { TERMINAL_FONT_SIZE, TERMINAL_ROW_HEIGHT } from "./styles.js";
-import type { Phase, Shortcut, TabState, WindowState, WorkspacePayload } from "./types.js";
-
-const FAVICON = [
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">',
-  '<path d="M2 14c3-7 7-7 11-2s7 5 9-2" fill="none" stroke="#ff69b4" ',
-  'stroke-width="4" stroke-linecap="round"/></svg>',
-].join("");
-
+import type { Shortcut, TabState, WindowState, WorkspacePayload } from "./types.js";
+export { installFavicon } from "./favicon.js";
 export class WorminalDesktop extends LitElement {
   static properties = {
     windows: { state: true },
@@ -27,15 +21,9 @@ export class WorminalDesktop extends LitElement {
     settingsError: { state: true },
     settingsSaving: { state: true },
   };
-  declare windows: WindowState[];
-  declare clock: string;
-  declare shortcuts: Shortcut[];
-  declare settingsOpen: boolean;
-  declare currentAccessPassword: string;
-  declare newAccessPassword: string;
-  declare confirmedAccessPassword: string;
-  declare settingsError: string;
-  declare settingsSaving: boolean;
+  declare windows: WindowState[]; declare clock: string; declare shortcuts: Shortcut[];
+  declare settingsOpen: boolean; declare settingsSaving: boolean; declare settingsError: string;
+  declare currentAccessPassword: string; declare newAccessPassword: string; declare confirmedAccessPassword: string;
   private sessionRegistry = new SessionRegistry();
   private sessions = this.sessionRegistry.sessions;
   private client = new WorminalClient();
@@ -49,7 +37,6 @@ export class WorminalDesktop extends LitElement {
   private persistence: Promise<unknown> = Promise.resolve();
   private shortcutsBeforeSettings?: Shortcut[];
   private standaloneShortcutHeld?: string;
-
   constructor() {
     super();
     this.windows = [];
@@ -62,304 +49,7 @@ export class WorminalDesktop extends LitElement {
     this.settingsError = "";
     this.settingsSaving = false;
   }
-
-  static styles = [
-    unsafeCSS(xtermCss),
-    css`
-      :host {
-        display: block;
-        height: 100%;
-        color: #ebdbb2;
-        font:
-          11px/1.15 "Courier New",
-          monospace;
-        background: #1d2021;
-      }
-      * {
-        box-sizing: border-box;
-      }
-      x-console-shell {
-        height: 100%;
-      }
-      .brand {
-        color: #fabd2f;
-        font-weight: bold;
-        letter-spacing: 0.1em;
-      }
-      .push {
-        margin-left: auto;
-      }
-      .desktop {
-        position: relative;
-        min-width: 0;
-        min-height: 0;
-        overflow: hidden;
-        background-color: #1a1d1c;
-        background-image:
-          linear-gradient(#282b2a 1px, transparent 1px), linear-gradient(90deg, #282b2a 1px, transparent 1px);
-        background-size: 24px 24px;
-      }
-      .welcome {
-        position: absolute;
-        inset: 0;
-        display: grid;
-        place-content: center;
-        gap: 10px;
-        text-align: center;
-        color: #a89984;
-        pointer-events: none;
-      }
-      .welcome strong {
-        color: #ebdbb2;
-        font-size: 18px;
-      }
-      .window {
-        position: absolute;
-        display: grid;
-        grid-template-rows: 20px minmax(0, 1fr);
-        min-width: 300px;
-        min-height: 190px;
-        overflow: hidden;
-        background: #181a1b;
-        border: 1px solid #111;
-        box-shadow: 5px 7px 18px #0009;
-        resize: both;
-      }
-      .window.active {
-        border-color: #83a598;
-        box-shadow:
-          5px 7px 22px #000c,
-          0 0 0 1px #83a598;
-      }
-      .window.maximized {
-        inset: 0 !important;
-        width: 100% !important;
-        height: 100% !important;
-        resize: none;
-      }
-      .titlebar {
-        display: flex;
-        align-items: stretch;
-        min-width: 0;
-        color: #1d2021;
-        font-weight: bold;
-        background: linear-gradient(#83a598, #5f7f75);
-        border-top: 1px solid #b7cfca;
-        border-bottom: 2px solid #354a44;
-        cursor: move;
-        user-select: none;
-        touch-action: none;
-      }
-      .window:not(.active) .titlebar {
-        filter: saturate(0.35) brightness(0.72);
-      }
-      .tabs {
-        display: flex;
-        min-width: 0;
-        overflow: hidden;
-      }
-      .tab {
-        display: flex;
-        align-items: center;
-        gap: 5px;
-        min-width: 72px;
-        max-width: 180px;
-        padding: 0 5px;
-        opacity: 0.68;
-        border-right: 1px solid #354a44;
-        cursor: grab;
-      }
-      .tab.active {
-        opacity: 1;
-        background: #b7cfca55;
-      }
-      .tab-title {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .tab-close {
-        width: auto !important;
-        padding: 0 2px !important;
-        color: #282828 !important;
-        background: transparent !important;
-        border: 0 !important;
-      }
-      .new-tab {
-        width: 24px;
-        color: #282828 !important;
-        background: transparent !important;
-        border: 0 !important;
-      }
-      .phase {
-        color: #282828;
-        font-weight: normal;
-      }
-      .controls {
-        display: flex;
-        align-self: stretch;
-        margin-left: auto;
-      }
-      .titlebar button {
-        width: 24px;
-        padding: 0;
-        color: #ebdbb2;
-        font: inherit;
-        background: #35312f;
-        border: 1px solid #928374;
-        cursor: pointer;
-      }
-      .titlebar button:hover {
-        background: #45413f;
-        border-color: #c6b58f;
-      }
-      .titlebar button:active {
-        background: #181716;
-      }
-      .terminal-stack {
-        position: relative;
-        min-width: 0;
-        min-height: 0;
-      }
-      .terminal-host {
-        position: absolute;
-        inset: 0;
-        min-width: 0;
-        min-height: 0;
-        padding: 5px;
-        overflow: hidden;
-        background: #181a1b;
-      }
-      .terminal-host:not(.active) {
-        visibility: hidden;
-        pointer-events: none;
-      }
-      .terminal-host .xterm {
-        height: 100%;
-      }
-      .terminal-host .xterm-viewport {
-        scrollbar-color: #665c54 #181a1b;
-      }
-      .terminal-host .xterm-rows > div {
-        height: ${TERMINAL_ROW_HEIGHT}px !important;
-        line-height: ${TERMINAL_ROW_HEIGHT}px !important;
-        overflow: visible !important;
-      }
-      .taskbar {
-        display: flex;
-        align-items: center;
-        gap: 4px;
-        min-width: 0;
-        overflow-x: auto;
-      }
-      .task {
-        min-width: 95px;
-        max-width: 170px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-      .task.active {
-        color: #fabd2f;
-      }
-      .settings {
-        position: fixed;
-        inset: 0;
-        z-index: 200000;
-        display: grid;
-        place-items: center;
-        padding: 18px;
-        background: #000a;
-      }
-      .settings-panel {
-        width: min(440px, 100%);
-        padding: 16px;
-        color: #ebdbb2;
-        background: #282828;
-        border: 1px solid #83a598;
-        box-shadow: 8px 10px 30px #000;
-      }
-      .settings-panel h2 {
-        margin: 0 0 8px;
-        color: #fabd2f;
-        font-size: 15px;
-        letter-spacing: 0.08em;
-      }
-      .settings-panel p {
-        margin: 0 0 14px;
-        color: #a89984;
-      }
-      .shortcut-row {
-        display: grid;
-        grid-template-columns: 1fr minmax(160px, 1fr);
-        gap: 10px;
-        align-items: center;
-        padding: 10px 0;
-        border-top: 1px solid #504945;
-      }
-      .shortcut-row input {
-        width: 100%;
-        padding: 7px;
-        color: #ebdbb2;
-        font: inherit;
-        background: #1d2021;
-        border: 1px solid #665c54;
-      }
-      .shortcut-row input:focus {
-        outline: 1px solid #fabd2f;
-        border-color: #fabd2f;
-      }
-      .password-settings {
-        display: grid;
-        gap: 8px;
-        padding-top: 12px;
-        border-top: 1px solid #504945;
-      }
-      .password-settings h3 {
-        margin: 0 0 2px;
-        color: #83a598;
-        font-size: 12px;
-        letter-spacing: 0.06em;
-      }
-      .password-settings label {
-        display: grid;
-        grid-template-columns: 1fr minmax(160px, 1fr);
-        gap: 10px;
-        align-items: center;
-      }
-      .password-settings input {
-        width: 100%;
-        padding: 7px;
-        color: #ebdbb2;
-        font: inherit;
-        background: #1d2021;
-        border: 1px solid #665c54;
-      }
-      .password-settings input:focus {
-        outline: 1px solid #fabd2f;
-        border-color: #fabd2f;
-      }
-      .settings-error {
-        min-height: 15px;
-        color: #fb4934;
-      }
-      .settings-actions {
-        display: flex;
-        justify-content: flex-end;
-        gap: 7px;
-        margin-top: 14px;
-      }
-      @media (max-width: 620px) {
-        .optional {
-          display: none;
-        }
-        .window {
-          min-width: 260px;
-        }
-      }
-    `,
-  ];
-
+  static styles = desktopStyles;
   connectedCallback() {
     super.connectedCallback();
     this.renderRoot.addEventListener("contextmenu", this.blockShiftContextMenu, { capture: true });
@@ -383,7 +73,6 @@ export class WorminalDesktop extends LitElement {
     clearInterval(this.workspaceTimer);
     super.disconnectedCallback();
   }
-
   private blockShiftContextMenu = (event: Event) => {
     const target = event.target as Node | null;
     if (
@@ -394,7 +83,6 @@ export class WorminalDesktop extends LitElement {
     event.preventDefault();
     event.stopImmediatePropagation();
   };
-
   private handleSuperKeyDown = (event: KeyboardEvent) => {
     if (this.settingsOpen) {
       if (event.key === "Escape") this.closeSettings();
@@ -411,13 +99,11 @@ export class WorminalDesktop extends LitElement {
     event.stopImmediatePropagation();
     void this.spawn();
   };
-
   private handleSuperKeyUp = (event: KeyboardEvent) => {
     if (this.settingsOpen || event.key !== this.standaloneShortcutHeld) return;
     this.standaloneShortcutHeld = undefined;
     void this.spawn();
   };
-
   private defaultShortcut(): Shortcut {
     return defaultShortcut();
   }
@@ -438,18 +124,15 @@ export class WorminalDesktop extends LitElement {
     event.stopPropagation();
     this.shortcuts = [captureShortcut(event)];
   }
-
   private updateWindow(id: string, change: (window: WindowState) => WindowState) {
     this.windows = this.windows.map((window) => (window.id === id ? change(window) : window));
   }
-
   private updateTab(id: string, change: (tab: TabState) => TabState) {
     this.windows = this.windows.map((item) => ({
       ...item,
       tabs: item.tabs.map((tab) => (tab.id === id ? change(tab) : tab)),
     }));
   }
-
   private async restoreWorkspace() {
     let response = await this.client.workspace();
     while (response.status === 401) {
@@ -460,26 +143,16 @@ export class WorminalDesktop extends LitElement {
     }
     if (!response.ok) return;
     const state = (await response.json()) as WorkspacePayload;
-    this.windows = state.windows.map((window) => ({
-      ...window,
-      tabs: window.tabs.map((tab) => ({ ...tab, phase: "connecting" as Phase })),
-    }));
-    this.shortcuts = state.shortcuts?.length ? state.shortcuts : [this.defaultShortcut()];
-    this.topZ = Math.max(1, ...this.windows.map((window) => window.z));
-    this.nextTitle = Math.max(
-      1,
-      ...this.windows.flatMap((item) => item.tabs).map((tab) => Number(tab.title.match(/^shell-(\d+)$/)?.[1] || 0) + 1),
-    );
+    this.applyWorkspace(state, new Map());
     if (!this.windows.length) {
       this.spawn();
       return;
     }
     await this.updateComplete;
-    for (const item of this.windows) if (!item.minimized) for (const tab of item.tabs) this.connect(tab.id);
+    this.reconcileSessions();
   }
-
   private async syncWorkspace() {
-    if (this.settingsOpen || this.editingWindow || this.pendingSaves) return;
+    if (!this.workspaceCanSync()) return;
     if (this.workspaceDirty) {
       void this.saveWorkspace();
       return;
@@ -488,8 +161,19 @@ export class WorminalDesktop extends LitElement {
     if (!response.ok) return;
     const state = (await response.json()) as WorkspacePayload;
     const previousTabs = new Map(this.windows.flatMap((item) => item.tabs).map((tab) => [tab.id, tab]));
+    this.removeUndeclaredSessions(state);
+    this.applyWorkspace(state, previousTabs);
+    await this.updateComplete;
+    this.reconcileSessions();
+  }
+  private workspaceCanSync() {
+    return !this.settingsOpen && !this.editingWindow && !this.pendingSaves;
+  }
+  private removeUndeclaredSessions(state: WorkspacePayload) {
     const declared = new Set(state.windows.flatMap((item) => item.tabs).map((tab) => tab.id));
     for (const id of this.sessions.keys()) if (!declared.has(id)) this.destroySession(id);
+  }
+  private applyWorkspace(state: WorkspacePayload, previousTabs: Map<string, TabState>) {
     this.windows = state.windows.map((window) => ({
       ...window,
       tabs: window.tabs.map((tab) => ({ ...tab, phase: previousTabs.get(tab.id)?.phase || "connecting" })),
@@ -500,22 +184,20 @@ export class WorminalDesktop extends LitElement {
       1,
       ...this.windows.flatMap((item) => item.tabs).map((tab) => Number(tab.title.match(/^shell-(\d+)$/)?.[1] || 0) + 1),
     );
-    await this.updateComplete;
+  }
+  private reconcileSessions() {
     for (const item of this.windows)
       for (const tab of item.tabs) item.minimized ? this.destroySession(tab.id) : this.connect(tab.id);
   }
-
   private async grantAccess(password: string) {
     const access = await this.client.grantAccess(password);
     if (access.ok) return true;
     window.alert("The password was not accepted.");
     return false;
   }
-
   private savedWindows() {
     return this.windows.map((item) => ({ ...item, tabs: item.tabs.map(({ phase, ...tab }) => tab) }));
   }
-
   private saveWorkspace() {
     const body = JSON.stringify({ windows: this.savedWindows(), shortcuts: this.shortcuts });
     this.workspaceDirty = true;
@@ -532,7 +214,6 @@ export class WorminalDesktop extends LitElement {
       .finally(() => this.pendingSaves--);
     return this.persistence;
   }
-
   private async spawn() {
     const id = crypto.randomUUID();
     const tab = this.createTab();
@@ -557,11 +238,9 @@ export class WorminalDesktop extends LitElement {
     await this.updateComplete;
     this.connect(tab.id);
   }
-
   private createTab(): TabState {
     return { id: crypto.randomUUID(), title: `shell-${this.nextTitle++}`, position: 0, phase: "connecting" };
   }
-
   private async newTab(windowId: string) {
     const tab = this.createTab();
     this.updateWindow(windowId, (item) => ({
@@ -574,20 +253,17 @@ export class WorminalDesktop extends LitElement {
     await this.updateComplete;
     this.connect(tab.id);
   }
-
   private clearSettingsPassword() {
     this.currentAccessPassword = "";
     this.newAccessPassword = "";
     this.confirmedAccessPassword = "";
     this.settingsError = "";
   }
-
   private openSettings() {
     this.shortcutsBeforeSettings = this.shortcuts.map((shortcut) => ({ ...shortcut }));
     this.clearSettingsPassword();
     this.settingsOpen = true;
   }
-
   private closeSettings() {
     if (this.settingsSaving) return;
     this.shortcuts = this.shortcutsBeforeSettings || this.shortcuts;
@@ -595,46 +271,46 @@ export class WorminalDesktop extends LitElement {
     this.clearSettingsPassword();
     this.settingsOpen = false;
   }
-
   private async saveSettings() {
-    const changesPassword = Boolean(
-      this.currentAccessPassword || this.newAccessPassword || this.confirmedAccessPassword,
-    );
-    if (changesPassword) {
-      if (!this.currentAccessPassword || !this.newAccessPassword || !this.confirmedAccessPassword) {
-        this.settingsError = "Complete all password fields.";
-        return;
-      }
-      if (this.newAccessPassword !== this.confirmedAccessPassword) {
-        this.settingsError = "New passwords do not match.";
-        return;
-      }
-      this.settingsSaving = true;
-      this.settingsError = "";
-      try {
-        const response = await fetch("/api/access/password", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ current_password: this.currentAccessPassword, new_password: this.newAccessPassword }),
-        });
-        if (!response.ok) {
-          this.settingsError =
-            response.status === 401 ? "Current password was not accepted." : "Could not change password.";
-          return;
-        }
-        this.clearSettingsPassword();
-      } catch {
-        this.settingsError = "Could not change password.";
-        return;
-      } finally {
-        this.settingsSaving = false;
-      }
-    }
+    const validationError = this.passwordValidationError();
+    if (validationError) return void (this.settingsError = validationError);
+    if (this.passwordFieldsUsed() && !(await this.changePassword())) return;
     void this.saveWorkspace();
     this.shortcutsBeforeSettings = undefined;
     this.settingsOpen = false;
   }
-
+  private passwordFieldsUsed() {
+    return Boolean(this.currentAccessPassword || this.newAccessPassword || this.confirmedAccessPassword);
+  }
+  private passwordValidationError() {
+    if (!this.passwordFieldsUsed()) return "";
+    if (!this.currentAccessPassword || !this.newAccessPassword || !this.confirmedAccessPassword)
+      return "Complete all password fields.";
+    return this.newAccessPassword === this.confirmedAccessPassword ? "" : "New passwords do not match.";
+  }
+  private async changePassword() {
+    this.settingsSaving = true;
+    this.settingsError = "";
+    try {
+      const response = await fetch("/api/access/password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_password: this.currentAccessPassword, new_password: this.newAccessPassword }),
+      });
+      if (!response.ok) {
+        this.settingsError = response.status === 401
+          ? "Current password was not accepted." : "Could not change password.";
+        return false;
+      }
+      this.clearSettingsPassword();
+      return true;
+    } catch {
+      this.settingsError = "Could not change password.";
+      return false;
+    } finally {
+      this.settingsSaving = false;
+    }
+  }
   private connect(id: string) {
     const host = this.renderRoot.querySelector<HTMLElement>(`[data-terminal="${id}"]`);
     if (!host || this.sessions.has(id)) return;
@@ -679,7 +355,6 @@ export class WorminalDesktop extends LitElement {
     session.resize = new ResizeObserver(() => this.fitTerminal(id));
     session.resize.observe(host);
   }
-
   private fitTerminal(id: string) {
     const session = this.sessions.get(id);
     const host = this.renderRoot.querySelector<HTMLElement>(`[data-terminal="${id}"]`);
@@ -689,7 +364,6 @@ export class WorminalDesktop extends LitElement {
     if (session.terminal.rows !== rows) session.terminal.resize(session.terminal.cols, rows);
     this.sendResize(id);
   }
-
   private sendResize(id: string) {
     const session = this.sessions.get(id);
     if (!session || session.socket.readyState !== WebSocket.OPEN) return;
@@ -697,7 +371,6 @@ export class WorminalDesktop extends LitElement {
       JSON.stringify({ type: "resize", columns: session.terminal.cols, rows: session.terminal.rows }),
     );
   }
-
   private destroySession(id: string) {
     const session = this.sessions.get(id);
     if (!session) return;
@@ -770,7 +443,6 @@ export class WorminalDesktop extends LitElement {
         for (const tab of item.tabs) this.connect(tab.id);
       });
   }
-
   private dragTab(event: PointerEvent, sourceWindowId: string, tabId: string) {
     if (event.shiftKey || event.button !== 0 || (event.target as Element).closest("button")) return;
     event.preventDefault();
@@ -804,7 +476,6 @@ export class WorminalDesktop extends LitElement {
     addEventListener("pointermove", move);
     addEventListener("pointerup", stop, { once: true });
   }
-
   private moveTab(
     sourceWindowId: string,
     targetWindowId: string | undefined,
@@ -818,42 +489,11 @@ export class WorminalDesktop extends LitElement {
     if (!source || !tab) return;
     let windows = this.windows.map((item) => ({ ...item, tabs: [...item.tabs] }));
     const sourceCopy = windows.find((item) => item.id === sourceWindowId)!;
-    sourceCopy.tabs = sourceCopy.tabs
-      .filter((item) => item.id !== tabId)
-      .map((item, position) => ({ ...item, position }));
-    if (sourceCopy.tabs.length) {
-      const active =
-        sourceCopy.active_tab_id === tabId
-          ? sourceCopy.tabs[0]
-          : sourceCopy.tabs.find((item) => item.id === sourceCopy.active_tab_id)!;
-      sourceCopy.active_tab_id = active.id;
-      sourceCopy.title = active.title;
-    } else windows = windows.filter((item) => item.id !== sourceWindowId);
+    this.removeTabFromSource(sourceCopy, tabId);
+    if (!sourceCopy.tabs.length) windows = windows.filter((item) => item.id !== sourceWindowId);
     const target = targetWindowId ? windows.find((item) => item.id === targetWindowId) : undefined;
-    if (target) {
-      const requested = beforeTabId ? target.tabs.findIndex((item) => item.id === beforeTabId) : -1;
-      const insertion = requested >= 0 ? requested : target.tabs.length;
-      target.tabs.splice(insertion, 0, tab);
-      target.tabs = target.tabs.map((item, position) => ({ ...item, position }));
-      target.active_tab_id = tab.id;
-      target.title = tab.title;
-      target.z = ++this.topZ;
-    } else {
-      const id = crypto.randomUUID();
-      windows.push({
-        id,
-        title: tab.title,
-        x: Math.max(0, x - 90),
-        y: Math.max(0, y - 10),
-        width: source.width,
-        height: source.height,
-        z: ++this.topZ,
-        minimized: false,
-        maximized: false,
-        active_tab_id: tab.id,
-        tabs: [{ ...tab, position: 0 }],
-      });
-    }
+    if (target) this.insertTab(target, tab, beforeTabId);
+    else windows.push(this.detachedWindow(source, tab, x, y));
     this.windows = windows;
     void this.saveWorkspace();
     if (!sourceCopy.tabs.length)
@@ -863,7 +503,29 @@ export class WorminalDesktop extends LitElement {
       this.sessions.get(tabId)?.terminal.focus();
     });
   }
-
+  private removeTabFromSource(source: WindowState, tabId: string) {
+    source.tabs = source.tabs.filter((item) => item.id !== tabId)
+      .map((item, position) => ({ ...item, position }));
+    if (!source.tabs.length) return;
+    const active = source.active_tab_id === tabId
+      ? source.tabs[0] : source.tabs.find((item) => item.id === source.active_tab_id)!;
+    source.active_tab_id = active.id;
+    source.title = active.title;
+  }
+  private insertTab(target: WindowState, tab: TabState, beforeTabId?: string) {
+    const requested = beforeTabId ? target.tabs.findIndex((item) => item.id === beforeTabId) : -1;
+    target.tabs.splice(requested >= 0 ? requested : target.tabs.length, 0, tab);
+    target.tabs = target.tabs.map((item, position) => ({ ...item, position }));
+    target.active_tab_id = tab.id;
+    target.title = tab.title;
+    target.z = ++this.topZ;
+  }
+  private detachedWindow(source: WindowState, tab: TabState, x: number, y: number): WindowState {
+    return { id: crypto.randomUUID(), title: tab.title, x: Math.max(0, x - 90),
+      y: Math.max(0, y - 10), width: source.width, height: source.height,
+      z: ++this.topZ, minimized: false, maximized: false,
+      active_tab_id: tab.id, tabs: [{ ...tab, position: 0 }] };
+  }
   private moveWindow(event: PointerEvent, id: string) {
     const item = this.windows.find((window) => window.id === id);
     if (!item || item.maximized) return;
@@ -892,7 +554,6 @@ export class WorminalDesktop extends LitElement {
     addEventListener("pointermove", move);
     addEventListener("pointerup", stop, { once: true });
   }
-
   private resizeWindow(event: PointerEvent, id: string) {
     const item = this.windows.find((window) => window.id === id);
     if (!item || item.maximized) return;
@@ -919,7 +580,6 @@ export class WorminalDesktop extends LitElement {
     addEventListener("pointermove", move);
     addEventListener("pointerup", stop, { once: true });
   }
-
   private windowPointerDown(event: PointerEvent, id: string) {
     this.focusWindow(id);
     if ((event.target as Element).closest("button") || !event.shiftKey || ![0, 2].includes(event.button)) return;
@@ -928,182 +588,12 @@ export class WorminalDesktop extends LitElement {
     if (event.button === 0) this.moveWindow(event, id);
     else this.resizeWindow(event, id);
   }
-
   private titlePointerDown(event: PointerEvent, id: string) {
     if (event.shiftKey || event.button !== 0 || (event.target as Element).closest("button")) return;
     event.stopPropagation();
     this.moveWindow(event, id);
   }
-
-  private renderWindow(window: WindowState) {
-    if (window.minimized) return nothing;
-    const style = [
-      `left:${window.x}px`,
-      `top:${window.y}px`,
-      `width:${window.width}px`,
-      `height:${window.height}px`,
-      `z-index:${window.z}`,
-    ].join(";");
-    return html`<section
-      data-window=${window.id}
-      class="window ${window.z === this.topZ ? "active" : ""} ${window.maximized ? "maximized" : ""}"
-      style=${style}
-      @pointerdown=${(event: PointerEvent) => this.windowPointerDown(event, window.id)}
-      aria-label=${window.title}
-    >
-      <header
-        class="titlebar"
-        data-tab-drop-window=${window.id}
-        @pointerdown=${(event: PointerEvent) => this.titlePointerDown(event, window.id)}
-        @dblclick=${() => this.toggleMaximize(window.id)}
-      >
-        <div class="tabs">
-          ${window.tabs.map(
-            (tab) =>
-              html`<div
-                class="tab ${tab.id === window.active_tab_id ? "active" : ""}"
-                data-tab=${tab.id}
-                @pointerdown=${(event: PointerEvent) => this.dragTab(event, window.id, tab.id)}
-                @dblclick=${(event: Event) => event.stopPropagation()}
-              >
-                <span>▣</span><span class="tab-title">${tab.title}</span
-                ><span class="phase">${tab.phase === "ready" ? "" : tab.phase.toUpperCase()}</span
-                ><button
-                  class="tab-close"
-                  aria-label="Close tab ${tab.title}"
-                  @click=${() => this.closeTab(window.id, tab.id)}
-                >
-                  ×
-                </button>
-              </div>`,
-          )}
-        </div>
-        <button class="new-tab" aria-label=${`New tab in ${window.title}`} @click=${() => this.newTab(window.id)}>
-          +
-        </button>
-        <div class="controls">
-          <button aria-label="Minimize ${window.title}" @click=${() => this.toggleMinimize(window.id)}>_</button
-          ><button aria-label="Maximize ${window.title}" @click=${() => this.toggleMaximize(window.id)}>□</button
-          ><button aria-label="Close ${window.title}" @click=${() => this.close(window.id)}>×</button>
-        </div>
-      </header>
-      <div class="terminal-stack">
-        ${window.tabs.map(
-          (tab) =>
-            html`<div
-              class="terminal-host ${tab.id === window.active_tab_id ? "active" : ""}"
-              data-terminal=${tab.id}
-              aria-label=${`${tab.title} terminal`}
-            ></div>`,
-        )}
-      </div>
-    </section>`;
-  }
-
   render() {
-    const tabs = this.windows.flatMap((item) => item.tabs);
-    const ready = tabs.filter((tab) => tab.phase === "ready").length;
-    return html`<x-console-shell
-        ><x-utility-rail slot="header"
-          ><span class="brand">WORMINAL</span><x-command-button @click=${this.spawn}>+ NEW SHELL</x-command-button
-          ><span class="push optional"
-            >LOCALHOST WORKSPACE · ${this.windows.length} WINDOW${this.windows.length === 1 ? "" : "S"}</span
-          ><x-command-button aria-label="Settings" @click=${this.openSettings}
-            >SETTINGS</x-command-button
-          ></x-utility-rail
-        >
-        <main class="desktop" aria-label="Worminal desktop">
-          ${this.windows.length
-            ? nothing
-            : html`<div class="welcome">
-                <strong>NO OPEN SHELLS</strong><span>Use NEW SHELL to start a local terminal.</span>
-              </div>`}${this.windows.map((window) => this.renderWindow(window))}
-        </main>
-        <x-status-rail slot="footer"
-          ><x-status-indicator
-            .label=${`${ready} SHELL${ready === 1 ? "" : "S"} CONNECTED`}
-            tone=${ready ? "green" : "orange"}
-          ></x-status-indicator>
-          <nav class="taskbar" aria-label="Open shells">
-            ${this.windows.map(
-              (window) =>
-                html`<x-command-button
-                  class="task ${window.z === this.topZ && !window.minimized ? "active" : ""}"
-                  @click=${() => this.focusWindow(window.id)}
-                  >${window.title}${window.tabs.length > 1 ? ` (${window.tabs.length})` : ""}</x-command-button
-                >`,
-            )}
-          </nav>
-          <span class="push">LOCAL PTY · ${this.clock}</span></x-status-rail
-        ></x-console-shell
-      >
-      ${this.settingsOpen
-        ? html`<div class="settings" role="presentation" @click=${this.closeSettings}>
-            <section
-              class="settings-panel"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="settings-title"
-              @click=${(event: Event) => event.stopPropagation()}
-            >
-              <h2 id="settings-title">SETTINGS</h2>
-              <p>Press any key or key combination to set the action.</p>
-              <label class="shortcut-row"
-                ><span>New shell</span
-                ><input
-                  aria-label="New shell shortcut"
-                  .value=${this.shortcutLabel(this.newShellShortcut())}
-                  @keydown=${this.captureShortcut}
-                  readonly
-              /></label>
-              <div class="password-settings">
-                <h3>ACCESS PASSWORD</h3>
-                <label
-                  ><span>Current password</span
-                  ><input
-                    aria-label="Current access password"
-                    type="password"
-                    autocomplete="current-password"
-                    .value=${this.currentAccessPassword}
-                    @input=${(event: InputEvent) =>
-                      (this.currentAccessPassword = (event.target as HTMLInputElement).value)} /></label
-                ><label
-                  ><span>New password</span
-                  ><input
-                    aria-label="New access password"
-                    type="password"
-                    autocomplete="new-password"
-                    .value=${this.newAccessPassword}
-                    @input=${(event: InputEvent) =>
-                      (this.newAccessPassword = (event.target as HTMLInputElement).value)} /></label
-                ><label
-                  ><span>Confirm password</span
-                  ><input
-                    aria-label="Confirm new access password"
-                    type="password"
-                    autocomplete="new-password"
-                    .value=${this.confirmedAccessPassword}
-                    @input=${(event: InputEvent) =>
-                      (this.confirmedAccessPassword = (event.target as HTMLInputElement).value)}
-                /></label>
-                <div class="settings-error" role="alert">${this.settingsError}</div>
-              </div>
-              <div class="settings-actions">
-                <x-command-button ?disabled=${this.settingsSaving} @click=${this.closeSettings}>CANCEL</x-command-button
-                ><x-command-button ?disabled=${this.settingsSaving} @click=${this.saveSettings}
-                  >${this.settingsSaving ? "SAVING…" : "SAVE"}</x-command-button
-                >
-              </div>
-            </section>
-          </div>`
-        : nothing}`;
+    return renderDesktop(this as unknown as DesktopView);
   }
-}
-export function installFavicon(): void {
-  const favicon = document.createElement("link");
-  favicon.rel = "icon";
-  favicon.type = "image/svg+xml";
-  favicon.href = `data:image/svg+xml,${encodeURIComponent(FAVICON)}`;
-  document.head.querySelector('link[rel="icon"]')?.remove();
-  document.head.append(favicon);
 }

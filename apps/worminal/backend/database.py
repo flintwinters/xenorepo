@@ -309,16 +309,24 @@ class WorkspaceRepository:
 
     @staticmethod
     def _validate_windows(declared: list[dict[str, object]]) -> None:
-        identifiers = [str(item["id"]) for item in declared]
-        if len(identifiers) != len(set(identifiers)):
+        if not WorkspaceRepository._identifiers_unique(declared):
             raise ValueError("Window IDs must be unique.")
-        tab_ids = [str(tab["id"]) for item in declared for tab in item["tabs"]]
-        if len(tab_ids) != len(set(tab_ids)):
+        tabs = [tab for item in declared for tab in item["tabs"]]
+        if not WorkspaceRepository._identifiers_unique(tabs):
             raise ValueError("Tab IDs must be unique.")
         for item in declared:
-            tabs = item["tabs"]
-            if not tabs or item["active_tab_id"] not in {tab["id"] for tab in tabs}:
+            if not WorkspaceRepository._active_tab_is_declared(item):
                 raise ValueError("Each window must have an active tab.")
+
+    @staticmethod
+    def _identifiers_unique(items: Iterable[dict[str, object]]) -> bool:
+        identifiers = [str(item["id"]) for item in items]
+        return len(identifiers) == len(set(identifiers))
+
+    @staticmethod
+    def _active_tab_is_declared(window: dict[str, object]) -> bool:
+        tabs = window["tabs"]
+        return bool(tabs) and window["active_tab_id"] in {tab["id"] for tab in tabs}
 
     @staticmethod
     def _require_workspace(session: Session, workspace_id: str) -> Workspace:
@@ -331,39 +339,70 @@ class WorkspaceRepository:
     def _upsert_windows(session: Session, workspace_id: str,
         declared: list[dict[str, object]], timestamp: datetime) -> None:
         identifiers = [str(item["id"]) for item in declared]
-        existing = {window.id: window for window in session.scalars(select(TerminalWindow)
-            .where(TerminalWindow.workspace_id == workspace_id,
-                TerminalWindow.id.in_(identifiers)))} if identifiers else {}
+        existing = WorkspaceRepository._existing_windows(session, workspace_id, identifiers)
         for item in declared:
-            identifier = str(item["id"])
-            window = existing.get(identifier)
-            window_values = {key: value for key, value in item.items()
-                if key not in {"id", "tabs"}}
-            if window is None:
-                session.add(TerminalWindow(id=identifier, workspace_id=workspace_id,
-                    transcript=b"", created_at=timestamp, updated_at=timestamp,
-                    **window_values))
-            else:
-                for key, value in window_values.items():
-                    setattr(window, key, value)
-                window.updated_at = timestamp
+            WorkspaceRepository._upsert_window(
+                session, workspace_id, item, existing, timestamp)
         session.flush()
-        tabs = [({**tab, "window_id": str(item["id"])})
-            for item in declared for tab in item["tabs"]]
+        tabs = WorkspaceRepository._declared_tabs(declared)
         tab_ids = [str(tab["id"]) for tab in tabs]
-        existing_tabs = {tab.id: tab for tab in session.scalars(select(TerminalTab)
-            .where(TerminalTab.id.in_(tab_ids)))} if tab_ids else {}
+        existing_tabs = WorkspaceRepository._existing_tabs(session, tab_ids)
         for values in tabs:
-            identifier = str(values["id"])
-            tab = existing_tabs.get(identifier)
-            payload = {key: value for key, value in values.items() if key != "id"}
-            if tab is None:
-                session.add(TerminalTab(id=identifier, transcript=b"",
-                    created_at=timestamp, updated_at=timestamp, **payload))
-            else:
-                for key, value in payload.items():
-                    setattr(tab, key, value)
-                tab.updated_at = timestamp
+            WorkspaceRepository._upsert_tab(session, values, existing_tabs, timestamp)
+
+    @staticmethod
+    def _existing_windows(session: Session, workspace_id: str,
+        identifiers: list[str]) -> dict[str, TerminalWindow]:
+        if not identifiers:
+            return {}
+        windows = session.scalars(select(TerminalWindow).where(
+            TerminalWindow.workspace_id == workspace_id,
+            TerminalWindow.id.in_(identifiers)))
+        return {window.id: window for window in windows}
+
+    @staticmethod
+    def _declared_tabs(declared: list[dict[str, object]]) -> list[dict[str, object]]:
+        return [{**tab, "window_id": str(item["id"])}
+            for item in declared for tab in item["tabs"]]
+
+    @staticmethod
+    def _existing_tabs(session: Session,
+        identifiers: list[str]) -> dict[str, TerminalTab]:
+        if not identifiers:
+            return {}
+        tabs = session.scalars(select(TerminalTab).where(TerminalTab.id.in_(identifiers)))
+        return {tab.id: tab for tab in tabs}
+
+    @staticmethod
+    def _upsert_window(session: Session, workspace_id: str, values: dict[str, object],
+        existing: dict[str, TerminalWindow], timestamp: datetime) -> None:
+        identifier = str(values["id"])
+        payload = {key: value for key, value in values.items() if key not in {"id", "tabs"}}
+        window = existing.get(identifier)
+        if window is None:
+            session.add(TerminalWindow(id=identifier, workspace_id=workspace_id,
+                transcript=b"", created_at=timestamp, updated_at=timestamp, **payload))
+            return
+        WorkspaceRepository._update_model(window, payload, timestamp)
+
+    @staticmethod
+    def _upsert_tab(session: Session, values: dict[str, object],
+        existing: dict[str, TerminalTab], timestamp: datetime) -> None:
+        identifier = str(values["id"])
+        payload = {key: value for key, value in values.items() if key != "id"}
+        tab = existing.get(identifier)
+        if tab is None:
+            session.add(TerminalTab(id=identifier, transcript=b"",
+                created_at=timestamp, updated_at=timestamp, **payload))
+            return
+        WorkspaceRepository._update_model(tab, payload, timestamp)
+
+    @staticmethod
+    def _update_model(model: TerminalWindow | TerminalTab, values: dict[str, object],
+        timestamp: datetime) -> None:
+        for key, value in values.items():
+            setattr(model, key, value)
+        model.updated_at = timestamp
 
     def replace_shortcuts(self, workspace_id: str, shortcuts: Iterable[dict[str, object]]) -> None:
         declared = list(shortcuts)

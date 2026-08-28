@@ -334,31 +334,54 @@ class BoardStore:
     def _apply_update(self, before: list[Card], card: Card, request: CardUpdate
         ) -> tuple[Card, list[Card], list[str]]:
         destination = request.column_id or card.column_id
-        updated = card.model_copy(update={
+        updated = self._updated_card(card, request, destination)
+        remaining = [item for item in before if item.id != card.id]
+        old_index = self._column_index(before, card)
+        reordering = request.column_id is not None or request.index is not None
+        index = self._destination_index(remaining, destination, old_index, request, reordering)
+        after = self._insert_card(remaining, updated, destination, index)
+        descriptions = self._describe_update(card, updated, destination, old_index, index, reordering)
+        return updated, after, descriptions
+
+    def _updated_card(self, card: Card, request: CardUpdate, destination: str) -> Card:
+        return card.model_copy(update={
             "title": request.title if request.title is not None else card.title,
             "column_id": destination,
-            "reviewed_at_ms": (
-                int(self.now().timestamp() * 1000) if request.reviewed is True
-                else None if request.reviewed is False else card.reviewed_at_ms
-            ),
+            "reviewed_at_ms": self._reviewed_at(card, request),
         })
-        remaining = [item for item in before if item.id != card.id]
+
+    def _reviewed_at(self, card: Card, request: CardUpdate) -> int | None:
+        if request.reviewed is True:
+            return int(self.now().timestamp() * 1000)
+        if request.reviewed is False:
+            return None
+        return card.reviewed_at_ms
+
+    @staticmethod
+    def _column_index(cards: list[Card], card: Card) -> int:
+        return [item.id for item in cards if item.column_id == card.column_id].index(card.id)
+
+    @staticmethod
+    def _destination_index(remaining: list[Card], destination: str, old_index: int,
+        request: CardUpdate, reordering: bool) -> int:
         destination_cards = [item for item in remaining if item.column_id == destination]
-        old_index = [item.id for item in before if item.column_id == card.column_id].index(card.id)
-        reordering = request.column_id is not None or request.index is not None
         index = old_index if not reordering else (
             len(destination_cards) if request.index is None else request.index
         )
         if index > len(destination_cards):
             raise InvalidPositionError(index)
+        return index
+
+    @staticmethod
+    def _insert_card(remaining: list[Card], updated: Card, destination: str,
+        index: int) -> list[Card]:
+        destination_cards = [item for item in remaining if item.column_id == destination]
         insertion = len(remaining)
         if index < len(destination_cards):
             insertion = remaining.index(destination_cards[index])
         elif destination_cards:
             insertion = remaining.index(destination_cards[-1]) + 1
-        after = [*remaining[:insertion], updated, *remaining[insertion:]]
-        descriptions = self._describe_update(card, updated, destination, old_index, index, reordering)
-        return updated, after, descriptions
+        return [*remaining[:insertion], updated, *remaining[insertion:]]
 
     def _describe_update(self, card: Card, updated: Card, destination: str,
         old_index: int, index: int, reordering: bool) -> list[str]:

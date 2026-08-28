@@ -64,15 +64,14 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(len(report.complex_functions), 1)
         self.assertIn("decide: 10", report.complex_functions[0].detail)
 
-    def test_repository_baseline_has_zero_architecture_violations(self) -> None:
+    def test_repository_baseline_has_zero_structural_violations(self) -> None:
         import manage
 
         report = audit_workspace(ROOT, tuple(definition for definition, _ in manage.MANAGERS))
 
         self.assertEqual(report.architecture, ())
-        self.assertEqual(len(report.large_files), 3)
-        self.assertEqual(len(report.complex_functions), 17)
-        self.assertTrue(all(item.path.startswith("apps/") for item in report.complex_functions))
+        self.assertEqual(report.large_files, ())
+        self.assertEqual(report.complex_functions, ())
 
 
 if __name__ == "__main__":

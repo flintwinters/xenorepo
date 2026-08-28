@@ -45,13 +45,21 @@ class EventFields(BaseModel):
 
     @model_validator(mode="after")
     def valid_interval(self) -> EventFields:
-        if self.all_day and (self.start_time is not None or self.end_time is not None):
-            raise ValueError("All-day events cannot have times")
-        if not self.all_day and (self.start_time is None or self.end_time is None):
-            raise ValueError("Timed events require both start_time and end_time")
+        if self.all_day:
+            self._validate_all_day()
+        else:
+            self._validate_timed()
         if self.start_time is not None and self.end_time is not None and self.start_time >= self.end_time:
             raise ValueError("end_time must be later than start_time")
         return self
+
+    def _validate_all_day(self) -> None:
+        if self.start_time is not None or self.end_time is not None:
+            raise ValueError("All-day events cannot have times")
+
+    def _validate_timed(self) -> None:
+        if self.start_time is None or self.end_time is None:
+            raise ValueError("Timed events require both start_time and end_time")
 
 
 class EventCreate(EventFields):

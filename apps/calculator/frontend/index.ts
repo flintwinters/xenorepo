@@ -48,20 +48,27 @@ class CalculatorApp extends LitElement {
 
   private apply(label: string): void {
     const prior = this.state;
-    if (/^\d$/.test(label)) this.state = inputDigit(this.state, label);
-    else if (operators.has(label as BinaryOperator)) this.state = chooseOperator(this.state, label as BinaryOperator);
-    else if (label === ".") this.state = inputDecimal(this.state);
-    else if (label === "=") this.state = equals(this.state);
-    else if (label === "±") this.state = toggleSign(this.state);
-    else if (label === "%") this.state = percent(this.state);
-    else if (label === "⌫") this.state = backspace(this.state);
-    else if (label === "C") this.state = initialState();
+    this.state = this.nextState(label);
     if (label === "=" && this.state !== prior && !this.state.error) {
       this.ledger = [...this.ledger];
       this.ledger.unshift(`${this.state.expression} ${this.state.display}`);
       this.ledger = this.ledger.slice(0, 20);
     }
     this.persist();
+  }
+
+  private nextState(label: string): CalculatorState {
+    if (/^\d$/.test(label)) return inputDigit(this.state, label);
+    if (operators.has(label as BinaryOperator)) return chooseOperator(this.state, label as BinaryOperator);
+    const actions: Record<string, () => CalculatorState> = {
+      ".": () => inputDecimal(this.state),
+      "=": () => equals(this.state),
+      "±": () => toggleSign(this.state),
+      "%": () => percent(this.state),
+      "⌫": () => backspace(this.state),
+      C: initialState,
+    };
+    return actions[label]?.() ?? this.state;
   }
 
   private scientific(action: string): void {

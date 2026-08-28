@@ -32,6 +32,47 @@ class NicknameInput(BaseModel):
     nickname: str = ""
 
 
+async def dispatch_arena_command(coordinator: ArenaCoordinator, player_id: str,
+    payload: object) -> None:
+    if not isinstance(payload, dict):
+        raise DomainError("Arena command must be a JSON object.")
+    command, client_id = payload.get("type"), payload.get("client_id")
+    if not isinstance(client_id, str) or not 1 <= len(client_id) <= 64:
+        raise DomainError("Client mutation ID is required.")
+    simple_operations = {
+        "queue_join": coordinator.join_queue,
+        "queue_leave": coordinator.leave_queue,
+    }
+    if command in simple_operations:
+        await simple_operations[command](player_id, client_id)
+    elif command in {"rematch", "throw"}:
+        await dispatch_match_command(coordinator, player_id, command, payload, client_id)
+    elif command in {"spectate", "spectate_leave"}:
+        operation = coordinator.spectate if command == "spectate" else coordinator.leave_spectator
+        await operation(player_id,
+            required_string(payload, "match_id", "Match ID is required."), client_id)
+    else:
+        raise DomainError("Unknown arena command.")
+
+
+async def dispatch_match_command(coordinator: ArenaCoordinator, player_id: str,
+    command: object, payload: dict[str, object], client_id: str) -> None:
+    if command == "rematch":
+        await coordinator.request_rematch(player_id,
+            required_string(payload, "match_id", "Match ID is required."), client_id)
+    else:
+        await coordinator.submit_throw(player_id,
+            required_string(payload, "selection", "Throw must be rock, paper, or scissors."),
+            client_id)
+
+
+def required_string(payload: dict[str, object], key: str, message: str) -> str:
+    value = payload.get(key)
+    if not isinstance(value, str):
+        raise DomainError(message)
+    return value
+
+
 def player_state(player: object) -> dict[str, object]:
     return {"id": player.id, "nickname": player.nickname,
         "competitive_streak": player.competitive_streak}
@@ -87,35 +128,7 @@ def create_app(database_url: str | None = None, *, clock: Clock | None = None,
             while True:
                 try:
                     payload = await socket.receive_json()
-                    if not isinstance(payload, dict):
-                        raise DomainError("Arena command must be a JSON object.")
-                    command = payload.get("type")
-                    client_id = payload.get("client_id")
-                    if not isinstance(client_id, str) or not 1 <= len(client_id) <= 64:
-                        raise DomainError("Client mutation ID is required.")
-                    if command == "queue_join":
-                        await coordinator.join_queue(player.id, client_id)
-                    elif command == "queue_leave":
-                        await coordinator.leave_queue(player.id, client_id)
-                    elif command == "rematch":
-                        match_id = payload.get("match_id")
-                        if not isinstance(match_id, str):
-                            raise DomainError("Match ID is required.")
-                        await coordinator.request_rematch(player.id, match_id, client_id)
-                    elif command == "throw":
-                        selection = payload.get("selection")
-                        if not isinstance(selection, str):
-                            raise DomainError("Throw must be rock, paper, or scissors.")
-                        await coordinator.submit_throw(player.id, selection, client_id)
-                    elif command in {"spectate", "spectate_leave"}:
-                        match_id = payload.get("match_id")
-                        if not isinstance(match_id, str):
-                            raise DomainError("Match ID is required.")
-                        operation = coordinator.spectate if command == "spectate" \
-                            else coordinator.leave_spectator
-                        await operation(player.id, match_id, client_id)
-                    else:
-                        raise DomainError("Unknown arena command.")
+                    await dispatch_arena_command(coordinator, player.id, payload)
                 except (DomainError, ValueError) as failure:
                     await socket.send_json({"type": "error", "message": str(failure)})
         except WebSocketDisconnect:

@@ -264,11 +264,7 @@ class RpsRepository:
         timestamp, identifier = self.clock(), str(uuid4())
         with self.sessions.begin() as session:
             players = [self._player(session, player_id) for player_id in (first_id, second_id)]
-            if rematch_of_id is not None:
-                if ranked:
-                    raise DomainError("Rematches must be unranked.")
-                if session.get(Match, rematch_of_id) is None:
-                    raise DomainError("Original match not found.")
+            self._validate_rematch(session, ranked, rematch_of_id)
             match = Match(id=identifier, ranked=ranked, state="active", outcome=None,
                 winner_id=None, loser_id=None, started_at=timestamp, completed_at=None,
                 rematch_of_id=rematch_of_id)
@@ -278,20 +274,44 @@ class RpsRepository:
                 disconnected_at=None, reconnect_deadline_at=None)
                 for seat, player in enumerate(players, 1))
             session.add(Round(match_id=identifier, number=1, state="collecting",
-                outcome=None, winner_id=None, started_at=timestamp, resolved_at=None))
-            if selection_deadline_at is not None:
-                session.flush()
-                session.get(Round, (identifier, 1)).selection_deadline_at = selection_deadline_at
-            if queue_entry_ids is not None:
-                entries = [session.get(MatchmakingEntry, entry_id) for entry_id in queue_entry_ids]
-                if any(entry is None or entry.state != "queued" for entry in entries):
-                    raise DomainError("Queue entry is not active.")
-                if {entry.player_id for entry in entries} != {first_id, second_id}:
-                    raise DomainError("Queue entries do not match participants.")
-                for entry in entries:
-                    entry.state, entry.left_at, entry.match_id = "matched", timestamp, identifier
+                outcome=None, winner_id=None, started_at=timestamp, resolved_at=None,
+                selection_deadline_at=selection_deadline_at))
+            self._consume_queue_entries(session, queue_entry_ids,
+                {first_id, second_id}, timestamp, identifier)
             session.flush()
             return match
+
+    @staticmethod
+    def _validate_rematch(session: Session, ranked: bool,
+        rematch_of_id: str | None) -> None:
+        if rematch_of_id is None:
+            return
+        if ranked:
+            raise DomainError("Rematches must be unranked.")
+        if session.get(Match, rematch_of_id) is None:
+            raise DomainError("Original match not found.")
+
+    @staticmethod
+    def _consume_queue_entries(session: Session, entry_ids: tuple[str, str] | None,
+        player_ids: set[str], timestamp: datetime, match_id: str) -> None:
+        if entry_ids is None:
+            return
+        entries = RpsRepository._active_queue_entries(session, entry_ids)
+        if {entry.player_id for entry in entries} != player_ids:
+            raise DomainError("Queue entries do not match participants.")
+        for entry in entries:
+            entry.state, entry.left_at, entry.match_id = "matched", timestamp, match_id
+
+    @staticmethod
+    def _active_queue_entries(session: Session,
+        entry_ids: tuple[str, str]) -> list[MatchmakingEntry]:
+        entries = [session.get(MatchmakingEntry, entry_id) for entry_id in entry_ids]
+        if any(entry is None for entry in entries):
+            raise DomainError("Queue entry is not active.")
+        active_entries = [entry for entry in entries if entry is not None]
+        if any(entry.state != "queued" for entry in active_entries):
+            raise DomainError("Queue entry is not active.")
+        return active_entries
 
     def submit_throw(self, match_id: str, player_id: str, selection: str,
         next_deadline_at: datetime | None = None) -> dict[str, object]:

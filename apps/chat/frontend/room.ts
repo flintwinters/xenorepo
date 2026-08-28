@@ -126,6 +126,32 @@ export class ChatRoom extends LitElement {
     }
   }
 
+  private renderMessages() {
+    if (!this.messages.length)
+      return html`<x-empty-state heading="NO MESSAGES YET" detail="OPEN THE CHANNEL BELOW"></x-empty-state>`;
+    return this.messages.map(
+      (message) => html`<article class="message">
+        <time datetime=${message.created_at}
+          >${new Date(message.created_at).toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          })}</time
+        ><b>${message.author}</b><p>${message.body}</p>
+      </article>`,
+    );
+  }
+
+  private connectionLabel(live: boolean): string {
+    if (live) return "LIVE";
+    return this.connection === "offline" ? "RETRYING" : "CONNECTING";
+  }
+
+  private connectionTone(live: boolean): string {
+    if (live) return "green";
+    return this.connection === "offline" ? "orange" : "blue";
+  }
+
   render() {
     const live = this.connection === "online";
     return html`<x-console-shell aria-label="Common Room live chat">
@@ -133,8 +159,8 @@ export class ChatRoom extends LitElement {
         ><span class="brand">▣ COMMON/98</span><span class="context">PUBLIC CHANNEL / NO ACCOUNT REQUIRED</span
         ><x-status-indicator
           class="connection"
-          .label=${live ? "LIVE" : this.connection === "offline" ? "RETRYING" : "CONNECTING"}
-          tone=${live ? "green" : this.connection === "offline" ? "orange" : "blue"}
+          .label=${this.connectionLabel(live)}
+          tone=${this.connectionTone(live)}
         ></x-status-indicator
       ></x-utility-rail>
       <section class="mosaic">
@@ -153,21 +179,7 @@ export class ChatRoom extends LitElement {
           title=${`MESSAGE STREAM · ${this.messages.length} ${this.messages.length === 1 ? "ENTRY" : "ENTRIES"}`}
           tone="green"
           ><div class="messages" role="log" aria-live="polite" aria-relevant="additions">
-            ${this.messages.length
-              ? this.messages.map(
-                  (message) =>
-                    html`<article class="message">
-                      <time datetime=${message.created_at}
-                        >${new Date(message.created_at).toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: false,
-                        })}</time
-                      ><b>${message.author}</b>
-                      <p>${message.body}</p>
-                    </article>`,
-                )
-              : html`<x-empty-state heading="NO MESSAGES YET" detail="OPEN THE CHANNEL BELOW"></x-empty-state>`}
+            ${this.renderMessages()}
           </div></x-console-pane
         >
         <x-console-pane class="details" title="CHANNEL STATE" tone="orange"

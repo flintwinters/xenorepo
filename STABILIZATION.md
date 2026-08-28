@@ -32,8 +32,8 @@ authoritative when the read-only audit command is introduced at checkpoint 5.
   from the central suite and preserved beside their owning monoapps.
 - Platform lifecycle and management code is generic: app managers own product
   runtime policy, and the legacy global CLI and compatibility views are gone.
-- The shared UI barrel still exposes elements whose independent consumer count
-  has not proved a generic boundary.
+- Shared-library exports and their independent consumer counts are inventoried
+  in `LIBRARIES.md`; the shared UI surface contains only proved elements.
 - Central and app-owned Python, TypeScript, JavaScript, and source HTML include
   files or functions beyond the intended size and complexity limits.
 - Lifecycle, metadata, browser-validation, migration, watching, and UI-runner
@@ -57,7 +57,12 @@ authoritative when the read-only audit command is introduced at checkpoint 5.
    metadata views are removed. All callers use app-owned managers and generic
    `serve_app` parameters. The complete verification matrix passed on
    2026-08-27.
-4. **Audit shared libraries — pending.**
+4. **Audit shared libraries — complete.** Shared Monotools, browser-testing,
+   and Lit UI contract adoption is inventoried without centralizing app
+   identities. Three zero-consumer custom elements and their types are removed,
+   all Lit UI consumers use the package boundary, and the remaining elements
+   each have at least two independent consumers. The complete verification
+   matrix passed on 2026-08-28.
 5. **Make structural debt measurable — pending.**
 6. **Repair central builder internals — pending.**
 7. **Repair monoapps independently — pending.**
@@ -65,7 +70,7 @@ authoritative when the read-only audit command is introduced at checkpoint 5.
 
 ## Next action
 
-Begin checkpoint 4 by inventorying every shared library export and its
-independent monoapp consumers, then remove or return unproved shared UI
-elements to their owning applications while keeping `LIBRARIES.md`
-authoritative.
+Begin checkpoint 5 by adding a stable, read-only architecture and structural
+audit to root `manage.py`, recording exact violation counts, and driving the
+initial architecture inventory to zero without yet repairing the large
+platform and monoapp internals assigned to later checkpoints.

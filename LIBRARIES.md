@@ -12,6 +12,65 @@ Applications are consumers; they do not import one another.
 | Console Lit UI | TypeScript | `packages/lit-ui/` | Construction primitives for shells, panes, rails, controls, status, shared form treatment, design tokens, and browser-artifact chrome. | Every custom element must have at least two independent monoapp consumers. |
 | Browser Testing | JavaScript/TypeScript | `packages/browser-testing/` | Shared Playwright fixtures, strict browser diagnostics, trusted input drivers, schema-versioned evidence, and static proof validation. | Shared code contains no app routes, selectors, entities, or gesture semantics. |
 
+## Console Lit UI contract
+
+The package has one named JavaScript export, `consoleControls`, used by two
+independent monoapps. Importing the package also registers these proved custom
+elements:
+
+| Custom element | Independent consumer count |
+| --- | ---: |
+| `x-console-shell` | 6 |
+| `x-utility-rail` | 6 |
+| `x-status-rail` | 6 |
+| `x-console-pane` | 5 |
+| `x-command-button` | 6 |
+| `x-status-indicator` | 5 |
+| `x-empty-state` | 3 |
+
+`consoleControls` has two independent consumers. Identities remain app-owned
+and discoverable from metadata; central policy records only the evidence count.
+All consumers import the package boundary as `@xenorepo/lit-ui`.
+
+## Monotools production contract inventory
+
+Application metadata is authoritative for direct cross-boundary production
+imports. Public modules not listed here are Monotools implementation details or
+root orchestration surfaces rather than independently adopted app contracts.
+
+| Public module | Independent consumer count |
+| --- | ---: |
+| `monotools.appkit` | 7 |
+| `monotools.auth` | 2 |
+| `monotools.commerce` | 1 |
+| `monotools.database` | 6 |
+| `monotools.http` | 7 |
+| `monotools.lifecycle` | 1 |
+| `monotools.mailer` | 1 |
+| `monotools.management` | 9 |
+| `monotools.orm` | 2 |
+| `monotools.realtime` | 3 |
+| `monotools.runtime` | 9 |
+
+Single-consumer modules are narrow typed integration contracts, not extracted
+domain implementations. A second consumer is required before application
+behavior may move into them.
+
+## Browser Testing contract inventory
+
+| Public surface | Independent monoapp suite count |
+| --- | ---: |
+| `test`, `expect` | 6 |
+| `installInputEvidence`, `readInputEvidence`, `validateInputEvidence`, `touchPath` | 2 |
+| `acknowledgeHttpFailures` | 1 |
+| `EVIDENCE_SCHEMA_VERSION`, `keyboardSequence`, `mousePath` | 0 |
+| `@xenorepo/browser-testing/validate` executable | 0 |
+
+Zero-consumer surfaces are framework-owned proof primitives characterized by
+the central synthetic browser suite or invoked by Monotools orchestration; they
+do not encode product behavior. The one-consumer HTTP acknowledgement remains
+generic failure-accounting policy and is covered by the central fixture.
+
 ## Extraction rules
 
 - A library has a narrow, typed public contract and no imports from a monoapp.

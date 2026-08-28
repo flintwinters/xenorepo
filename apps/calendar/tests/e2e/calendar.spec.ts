@@ -59,7 +59,8 @@ test("[acceptance] creates, edits, drags, reloads, and deletes a durable event",
     (values, date) => values.findIndex((value) => (value as HTMLElement).dataset.date === date),
     initialDate,
   );
-  const destination = cells.nth(sourceIndex + 1),
+  const adjacentOffset = sourceIndex % 7 >= 5 ? -1 : 1;
+  const destination = cells.nth(sourceIndex + adjacentOffset),
     destinationDate = await destination.getAttribute("data-date");
   const modality = testInfo.project.name === "narrow-viewport-chromium" ? "touch" : "mouse";
   if (modality === "touch") {

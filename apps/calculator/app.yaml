@@ -2,6 +2,7 @@ name: calculator
 title: Calculator
 module: apps.calculator.backend.server
 imports:
+  - "@xenorepo/lit-ui"
   - monotools.management
   - monotools.runtime
 frontend:

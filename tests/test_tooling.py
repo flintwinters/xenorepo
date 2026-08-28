@@ -256,7 +256,7 @@ frontend:
                     _validate_lit(definition, ROOT)
             self.assertEqual(output.read_bytes(), before)
 
-    def test_console_data_views_have_a_bounded_scroll_container(self) -> None:
+    def test_console_panes_have_bounded_scroll_and_title_controls(self) -> None:
         shell = (ROOT / "monotools" / "frontend.py").read_text(encoding="utf-8")
         components = (ROOT / "packages" / "lit-ui" / "src" / "index.ts").read_text(
             encoding="utf-8"
@@ -264,7 +264,7 @@ frontend:
         compact_components = " ".join(components.split())
 
         self.assertIn(".pane-body { min-height: 0; overflow: auto; }", shell)
-        self.assertIn(":host { display: block; min-height: 0; overflow: auto; }", compact_components)
+        self.assertIn(".body { min-height: 0; overflow: auto; }", compact_components)
         self.assertIn('slot[name="title-end"] { display: flex;', compact_components)
 
     def test_console_command_buttons_reverse_their_shadow_when_pressed(self) -> None:

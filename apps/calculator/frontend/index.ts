@@ -1,5 +1,5 @@
 import { LitElement, css, html } from "lit";
-import "../../../packages/lit-ui/src/index.js";
+import "@xenorepo/lit-ui";
 import {
   backspace,
   chooseOperator,

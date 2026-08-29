@@ -24,6 +24,18 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   await page.getByRole("button", { name: "explorer", exact: true }).click();
   await expect(page.locator("#app")).toContainText("Repository explorer");
   await expect(page.locator(".tree-row").first()).toContainText("xenorepo");
+  await expect(page.locator(".tree-lines").first()).toHaveText(/^\d[\d,]*L$/);
+  await expect(page.locator(".tree-bytes").first()).toHaveText(/^\d+(?:B|KB|MB|GB|TB)$/);
+  const metadataLayout = await page.locator(".tree-row").evaluateAll((rows) => rows.slice(0, 8).map((row) => {
+    const lines = row.querySelector<HTMLElement>(".tree-lines");
+    const bytes = row.querySelector<HTMLElement>(".tree-bytes");
+    const name = row.querySelector<HTMLElement>("span");
+    return { order: [lines, bytes, name].map((element) => element?.getBoundingClientRect().left),
+      font: lines ? getComputedStyle(lines).fontFamily : "" };
+  }));
+  expect(metadataLayout.every((item) => item.order[0]! < item.order[1]! &&
+    item.order[1]! < item.order[2]!)).toBe(true);
+  expect(metadataLayout.every((item) => item.font.includes("Courier New"))).toBe(true);
 
   await page.getByRole("button", { name: "architecture", exact: true }).click();
   await expect(page.locator("#app")).toContainText("High-level architecture");

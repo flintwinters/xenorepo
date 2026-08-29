@@ -13,6 +13,12 @@ interface State { page: Page; overview: Overview | null; modules: ModuleFact[];
 const number = new Intl.NumberFormat("en-US");
 const bytes = (value: number) => value < 1024 ? `${value} B` : value < 1024 ** 2
   ? `${(value / 1024).toFixed(1)} KB` : `${(value / 1024 ** 2).toFixed(1)} MB`;
+const treeLines = (value: number) => `${number.format(value)}L`;
+const treeBytes = (value: number): string => {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  const exponent = Math.min(Math.floor(Math.log(Math.max(value, 1)) / Math.log(1024)), units.length - 1);
+  return `${Math.round(value / 1024 ** exponent)}${units[exponent]}`;
+};
 const label = (key: string) => key.replaceAll("_", " ");
 const ansiColor = (code: string): string => {
   const values = code.split(";").map(Number);
@@ -121,10 +127,12 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
   }
   private treeNode(node: TreeNode, depth = 0): ComponentChildren {
     const style = { "--depth": depth, "--ls-color": this.treeColor(node) };
-    if (node.kind === "file") return <div class="tree-row file" style={style}><span>{node.name}</span>
-      <small>{number.format(node.lines)} lines</small><small>{bytes(node.bytes)}</small></div>;
-    return <details open={depth < 2}><summary class="tree-row" style={style}><span>{node.name}</span>
-      <small>{number.format(node.lines)} lines</small><small>{bytes(node.bytes)}</small></summary>
+    if (node.kind === "file") return <div class="tree-row file" style={style}>
+      <small class="tree-lines">{treeLines(node.lines)}</small>
+      <small class="tree-bytes">{treeBytes(node.bytes)}</small><span>{node.name}</span></div>;
+    return <details open={depth < 2}><summary class="tree-row" style={style}>
+      <small class="tree-lines">{treeLines(node.lines)}</small>
+      <small class="tree-bytes">{treeBytes(node.bytes)}</small><span>{node.name}</span></summary>
       {node.children?.map((child) => this.treeNode(child, depth + 1))}</details>;
   }
   private explorerPage(): ComponentChildren {

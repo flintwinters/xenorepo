@@ -1,8 +1,8 @@
 /** Dense operational presentation for repository evidence. */
 import { css } from "lit";
-import { consoleControls } from "@xenorepo/lit-ui";
+import { consoleControls, consoleTable } from "@xenorepo/lit-ui";
 
-export const cockpitStyles = [consoleControls, css`
+export const cockpitStyles = [consoleControls, consoleTable, css`
   :host { display: block; height: 100%; color: #ebdbb2; font: 12px/1.45 "Courier New", monospace; }
   * { box-sizing: border-box; }
   x-console-shell { height: 100%; }
@@ -33,19 +33,11 @@ export const cockpitStyles = [consoleControls, css`
   .split { display: grid; grid-template-columns: 3fr 2fr; gap: 8px; margin-top: 8px; }
   .evidence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
   x-console-pane { border: 1px solid #3c3836; background: #282828; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { padding: 6px 9px; text-align: left; border-bottom: 1px solid #3c3836; }
-  th { color: #83a598; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
-  td:not(:first-child), th:not(:first-child) { text-align: right; white-space: nowrap; }
   tr.total td { color: #fbf1c7; font-weight: bold; border-top: 2px solid #665c54; }
   .note { padding: 10px 14px; color: #bdae93; } .note b { color: #fabd2f; }
   .module-table { overflow: auto; border: 1px solid #504945; background: #202223; }
   .module-table strong { color: #d3869b; }
-  .module-table td:nth-child(2), .module-table td:last-child { text-align: left; }
-  .module-table td:first-child small {
-    display: block; margin-top: 2px; color: #928374; white-space: normal; }
-  .module-table td:nth-child(2), .module-table td:nth-child(3) {
-    min-width: 260px; color: #bdae93; text-align: left; white-space: normal; }
+  .module-table td.prose { min-width: 260px; color: #bdae93; }
   .tree { overflow: auto; border: 1px solid #504945; background: #202223ee; }
   details details { border-left: 1px solid #3c3836; }
   .tree-row { min-height: 19px; display: grid;

@@ -1,7 +1,7 @@
 import { LitElement, css, html, nothing, type CSSResultGroup } from "lit";
 import { consoleTokens, chrome } from "./styles.js";
 
-export { consoleControls } from "./styles.js";
+export { consoleControls, consoleTable } from "./styles.js";
 
 type ConsoleTone = "blue" | "green" | "orange" | "purple" | "neutral";
 

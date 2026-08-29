@@ -143,24 +143,29 @@ class XenorepoCockpit extends LitElement {
         <p>${this.overview.specification.covered}/${this.overview.specification.total} active apps specified</p></div>
       <div class="metrics">${primary.map((key) => this.metric(key, this.overview!.metrics[key]))}</div>
       <div class="evidence-grid">
-        <x-console-pane title="Lines by language" tone="purple"><table><thead><tr>
-          <th>Language</th><th>Files</th><th>Lines</th></tr></thead><tbody>
+        <x-console-pane title="Lines by language" tone="purple"><table class="console-table"><thead><tr>
+          <th class="identity">Language</th><th class="numeric">Files</th><th class="numeric">Lines</th>
+          </tr></thead><tbody>
           ${this.overview.language_lines.map((item) => html`<tr><td>${item.language}</td>
-            <td>${number.format(item.files)}</td><td>${number.format(item.lines)}</td></tr>`)}</tbody></table>
+            <td class="numeric">${number.format(item.files)}</td>
+            <td class="numeric">${number.format(item.lines)}</td></tr>`)}</tbody></table>
         </x-console-pane>
-        <x-console-pane title="Test cases" tone="green"><table><thead><tr>
-          <th>Scope</th><th>Cases</th></tr></thead><tbody>
-          <tr><td>Monorepo</td><td>${number.format(this.overview.test_breakdown.monorepo)}</td></tr>
+        <x-console-pane title="Test cases" tone="green"><table class="console-table"><thead><tr>
+          <th>Scope</th><th class="numeric">Cases</th></tr></thead><tbody>
+          <tr><td>Monorepo</td><td class="numeric">${number.format(this.overview.test_breakdown.monorepo)}</td></tr>
           ${Object.entries(this.overview.test_breakdown.monoapps).map(([name, count]) => html`
-            <tr><td>apps/${name}</td><td>${number.format(count)}</td></tr>`)}
-          <tr class="total"><td>Total</td><td>${number.format(this.overview.test_breakdown.total)}</td></tr>
+            <tr><td>apps/${name}</td><td class="numeric">${number.format(count)}</td></tr>`)}
+          <tr class="total"><td>Total</td><td class="numeric">
+            ${number.format(this.overview.test_breakdown.total)}</td></tr>
           </tbody></table></x-console-pane>
       </div>
       <div class="split">
         <x-console-pane title="Largest maintained files" tone="orange">
-          <table><thead><tr><th>Path</th><th>Lines</th><th>Size</th></tr></thead><tbody>
+          <table class="console-table"><thead><tr><th>Path</th><th class="numeric">Lines</th>
+            <th class="numeric">Size</th></tr></thead><tbody>
           ${this.overview.largest_files.map((item) => html`<tr><td>${item.path}</td>
-            <td>${number.format(item.lines)}</td><td>${bytes(item.bytes)}</td></tr>`)}</tbody></table>
+            <td class="numeric">${number.format(item.lines)}</td>
+            <td class="numeric">${bytes(item.bytes)}</td></tr>`)}</tbody></table>
         </x-console-pane>
         <x-console-pane title="Measurement boundary" tone="blue"><div class="note">
           <p>Counts include maintained source and project documentation.
@@ -175,13 +180,16 @@ class XenorepoCockpit extends LitElement {
   private modulesPage() {
     return html`<section class="page"><div class="page-heading"><div><p class="eyebrow">Platform anatomy</p>
       <h1>Monotools modules</h1></div><p>${this.modules.length} top-level Python modules</p></div>
-      <div class="module-table"><table><thead><tr><th>Module</th><th>Description</th><th>Explanation</th>
-        <th>Lines</th><th>Size</th><th>Public definitions</th><th>Declaring apps</th>
-        <th>Dependencies</th></tr></thead><tbody>
-        ${this.modules.map((item) => html`<tr><td><strong>${item.name}</strong><small>${item.path}</small></td>
-          <td>${item.description}</td><td>${item.explanation}</td>
-          <td>${number.format(item.lines)}</td><td>${bytes(item.bytes)}</td>
-          <td>${number.format(item.public_definitions)}</td><td>${number.format(item.inbound_apps)}</td>
+      <div class="module-table"><table class="console-table"><thead><tr>
+        <th class="identity">Module</th><th class="compact">Path</th><th class="prose">Description</th>
+        <th class="prose">Explanation</th><th class="numeric">Lines</th><th class="numeric">Size</th>
+        <th class="numeric">Definitions</th><th class="numeric">Apps</th><th>Dependencies</th>
+        </tr></thead><tbody>${this.modules.map((item) => html`<tr>
+          <td class="identity"><strong>${item.name}</strong></td><td class="compact">${item.path}</td>
+          <td class="prose">${item.description}</td><td class="prose">${item.explanation}</td>
+          <td class="numeric">${number.format(item.lines)}</td><td class="numeric">${bytes(item.bytes)}</td>
+          <td class="numeric">${number.format(item.public_definitions)}</td>
+          <td class="numeric">${number.format(item.inbound_apps)}</td>
           <td>${item.dependencies.join(", ") || "—"}</td></tr>`)}</tbody></table></div></section>`;
   }
 
@@ -234,11 +242,12 @@ class XenorepoCockpit extends LitElement {
       "architecture_violations", "large_files", "complex_functions"];
     return html`<section class="page"><div class="page-heading"><div><p class="eyebrow">Schema v1 timeline</p>
       <h1>Repository trajectory</h1></div><p>${this.history.length} explicit snapshots</p></div>
-      ${this.history.length ? html`<div class="history"><table><thead><tr><th>Captured</th><th>Revision</th>
-        ${keys.map((key) => html`<th>${label(key)}</th>`)}</tr></thead><tbody>
+      ${this.history.length ? html`<div class="history"><table class="console-table"><thead><tr>
+        <th class="compact">Captured</th><th class="compact">Revision</th>
+        ${keys.map((key) => html`<th class="numeric">${label(key)}</th>`)}</tr></thead><tbody>
         ${[...this.history].reverse().map((item) => html`<tr>
           <td>${new Date(item.captured_at).toLocaleString()}</td>
-          <td>${item.revision}${item.dirty ? "*" : ""}</td>${keys.map((key) => html`<td>
+          <td>${item.revision}${item.dirty ? "*" : ""}</td>${keys.map((key) => html`<td class="numeric">
           ${key.includes("bytes") ? bytes(item.metrics[key]) : number.format(item.metrics[key])}</td>`)}
         </tr>`)}</tbody></table></div>` : html`<div class="empty"><h2>No snapshots yet</h2>
           <p>Record the current state to establish a baseline. Sampling is explicit so the timeline

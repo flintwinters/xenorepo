@@ -91,6 +91,21 @@ class AuditTests(unittest.TestCase):
             ("monotools-module-documentation", "monotools/shallow.py"),
         ])
 
+    def test_architecture_audit_rejects_deliberately_stacked_table_cells(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="audit-") as temporary:
+            workspace = Path(temporary)
+            frontend = workspace / "apps" / "fixture" / "frontend"
+            frontend.mkdir(parents=True)
+            source = frontend / "index.ts"
+            source.write_text("<td><strong>Name</strong><small>path</small></td>\n", encoding="utf-8")
+            definition = synthetic_app_definition(frontend.parent, name="fixture")
+
+            violations = audit_architecture(workspace, (definition,))
+
+        self.assertEqual([(item.category, item.detail) for item in violations], [
+            ("stacked-table-cell", "table cells must contain one logical value without stacked markup"),
+        ])
+
     def test_repository_baseline_has_zero_structural_violations(self) -> None:
         import manage
 

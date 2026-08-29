@@ -70,6 +70,42 @@ export const consoleControls = css`
   }
 `;
 
+/** Semantic ledger geometry shared by data-heavy Lit applications. */
+export const consoleTable = css`
+  .console-table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .console-table th,
+  .console-table td {
+    height: 22px;
+    padding: 3px 7px;
+    text-align: left;
+    border-bottom: 1px solid var(--console-line-soft, #3c3836);
+    vertical-align: top;
+  }
+  .console-table th {
+    color: var(--console-accent-muted, #83a598);
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+  .console-table :is(th, td).numeric {
+    width: 1%;
+    text-align: right;
+    white-space: nowrap;
+  }
+  .console-table :is(th, td).identity,
+  .console-table :is(th, td).compact {
+    width: 1%;
+    white-space: nowrap;
+  }
+  .console-table :is(th, td).prose {
+    white-space: normal;
+  }
+`;
+
 export const chrome = css`
   :host {
     display: block;

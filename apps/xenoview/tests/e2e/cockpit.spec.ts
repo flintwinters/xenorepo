@@ -15,6 +15,11 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   await expect(page.locator("x-xenorepo-cockpit")).toContainText("audit");
   await expect(page.locator(".module-table")).toContainText("Measure architecture and structural invariants");
   await expect(page.locator(".module-table")).toBeVisible();
+  const widths = await page.locator(".module-table th").evaluateAll((headers) => Object.fromEntries(
+    headers.map((header) => [header.textContent?.trim(), header.getBoundingClientRect().width]),
+  ));
+  expect(widths.Description).toBeGreaterThan(widths.Lines * 2);
+  expect(widths.Explanation).toBeGreaterThan(widths.Apps * 2);
 
   await page.getByRole("button", { name: "explorer", exact: true }).click();
   await expect(page.locator("x-xenorepo-cockpit")).toContainText("Repository explorer");

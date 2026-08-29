@@ -249,6 +249,10 @@ frontend:
         self.assertIn('input[type="checkbox"]:checked::before', compact_styles)
         self.assertIn('textarea { border-radius: 3px; resize: none;', compact_styles)
         self.assertIn('[role="dialog"] { border-radius: 4px; }', compact_styles)
+        self.assertIn("export const consoleTable", styles)
+        self.assertIn('.console-table :is(th, td).numeric', styles)
+        self.assertIn("width: 1%;", styles)
+        self.assertIn('.console-table :is(th, td).prose', styles)
 
 
 if __name__ == "__main__":

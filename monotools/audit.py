@@ -24,6 +24,8 @@ MAX_SOURCE_LINES = 600
 MAX_CYCLOMATIC_COMPLEXITY = 8
 _SCRIPT_IMPORT = re.compile(r"(?:from\s+|import\s*)[\"']([^\"']+)[\"']")
 _CUSTOM_ELEMENT = re.compile(r'customElements\.define\(["\'](x-[a-z0-9-]+)["\']')
+_TABLE_CELL = re.compile(r"<td\b[^>]*>(.*?)</td>", re.DOTALL | re.IGNORECASE)
+_STACKED_CELL_CONTENT = re.compile(r"<(?:article|br|div|footer|header|p|section|small)\b", re.IGNORECASE)
 
 
 @dataclass(frozen=True, order=True)
@@ -169,6 +171,24 @@ def _monotools_documentation_violations(workspace: Path) -> list[AuditViolation]
     return violations
 
 
+def _stacked_table_cell_violations(workspace: Path,
+    definitions: tuple[AppDefinition, ...]) -> list[AuditViolation]:
+    """Reject markup that deliberately stacks multiple text regions in one cell."""
+    violations = []
+    for definition in definitions:
+        for path in sorted(definition.source_directory.rglob("*")):
+            if path.suffix not in {".js", ".ts", ".tsx"}:
+                continue
+            content = path.read_text(encoding="utf-8")
+            for match in _TABLE_CELL.finditer(content):
+                if _STACKED_CELL_CONTENT.search(match.group(1)):
+                    line = content.count("\n", 0, match.start()) + 1
+                    violations.append(AuditViolation("stacked-table-cell",
+                        f"{path.relative_to(workspace)}:{line}",
+                        "table cells must contain one logical value without stacked markup"))
+    return violations
+
+
 def audit_architecture(workspace: Path,
     definitions: tuple[AppDefinition, ...]) -> tuple[AuditViolation, ...]:
     """Return deterministic dependency and shared-boundary violations."""
@@ -178,6 +198,7 @@ def audit_architecture(workspace: Path,
     violations.extend(_custom_element_violations(workspace, definitions))
     violations.extend(_app_source_html_violations(workspace))
     violations.extend(_monotools_documentation_violations(workspace))
+    violations.extend(_stacked_table_cell_violations(workspace, definitions))
     return tuple(sorted(violations))
 
 

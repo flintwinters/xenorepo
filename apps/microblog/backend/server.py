@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from apps.microblog.backend.auth import ValidationError, issue_token
 from apps.microblog.backend.database import Base, DomainError, MicroblogRepository
+from apps.microblog.backend.schemas import PostView, SessionView
 from monotools.runtime.appkit import create_app_context
 from monotools.runtime.http import (
     client_provenance,
@@ -100,7 +101,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
     async def validation_error(_request: Request, failure: ValidationError) -> JSONResponse:
         return json_error(str(failure), 400)
 
-    @application.get("/api/session")
+    @application.get("/api/session", response_model=SessionView)
     def session_state(request: Request) -> dict[str, object]:
         account = current_account(request)
         return {"authenticated": account is not None,
@@ -113,12 +114,12 @@ def create_app(database_url: str | None = None) -> FastAPI:
             "account": {"id": account.id, "handle": account.handle}}, status_code=201)
         return set_session_cookie(response, request, COOKIE, token, COOKIE_AGE)
 
-    @application.post("/api/accounts")
+    @application.post("/api/accounts", response_model=SessionView)
     def register(payload: Credentials, request: Request) -> JSONResponse:
         enforce_origin(request)
         return signed_in_response(repository.register(payload.handle, payload.password), request)
 
-    @application.post("/api/sessions")
+    @application.post("/api/sessions", response_model=SessionView)
     def login(payload: Credentials, request: Request) -> JSONResponse:
         enforce_origin(request)
         account = repository.verify_login(payload.handle, payload.password)
@@ -126,14 +127,14 @@ def create_app(database_url: str | None = None) -> FastAPI:
             return json_error("Invalid handle or password.", 401)
         return signed_in_response(account, request)
 
-    @application.delete("/api/session")
+    @application.delete("/api/session", response_model=SessionView)
     def logout(request: Request) -> JSONResponse:
         enforce_origin(request)
         repository.revoke_session(request.cookies.get(COOKIE))
         response = JSONResponse({"authenticated": False, "account": None})
         return delete_session_cookie(response, COOKIE)
 
-    @application.get("/api/posts", response_model=None)
+    @application.get("/api/posts", response_model=list[PostView])
     def list_posts(request: Request, before: str | None = None,
         limit: str = "50") -> list[dict[str, object]] | JSONResponse:
         try:
@@ -155,7 +156,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
         return StreamingResponse(changes.events(last_seen), media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
-    @application.post("/api/posts", status_code=201)
+    @application.post("/api/posts", response_model=PostView, status_code=201)
     def publish(payload: PostInput, request: Request) -> dict[str, object]:
         enforce_origin(request)
         account = require_account(request)
@@ -163,7 +164,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
         changes.publish()
         return post
 
-    @application.put("/api/posts/{post_id}/like")
+    @application.put("/api/posts/{post_id}/like", response_model=PostView)
     def like(post_id: int, request: Request) -> dict[str, object]:
         enforce_origin(request)
         account = require_account(request)
@@ -171,7 +172,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
         changes.publish()
         return post
 
-    @application.delete("/api/posts/{post_id}/like")
+    @application.delete("/api/posts/{post_id}/like", response_model=PostView)
     def unlike(post_id: int, request: Request) -> dict[str, object]:
         enforce_origin(request)
         account = require_account(request)

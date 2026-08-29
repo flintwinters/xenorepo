@@ -218,14 +218,15 @@ class MicroblogTests(unittest.TestCase):
     def test_frontend_has_operational_responsive_and_accessible_contracts(self) -> None:
         frontend = Path("apps/microblog/frontend")
         document = "\n".join(path.read_text(encoding="utf-8")
-            for path in sorted(frontend.glob("*.js")))
+            for path in sorted(frontend.iterdir()) if path.suffix in {".css", ".ts", ".tsx"})
         for marker in ('aria-live="polite"', 'aria-labelledby="feed-title"',
             ":focus-visible", "@media (max-width: 620px)", "EventSource", "REFRESH",
-            "maxlength=\"280\"", 'id="authMessage" role="alert"',
-            "REGISTER THIS HANDLE", 'minlength="8"', '!event.shiftKey',
-            '$("postForm").requestSubmit()'):
+            "maxlength={280}", 'id="authMessage"', 'role="alert"',
+            "REGISTER THIS HANDLE", 'minlength={8}', 'event.shiftKey',
+            "form?.requestSubmit()"):
             with self.subTest(marker=marker):
                 self.assertIn(marker, document)
+        self.assertNotIn("innerHTML", document)
         self.assertNotIn("https://", document)
         self.assertNotIn("http://", document)
 

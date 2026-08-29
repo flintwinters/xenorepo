@@ -34,9 +34,9 @@ and JavaScript frontend compatibility only after the final consumer migrates.
   notes, and durable review state are preserved through generated HTTP types.
 - [x] **Cockpit — complete.** Preserved the complete journey and strengthened its
   OpenAPI response contracts.
-- [ ] **Event-stream consumer — active.** Replace imperative DOM and unsafe HTML
-  with typed JSX while preserving HTTP, authentication, and pagination.
-- [ ] **Inventory — queued.** Replace imperative rendering with typed state while
+- [x] **Event-stream consumer — complete.** Typed JSX, generated HTTP contracts,
+  authentication, pagination parameters, and lifecycle-owned SSE preserve the wire.
+- [ ] **Inventory — active.** Replace imperative rendering with typed state while
   preserving scoring, keyboard flow, completion, and restart.
 - [ ] **Realtime arena — queued.** Split typed state, view, and transport while
   preserving the complete protocol and behavior.
@@ -45,7 +45,7 @@ and JavaScript frontend compatibility only after the final consumer migrates.
 
 ## Current checkpoint
 
-Migrate the event-stream consumer as one verified logical checkpoint. Preserve
-HTTP, authentication, pagination, and app-owned wide and narrow baselines while
-replacing imperative DOM and unsafe HTML with typed JSX. Run
-`uv run manage.py verify`, update this file, and commit before inventory.
+Migrate inventory as one verified logical checkpoint. Preserve scoring,
+keyboard flow, completion, restart, and app-owned wide and narrow baselines
+while replacing imperative rendering with typed Preact state. Run
+`uv run manage.py verify`, update this file, and commit before the realtime arena.

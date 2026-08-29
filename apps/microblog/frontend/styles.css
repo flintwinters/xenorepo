@@ -1,4 +1,4 @@
-export const styles1 = String.raw`:root {
+:root {
         --bg: #1d2021;
         --panel: #282828;
         --well: #1b1b1b;
@@ -253,6 +253,9 @@ export const styles1 = String.raw`:root {
         overflow: hidden;
         text-overflow: ellipsis;
       }
+      #message.error {
+        color: var(--red);
+      }
       .mobile-account {
         display: none;
       }
@@ -304,4 +307,4 @@ export const styles1 = String.raw`:root {
         .frame {
           grid-template-rows: 22px 1fr 20px;
         }
-      }`;
+      }

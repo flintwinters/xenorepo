@@ -31,26 +31,25 @@ export const cockpitStyles = [consoleControls, css`
   .metric small { color: #928374; }
   .metric .up { color: #fabd2f; } .metric .down { color: #b8bb26; }
   .split { display: grid; grid-template-columns: 3fr 2fr; gap: 8px; margin-top: 8px; }
+  .evidence-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
   x-console-pane { border: 1px solid #3c3836; background: #282828; }
   table { width: 100%; border-collapse: collapse; }
   th, td { padding: 6px 9px; text-align: left; border-bottom: 1px solid #3c3836; }
   th { color: #83a598; font-size: 10px; letter-spacing: .06em; text-transform: uppercase; }
   td:not(:first-child), th:not(:first-child) { text-align: right; white-space: nowrap; }
+  tr.total td { color: #fbf1c7; font-weight: bold; border-top: 2px solid #665c54; }
   .note { padding: 10px 14px; color: #bdae93; } .note b { color: #fabd2f; }
-  .module-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 7px; }
-  .module { padding: 12px; border: 1px solid #504945; border-left: 3px solid #d3869b; background: #282828; }
-  .module header { display: flex; justify-content: space-between; gap: 8px;
-    padding-bottom: 8px; border-bottom: 1px solid #3c3836; }
-  .module header strong { color: #fbf1c7; font-size: 15px; } .module header span, .module p { color: #928374; }
-  .module b { color: #fabd2f; }
-  .tree { overflow: hidden; border: 1px solid #504945; background: #202223ee; }
+  .module-table { overflow: auto; border: 1px solid #504945; background: #202223; }
+  .module-table strong { color: #d3869b; }
+  .module-table td:nth-child(2), .module-table td:last-child { color: #928374; text-align: left; }
+  .tree { overflow: auto; border: 1px solid #504945; background: #202223ee; }
   details details { border-left: 1px solid #3c3836; }
-  .tree-row { min-height: 26px; display: grid;
+  .tree-row { min-height: 19px; display: grid;
     grid-template-columns: minmax(260px, 1fr) 110px 90px; align-items: center;
-    gap: 10px; padding: 3px 9px 3px calc(9px + var(--depth) * 18px);
+    gap: 10px; padding: 0 9px 0 calc(9px + var(--depth) * 14px);
     border-bottom: 1px solid #343637; cursor: pointer; }
   .tree-row:hover { background: #3c3836; } .tree-row small { color: #928374; text-align: right; }
-  .tree-row.file span { color: #bdae93; } summary::marker { color: #fabd2f; }
+  .tree-row span { color: var(--ls-color, #bdae93); } summary::marker { color: #fabd2f; }
   .diagram { display: grid; grid-template-columns: .8fr 1fr .9fr 2fr 1fr; gap: 10px; margin-bottom: 10px; }
   .layer { min-width: 0; padding: 9px; border: 1px solid #3c3836; background: #202223bb; }
   .layer h2 { margin-bottom: 8px; color: #928374; text-transform: uppercase; letter-spacing: .08em; }
@@ -70,7 +69,7 @@ export const cockpitStyles = [consoleControls, css`
   .empty h2 { color: #fbf1c7; font-size: 18px; }
   @media (max-width: 1000px) { .metrics { grid-template-columns: repeat(3, 1fr); }
     .diagram { grid-template-columns: 1fr 1fr; }
-    .split { grid-template-columns: 1fr; } }
+    .split, .evidence-grid { grid-template-columns: 1fr; } }
   @media (max-width: 650px) { nav { overflow-x: auto; } .page { padding: 12px; }
     .metrics { grid-template-columns: repeat(2, 1fr); }
     .diagram { grid-template-columns: 1fr; } .edges { grid-template-columns: 1fr; }

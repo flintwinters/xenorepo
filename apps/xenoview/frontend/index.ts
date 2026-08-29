@@ -7,6 +7,8 @@ interface Metrics { [key: string]: number }
 interface Overview {
   metrics: Metrics; delta: Metrics; revision: string; dirty: boolean; fingerprint: string;
   specification: { covered: number; total: number }; exclusions: string[];
+  language_lines: Array<{ language: string; lines: number; files: number }>;
+  test_breakdown: { total: number; monorepo: number; monoapps: Record<string, number> };
   largest_files: Array<{ path: string; lines: number; bytes: number }>;
 }
 interface ModuleFact {
@@ -15,7 +17,7 @@ interface ModuleFact {
 }
 interface TreeNode {
   name: string; path: string; kind: "file" | "directory"; bytes: number; lines: number;
-  children?: TreeNode[];
+  children?: TreeNode[]; ls_colors?: string;
 }
 interface Architecture {
   nodes: Array<{ id: string; label: string; kind: string }>;
@@ -29,6 +31,16 @@ const number = new Intl.NumberFormat("en-US");
 const bytes = (value: number) => value < 1024 ? `${value} B` : value < 1024 ** 2
   ? `${(value / 1024).toFixed(1)} KB` : `${(value / 1024 ** 2).toFixed(1)} MB`;
 const label = (key: string) => key.replaceAll("_", " ");
+const ansiColor = (code: string): string => {
+  const values = code.split(";").map(Number);
+  const rgb = values.findIndex((value, index) => value === 38 && values[index + 1] === 2);
+  if (rgb >= 0) return `rgb(${values.slice(rgb + 2, rgb + 5).join(" ")})`;
+  const palette: Record<number, string> = { 30: "#282828", 31: "#cc241d", 32: "#98971a",
+    33: "#d79921", 34: "#458588", 35: "#b16286", 36: "#689d6a", 37: "#a89984",
+    90: "#928374", 91: "#fb4934", 92: "#b8bb26", 93: "#fabd2f", 94: "#83a598",
+    95: "#d3869b", 96: "#8ec07c", 97: "#ebdbb2" };
+  return [...values].reverse().map((value) => palette[value]).find(Boolean) ?? "inherit";
+};
 
 class XenorepoCockpit extends LitElement {
   static properties = {
@@ -130,6 +142,20 @@ class XenorepoCockpit extends LitElement {
         <h1>Broad strokes, concrete units.</h1></div>
         <p>${this.overview.specification.covered}/${this.overview.specification.total} active apps specified</p></div>
       <div class="metrics">${primary.map((key) => this.metric(key, this.overview!.metrics[key]))}</div>
+      <div class="evidence-grid">
+        <x-console-pane title="Lines by language" tone="purple"><table><thead><tr>
+          <th>Language</th><th>Files</th><th>Lines</th></tr></thead><tbody>
+          ${this.overview.language_lines.map((item) => html`<tr><td>${item.language}</td>
+            <td>${number.format(item.files)}</td><td>${number.format(item.lines)}</td></tr>`)}</tbody></table>
+        </x-console-pane>
+        <x-console-pane title="Test cases" tone="green"><table><thead><tr>
+          <th>Scope</th><th>Cases</th></tr></thead><tbody>
+          <tr><td>Monorepo</td><td>${number.format(this.overview.test_breakdown.monorepo)}</td></tr>
+          ${Object.entries(this.overview.test_breakdown.monoapps).map(([name, count]) => html`
+            <tr><td>apps/${name}</td><td>${number.format(count)}</td></tr>`)}
+          <tr class="total"><td>Total</td><td>${number.format(this.overview.test_breakdown.total)}</td></tr>
+          </tbody></table></x-console-pane>
+      </div>
       <div class="split">
         <x-console-pane title="Largest maintained files" tone="orange">
           <table><thead><tr><th>Path</th><th>Lines</th><th>Size</th></tr></thead><tbody>
@@ -149,18 +175,31 @@ class XenorepoCockpit extends LitElement {
   private modulesPage() {
     return html`<section class="page"><div class="page-heading"><div><p class="eyebrow">Platform anatomy</p>
       <h1>Monotools modules</h1></div><p>${this.modules.length} top-level Python modules</p></div>
-      <div class="module-grid">${this.modules.map((item) => html`<article class="module">
-        <header><strong>${item.name}</strong><span>${item.lines} lines · ${bytes(item.bytes)}</span></header>
-        <div><b>${item.public_definitions}</b> public definitions <b>${item.inbound_apps}</b> declaring apps</div>
-        <p>${item.dependencies.length ? `uses ${item.dependencies.join(", ")}` : "no direct Monotools dependencies"}</p>
-      </article>`)}</div></section>`;
+      <div class="module-table"><table><thead><tr><th>Module</th><th>Path</th><th>Lines</th><th>Size</th>
+        <th>Public definitions</th><th>Declaring apps</th><th>Dependencies</th></tr></thead><tbody>
+        ${this.modules.map((item) => html`<tr><td><strong>${item.name}</strong></td><td>${item.path}</td>
+          <td>${number.format(item.lines)}</td><td>${bytes(item.bytes)}</td>
+          <td>${number.format(item.public_definitions)}</td><td>${number.format(item.inbound_apps)}</td>
+          <td>${item.dependencies.join(", ") || "—"}</td></tr>`)}</tbody></table></div></section>`;
+  }
+
+  private treeColor(node: TreeNode): string {
+    const entries = new Map((this.tree?.ls_colors ?? "").split(":").flatMap((entry) => {
+      const separator = entry.indexOf("=");
+      return separator < 0 ? [] : [[entry.slice(0, separator), entry.slice(separator + 1)]];
+    }));
+    const extension = [...entries.keys()].filter((key) => key.startsWith("*.") &&
+      node.name.endsWith(key.slice(1))).sort((left, right) => right.length - left.length)[0];
+    return ansiColor(entries.get(node.kind === "directory" ? "di" : extension) ?? "");
   }
 
   private treeNode(node: TreeNode, depth = 0): unknown {
-    if (node.kind === "file") return html`<div class="tree-row file" style=${`--depth:${depth}`}>
+    if (node.kind === "file") return html`<div class="tree-row file"
+      style=${`--depth:${depth};--ls-color:${this.treeColor(node)}`}>
       <span>${node.name}</span><small>${number.format(node.lines)} lines</small>
       <small>${bytes(node.bytes)}</small></div>`;
-    return html`<details ?open=${depth < 2}><summary class="tree-row" style=${`--depth:${depth}`}>
+    return html`<details ?open=${depth < 2}><summary class="tree-row"
+      style=${`--depth:${depth};--ls-color:${this.treeColor(node)}`}>
       <span>${node.name}</span><small>${number.format(node.lines)} lines</small>
       <small>${bytes(node.bytes)}</small></summary>
       ${node.children?.map((child) => this.treeNode(child, depth + 1))}</details>`;
@@ -209,11 +248,11 @@ class XenorepoCockpit extends LitElement {
     const pages: Page[] = ["overview", "modules", "explorer", "architecture", "history"];
     return html`<x-console-shell><x-utility-rail slot="header"><span class="brand">XENO // COCKPIT</span>
       <nav>${pages.map((page) => html`<x-command-button label=${page} .pressed=${this.page === page}
-        @click=${() => { this.page = page; }}></x-command-button>`)}</nav>
+        @click=${() => { this.page = page; }}>${page}</x-command-button>`)}</nav>
       <span class="push"></span><x-command-button label="RESCAN" ?disabled=${this.busy}
-        @click=${() => void this.load()}></x-command-button>
+        @click=${() => void this.load()}>RESCAN</x-command-button>
       <x-command-button label="RECORD SNAPSHOT" ?disabled=${this.busy}
-        @click=${() => void this.capture()}></x-command-button>
+        @click=${() => void this.capture()}>RECORD SNAPSHOT</x-command-button>
       </x-utility-rail>
       <main>${this.page === "overview" ? this.overviewPage() : this.page === "modules" ? this.modulesPage()
         : this.page === "explorer" ? this.explorerPage() : this.page === "architecture"

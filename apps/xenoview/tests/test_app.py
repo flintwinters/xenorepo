@@ -39,21 +39,38 @@ class CockpitTests(unittest.TestCase):
         self.sessions.kw["bind"].dispose()
         self.database.unlink(missing_ok=True)
 
-    def test_scorecard_modules_tree_and_architecture_are_derived(self) -> None:
+    def test_scorecard_and_test_breakdown_are_derived(self) -> None:
         overview = scan_overview(ROOT)
-        modules = scan_modules(ROOT)
-        tree = scan_tree(ROOT)
-        architecture = scan_architecture(ROOT)
         self.assertGreater(overview["metrics"]["source_lines"], 1000)
+        self.assertEqual(overview["metrics"]["test_cases"],
+            overview["test_breakdown"]["total"])
+        self.assertEqual(set(overview["test_breakdown"]["monoapps"]),
+            {path.parent.name for path in ROOT.glob("apps/*/app.yaml")})
+        self.assertGreater(overview["test_breakdown"]["monorepo"], 0)
+        self.assertIn("Python", {item["language"] for item in overview["language_lines"]})
         self.assertGreaterEqual(overview["specification"]["covered"], 1)
         self.assertLessEqual(overview["specification"]["covered"],
             overview["metrics"]["monoapps"])
+
+    def test_modules_and_architecture_are_derived(self) -> None:
+        modules = scan_modules(ROOT)
+        architecture = scan_architecture(ROOT)
         self.assertEqual([item["name"] for item in modules], sorted(item["name"] for item in modules))
         self.assertIn("audit", {item["name"] for item in modules})
-        self.assertEqual((tree["kind"], tree["name"]), ("directory", "xenorepo"))
         edges = {(item["source"], item["target"]) for item in architecture["edges"]}
         self.assertIn(("app:xenoview", "monotools"), edges)
         self.assertIn(("app:xenoview", "storage"), edges)
+
+    def test_tree_is_complete_and_excludes_dependencies_and_artifacts(self) -> None:
+        tree = scan_tree(ROOT)
+        self.assertEqual((tree["kind"], tree["name"]), ("directory", "xenorepo"))
+        self.assertIn("ls_colors", tree)
+        root_names = [item["name"] for item in tree["children"]]
+        self.assertNotIn("node_modules", root_names)
+        self.assertNotIn(".venv", root_names)
+        apps = next(item for item in tree["children"] if item["name"] == "apps")
+        xenoview = next(item for item in apps["children"] if item["name"] == "xenoview")
+        self.assertNotIn("dist", {item["name"] for item in xenoview["children"]})
 
     def test_snapshot_is_idempotent_schema_versioned_and_restart_durable(self) -> None:
         first = self.client.request("POST", "/api/snapshots").json()

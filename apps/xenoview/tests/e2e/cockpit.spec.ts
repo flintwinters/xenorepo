@@ -7,10 +7,17 @@ test("[acceptance] operator navigates repository evidence and records a baseline
     timeout: 30_000,
   });
   await expect(page.locator("x-xenorepo-cockpit")).toContainText("source lines");
+  await expect(page.locator("x-xenorepo-cockpit")).toContainText("Lines by language");
+  await expect(page.locator("nav x-command-button").first()).toContainText("overview");
 
   await page.getByRole("button", { name: "modules", exact: true }).click();
   await expect(page.locator("x-xenorepo-cockpit")).toContainText("Monotools modules");
   await expect(page.locator("x-xenorepo-cockpit")).toContainText("audit");
+  await expect(page.locator(".module-table")).toBeVisible();
+
+  await page.getByRole("button", { name: "explorer", exact: true }).click();
+  await expect(page.locator("x-xenorepo-cockpit")).toContainText("Repository explorer");
+  await expect(page.locator(".tree-row").first()).toContainText("xenorepo");
 
   await page.getByRole("button", { name: "architecture", exact: true }).click();
   await expect(page.locator("x-xenorepo-cockpit")).toContainText("High-level architecture");

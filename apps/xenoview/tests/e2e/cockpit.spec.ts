@@ -27,7 +27,7 @@ test("[acceptance] operator navigates repository evidence and records a baseline
 
   await page.getByRole("button", { name: "architecture", exact: true }).click();
   await expect(page.locator("x-xenorepo-cockpit")).toContainText("High-level architecture");
-  await expect(page.locator("x-xenorepo-cockpit")).toContainText("Central Lit UI");
+  await expect(page.locator("x-xenorepo-cockpit")).toContainText("FastAPI + dist");
 
   await page.getByRole("button", { name: "RECORD SNAPSHOT", exact: true }).click();
   await expect(page.locator("x-xenorepo-cockpit")).toContainText("Repository trajectory");

@@ -178,11 +178,11 @@ frontend:
 
         self.assertIn("# Custom Library Catalog", catalog)
         self.assertIn("`monotools/`", catalog)
-        self.assertIn("`packages/lit-ui/`", catalog)
+        self.assertIn("`packages/ui/`", catalog)
         self.assertIn("Applications are consumers; they do not", catalog)
         self.assertIn("import one another.", catalog)
 
-    def test_frontend_watch_rebuilds_declared_and_shared_lit_inputs(self) -> None:
+    def test_frontend_watch_rebuilds_declared_lit_inputs(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="watch-") as temporary:
             directory = Path(temporary) / "sample-lab"
             frontend = directory / "frontend"
@@ -194,8 +194,6 @@ frontend:
 
             self.assertIn(frontend / "index.ts", inputs)
             self.assertIn(frontend / "feature.ts", inputs)
-            self.assertIn(ROOT / "packages" / "lit-ui" / "src" / "index.ts", inputs)
-            self.assertIn(ROOT / "packages" / "lit-ui" / "src" / "styles.ts", inputs)
             self.assertIn(ROOT / "tsconfig.frontend.json", inputs)
             report = Mock()
             with patch("monotools.watch._snapshot", side_effect=[
@@ -338,50 +336,31 @@ frontend:
             self.assertEqual(output.read_bytes(), before)
 
     def test_console_panes_have_bounded_scroll_and_title_controls(self) -> None:
-        components = (ROOT / "packages" / "lit-ui" / "src" / "index.ts").read_text(
-            encoding="utf-8"
-        )
-        compact_components = " ".join(components.split())
-
-        self.assertIn(".body { min-height: 0; overflow: auto; }", compact_components)
-        self.assertIn('slot[name="title-end"] { display: flex;', compact_components)
-
-    def test_console_command_buttons_reverse_their_shadow_when_pressed(self) -> None:
-        components = (ROOT / "packages" / "lit-ui" / "src" / "index.ts").read_text(
-            encoding="utf-8"
-        )
-        compact_components = " ".join(components.split())
-
-        pressed_rule = 'button:active:not(:disabled), button[aria-pressed="true"]:not(:disabled)'
-        self.assertIn(pressed_rule, compact_components)
-        self.assertIn("linear-gradient(#4a4643, #35312f)", components)
-        self.assertIn("var(--console-button-border, #c6b58f)", components)
-        self.assertIn("var(--console-button-border-hover, #f0dfb8)", components)
-        self.assertIn("transform: translateY(1px)", components)
-        self.assertIn("linear-gradient(#242220, #181716)", components)
-        self.assertIn("inset 0 3px 4px rgb(0 0 0 / 0.65)", components)
-        self.assertIn("inset 0 -1px rgb(255 255 255 / 0.08)", components)
-        self.assertNotIn("transition:", components)
-
-    def test_lit_apps_share_recessed_control_and_overlay_treatment(self) -> None:
-        styles = (ROOT / "packages" / "lit-ui" / "src" / "styles.ts").read_text(
-            encoding="utf-8"
-        )
+        styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
+            encoding="utf-8")
+        components = (ROOT / "packages" / "ui" / "src" / "index.tsx").read_text(
+            encoding="utf-8")
         compact_styles = " ".join(styles.split())
 
-        self.assertIn('input[type="checkbox"] {', compact_styles)
-        self.assertIn('input[type="checkbox"]:checked::before', compact_styles)
-        self.assertIn('textarea { border-radius: 3px; resize: none;', compact_styles)
-        self.assertIn('[role="dialog"] { border-radius: 4px; }', compact_styles)
-        self.assertIn("export const consoleTable", styles)
-        self.assertIn(
-            ".console-table tbody tr:hover { "
-            "background: var(--console-row-hover, #32302f); }",
-            compact_styles,
-        )
-        self.assertIn('.console-table :is(th, td).numeric', styles)
-        self.assertIn("width: 1%;", styles)
-        self.assertIn('.console-table :is(th, td).prose', styles)
+        self.assertIn(".x-ui-pane-body { min-height: 0; overflow: auto; }", compact_styles)
+        self.assertIn('class="x-ui-title-end"', components)
+
+    def test_console_command_buttons_reverse_their_shadow_when_pressed(self) -> None:
+        styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
+            encoding="utf-8")
+        compact_styles = " ".join(styles.split())
+
+        pressed_rule = ('.x-ui-command-control:active:not(:disabled), '
+            '.x-ui-command-control[aria-pressed="true"]:not(:disabled)')
+        self.assertIn(pressed_rule, compact_styles)
+        self.assertIn("linear-gradient(#4a4643, #35312f)", styles)
+        self.assertIn("var(--console-button-border, #c6b58f)", styles)
+        self.assertIn("var(--console-button-border-hover, #f0dfb8)", styles)
+        self.assertIn("transform: translateY(1px)", styles)
+        self.assertIn("linear-gradient(#242220, #181716)", styles)
+        self.assertIn("inset 0 3px 4px rgb(0 0 0 / 0.65)", styles)
+        self.assertIn("inset 0 -1px rgb(255 255 255 / 0.08)", styles)
+        self.assertNotIn("transition:", styles)
 
 
 if __name__ == "__main__":

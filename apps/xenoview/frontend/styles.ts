@@ -1,6 +1,6 @@
 /** Dense operational presentation for repository evidence. */
 import { css } from "lit";
-import { consoleControls, consoleTable } from "@xenorepo/lit-ui";
+import { consoleControls, consoleTable } from "./console-styles.js";
 
 export const cockpitStyles = [consoleControls, consoleTable, css`
   :host { display: block; height: 100%; color: #ebdbb2; font: 12px/1.45 "Courier New", monospace; }

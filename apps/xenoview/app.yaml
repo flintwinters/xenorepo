@@ -4,7 +4,6 @@ module: apps.xenoview.backend.server
 capabilities:
   - database
 imports:
-  - "@xenorepo/lit-ui"
   - monotools.appkit
   - monotools.apps
   - monotools.audit

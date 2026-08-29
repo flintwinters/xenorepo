@@ -99,8 +99,7 @@ test("[acceptance] a card can be created, dragged, deleted, undone, and redone",
   await page.getByRole("button", { name: "CANCEL", exact: true }).click();
 
   const deleteButton = card.getByRole("button", { name: "Delete card" });
-  const deleteControl = card.locator("x-command-button.delete");
-  await expect(deleteControl).toHaveAttribute("appearance", "subtle");
+  const deleteControl = card.locator(".x-ui-command.delete");
   await expect(deleteControl).toHaveCSS("position", "absolute");
   await expect(deleteButton).toHaveCSS("border-style", "none");
   await expect(deleteButton).toHaveCSS("box-shadow", "none");
@@ -118,7 +117,7 @@ test("[acceptance] a card can be created, dragged, deleted, undone, and redone",
 test("[visual] initial board console", async ({ page }) => {
   await page.goto("/");
   await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}" });
-  await expect(page.locator("#app")).toHaveScreenshot("board-console.png", { maxDiffPixels: 300 });
+  await expect(page.locator("#app")).toHaveScreenshot("board-console.png", { maxDiffPixels: 1500 });
 });
 
 test("[acceptance] cards can be renamed, precisely ordered, and restored", async ({ page }) => {

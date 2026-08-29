@@ -1,5 +1,6 @@
 /** Evidence-first command-and-control views for Xenorepo. */
 import { LitElement, html, nothing } from "lit";
+import "./console-ui.js";
 import { cockpitStyles } from "./styles.js";
 
 type Page = "overview" | "modules" | "explorer" | "architecture" | "history";

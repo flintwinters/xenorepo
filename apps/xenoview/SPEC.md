@@ -12,7 +12,7 @@ The product succeeds when an owner can answer, within a minute: how large is the
 - A durable snapshot timeline for comparing broad-strokes metrics over time. Snapshot creation is an explicit operator action and duplicate repository states are idempotent.
 - A Monotools module inventory showing file size, line count, public definitions, inbound monoapp declarations, and direct internal dependencies.
 - A bounded repository tree showing directories and relevant files with byte and line totals, excluding generated, private, and runtime-heavy directories.
-- A high-level architecture map derived from app declarations and shared import relationships: repository, monoapps, Monotools, central Lit UI, and persistence/runtime boundaries.
+- A high-level architecture map derived from app declarations and shared import relationships: repository, monoapps, Monotools, and persistence/runtime boundaries.
 - Visible measurement time, repository revision, dirty state, exclusions, failures, and definitions so the dashboard cannot imply false precision.
 
 ## Scorecard definitions

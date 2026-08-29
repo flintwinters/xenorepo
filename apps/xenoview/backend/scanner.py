@@ -193,7 +193,6 @@ def scan_architecture(root: Path) -> dict[str, object]:
     definitions = _definitions(root)
     nodes = [{"id": "repository", "label": "Xenorepo", "kind": "repository"},
         {"id": "monotools", "label": "Monotools", "kind": "platform"},
-        {"id": "lit-ui", "label": "Central Lit UI", "kind": "platform"},
         {"id": "runtime", "label": "FastAPI + dist", "kind": "runtime"},
         {"id": "storage", "label": "SQLite / PostgreSQL", "kind": "storage"}]
     nodes.extend({"id": f"app:{item.name}", "label": item.title, "kind": "app"}
@@ -204,8 +203,6 @@ def scan_architecture(root: Path) -> dict[str, object]:
         app_id = f"app:{item.name}"
         edges.append({"source": app_id, "target": "monotools", "label":
             f"{sum(value.startswith('monotools.') for value in item.imports)} declared modules"})
-        if "@xenorepo/lit-ui" in item.imports:
-            edges.append({"source": app_id, "target": "lit-ui", "label": "composes"})
         edges.append({"source": "runtime", "target": app_id, "label": "hosts"})
         if "database" in item.capabilities:
             edges.append({"source": app_id, "target": "storage", "label": "persists"})

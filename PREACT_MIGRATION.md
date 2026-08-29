@@ -30,11 +30,11 @@ and JavaScript frontend compatibility only after the final consumer migrates.
 - **Realtime and scheduling pair — complete.** Both consumers prove the shared
   typed empty-state boundary while preserving runtime-checked socket events,
   generated HTTP types, date calculations, and trusted pointer behavior.
-- **Board — active.** Preserve ordering, dialogs, history, pointer capture, notes,
-  and durable review state.
-- **Cockpit — next.** Preserve the complete journey and strengthen its
+- **Board — complete.** Ordering, dialogs, history, trusted pointer capture,
+  notes, and durable review state are preserved through generated HTTP types.
+- **Cockpit — active.** Preserve the complete journey and strengthen its
   OpenAPI response contracts.
-- **Event-stream consumer — queued.** Replace imperative DOM and unsafe HTML
+- **Event-stream consumer — next.** Replace imperative DOM and unsafe HTML
   with typed JSX while preserving HTTP, authentication, and pagination.
 - **Inventory — queued.** Replace imperative rendering with typed state while
   preserving scoring, keyboard flow, completion, and restart.
@@ -45,7 +45,7 @@ and JavaScript frontend compatibility only after the final consumer migrates.
 
 ## Current checkpoint
 
-Migrate the board as one verified logical checkpoint. Preserve app-owned wide
-and narrow baselines, ordering, dialogs, history, pointer capture, notes, and
-durable review state. Run `uv run manage.py verify`, update this file, and
-commit before beginning the cockpit.
+Migrate the cockpit as one verified logical checkpoint. Preserve its complete
+operator journey and app-owned wide and narrow baselines while strengthening
+OpenAPI response contracts. Run `uv run manage.py verify`, update this file,
+and commit before beginning the event-stream consumer.

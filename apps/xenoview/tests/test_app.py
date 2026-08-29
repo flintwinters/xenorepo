@@ -59,6 +59,7 @@ class CockpitTests(unittest.TestCase):
         self.assertIn("audit", {item["name"] for item in modules})
         self.assertTrue(all(item["description"] and item["explanation"] for item in modules))
         edges = {(item["source"], item["target"]) for item in architecture["edges"]}
+        self.assertNotIn("lit-ui", {item["id"] for item in architecture["nodes"]})
         self.assertIn(("app:xenoview", "monotools"), edges)
         self.assertIn(("app:xenoview", "storage"), edges)
 
@@ -97,7 +98,9 @@ class CockpitTests(unittest.TestCase):
         self.assertIn("XENO // COCKPIT", document)
         self.assertIn("/api/overview", document)
         self.assertNotIn("APP_BUNDLE", document)
+        self.assertIn('import "./console-ui.js";', source)
         self.assertIn('import { cockpitStyles } from "./styles.js";', source)
+        self.assertNotIn("@xenorepo/lit-ui", source)
 
 
 if __name__ == "__main__":

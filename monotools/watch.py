@@ -24,10 +24,8 @@ def frontend_inputs(definition: AppDefinition, workspace: Path) -> tuple[Path, .
 
 def _lit_inputs(definition: AppDefinition, workspace: Path) -> tuple[Path, ...]:
     inputs = [*(_files_beneath(definition.directory / "frontend")),
-        *(_files_beneath(workspace / "packages" / "lit-ui" / "src")),
         *(workspace / name for name in
             ("package.json", "package-lock.json", "tsconfig.frontend.json", "tsconfig.preact.json")),
-        workspace / "packages" / "lit-ui" / "package.json",
         *(workspace / "monotools" / "node" / name for name in ("build-lit.mjs", "check-lit.mjs")),
         *(_files_beneath(workspace / "types"))]
     return tuple(inputs)

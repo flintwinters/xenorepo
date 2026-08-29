@@ -62,8 +62,8 @@ runtime persistence system.
 
 ### A shared, restrained interface language
 
-The central Lit UI package should provide the reusable primitives and visual
-language for new pages. The Gruvbox operator-console direction is a product
+The central typed Preact UI package provides reusable primitives and visual
+language proved by independent consumers. The Gruvbox operator-console direction is a product
 constraint, not decoration: dense information, clear hierarchy, semantic color,
 responsive topology, and self-contained artifacts should make
 each application feel like part of one instrument.
@@ -86,11 +86,11 @@ framework construction toward systematic extraction and product refinement.
 | Central lifecycle | `manage.py` discovers, builds, validates, tests, serves, bootstraps, and runs `ui-check`. | Add planning, scaffolding, richer status, and deployment workflows as repeated app work proves their boundaries. |
 | Declarative app contract | YAML metadata defines app identity, capabilities, artifacts, and routes. | Expand capability contracts without hard-coded exceptions; make lifecycle state and recovery more visible. |
 | Single FastAPI service | Every discovered app exposes `/health`, declared documents, and domain routes through FastAPI. | Continue removing legacy assumptions and strengthen production startup and deployment checks. |
-| Frontend system | Self-contained document and Lit artifacts build through the platform, with a restrained shared primitive layer. | Migrate legacy pages deliberately and extract only genuinely reusable components into the catalog. |
+| Frontend system | Self-contained Preact and transitional Lit artifacts build through the platform, with a restrained typed shared primitive layer. | Complete the Preact migration, then remove Lit compatibility; extract only genuinely reusable components into the catalog. |
 | Persistence | SQLAlchemy repositories, SQLite data directories, migrations, constraints, provenance, and realtime models are established in several apps. | Exercise migrations more broadly and validate PostgreSQL compatibility where the domain requires it. |
 | Quality infrastructure | Platform and app-owned suites cover Python behavior, HTTP, realtime, persistence, and real browser interaction with preserved evidence. | Broaden lifecycle failure coverage and app-owned browser proof where it reduces demonstrated risk. |
 | Product proving grounds | Independent monoapps exercise distinct lifecycle, interface, persistence, realtime, and process boundaries. | Keep product policy app-owned and promote only independently reusable findings into shared contracts. |
-| Library governance | `LIBRARIES.md` catalogs Monotools and Console Lit UI and defines extraction rules. | Keep the catalog authoritative and continue separating app domain code from shared platform code. |
+| Library governance | `LIBRARIES.md` catalogs Monotools and Console Preact UI and defines extraction rules. | Keep the catalog authoritative and continue separating app domain code from shared platform code. |
 
 ## Strategic sequence
 

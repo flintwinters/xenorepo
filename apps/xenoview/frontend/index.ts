@@ -175,11 +175,11 @@ class XenorepoCockpit extends LitElement {
   private modulesPage() {
     return html`<section class="page"><div class="page-heading"><div><p class="eyebrow">Platform anatomy</p>
       <h1>Monotools modules</h1></div><p>${this.modules.length} top-level Python modules</p></div>
-      <div class="module-table"><table><thead><tr><th>Module</th><th>Description and purpose</th>
+      <div class="module-table"><table><thead><tr><th>Module</th><th>Description</th><th>Explanation</th>
         <th>Lines</th><th>Size</th><th>Public definitions</th><th>Declaring apps</th>
         <th>Dependencies</th></tr></thead><tbody>
         ${this.modules.map((item) => html`<tr><td><strong>${item.name}</strong><small>${item.path}</small></td>
-          <td><b>${item.description}</b><small>${item.explanation}</small></td>
+          <td>${item.description}</td><td>${item.explanation}</td>
           <td>${number.format(item.lines)}</td><td>${bytes(item.bytes)}</td>
           <td>${number.format(item.public_definitions)}</td><td>${number.format(item.inbound_apps)}</td>
           <td>${item.dependencies.join(", ") || "—"}</td></tr>`)}</tbody></table></div></section>`;

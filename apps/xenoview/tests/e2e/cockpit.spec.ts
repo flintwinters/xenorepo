@@ -10,7 +10,9 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   await expect(page.locator("#app")).toContainText("Lines by language");
   await expect(page.locator("nav .x-ui-command").first()).toContainText("overview");
 
-  await page.getByRole("button", { name: "modules", exact: true }).click();
+  await expect(page.getByRole("button", { name: "modules", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "explorer", exact: true }).click();
+  await expect(page.locator("#app")).toContainText("Repository explorer");
   await expect(page.locator("#app")).toContainText("Monotools modules");
   await expect(page.locator("#app")).toContainText("audit");
   await expect(page.locator(".module-table")).toContainText("Measure architecture and structural invariants");
@@ -21,8 +23,6 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   expect(widths.Description).toBeGreaterThan(widths.Lines * 2);
   expect(widths.Explanation).toBeGreaterThan(widths.Apps * 2);
 
-  await page.getByRole("button", { name: "explorer", exact: true }).click();
-  await expect(page.locator("#app")).toContainText("Repository explorer");
   await expect(page.locator(".tree-row").first()).toContainText("xenorepo");
   await expect(page.locator(".tree-lines").first()).toHaveText(/^\d[\d,]*L$/);
   await expect(page.locator(".tree-bytes").first()).toHaveText(/^\d+(?:B|KB|MB|GB|TB)$/);
@@ -30,13 +30,19 @@ test("[acceptance] operator navigates repository evidence and records a baseline
     const lines = row.querySelector<HTMLElement>(".tree-lines");
     const bytes = row.querySelector<HTMLElement>(".tree-bytes");
     const name = row.querySelector<HTMLElement>("span");
-    return { order: [lines, bytes, name].map((element) => element?.getBoundingClientRect().left),
+    const lineBox = lines?.getBoundingClientRect();
+    const byteBox = bytes?.getBoundingClientRect();
+    const nameBox = name?.getBoundingClientRect();
+    return { order: [nameBox?.left, lineBox?.left, byteBox?.left],
+      nameGap: nameBox && lineBox ? lineBox.left - nameBox.right : undefined,
+      factsGap: lineBox && byteBox ? byteBox.left - lineBox.right : undefined,
       height: row.getBoundingClientRect().height,
       border: getComputedStyle(row).borderBottomWidth,
       font: lines ? getComputedStyle(lines).fontFamily : "" };
   }));
   expect(metadataLayout.every((item) => item.order[0]! < item.order[1]! &&
     item.order[1]! < item.order[2]!)).toBe(true);
+  expect(metadataLayout.every((item) => item.nameGap! <= 4 && item.factsGap! <= 4)).toBe(true);
   expect(metadataLayout.every((item) => item.height <= 13 && item.border === "0px")).toBe(true);
   expect(metadataLayout.every((item) => item.font.includes("Courier New"))).toBe(true);
 

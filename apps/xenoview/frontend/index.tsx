@@ -5,7 +5,7 @@ import { captureSnapshot, loadCockpit, loadHistory, type Architecture,
   type ModuleFact, type Overview, type Snapshot, type TreeNode } from "./client.js";
 import "./styles.css";
 
-type Page = "overview" | "modules" | "explorer" | "architecture" | "history";
+type Page = "overview" | "explorer" | "architecture" | "history";
 interface State { page: Page; overview: Overview | null; modules: ModuleFact[];
   tree: TreeNode | null; architecture: Architecture | null; history: Snapshot[];
   message: string; failed: boolean; busy: boolean; }
@@ -99,9 +99,9 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
           <p>No composite quality score is calculated: unrelated evidence stays independently inspectable.</p>
         </div></ConsolePane></div></section>;
   }
-  private modulesPage(): ComponentChildren {
-    return <section class="page"><div class="page-heading"><div><p class="eyebrow">Platform anatomy</p>
-      <h1>Monotools modules</h1></div><p>{this.state.modules.length} top-level Python modules</p></div>
+  private modulesTable(): ComponentChildren {
+    return <><div class="explorer-section-heading"><h2>Monotools modules</h2>
+      <span>{this.state.modules.length} top-level Python modules</span></div>
       <div class="module-table"><table class="console-table"><thead><tr><th class="identity">Module</th>
         <th class="compact">Path</th><th class="prose">Description</th><th class="prose">Explanation</th>
         <th class="numeric">Lines</th><th class="numeric">Size</th><th class="numeric">Definitions</th>
@@ -113,7 +113,7 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
           <td class="numeric">{number.format(item.public_definitions)}</td>
           <td class="numeric">{number.format(item.inbound_apps)}</td>
           <td>{item.dependencies.join(", ") || "—"}</td></tr>)}
-        </tbody></table></div></section>;
+        </tbody></table></div></>;
   }
   private treeColor(node: TreeNode): string {
     const entries = new Map((this.state.tree?.ls_colors ?? "").split(":").flatMap((entry) => {
@@ -127,18 +127,19 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
   }
   private treeNode(node: TreeNode, depth = 0): ComponentChildren {
     const style = { "--depth": depth, "--ls-color": this.treeColor(node) };
-    if (node.kind === "file") return <div class="tree-row file" style={style}>
+    if (node.kind === "file") return <div class="tree-row file" style={style}><span>{node.name}</span>
       <small class="tree-lines">{treeLines(node.lines)}</small>
-      <small class="tree-bytes">{treeBytes(node.bytes)}</small><span>{node.name}</span></div>;
-    return <details open={depth < 2}><summary class="tree-row" style={style}>
+      <small class="tree-bytes">{treeBytes(node.bytes)}</small></div>;
+    return <details open={depth < 2}><summary class="tree-row" style={style}><span>{node.name}</span>
       <small class="tree-lines">{treeLines(node.lines)}</small>
-      <small class="tree-bytes">{treeBytes(node.bytes)}</small><span>{node.name}</span></summary>
+      <small class="tree-bytes">{treeBytes(node.bytes)}</small></summary>
       {node.children?.map((child) => this.treeNode(child, depth + 1))}</details>;
   }
   private explorerPage(): ComponentChildren {
     return <section class="page"><div class="page-heading"><div><p class="eyebrow">Maintained footprint</p>
       <h1>Repository explorer</h1></div><p>Generated and runtime-heavy paths excluded</p></div>
-      <div class="tree">{this.state.tree && this.treeNode(this.state.tree)}</div></section>;
+      <div class="tree">{this.state.tree && this.treeNode(this.state.tree)}</div>
+      {this.modulesTable()}</section>;
   }
   private architecturePage(): ComponentChildren {
     const architecture = this.state.architecture;
@@ -171,7 +172,7 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
           Sampling is explicit so the timeline reflects meaningful checkpoints.</p></div>}</section>;
   }
   override render(): ComponentChildren {
-    const pages: Page[] = ["overview", "modules", "explorer", "architecture", "history"];
+    const pages: Page[] = ["overview", "explorer", "architecture", "history"];
     const header = <UtilityRail><span class="brand">XENO // COCKPIT</span><nav>{pages.map((page) =>
       <CommandButton aria-label={page} pressed={this.state.page === page}
         onClick={() => this.setState({ page })}>{page}</CommandButton>)}</nav><span class="push" />
@@ -182,8 +183,8 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
     const footer = <StatusRail><span class={this.state.failed ? "error" : "ok"}>
       {this.state.failed ? "FAULT" : "READY"}</span><span>{this.state.message}</span>
       <span class="push">{this.state.overview?.fingerprint.slice(0, 10) ?? "----------"}</span></StatusRail>;
-    const content = this.state.page === "overview" ? this.overviewPage() : this.state.page === "modules"
-      ? this.modulesPage() : this.state.page === "explorer" ? this.explorerPage()
+    const content = this.state.page === "overview" ? this.overviewPage()
+      : this.state.page === "explorer" ? this.explorerPage()
       : this.state.page === "architecture" ? this.architecturePage() : this.historyPage();
     return <ConsoleShell header={header} footer={footer}>
       <div class="cockpit-main">{content}</div>

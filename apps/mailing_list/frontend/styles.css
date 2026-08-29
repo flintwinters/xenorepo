@@ -1,0 +1,54 @@
+.mailing-frame {
+  height: 100%;
+  grid-template-rows: 28px 1fr 24px;
+}
+.mailing-body {
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.mailing-body .x-ui-pane {
+  width: min(290px, 100%);
+}
+.mailing-card {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+.mailing-price {
+  color: #b8bb26;
+  font-size: 32px;
+}
+.mailing-card form {
+  display: grid;
+  gap: 10px;
+}
+.mailing-card label {
+  display: grid;
+  gap: 4px;
+}
+.mailing-card input {
+  padding: 9px;
+  color: #ebdbb2;
+  background: #181a1b;
+  border: 1px solid #665c54;
+}
+.mailing-message {
+  min-height: 20px;
+  color: #fabd2f;
+}
+.mailing-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.mailing-indicator i {
+  width: 8px;
+  height: 8px;
+  background: #b8bb26;
+  border: 1px solid #0c0d0d;
+  box-shadow: 0 0 4px #b8bb26;
+}
+.mailing-indicator > span {
+  color: var(--console-muted, #a89984);
+}

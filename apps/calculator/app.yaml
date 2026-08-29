@@ -2,14 +2,14 @@ name: calculator
 title: Calculator
 module: apps.calculator.backend.server
 imports:
-  - "@xenorepo/lit-ui"
+  - "@xenorepo/ui"
   - monotools.management
   - monotools.runtime
 frontend:
   artifacts:
     index:
-      format: lit
-      source: frontend/index.ts
+      format: preact
+      source: frontend/index.tsx
       output: index.html
   routes:
     /: index

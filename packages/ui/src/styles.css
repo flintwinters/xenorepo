@@ -1,0 +1,105 @@
+.x-ui-shell,
+.x-ui-shell *,
+.x-ui-shell *::before,
+.x-ui-shell *::after {
+  box-sizing: border-box;
+}
+.x-ui-shell {
+  display: grid;
+  min-height: 100%;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  color: var(--console-fg, #ebdbb2);
+  font: var(--console-font, 12px/1.3 "Courier New", monospace);
+  background: var(--console-bg, #1d2021);
+}
+.x-ui-shell > main {
+  display: grid;
+  min-height: 0;
+  overflow: auto;
+  background: var(--console-panel, #282828);
+}
+.x-ui-shell button,
+.x-ui-shell input {
+  font: inherit;
+}
+.x-ui-shell :focus-visible {
+  outline: 2px solid var(--console-focus, #fabd2f);
+  outline-offset: 2px;
+}
+.x-ui-rail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 1px 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  background: linear-gradient(#3c3836, #282828);
+  border-bottom: 1px solid #101112;
+}
+.x-ui-pane {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  overflow: hidden;
+  background: var(--console-panel, #282828);
+}
+.x-ui-chrome {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 18px;
+  padding-inline: 5px;
+  color: var(--console-ink, #1d2021);
+  font-weight: bold;
+  background: linear-gradient(var(--tone-light), var(--tone-dark));
+  border-top: 1px solid var(--tone-rim);
+  border-bottom: 2px solid var(--tone-shadow);
+  box-shadow: 0 2px 2px #111;
+}
+.x-ui-tone-blue { --tone-light: #83a598; --tone-dark: #5f7f75; --tone-rim: #b7cfca; --tone-shadow: #354a44; }
+.x-ui-tone-green { --tone-light: #b8bb26; --tone-dark: #98971a; --tone-rim: #d5d87a; --tone-shadow: #57580e; }
+.x-ui-tone-orange { --tone-light: #fe8019; --tone-dark: #d65d0e; --tone-rim: #ffaf66; --tone-shadow: #7a3307; }
+.x-ui-tone-purple { --tone-light: #d3869b; --tone-dark: #b16286; --tone-rim: #edb8c5; --tone-shadow: #65364c; }
+.x-ui-tone-neutral { --tone-light: #665c54; --tone-dark: #3c3836; --tone-rim: #928374; --tone-shadow: #282828; }
+.x-ui-title-end {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.x-ui-pane-body {
+  min-height: 0;
+  overflow: auto;
+}
+.x-ui-command {
+  display: inline-block;
+}
+.x-ui-command-control {
+  width: 100%;
+  min-height: 18px;
+  padding: 1px 6px;
+  color: var(--console-fg, #ebdbb2);
+  background: var(--console-button-background, linear-gradient(#4a4643, #35312f));
+  border: 1px solid var(--console-button-border, #c6b58f);
+  border-radius: 4px;
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.45);
+  cursor: pointer;
+}
+.x-ui-command-control:hover:not(:disabled) {
+  background: var(--console-button-hover-background, linear-gradient(#55504d, #3d3936));
+  border-color: var(--console-button-border-hover, #f0dfb8);
+  box-shadow: inset 0 1px rgb(255 255 255 / 0.14), 0 2px 4px rgb(0 0 0 / 0.4);
+}
+.x-ui-command-control:active:not(:disabled),
+.x-ui-command-control[aria-pressed="true"]:not(:disabled) {
+  transform: translateY(1px);
+  background: var(--console-button-pressed-background, linear-gradient(#242220, #181716));
+  box-shadow: inset 0 3px 4px rgb(0 0 0 / 0.65), inset 0 -1px rgb(255 255 255 / 0.08);
+}
+.x-ui-command-control:disabled {
+  color: var(--console-muted, #a89984);
+  cursor: not-allowed;
+  opacity: 0.65;
+}

@@ -4,7 +4,7 @@ module: apps.mailing_list.backend.server
 capabilities:
   - database
 imports:
-  - "@xenorepo/lit-ui"
+  - "@xenorepo/ui"
   - monotools.appkit
   - monotools.commerce
   - monotools.database
@@ -15,8 +15,8 @@ imports:
 frontend:
   artifacts:
     index:
-      format: lit
-      source: frontend/index.ts
+      format: preact
+      source: frontend/index.tsx
       output: index.html
   routes:
     /: index

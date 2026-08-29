@@ -22,6 +22,19 @@ class Enrollment(BaseModel):
     email: str = ""
 
 
+class OfferingResponse(BaseModel):
+    amount_minor: int
+    currency: str
+    interval: str
+    payment_provider: str
+
+
+class CheckoutResponse(BaseModel):
+    checkout_id: str
+    checkout_url: str
+    provider: str
+
+
 def create_app(database_url: str | None = None) -> FastAPI:
     context = create_app_context("mailing_list", metadata=Base.metadata,
         default_database=DEFAULT_DATABASE, environment_key="MAILING_LIST_DATABASE_URL",
@@ -33,18 +46,18 @@ def create_app(database_url: str | None = None) -> FastAPI:
     }))
 
     @application.get("/api/offering")
-    def offering() -> dict[str, object]:
-        return {"amount_minor": PRICE_MINOR, "currency": CURRENCY,
-            "interval": "month", "payment_provider": repository.gateway.name}
+    def offering() -> OfferingResponse:
+        return OfferingResponse(amount_minor=PRICE_MINOR, currency=CURRENCY,
+            interval="month", payment_provider=repository.gateway.name)
 
     @application.post("/api/checkouts", status_code=201)
-    def checkout(payload: Enrollment, request: Request) -> dict[str, str]:
+    def checkout(payload: Enrollment, request: Request) -> CheckoutResponse:
         enforce_same_origin(request, lambda message: DomainError(message, "forbidden"))
         base = str(request.base_url).rstrip("/")
         hosted = repository.begin_checkout(payload.email, PRICE_MINOR, CURRENCY,
             f"{base}/?checkout=success", f"{base}/?checkout=cancelled")
-        return {"checkout_id": hosted.external_id, "checkout_url": hosted.url,
-            "provider": hosted.provider}
+        return CheckoutResponse(checkout_id=hosted.external_id, checkout_url=hosted.url,
+            provider=hosted.provider)
 
     return application
 

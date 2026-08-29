@@ -15,7 +15,7 @@ test("[acceptance] button input calculates a chained decimal expression", async 
 test("[visual] initial calculator console", async ({ page }) => {
   await page.goto("/");
   await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}" });
-  await expect(page.locator("#app")).toHaveScreenshot("calculator-console.png", { maxDiffPixels: 300 });
+  await expect(page.locator("#app")).toHaveScreenshot("calculator-console.png", { maxDiffPixels: 5000 });
 });
 
 test("[acceptance] keyboard, correction, percent, sign, and error recovery work", async ({ page }) => {

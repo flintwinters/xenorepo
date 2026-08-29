@@ -9,6 +9,7 @@ Applications are consumers; they do not import one another.
 | Library | Language | Location | Public responsibility | Adoption rule |
 | --- | --- | --- | --- | --- |
 | Monotools | Python + TypeScript tooling | `monotools/`, `tsconfig.frontend.json` | Typed metadata, discovery, lifecycle orchestration, build validation, FastAPI runtime, portable persistence, generic transport primitives, and evidence handling. | A capability must be declarative and reusable by an arbitrary future monoapp. |
+| Console Preact UI | TypeScript + CSS | `packages/ui/` | Typed shells, panes, rails, and command controls with stable classes and external presentation. | Every component must have at least two independent monoapp consumers. |
 | Console Lit UI | TypeScript | `packages/lit-ui/` | Construction primitives for shells, panes, rails, controls, status, shared form treatment, design tokens, and browser-artifact chrome. | Every custom element must have at least two independent monoapp consumers. |
 | Browser Testing | JavaScript/TypeScript | `packages/browser-testing/` | Shared Playwright fixtures, strict browser diagnostics, trusted input drivers, schema-versioned evidence, and static proof validation. | Shared code contains no app routes, selectors, entities, or gesture semantics. |
 
@@ -20,17 +21,26 @@ elements:
 
 | Custom element | Independent consumer count |
 | --- | ---: |
-| `x-console-shell` | 6 |
-| `x-utility-rail` | 6 |
-| `x-status-rail` | 6 |
-| `x-console-pane` | 5 |
-| `x-command-button` | 6 |
-| `x-status-indicator` | 5 |
+| `x-console-shell` | 4 |
+| `x-utility-rail` | 4 |
+| `x-status-rail` | 4 |
+| `x-console-pane` | 4 |
+| `x-command-button` | 4 |
+| `x-status-indicator` | 3 |
 | `x-empty-state` | 3 |
 
 `consoleControls` has two independent consumers. Identities remain app-owned
 and discoverable from metadata; central policy records only the evidence count.
 All consumers import the package boundary as `@xenorepo/lit-ui`.
+
+## Console Preact UI contract
+
+The typed `ConsoleShell`, `UtilityRail`, `StatusRail`, `ConsolePane`, and
+`CommandButton` components each have two independent consumers. Their props
+extend the corresponding Preact native HTML attributes, named props replace
+slots, and stable `x-ui-*` classes are the styling boundary. The package owns
+only proved console geometry and interaction treatment; app layout remains in
+external app-owned CSS. All consumers import `@xenorepo/ui`.
 
 ## Monotools production contract inventory
 

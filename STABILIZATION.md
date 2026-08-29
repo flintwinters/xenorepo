@@ -126,9 +126,11 @@ builder remains only until the last production consumer has migrated.
    are deterministically generated under ignored app data. Watchers, CSS
    structural gates, locked dependencies, and synthetic platform tests cover
    these contracts while Lit remains runnable.
-3. **Prove shared Preact UI — in progress.** Introduce only components jointly
-   proved by two independent consumers and migrate that first pair.
-4. **Migrate the realtime and scheduling pair — pending.** Add the independently
+3. **Prove shared Preact UI — complete.** Two independent consumers prove the
+   typed shell, pane, rail, and command boundaries. Both now use strict TSX and
+   external app-owned CSS; the HTTP consumer uses its generated client while
+   the stateful consumer preserves keyboard, history, modes, and persistence.
+4. **Migrate the realtime and scheduling pair — in progress.** Add the independently
    proved empty state and preserve realtime and trusted pointer behavior.
 5. **Migrate the board — pending.** Preserve ordering, dialogs, history,
    pointer capture, notes, and durable review state.
@@ -146,6 +148,6 @@ builder remains only until the last production consumer has migrated.
 
 ## Next action
 
-Create the typed shared Preact package from the boundaries independently proved
-by the first two consumers, migrate that pair with external CSS and generated
-HTTP types, and preserve their verified visual baselines.
+Migrate the realtime and scheduling pair, add only the empty-state boundary
+proved by both, and preserve runtime-checked socket events, generated HTTP
+types, date calculations, and trusted pointer behavior.

@@ -102,7 +102,9 @@ packaging decision.
 `python manage.py ui-check [app]` checks one app or all apps in deterministic
 order. Every metadata-declared frontend route receives Monotools' universal
 wide/narrow Chromium smoke journey; this proves delivery and self-containment,
-not product acceptance. Domain scenarios remain in
+reload resilience, baseline document structure, and keyboard reachability—not
+product acceptance. New and existing monoapps inherit these checks without
+declaring or copying them. Domain scenarios remain in
 `apps/<app>/tests/e2e/` and use exactly one proof tag: `acceptance`,
 `browser-integration`, `visual`, or `accessibility`. Viewport names never imply
 input modality; trusted mouse, native Chromium touch, and keyboard evidence are

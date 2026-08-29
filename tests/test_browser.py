@@ -18,13 +18,14 @@ class BrowserProofContractTests(unittest.TestCase):
     def test_universal_route_check_is_not_mislabeled_product_acceptance(self) -> None:
         suite = BrowserSuite(
             ROOT / "tests/browser-framework/universal.spec.js",
-            frozenset({"browser-integration"}),
+            frozenset({"accessibility", "browser-integration"}),
         )
 
         report = validate_browser_suite(suite, ROOT)
 
         self.assertEqual(report["counts"]["acceptance"], 0)
         self.assertGreater(report["counts"]["browser-integration"], 0)
+        self.assertGreater(report["counts"]["accessibility"], 0)
 
     def test_owned_suite_contract_parses_and_enumerates_required_proofs(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="browser-suite-") as temporary:

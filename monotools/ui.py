@@ -103,7 +103,7 @@ def _browser_suites(workspace: Path, suite: object) -> tuple[object, object | No
         else BrowserSuite(Path(suite)) if suite is not None else None)
     universal_suite = BrowserSuite(
         workspace / "tests" / "browser-framework" / "universal.spec.js",
-        frozenset({"browser-integration"}),
+        frozenset({"accessibility", "browser-integration"}),
     )
     universal_report = validate_browser_suite(universal_suite, workspace)
     proof_report = (validate_browser_suite(browser_suite, workspace)

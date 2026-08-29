@@ -1,6 +1,6 @@
 /** Dense operational presentation for repository evidence. */
 #app, .x-ui-shell { height: 100%; }
-.x-ui-shell > main > main { min-height: 0; }
+.cockpit-main { min-height: 0; }
 .brand { color: #fabd2f; font-weight: 800; letter-spacing: .12em; }
 nav { display: flex; gap: 3px; margin-left: 12px; }
 .push { margin-left: auto; }

@@ -185,7 +185,9 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
     const content = this.state.page === "overview" ? this.overviewPage() : this.state.page === "modules"
       ? this.modulesPage() : this.state.page === "explorer" ? this.explorerPage()
       : this.state.page === "architecture" ? this.architecturePage() : this.historyPage();
-    return <ConsoleShell header={header} footer={footer}><main>{content}</main></ConsoleShell>;
+    return <ConsoleShell header={header} footer={footer}>
+      <div class="cockpit-main">{content}</div>
+    </ConsoleShell>;
   }
 }
 

@@ -133,7 +133,7 @@ def _write_document(definition: AppDefinition, artifact: FrontendArtifact,
         "<style>html,body,#app{width:100%;height:100%;margin:0}"
         "html,body{overflow:hidden;background:#1d2021;color:#ebdbb2}"
         f"{styles}</style>\n"
-        "</head>\n<body>\n<main id=\"app\"></main>\n"
+        "</head>\n<body>\n<div id=\"app\"></div>\n"
         f"<script>{script}</script>\n</body>\n</html>\n",
         encoding="utf-8",
     )

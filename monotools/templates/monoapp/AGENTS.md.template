@@ -1,0 +1,14 @@
+# Project direction
+
+## Motivation
+
+Define the user outcome and the smallest real-world journey that proves {{app_title}} is useful.
+
+## Architecture
+
+{{app_title}} owns its product behavior and consumes generic Monotools contracts from the enclosing
+Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
+
+## Current tasks
+
+- Replace the walking-skeleton specification and acceptance journey with proved product behavior.

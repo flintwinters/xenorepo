@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 from monotools.apps import AppDefinitionError, ROOT
 from monotools.audit import AuditReport, AuditViolation
 from monotools.management import create_app_manager, create_cli, resolve_local_app
+from monotools.scaffolding import ScaffoldError, scaffold_app
 import manage as repository_manager
 
 
@@ -41,9 +42,9 @@ frontend:
     def _manager(self, *, include_serve: bool = True, ui_suite: str | None = None):
         temporary = TemporaryDirectory(dir=ROOT / "tests", prefix="manager-")
         self.addCleanup(temporary.cleanup)
-        directory = Path(temporary.name)
+        directory = Path(temporary.name) / "fixture"
         name = directory.name
-        (directory / "frontend").mkdir()
+        (directory / "frontend").mkdir(parents=True)
         (directory / "backend").mkdir()
         (directory / "app.yaml").write_text(
             f"""name: {name}
@@ -98,7 +99,7 @@ frontend:
             result = CliRunner().invoke(app, ["serve", "--host", "0.0.0.0", "--port", "8123"])
 
         self.assertEqual(result.exit_code, 0)
-        serve.assert_called_once_with(definition, definition.directory.parent.parent,
+        serve.assert_called_once_with(definition, ROOT,
             host="0.0.0.0", port=8123, watch=False,
             report=ANY)
 
@@ -132,6 +133,7 @@ frontend:
             for command in repository_manager.app.registered_commands}
         self.assertEqual(root_commands,
             {"audit", "bootstrap", "list", "status", "check", "test", "ui-check", "verify"})
+        self.assertIn("monoapp", {group.name for group in repository_manager.app.registered_groups})
 
         mounted_name = repository_manager.MANAGERS[0][0].name
         result = CliRunner().invoke(repository_manager.app, [mounted_name, "--help"])
@@ -262,6 +264,31 @@ frontend:
             with self.subTest(path=path), self.assertRaisesRegex(
                     AppDefinitionError, "app-owned|beneath tests"):
                 create_app_manager(manage_file, tests=path)
+
+    def test_scaffolder_creates_a_complete_valid_app_without_overwriting(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="scaffold-") as temporary:
+            apps_directory = Path(temporary) / "apps"
+            directory = scaffold_app(apps_directory, "signal_lab", "Signal Lab")
+
+            definition = repository_manager.load_app(directory)
+            self.assertEqual(definition.name, "signal_lab")
+            self.assertEqual(definition.title, "Signal Lab")
+            self.assertTrue((directory / "SPEC.md").is_file())
+            self.assertTrue((directory / "frontend/styles.css").is_file())
+            self.assertTrue((directory / "tests/e2e/readiness.spec.ts").is_file())
+            self.assertNotIn("{{app_name}}", (directory / "app.yaml").read_text(encoding="utf-8"))
+            with self.assertRaisesRegex(ScaffoldError, "refusing to overwrite"):
+                scaffold_app(apps_directory, "signal_lab", "Again")
+
+    def test_scaffolder_rejects_non_importable_names_and_empty_titles(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="scaffold-") as temporary:
+            apps_directory = Path(temporary) / "apps"
+            for name, title, message in (
+                ("Bad-Name", "Title", "app name must start"),
+                ("valid_name", " ", "title must not be empty"),
+            ):
+                with self.subTest(name=name), self.assertRaisesRegex(ScaffoldError, message):
+                    scaffold_app(apps_directory, name, title)
 
     def test_specified_app_requires_an_owned_product_browser_journey(self) -> None:
         _, manage_file = self._manager()

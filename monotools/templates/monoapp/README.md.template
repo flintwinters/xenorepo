@@ -1,0 +1,16 @@
+# {{app_title}}
+
+{{app_title}} is a Xenorepo monoapp walking skeleton. Replace this paragraph with its product purpose
+before promotion.
+
+Use the Xenorepo cockpit for every lifecycle operation:
+
+```console
+uv run manage.py {{app_name}} check
+uv run manage.py {{app_name}} test
+uv run manage.py {{app_name}} ui-check
+uv run manage.py {{app_name}} serve
+```
+
+The app deliberately consumes the enclosing Xenorepo's Monotools version. A future explicit
+standalone-export contract may pin that dependency without changing the app's Git history.

@@ -1,0 +1,8 @@
+import { expect, test } from "@xenorepo/browser-testing";
+
+test("[acceptance] walking skeleton reaches its ready state", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("status")).toHaveText(
+    "{{app_title}} is ready for product behavior.",
+  );
+});

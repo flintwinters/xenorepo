@@ -17,6 +17,7 @@ from ruamel.yaml.error import YAMLError
 ROOT = Path(__file__).resolve().parent.parent
 APPS_DIRECTORY = ROOT / "apps"
 _ARTIFACT_NAME = re.compile(r"^[a-z][a-z0-9_-]*$")
+_APP_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 _ROUTE_PATH = re.compile(r"^/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$")
 _RESERVED_ROUTES = frozenset({"/health"})
 _FORMATS = frozenset({"lit", "preact"})
@@ -29,6 +30,16 @@ class AppDefinitionError(ValueError):
 def specification_path(directory: Path) -> Path:
     """Return the canonical product specification path for any app state."""
     return directory / "SPEC.md"
+
+
+def validate_app_name(name: str) -> str:
+    """Return one import-safe monoapp name or raise the metadata error used everywhere."""
+    if not _APP_NAME.fullmatch(name):
+        raise AppDefinitionError(
+            "app name must start with a lowercase letter and contain only lowercase "
+            "letters, digits, and underscores"
+        )
+    return name
 
 
 @dataclass(frozen=True)
@@ -253,6 +264,7 @@ def load_app(directory: Path) -> AppDefinition:
     _only_keys(data, frozenset({"name", "title", "module", "capabilities", "imports", "frontend"}), metadata_path,
         "document")
     name = _string(data.get("name"), metadata_path, "name")
+    validate_app_name(name)
     title = _string(data.get("title"), metadata_path, "title")
     module = _string(data.get("module"), metadata_path, "module")
     if name != directory.name:

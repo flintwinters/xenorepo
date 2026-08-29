@@ -1,0 +1,15 @@
+name: {{app_name}}
+title: {{app_title}}
+module: apps.{{app_name}}.backend.server
+imports:
+  - "@xenorepo/ui"
+  - monotools.management
+  - monotools.runtime
+frontend:
+  artifacts:
+    index:
+      format: preact
+      source: frontend/index.tsx
+      output: index.html
+  routes:
+    /: index

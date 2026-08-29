@@ -22,6 +22,7 @@ from monotools.lifecycle import (
     validate_dist,
 )
 from monotools.management import ApplicationManager, PythonSuite, create_cli
+from monotools.scaffolding import ScaffoldError, scaffold_app
 from monotools.ui import run_ui_check
 
 
@@ -127,9 +128,23 @@ def _print_violations(title: str, violations: tuple[object, ...]) -> None:
 
 
 app = create_cli("Manage Xenorepo and its immediate applications.")
+monoapp = create_cli("Create and manage Xenorepo monoapps.")
+app.add_typer(monoapp, name="monoapp")
 MANAGERS = discover_managers()
 for definition, manager in MANAGERS:
     app.add_typer(manager.app, name=definition.name)
+
+
+@monoapp.command("create")
+def create_monoapp(name: str = typer.Argument(...),
+    title: str = typer.Option(..., "--title", help="Human-readable application title.")) -> None:
+    """Create a complete Monotools-owned Preact and FastAPI walking skeleton."""
+    try:
+        directory = scaffold_app(APPS_DIRECTORY, name, title)
+    except (OSError, ScaffoldError) as error:
+        _fail(error)
+    console.print(f"[bold green]Created monoapp[/] {directory.relative_to(ROOT)}")
+    console.print(f"Complete {directory.relative_to(ROOT) / 'SPEC.md'}, then run uv run manage.py verify.")
 
 
 @app.command()

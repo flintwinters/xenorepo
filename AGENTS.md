@@ -61,13 +61,12 @@ it, and **Monotools** is the canonical orchestration library.
 
 ## 3. Current tasks
 
-- Migrate all frontends to Preact in verified checkpoints, then remove Lit.
+- Follow `PREACT_MIGRATION.md`: migrate all frontends to Preact in verified
+  checkpoints, then remove Lit and JavaScript frontend compatibility.
 - Keep deterministic app-owned wide/narrow visual baselines; do not redesign.
 - Enforce the dependency direction `monoapp -> generic Monotools contract`,
   with no static monoapp identity or product policy in central code or tests.
-- Move product assertions and compatibility behavior into app-owned suites,
-  then remove obsolete central compatibility surfaces.
 - Admit shared code only after independent consumers prove a generic boundary;
   keep `LIBRARIES.md` authoritative for contracts and extraction policy.
-- Keep the active checkpoint, violation inventory, and next action in
-  `STABILIZATION.md` so work can resume safely after context clearing.
+- Keep the active checkpoint and next action concise in `PREACT_MIGRATION.md`
+  so work can resume safely after context clearing.

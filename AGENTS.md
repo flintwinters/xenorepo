@@ -39,8 +39,8 @@ it, and **Monotools** is the canonical orchestration library.
   source. Frontend sources are JavaScript or TypeScript entries compiled by
   Monotools. Do not add separate frontend services, private Node projects, or
   build scripts.
-- New pages compose reusable components from central Lit UI. Migrate legacy
-  pages only when concrete duplication justifies a narrow shared extraction.
+- Migrate frontends to typed Preact TSX and external CSS with visual and
+  behavioral parity, OpenAPI-derived HTTP types, and proved shared boundaries.
 - Persist durable domain facts through SQLAlchemy ORM, with SQLite as the local
   default and PostgreSQL-compatible models and transaction boundaries. Preserve
   identifiers, timestamps, provenance, transitions, relationships, constraints,
@@ -61,6 +61,8 @@ it, and **Monotools** is the canonical orchestration library.
 
 ## 3. Current tasks
 
+- Migrate all frontends to Preact in verified checkpoints, then remove Lit.
+- Keep deterministic app-owned wide/narrow visual baselines; do not redesign.
 - Enforce the dependency direction `monoapp -> generic Monotools contract`,
   with no static monoapp identity or product policy in central code or tests.
 - Move product assertions and compatibility behavior into app-owned suites,

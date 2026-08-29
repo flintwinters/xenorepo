@@ -96,3 +96,9 @@ test("[acceptance] creates, edits, drags, reloads, and deletes a durable event",
   await page.getByRole("button", { name: "DELETE", exact: true }).click();
   await expect(page.locator(".agenda-row").filter({ hasText: edited })).toHaveCount(0);
 });
+
+test("[visual] initial scheduling console", async ({ page }) => {
+  await page.goto("/");
+  await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}" });
+  await expect(page.locator("#app")).toHaveScreenshot("scheduling-console.png", { maxDiffPixels: 300 });
+});

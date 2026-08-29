@@ -115,6 +115,12 @@ test("[acceptance] a card can be created, dragged, deleted, undone, and redone",
   await expect(page.locator(".card").filter({ hasText: title })).toHaveCount(0);
 });
 
+test("[visual] initial board console", async ({ page }) => {
+  await page.goto("/");
+  await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}" });
+  await expect(page.locator("#app")).toHaveScreenshot("board-console.png", { maxDiffPixels: 300 });
+});
+
 test("[acceptance] cards can be renamed, precisely ordered, and restored", async ({ page }) => {
   await page.goto("/");
   const marker = Date.now();

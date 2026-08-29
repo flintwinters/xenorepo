@@ -3,7 +3,10 @@
 from monotools.management import create_app_manager
 
 
-manager = create_app_manager(__file__, tests="tests", ui_suite="tests/e2e/chat.spec.js")
+manager = create_app_manager(
+    __file__, tests="tests", ui_suite="tests/e2e/chat.spec.js",
+    proof_kinds=frozenset({"acceptance", "visual"}),
+)
 app = manager.app
 
 

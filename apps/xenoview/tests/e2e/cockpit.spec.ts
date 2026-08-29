@@ -33,3 +33,12 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   await expect(page.locator("x-xenorepo-cockpit")).toContainText("Repository trajectory");
   await expect(page.locator("x-xenorepo-cockpit")).toContainText(/Snapshot recorded|already recorded/);
 });
+
+test("[visual] initial repository cockpit", async ({ page }) => {
+  await page.goto("/");
+  await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}" });
+  await expect(page.locator("#app")).toHaveScreenshot("repository-cockpit.png", {
+    mask: [page.locator("time")],
+    maxDiffPixels: 300,
+  });
+});

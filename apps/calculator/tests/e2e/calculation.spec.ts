@@ -12,6 +12,12 @@ test("[acceptance] button input calculates a chained decimal expression", async 
   await expect(page.getByText("50 + 2 =", { exact: true })).toBeVisible();
 });
 
+test("[visual] initial calculator console", async ({ page }) => {
+  await page.goto("/");
+  await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}" });
+  await expect(page.locator("#app")).toHaveScreenshot("calculator-console.png", { maxDiffPixels: 300 });
+});
+
 test("[acceptance] keyboard, correction, percent, sign, and error recovery work", async ({ page }) => {
   await page.goto("/");
   const output = page.getByLabel("Display");

@@ -7,6 +7,7 @@ manager = create_app_manager(
     __file__,
     tests="tests",
     ui_suite="tests/e2e/arena.spec.js",
+    proof_kinds=frozenset({"acceptance", "visual"}),
 )
 app = manager.app
 

@@ -14,6 +14,12 @@ test.beforeEach(async ({ page }) => {
   await expect(page.getByRole("heading", { name: "ENTER ARENA" })).toBeVisible();
 });
 
+test("[visual] initial realtime arena", async ({ page }) => {
+  await page.goto("/");
+  await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}" });
+  await expect(page.locator("#app")).toHaveScreenshot("realtime-arena.png", { maxDiffPixels: 300 });
+});
+
 test("[acceptance] loads a named player into the arena with accessible throw controls", async ({ page }) => {
   const name = page.getByLabel("DISPLAY NAME");
   const play = page.getByRole("button", { name: "PLAY" });

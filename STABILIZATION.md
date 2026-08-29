@@ -108,9 +108,41 @@ The checkpoint 9 baseline is:
    directories, and JavaScript is covered by the source line-length gate. The
    complete verification matrix passed on 2026-08-28.
 
+## Preact migration
+
+The active migration replaces all nine remaining Lit or imperative frontends
+with strict Preact TSX and external CSS while preserving the self-contained
+FastAPI artifact contract. HTTP types will be generated from app-owned OpenAPI
+schemas; realtime protocols remain app-owned runtime-checked unions. The Lit
+builder remains only until the last production consumer has migrated.
+
+1. **Characterize the existing UI — complete.** Every monoapp owns deterministic
+   wide and narrow visual baselines. Previously missing browser suites now
+   characterize enrollment, account mode, and keyboard inventory behavior.
+   Existing acceptance and trusted-input journeys remain unchanged.
+2. **Add generic Preact and API tooling — in progress.** Add metadata, build,
+   diagnostics, CSS inlining, OpenAPI generation, watcher, and platform-test
+   contracts while retaining the Lit compatibility path.
+3. **Prove shared Preact UI — pending.** Introduce only components jointly
+   proved by two independent consumers and migrate that first pair.
+4. **Migrate the realtime and scheduling pair — pending.** Add the independently
+   proved empty state and preserve realtime and trusted pointer behavior.
+5. **Migrate the board — pending.** Preserve ordering, dialogs, history,
+   pointer capture, notes, and durable review state.
+6. **Migrate the cockpit — pending.** Preserve its complete journey and
+   strengthen its OpenAPI response contracts.
+7. **Migrate the event-stream consumer — pending.** Replace imperative DOM and
+   unsafe HTML with typed JSX while preserving HTTP, authentication, and
+   pagination.
+8. **Migrate the inventory — pending.** Replace imperative rendering with typed
+   state while preserving scoring, keyboard flow, completion, and restart.
+9. **Migrate the realtime arena — pending.** Split typed state, view, and
+   transport while preserving its complete protocol and behavior.
+10. **Remove Lit compatibility — pending.** Remove Lit and JavaScript frontend
+    support and activate permanent Preact architecture gates.
+
 ## Next action
 
-Stabilization is complete. Keep `uv run manage.py verify` as the permanent
-change gate, preserve the zero-violation structural baseline, and select the
-next product or platform investment from measured monoapp needs rather than
-adding speculative shared abstractions.
+Implement generic Preact and OpenAPI tooling without migrating production
+consumers in the same checkpoint. Preserve the verified Lit baselines and the
+temporary Lit build path until all consumers have migrated.

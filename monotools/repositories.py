@@ -5,6 +5,7 @@ contract: promoted apps remain deliberate consumers of their enclosing Xenorepo.
 """
 
 from collections.abc import Callable
+from configparser import ConfigParser
 from dataclasses import dataclass
 from pathlib import Path
 import re
@@ -30,6 +31,30 @@ class AppRepositoryState:
 
 _GITHUB_COMPONENT = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]*[A-Za-z0-9])?$")
 _VISIBILITIES = frozenset({"private", "public", "internal"})
+
+
+def declared_app_submodules(workspace: Path) -> tuple[Path, ...]:
+    """Return normalized apps/* paths declared by the parent Git repository."""
+    metadata = workspace / ".gitmodules"
+    if not metadata.is_file():
+        return ()
+    parser = ConfigParser(interpolation=None)
+    try:
+        parser.read(metadata, encoding="utf-8")
+    except Exception as error:
+        raise RepositoryError(f"cannot parse {metadata}: {error}") from error
+    paths = []
+    for section in parser.sections():
+        candidate = Path(parser.get(section, "path", fallback=""))
+        if candidate.parts[:1] == ("apps",) and len(candidate.parts) == 2:
+            paths.append(workspace / candidate)
+    return tuple(sorted(paths))
+
+
+def uninitialized_app_submodules(workspace: Path) -> tuple[Path, ...]:
+    """Return declared app submodules whose working trees have not been populated."""
+    return tuple(path for path in declared_app_submodules(workspace)
+        if not path.is_dir() or not any(path.iterdir()))
 
 
 def _run(command: list[str], cwd: Path) -> str:

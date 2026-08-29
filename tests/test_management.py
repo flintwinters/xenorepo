@@ -14,7 +14,13 @@ from typer.testing import CliRunner
 from monotools.apps import AppDefinitionError, ROOT
 from monotools.audit import AuditReport, AuditViolation
 from monotools.management import create_app_manager, create_cli, resolve_local_app
-from monotools.repositories import AppRepositoryState, RepositoryError, promote_to_submodule
+from monotools.repositories import (
+    AppRepositoryState,
+    RepositoryError,
+    declared_app_submodules,
+    promote_to_submodule,
+    uninitialized_app_submodules,
+)
 from monotools.scaffolding import ScaffoldError, scaffold_app
 import manage as repository_manager
 
@@ -257,6 +263,24 @@ frontend:
             self.assertIn("future", status.output)
 
             (planned / "README.md").write_text("incomplete\n", encoding="utf-8")
+            with self.assertRaisesRegex(repository_manager.ManagerError, "has no manage.py"):
+                repository_manager.discover_managers(apps_directory)
+
+    def test_declared_empty_submodules_are_visible_but_do_not_block_bootstrap(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="submodules-") as temporary:
+            workspace = Path(temporary)
+            apps_directory = workspace / "apps"
+            bleb = apps_directory / "bleb"
+            bleb.mkdir(parents=True)
+            (workspace / ".gitmodules").write_text(
+                '[submodule "bleb"]\n\tpath = apps/bleb\n\turl = git@example.test:bleb.git\n',
+                encoding="utf-8",
+            )
+
+            self.assertEqual(declared_app_submodules(workspace), (bleb,))
+            self.assertEqual(uninitialized_app_submodules(workspace), (bleb,))
+            self.assertEqual(repository_manager.discover_managers(apps_directory), ())
+            (bleb / "README.md").write_text("partial\n", encoding="utf-8")
             with self.assertRaisesRegex(repository_manager.ManagerError, "has no manage.py"):
                 repository_manager.discover_managers(apps_directory)
 

@@ -70,3 +70,6 @@ it, and **Monotools** is the canonical orchestration library.
   keep `LIBRARIES.md` authoritative for contracts and extraction policy.
 - Keep the active checkpoint and next action concise in `PREACT_MIGRATION.md`
   so work can resume safely after context clearing.
+- Create monoapps from the Monotools template and promote mature apps to
+  independently versioned GitHub submodules without weakening their verified
+  dependency on the enclosing Xenorepo platform.

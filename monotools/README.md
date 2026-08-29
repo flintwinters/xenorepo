@@ -76,6 +76,27 @@ every app suite exactly once, and Monotools' trusted-input browser canaries.
 `python manage.py verify` composes repository checks, all tests, and the complete
 browser inventory.
 
+## Monoapp creation and repository promotion
+
+`uv run manage.py monoapp create NAME --title TITLE` renders the canonical
+FastAPI, Preact, metadata, specification, agent-context, ignore, and app-owned
+test skeleton. Replace the generated product placeholders and acceptance
+journey; the template is structure, not a product specification.
+
+Every managed app exposes `git status` and `git create-repo`. Promotion requires
+explicit `--owner`, `--repository`, and `--visibility` values, a clean Xenorepo
+worktree, GitHub CLI authentication, and two successful complete verification
+runs. It extracts app-only history, pushes it to GitHub, remounts the same path
+as a submodule, and commits Xenorepo's gitlink. Fresh checkouts initialize all
+declared app submodules through `uv run manage.py bootstrap`.
+
+A promoted monoapp is independently versioned but deliberately not standalone:
+it consumes the enclosing checkout's current Monotools and shared packages.
+Standalone execution and a pinned Xenorepo/Monotools dependency are explicitly
+deferred until a mature app proves that separate contract. Repository identity
+is therefore absent from `app.yaml`, so promotion does not constrain that later
+packaging decision.
+
 ## Browser verification
 
 `python manage.py ui-check [app]` checks one app or all apps in deterministic

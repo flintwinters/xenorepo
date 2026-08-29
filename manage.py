@@ -22,6 +22,7 @@ from monotools.lifecycle import (
     validate_dist,
 )
 from monotools.management import ApplicationManager, PythonSuite, create_cli
+from monotools.repositories import uninitialized_app_submodules
 from monotools.scaffolding import ScaffoldError, scaffold_app
 from monotools.ui import run_ui_check
 
@@ -88,7 +89,10 @@ def discover_managers(apps_directory: Path = APPS_DIRECTORY
     """Load every immediate visible Xenorepo app and its explicit manager."""
     managers: list[tuple[AppDefinition, ApplicationManager]] = []
     names: set[str] = set()
+    uninitialized = {path.resolve() for path in uninitialized_app_submodules(apps_directory.parent)}
     for directory in _visible_directories(apps_directory):
+        if directory.resolve() in uninitialized:
+            continue
         if is_planned_app(directory):
             continue
         definition, manager = _load_managed_app(directory)
@@ -111,6 +115,19 @@ def _run_bootstrap(command: list[str], recovery: str) -> None:
     completed = subprocess.run(command, cwd=ROOT, check=False)
     if completed.returncode:
         raise LifecycleError(f"{' '.join(command)} failed ({completed.returncode}). {recovery}")
+
+
+def _restore_dependencies() -> None:
+    """Initialize repository and language dependencies in their required order."""
+    if (ROOT / ".gitmodules").is_file():
+        _run_bootstrap(["git", "submodule", "update", "--init", "--recursive"],
+            "Verify submodule access and URLs, then rerun bootstrap.")
+    _run_bootstrap(["uv", "sync", "--locked"],
+        "Restore or update uv.lock with uv lock, then rerun bootstrap.")
+    _run_bootstrap(["npm", "ci"],
+        "Verify package-lock.json and npm registry access, then rerun bootstrap.")
+    _run_bootstrap(["node_modules/.bin/playwright", "install", "chromium"],
+        "Restore network access for the Playwright browser download, then rerun bootstrap.")
 
 
 def _collect_audit() -> AuditReport:
@@ -160,13 +177,12 @@ def bootstrap() -> None:
         actual = version.stdout.strip() or version.stderr.strip() or "not available"
         _fail(f"Node 22 is required (found {actual}); install Node 22, then rerun bootstrap.")
     try:
-        _run_bootstrap(["uv", "sync", "--locked"],
-            "Restore or update uv.lock with uv lock, then rerun bootstrap.")
-        _run_bootstrap(["npm", "ci"],
-            "Verify package-lock.json and npm registry access, then rerun bootstrap.")
-        _run_bootstrap(["node_modules/.bin/playwright", "install", "chromium"],
-            "Restore network access for the Playwright browser download, then rerun bootstrap.")
+        _restore_dependencies()
     except (FileNotFoundError, LifecycleError) as error:
+        _fail(error)
+    try:
+        discover_managers()
+    except ManagerError as error:
         _fail(error)
     console.print(f"[bold green]Bootstrap complete[/] (Node {version.stdout.strip()})")
 
@@ -179,6 +195,8 @@ def list_apps() -> None:
         table.add_row(definition.name, definition.title, "active", definition.module)
     for planned in discover_planned_apps(APPS_DIRECTORY):
         table.add_row(planned.name, "—", "planned", "—")
+    for directory in uninitialized_app_submodules(ROOT):
+        table.add_row(directory.name, "—", "uninitialized submodule", "—")
     console.print(table)
 
 
@@ -199,9 +217,13 @@ def status() -> None:
     planned = discover_planned_apps(APPS_DIRECTORY)
     for item in planned:
         table.add_row(item.name, "—", "[cyan]planned[/]", "—", "—", "—")
+    missing = uninitialized_app_submodules(ROOT)
+    for directory in missing:
+        table.add_row(directory.name, "—", "[yellow]uninitialized[/]", "—", "—", "—")
     console.print(table)
     console.print(
-        f"{len(MANAGERS)} managed app(s), {len(planned)} planned; "
+        f"{len(MANAGERS)} managed app(s), {len(planned)} planned, "
+        f"{len(missing)} uninitialized; "
         "run [bold]manage.py check[/] for validation."
     )
 
@@ -229,6 +251,12 @@ def audit() -> None:
 def check() -> None:
     """Validate Xenorepo's manager inventory and every application build."""
     try:
+        missing = uninitialized_app_submodules(ROOT)
+        if missing:
+            names = ", ".join(path.name for path in missing)
+            raise LifecycleError(
+                f"uninitialized app submodules: {names}; run uv run manage.py bootstrap"
+            )
         validate_source_lines(ROOT)
         report = _collect_audit()
         violations = report.architecture + report.large_files + report.complex_functions

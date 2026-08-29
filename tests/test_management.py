@@ -97,7 +97,7 @@ frontend:
         self.assertEqual(result.exit_code, 0)
         command_names = {command.name or command.callback.__name__.replace("_", "-")
             for command in app.registered_commands}
-        self.assertEqual(command_names, {"build", "check", "test", "ui-check"})
+        self.assertEqual(command_names, {"build", "check", "test", "ui-check", "verify"})
         self.assertEqual({group.name for group in app.registered_groups}, {"git"})
 
     def test_standard_serve_delegates_to_shared_lifecycle(self) -> None:
@@ -146,7 +146,7 @@ frontend:
         mounted_name = repository_manager.MANAGERS[0][0].name
         result = CliRunner().invoke(repository_manager.app, [mounted_name, "--help"])
         self.assertEqual(result.exit_code, 0)
-        for command in ("build", "check", "test", "serve", "ui-check"):
+        for command in ("build", "check", "test", "serve", "ui-check", "verify"):
             self.assertIn(command, result.output)
         self.assertNotIn("bootstrap", result.output)
         self.assertNotIn("status", result.output)
@@ -340,6 +340,8 @@ frontend:
             if "ls-files --stage" in joined:
                 return "100644 b app.yaml"
             if "status --short" in joined:
+                return ""
+            if "diff --cached --name-only" in joined:
                 return ""
             if "subtree split" in joined:
                 return split

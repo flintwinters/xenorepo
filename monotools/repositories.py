@@ -129,8 +129,13 @@ def _preflight(definition: AppDefinition, workspace: Path, owner: str,
     state = inspect_app_repository(definition, workspace)
     if state.mode != "monolith":
         raise RepositoryError(f"{definition.name} is already managed as {state.mode}")
-    if _git(workspace, "status", "--short"):
-        raise RepositoryError("Xenorepo worktree must be clean before repository promotion")
+    if not state.clean:
+        raise RepositoryError(f"{definition.name} worktree must be clean before promotion")
+    staged = _git(workspace, "diff", "--cached", "--name-only")
+    if staged:
+        raise RepositoryError(
+            "Xenorepo index contains staged changes; commit or unstage them before promotion"
+        )
     if not (definition.directory / ".gitignore").is_file():
         raise RepositoryError(f"{definition.name} needs an app-owned .gitignore before promotion")
     _gh(workspace, "auth", "status")

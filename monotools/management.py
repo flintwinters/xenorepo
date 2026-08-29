@@ -127,8 +127,10 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
         visibility: str = typer.Option(..., "--visibility")) -> None:
         """Create a GitHub repository and replace this app with its verified submodule."""
         def verify_workspace() -> None:
-            completed = subprocess.run([sys.executable, "manage.py", "verify"], cwd=workspace,
-                check=False)
+            completed = subprocess.run(
+                [sys.executable, "manage.py", definition.name, "verify"],
+                cwd=workspace, check=False,
+            )
             if completed.returncode:
                 raise RepositoryError(
                     f"workspace verification failed ({completed.returncode}); promotion stopped"
@@ -186,6 +188,13 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
         if declared and declared.input_modalities:
             matrix += "; trusted " + "/".join(sorted(declared.input_modalities))
         console.print(f"[bold green]{matrix}[/] {definition.name} ({artifacts})")
+
+    @app.command()
+    def verify() -> None:
+        """Run this app's checks, Python suite, and complete browser proof matrix."""
+        check()
+        test()
+        ui_check(evidence=False)
 
     if include_serve:
         @app.command()

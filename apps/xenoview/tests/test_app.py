@@ -69,6 +69,7 @@ class CockpitTests(unittest.TestCase):
         root_names = [item["name"] for item in tree["children"]]
         self.assertNotIn("node_modules", root_names)
         self.assertNotIn(".venv", root_names)
+        self.assertNotIn("package-lock.json", root_names)
         apps = next(item for item in tree["children"] if item["name"] == "apps")
         xenoview = next(item for item in apps["children"] if item["name"] == "xenoview")
         self.assertNotIn("dist", {item["name"] for item in xenoview["children"]})

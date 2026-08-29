@@ -23,6 +23,7 @@ COMPILED_PARTS = frozenset({"build", "coverage", "dist", "htmlcov", "site"})
 DEPENDENCY_PARTS = frozenset({".mypy_cache", ".pytest_cache", ".ruff_cache", ".uv-cache",
     ".venv", "node_modules", "vendor"})
 TREE_EXCLUDED_PARTS = EXCLUDED_PARTS | COMPILED_PARTS | DEPENDENCY_PARTS
+EXCLUDED_FILES = frozenset({"package-lock.json"})
 _SCRIPT_TEST = re.compile(r"\b(?:test|it)\s*\(")
 
 
@@ -35,7 +36,8 @@ class FileFact:
 
 def _included(path: Path, root: Path) -> bool:
     relative = path.relative_to(root)
-    return not TREE_EXCLUDED_PARTS.intersection(relative.parts) and ".git" not in relative.parts
+    return (path.name not in EXCLUDED_FILES and
+        not TREE_EXCLUDED_PARTS.intersection(relative.parts) and ".git" not in relative.parts)
 
 
 def _facts(root: Path) -> tuple[FileFact, ...]:
@@ -127,7 +129,8 @@ def scan_overview(root: Path) -> dict[str, object]:
     return {"metrics": metrics, "revision": revision, "dirty": dirty,
         "fingerprint": sha256(identity.encode()).hexdigest(),
         "specification": {"covered": metrics["specified_apps"], "total": metrics["monoapps"]},
-        "exclusions": sorted(TREE_EXCLUDED_PARTS), "language_lines": _language_lines(source),
+        "exclusions": sorted(TREE_EXCLUDED_PARTS | EXCLUDED_FILES),
+        "language_lines": _language_lines(source),
         "test_breakdown": tests,
         "largest_files": [{"path": str(item.path), "lines": item.lines, "bytes": item.bytes}
             for item in sorted(source, key=lambda item: (-item.lines, str(item.path)))[:8]]}

@@ -99,22 +99,6 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
           <p>No composite quality score is calculated: unrelated evidence stays independently inspectable.</p>
         </div></ConsolePane></div></section>;
   }
-  private modulesTable(): ComponentChildren {
-    return <><div class="explorer-section-heading"><h2>Monotools modules</h2>
-      <span>{this.state.modules.length} Python modules in semantic packages</span></div>
-      <div class="module-table"><table class="console-table"><thead><tr><th class="identity">Module</th>
-        <th class="compact">Path</th><th class="prose">Description</th><th class="prose">Explanation</th>
-        <th class="numeric">Lines</th><th class="numeric">Size</th><th class="numeric">Definitions</th>
-        <th class="numeric">Apps</th><th>Dependencies</th></tr></thead><tbody>
-        {this.state.modules.map((item) => <tr><td class="identity"><strong>{item.name}</strong></td>
-          <td class="compact">{item.path}</td><td class="prose">{item.description}</td>
-          <td class="prose">{item.explanation}</td><td class="numeric">{number.format(item.lines)}</td>
-          <td class="numeric">{bytes(item.bytes)}</td>
-          <td class="numeric">{number.format(item.public_definitions)}</td>
-          <td class="numeric">{number.format(item.inbound_apps)}</td>
-          <td>{item.dependencies.join(", ") || "—"}</td></tr>)}
-        </tbody></table></div></>;
-  }
   private treeColor(node: TreeNode): string {
     const entries = new Map((this.state.tree?.ls_colors ?? "").split(":").flatMap((entry) => {
       const separator = entry.indexOf("=");
@@ -125,21 +109,31 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
     const colorKey = node.kind === "directory" ? "di" : extension;
     return ansiColor(colorKey ? entries.get(colorKey) ?? "" : "");
   }
-  private treeNode(node: TreeNode, depth = 0): ComponentChildren {
+  private treeRows(node: TreeNode, modules: Map<string, ModuleFact>, depth = 0): ComponentChildren {
     const style = { "--depth": depth, "--ls-color": this.treeColor(node) };
-    if (node.kind === "file") return <div class="tree-row file" style={style}><span>{node.name}</span>
-      <small class="tree-lines">{treeLines(node.lines)}</small>
-      <small class="tree-bytes">{treeBytes(node.bytes)}</small></div>;
-    return <details open={depth < 2}><summary class="tree-row" style={style}><span>{node.name}</span>
-      <small class="tree-lines">{treeLines(node.lines)}</small>
-      <small class="tree-bytes">{treeBytes(node.bytes)}</small></summary>
-      {node.children?.map((child) => this.treeNode(child, depth + 1))}</details>;
+    const module = modules.get(node.path);
+    return <><tr class={`tree-row ${node.kind}`} style={style}><td class="tree-entry"
+      data-lines={treeLines(node.lines)} data-bytes={treeBytes(node.bytes)}>
+      <span>{node.kind === "directory" ? "▾ " : ""}{node.name}</span></td>
+      <td class="identity">{module && <strong>{module.name}</strong>}</td>
+      <td class="prose">{module?.description}</td><td class="prose">{module?.explanation}</td>
+      <td class="numeric">{module && number.format(module.public_definitions)}</td>
+      <td class="numeric">{module && number.format(module.inbound_apps)}</td>
+      <td>{module && (module.dependencies.join(", ") || "—")}</td></tr>
+      {node.children?.map((child) => this.treeRows(child, modules, depth + 1))}</>;
   }
   private explorerPage(): ComponentChildren {
+    const modules = new Map(this.state.modules.map((item) => [item.path, item]));
     return <section class="page"><div class="page-heading"><div><p class="eyebrow">Maintained footprint</p>
       <h1>Repository explorer</h1></div><p>Generated and runtime-heavy paths excluded</p></div>
-      <div class="tree">{this.state.tree && this.treeNode(this.state.tree)}</div>
-      {this.modulesTable()}</section>;
+      <div class="explorer-summary"><span>Files and semantic Monotools modules</span>
+        <span>{this.state.modules.length} documented Python modules</span></div>
+      <div class="explorer-table"><table class="console-table"><thead><tr><th>File · lines · size</th>
+        <th class="identity">Module</th><th class="prose">Description</th>
+        <th class="prose">Explanation</th><th class="numeric">Definitions</th>
+        <th class="numeric">Apps</th><th>Dependencies</th></tr></thead><tbody>
+        {this.state.tree && this.treeRows(this.state.tree, modules)}
+      </tbody></table></div></section>;
   }
   private architecturePage(): ComponentChildren {
     const architecture = this.state.architecture;

@@ -13,37 +13,30 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   await expect(page.getByRole("button", { name: "modules", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "explorer", exact: true }).click();
   await expect(page.locator("#app")).toContainText("Repository explorer");
-  await expect(page.locator("#app")).toContainText("Monotools modules");
+  await expect(page.locator("#app")).toContainText("Files and semantic Monotools modules");
   await expect(page.locator("#app")).toContainText("audit");
-  await expect(page.locator(".module-table")).toContainText("Measure architecture and structural invariants");
-  await expect(page.locator(".module-table")).toBeVisible();
-  const widths = await page.locator(".module-table th").evaluateAll((headers) => Object.fromEntries(
+  await expect(page.locator(".explorer-table")).toContainText("Measure architecture and structural invariants");
+  await expect(page.locator(".explorer-table")).toBeVisible();
+  await expect(page.locator(".page table")).toHaveCount(1);
+  const widths = await page.locator(".explorer-table th").evaluateAll((headers) => Object.fromEntries(
     headers.map((header) => [header.textContent?.trim(), header.getBoundingClientRect().width]),
   ));
-  expect(widths.Description).toBeGreaterThan(widths.Lines * 2);
+  expect(widths.Description).toBeGreaterThan(widths.Definitions * 2);
   expect(widths.Explanation).toBeGreaterThan(widths.Apps * 2);
 
   await expect(page.locator(".tree-row").first()).toContainText("xenorepo");
-  await expect(page.locator(".tree-lines").first()).toHaveText(/^\d[\d,]*L$/);
-  await expect(page.locator(".tree-bytes").first()).toHaveText(/^\d+(?:B|KB|MB|GB|TB)$/);
+  await expect(page.locator(".tree-entry").first()).toHaveAttribute("data-lines", /^\d[\d,]*L$/);
+  await expect(page.locator(".tree-entry").first()).toHaveAttribute("data-bytes", /^\d+(?:B|KB|MB|GB|TB)$/);
   const metadataLayout = await page.locator(".tree-row").evaluateAll((rows) => rows.slice(0, 8).map((row) => {
-    const lines = row.querySelector<HTMLElement>(".tree-lines");
-    const bytes = row.querySelector<HTMLElement>(".tree-bytes");
-    const name = row.querySelector<HTMLElement>("span");
-    const lineBox = lines?.getBoundingClientRect();
-    const byteBox = bytes?.getBoundingClientRect();
-    const nameBox = name?.getBoundingClientRect();
-    return { order: [nameBox?.left, lineBox?.left, byteBox?.left],
-      nameGap: nameBox && lineBox ? lineBox.left - nameBox.right : undefined,
-      factsGap: lineBox && byteBox ? byteBox.left - lineBox.right : undefined,
+    const entry = row.querySelector<HTMLElement>(".tree-entry");
+    return { lines: entry?.dataset.lines, bytes: entry?.dataset.bytes,
       height: row.getBoundingClientRect().height,
       border: getComputedStyle(row).borderBottomWidth,
-      font: lines ? getComputedStyle(lines).fontFamily : "" };
+      font: entry ? getComputedStyle(entry, "::after").fontFamily : "" };
   }));
-  expect(metadataLayout.every((item) => item.order[0]! < item.order[1]! &&
-    item.order[1]! < item.order[2]!)).toBe(true);
-  expect(metadataLayout.every((item) => item.nameGap! <= 4 && item.factsGap! <= 4)).toBe(true);
-  expect(metadataLayout.every((item) => item.height <= 13 && item.border === "0px")).toBe(true);
+  expect(metadataLayout.every((item) => /^\d[\d,]*L$/.test(item.lines ?? "") &&
+    /^\d+(?:B|KB|MB|GB|TB)$/.test(item.bytes ?? ""))).toBe(true);
+  expect(metadataLayout.every((item) => item.height <= 14 && item.border === "0px")).toBe(true);
   expect(metadataLayout.every((item) => item.font.includes("Courier New"))).toBe(true);
 
   await page.getByRole("button", { name: "architecture", exact: true }).click();

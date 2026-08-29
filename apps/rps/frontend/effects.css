@@ -1,4 +1,3 @@
-export const styles2 = String.raw`
       .signal-ready {
         --signal: var(--orange);
       }
@@ -466,4 +465,4 @@ export const styles2 = String.raw`
         .streak {
           font-size: 10px;
         }
-      }`;
+      }

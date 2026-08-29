@@ -16,8 +16,8 @@ imports:
 frontend:
   artifacts:
     index:
-      format: lit
-      source: frontend/index.js
+      format: preact
+      source: frontend/index.tsx
       output: index.html
   routes:
     /: index

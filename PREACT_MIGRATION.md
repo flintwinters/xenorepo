@@ -38,14 +38,14 @@ and JavaScript frontend compatibility only after the final consumer migrates.
   authentication, pagination parameters, and lifecycle-owned SSE preserve the wire.
 - [x] **Inventory — complete.** Typed Preact state preserves scoring, keyboard
   flow, completion, restart, and the non-diagnostic product boundary.
-- [ ] **Realtime arena — active.** Split typed state, view, and transport while
+- [x] **Realtime arena — complete.** Split typed state, view, and transport while
   preserving the complete protocol and behavior.
-- [ ] **Compatibility removal — queued.** Remove Lit and JavaScript frontend
+- [ ] **Compatibility removal — active.** Remove Lit and JavaScript frontend
   support and activate permanent Preact-only architecture gates.
 
 ## Current checkpoint
 
-Migrate the realtime arena as one verified logical checkpoint. Split typed
-state, view, and transport while preserving the complete protocol, behavior,
-and app-owned wide and narrow baselines. Run `uv run manage.py verify`, update
-this file, and commit before compatibility removal.
+Remove Lit and JavaScript frontend compatibility as one verified logical
+checkpoint. Delete obsolete builders and dependencies, make Preact TSX the only
+accepted frontend format, activate permanent architecture gates, run
+`uv run manage.py verify`, update this file, and commit.

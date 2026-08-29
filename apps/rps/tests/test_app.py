@@ -98,7 +98,7 @@ class RpsTests(unittest.TestCase):
         from monotools.orchestration.apps import get_app
 
         title = "Rock Paper Scissors"
-        source = Path("apps/rps/frontend/view.js").read_text(encoding="utf-8")
+        source = Path("apps/rps/frontend/view.tsx").read_text(encoding="utf-8")
         self.assertEqual(get_app("rps").title, title)
         application = create_app(f"sqlite:///{self.database}")
         try:
@@ -110,24 +110,26 @@ class RpsTests(unittest.TestCase):
     def test_operator_console_frontend_follows_repository_ui_direction(self) -> None:
         frontend = Path("apps/rps/frontend")
         document = "\n".join(path.read_text(encoding="utf-8")
-            for path in sorted(frontend.glob("*.js")))
+            for path in sorted(frontend.iterdir()) if path.suffix in {".ts", ".tsx", ".css"})
         compact = "".join(document.split())
+        self.assertEqual(get_app("rps").artifacts[0].format, "preact")
+        self.assertNotIn('from "lit"', document)
         for marker in ("grid-template-rows:22px 1fr",
             'class="utility"', 'class="mosaic"',
-            'class="pane arena-index"', 'class="pane battle"',
-            'class="pane ledger"',
+            'class="pane arena-index"', 'className="battle"',
+            'className="ledger"',
             'class="pane-title">ARENA', 'id="round-log"', "position:sticky",
             'id="top-matches"', 'id="recent-results"', 'data-watch',
             "spectator_state:", "arena_snapshot:",
             'id="landing"', 'id="play-form"', 'id="landing-matches"',
-            'class="key play"', 'p.competitive_streak', 'send("queue_join")',
+            'class="key play"', 'player.competitive_streak', 'send("queue_join")',
             'id="rematch"', 'send("rematch"',
             'class="landing-utility"', 'class="landing-mosaic"',
             'class="landing-status"', 'ENTER ARENA',
-            'error.status=r.status', 'if(e.status===404)', '● WRONG SERVICE',
-            'function announce(', 'MATCH START · YOU VS', 'MATCH WON',
+            'failure.status=status', 'if(error.status===404)', '● WRONG SERVICE',
+            'announce(message:', 'MATCH START · YOU VS', 'MATCH WON',
             'MATCH LOST', 'OPPONENT READY · YOUR THROW',
-            'MATCHMAKING · SEARCHING FOR OPPONENT', 'classList.toggle("ready"',
+            'MATCHMAKING · SEARCHING FOR OPPONENT', 'model.opponentReady',
             'CONNECTION LOST · RECONNECTING',
             'signal-search', 'signal-active', 'signal-locked', 'signal-ready',
             'signal-win', 'signal-loss', 'signal-tie', '--signal:',
@@ -135,15 +137,15 @@ class RpsTests(unittest.TestCase):
             'grid-template-rows:1fr auto 1fr', 'animation:their-swoop',
             'animation:your-swoop', '@keyframes their-swoop',
             '@keyframes your-swoop',
-            'icons={rock:"🪨",paper:"📄",scissors:"✂️"}',
+            'icons:Record<Throw,string>={rock:"🪨",paper:"📄",scissors:"✂️"}',
             "@media(max-width:850px)", "@media(max-width:590px)"):
             with self.subTest(marker=marker):
                 self.assertIn("".join(marker.split()), compact)
         for marker in ("@keyframes queue-scan", "@keyframes reveal-in",
             "animation:selection-lock", "animation:reveal-in",
             "animation:win-flash", "animation:loss-shake",
-            "@media(prefers-reduced-motion:reduce)", "function replay(",
-            'classList.toggle("searching"'):
+            "@media(prefers-reduced-motion:reduce)", "animation:message-arrive",
+            'model.searching'):
             with self.subTest(marker=marker):
                 self.assertIn("".join(marker.split()), compact)
         for forbidden in ("radial-gradient", "border-radius"):

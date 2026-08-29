@@ -32,6 +32,12 @@ class NicknameInput(BaseModel):
     nickname: str = ""
 
 
+class PlayerState(BaseModel):
+    id: str
+    nickname: str
+    competitive_streak: int
+
+
 async def dispatch_arena_command(coordinator: ArenaCoordinator, player_id: str,
     payload: object) -> None:
     if not isinstance(payload, dict):
@@ -94,8 +100,8 @@ def create_app(database_url: str | None = None, *, clock: Clock | None = None,
 
     application.add_exception_handler(DomainError, domain_error_handler())
 
-    @application.get("/api/session")
-    def session_state(request: Request) -> JSONResponse:
+    @application.get("/api/session", response_model=PlayerState)
+    def session_state(request: Request) -> PlayerState | JSONResponse:
         player = current_player(request)
         if player is not None:
             return JSONResponse(player_state(player))
@@ -104,7 +110,7 @@ def create_app(database_url: str | None = None, *, clock: Clock | None = None,
         response = JSONResponse(player_state(player), status_code=201)
         return set_session_cookie(response, request, COOKIE, credential, COOKIE_AGE)
 
-    @application.patch("/api/session", response_model=None)
+    @application.patch("/api/session", response_model=PlayerState)
     def update_session(payload: NicknameInput, request: Request) -> dict[str, object] | JSONResponse:
         rejected = enforce_same_origin(request, lambda message: json_error(message, 403))
         if rejected is not None:

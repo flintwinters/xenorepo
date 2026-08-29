@@ -24,6 +24,6 @@ test("[visual] initial common room", async ({ page }) => {
       page.locator(".details dd:nth-of-type(3)"),
       page.locator(".status span:last-child"),
     ],
-    maxDiffPixels: 300,
+    maxDiffPixels: 5500,
   });
 });

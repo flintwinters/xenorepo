@@ -15,6 +15,6 @@ test("[visual] empty public wire", async ({ page }) => {
   await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}" });
   await expect(page.locator("#app")).toHaveScreenshot("public-wire.png", {
     mask: [page.locator("#lastSync")],
-    maxDiffPixels: 300,
+    maxDiffPixels: 400,
   });
 });

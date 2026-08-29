@@ -1,4 +1,4 @@
-import type { ServerEvent } from "./types.js";
+import { parseServerEvent, type ServerEvent } from "./types.js";
 
 export interface ChatTransportCallbacks {
   opened(): void;
@@ -18,7 +18,15 @@ export class ChatTransport {
     const protocol = location.protocol === "https:" ? "wss" : "ws";
     this.socket = new WebSocket(`${protocol}://${location.host}/ws`);
     this.socket.onopen = () => this.callbacks.opened();
-    this.socket.onmessage = ({ data }) => this.callbacks.event(JSON.parse(data) as ServerEvent);
+    this.socket.onmessage = ({ data }) => {
+      let event: ServerEvent | undefined;
+      try {
+        event = typeof data === "string" ? parseServerEvent(JSON.parse(data) as unknown) : undefined;
+      } catch {
+        event = undefined;
+      }
+      this.callbacks.event(event ?? { type: "error", message: "INVALID SERVER EVENT" });
+    };
     this.socket.onclose = () => {
       this.callbacks.closed();
       this.retry = window.setTimeout(() => this.connect(), 1500);

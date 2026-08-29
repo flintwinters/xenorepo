@@ -49,3 +49,15 @@ export function CommandButton({ pressed = false, appearance = "default", class: 
     <button class="x-ui-command-control" aria-pressed={pressed} {...props}>{children}</button>
   </span>;
 }
+
+interface EmptyStateProps extends DivProps {
+  heading?: ComponentChildren;
+  detail?: ComponentChildren;
+}
+
+export function EmptyState({ heading = "NO RECORDS", detail, class: className,
+  ...props }: EmptyStateProps) {
+  return <div class={classes("x-ui-empty-state", className as string | undefined)} {...props}>
+    <strong>{heading}</strong>{detail && <p>{detail}</p>}
+  </div>;
+}

@@ -5,7 +5,7 @@ capabilities:
   - database
   - realtime
 imports:
-  - "@xenorepo/lit-ui"
+  - "@xenorepo/ui"
   - monotools.appkit
   - monotools.database
   - monotools.http
@@ -16,8 +16,8 @@ imports:
 frontend:
   artifacts:
     index:
-      format: lit
-      source: frontend/index.ts
+      format: preact
+      source: frontend/index.tsx
       output: index.html
   routes:
     /: index

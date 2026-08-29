@@ -1,6 +1,9 @@
 # Calendar Console
 
-Calendar Console is a single-user, month-first planner served as one self-contained Lit artifact by FastAPI. It stores single-day all-day and timed events in SQLite and fixes the calendar timezone from the first browser that opens it.
+Calendar Console is a single-user, month-first planner served as one
+self-contained Preact artifact by FastAPI. It stores single-day all-day and
+timed events in SQLite and fixes the calendar timezone from the first browser
+that opens it.
 
 From a Xenorepo checkout, use the repository cockpit:
 

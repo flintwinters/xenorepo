@@ -93,15 +93,18 @@ class CalendarTests(unittest.TestCase):
         self.assertEqual(self.client.request("GET",
             "/api/calendar?start=2026-09-01&end=2026-08-01").status_code, 422)
 
-    def test_build_is_a_self_contained_modular_lit_client(self) -> None:
+    def test_build_is_a_self_contained_typed_preact_client(self) -> None:
         document = Path("apps/calendar/dist/index.html").read_text(encoding="utf-8")
-        source = Path("apps/calendar/frontend/index.ts").read_text(encoding="utf-8")
-        styles = Path("apps/calendar/frontend/styles.ts").read_text(encoding="utf-8")
+        source = Path("apps/calendar/frontend/index.tsx").read_text(encoding="utf-8")
+        client = Path("apps/calendar/frontend/client.ts").read_text(encoding="utf-8")
+        styles = Path("apps/calendar/frontend/styles.css").read_text(encoding="utf-8")
         self.assertIn("CALENDAR // 01", document)
         self.assertIn("/api/calendar", document)
         self.assertNotIn("APP_BUNDLE", document)
-        self.assertIn('import { calendarStyles } from "./styles.js";', source)
-        self.assertIn('import { consoleControls } from "@xenorepo/lit-ui";', styles)
+        self.assertIn('from "@xenorepo/ui";', source)
+        self.assertIn('import "./styles.css";', source)
+        self.assertIn('import type { components, paths } from "../data/openapi";', client)
+        self.assertNotIn('from "lit"', source)
         self.assertNotIn("resize: vertical", styles)
 
 

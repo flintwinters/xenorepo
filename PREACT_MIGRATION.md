@@ -27,12 +27,12 @@ and JavaScript frontend compatibility only after the final consumer migrates.
   shared shell, pane, rail, and command boundaries. The stateful consumer
   preserves keyboard and persistence behavior; the HTTP consumer uses its
   generated client.
-- **Realtime and scheduling pair — active.** Add a shared empty-state boundary
-  only after both consumers prove it. Preserve runtime-checked socket events,
+- **Realtime and scheduling pair — complete.** Both consumers prove the shared
+  typed empty-state boundary while preserving runtime-checked socket events,
   generated HTTP types, date calculations, and trusted pointer behavior.
-- **Board — next.** Preserve ordering, dialogs, history, pointer capture, notes,
+- **Board — active.** Preserve ordering, dialogs, history, pointer capture, notes,
   and durable review state.
-- **Cockpit — queued.** Preserve the complete journey and strengthen its
+- **Cockpit — next.** Preserve the complete journey and strengthen its
   OpenAPI response contracts.
 - **Event-stream consumer — queued.** Replace imperative DOM and unsafe HTML
   with typed JSX while preserving HTTP, authentication, and pagination.
@@ -45,6 +45,7 @@ and JavaScript frontend compatibility only after the final consumer migrates.
 
 ## Current checkpoint
 
-Complete the realtime and scheduling pair as one verified logical checkpoint.
-Run `uv run manage.py verify`, update this file and `LIBRARIES.md` with the
-proved shared boundary, and commit before beginning the board.
+Migrate the board as one verified logical checkpoint. Preserve app-owned wide
+and narrow baselines, ordering, dialogs, history, pointer capture, notes, and
+durable review state. Run `uv run manage.py verify`, update this file, and
+commit before beginning the cockpit.

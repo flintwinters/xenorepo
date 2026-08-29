@@ -30,11 +30,11 @@ test("[acceptance] creates, edits, drags, reloads, and deletes a durable event",
   await installInputEvidence(page);
   await page.goto("/");
   await expect(page.getByText("CALENDAR // 01")).toBeVisible();
-  await expect(page.locator("calendar-console")).toBeInViewport();
+  await expect(page.locator(".calendar-console")).toBeInViewport();
   await expect(page.locator(".day")).toHaveCount(42);
-  const monthPane = page.locator("x-console-pane").first();
-  await expect(monthPane.locator('x-command-button[slot="title-end"]')).toHaveCount(3);
-  const chrome = await monthPane.locator(".chrome").boundingBox(),
+  const monthPane = page.locator(".x-ui-pane").first();
+  await expect(monthPane.locator(".x-ui-title-end .x-ui-command")).toHaveCount(3);
+  const chrome = await monthPane.locator(".x-ui-chrome").boundingBox(),
     next = await page.getByRole("button", { name: "Next month" }).boundingBox();
   expect(chrome).not.toBeNull();
   expect(next).not.toBeNull();
@@ -74,7 +74,7 @@ test("[acceptance] creates, edits, drags, reloads, and deletes a durable event",
       { x: target.x + target.width / 2, y: target.y + target.height / 2 },
     ]);
   } else await mouseDrag(page, page.locator(".chip").filter({ hasText: edited }), destination);
-  await expect(page.locator("x-status-indicator")).toHaveAttribute("label", `Moved “${edited}”`);
+  await expect(page.locator(".status-indicator")).toHaveText(`Moved “${edited}”`);
   const evidence = await readInputEvidence(page);
   expect(validateInputEvidence(evidence, modality)).toMatchObject({ accepted: true });
   await testInfo.attach("input-evidence.json", {
@@ -98,6 +98,7 @@ test("[acceptance] creates, edits, drags, reloads, and deletes a durable event",
 });
 
 test("[visual] initial scheduling console", async ({ page }) => {
+  await page.clock.setFixedTime(new Date("2026-08-28T12:00:00-04:00"));
   await page.goto("/");
   await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}" });
   await expect(page.locator("#app")).toHaveScreenshot("scheduling-console.png", { maxDiffPixels: 300 });

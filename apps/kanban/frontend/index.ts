@@ -1,5 +1,5 @@
 /** Durable board interactions composed from central Lit UI primitives. */
-import { LitElement, html, nothing } from "lit";
+import { LitElement, css, html, nothing } from "lit";
 import { consoleControls } from "@xenorepo/lit-ui";
 import { kanbanStyles } from "./styles";
 
@@ -28,6 +28,93 @@ interface Board {
   undo_description: string | null;
   redo_description: string | null;
 }
+
+const kanbanElementTokens = css`
+  :host {
+    color: var(--console-fg, #ebdbb2);
+    font: var(--console-font, 12px/1.3 "Courier New", monospace);
+  }
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  :focus-visible {
+    outline: 2px solid var(--console-focus, #fabd2f);
+    outline-offset: 2px;
+  }
+`;
+
+class KanbanStatusIndicator extends LitElement {
+  static properties = { label: { type: String }, tone: { type: String } };
+  declare label: string;
+  declare tone: "green" | "orange";
+  constructor() {
+    super();
+    this.label = "";
+    this.tone = "green";
+  }
+  static styles = [
+    kanbanElementTokens,
+    css`
+      :host {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      i {
+        width: 8px;
+        height: 8px;
+        border: 1px solid #0c0d0d;
+        background: var(--indicator, #b8bb26);
+        box-shadow: 0 0 4px var(--indicator, #b8bb26);
+      }
+      span {
+        color: var(--console-muted, #a89984);
+      }
+    `,
+  ];
+  render() {
+    const indicator = this.tone === "orange" ? "#fe8019" : "#b8bb26";
+    return html`<i style=${`--indicator:${indicator}`}></i><span role="status">${this.label}</span>`;
+  }
+}
+customElements.define("x-status-indicator", KanbanStatusIndicator);
+
+class KanbanEmptyState extends LitElement {
+  static properties = { heading: { type: String }, detail: { type: String } };
+  declare heading: string;
+  declare detail: string;
+  constructor() {
+    super();
+    this.heading = "NO RECORDS";
+    this.detail = "";
+  }
+  static styles = [
+    kanbanElementTokens,
+    css`
+      :host {
+        display: grid;
+        min-height: 100px;
+        place-content: center;
+        gap: 4px;
+        padding: 16px;
+        text-align: center;
+        color: var(--console-muted, #a89984);
+      }
+      strong {
+        color: var(--console-fg, #ebdbb2);
+      }
+      p {
+        margin: 0;
+      }
+    `,
+  ];
+  render() {
+    return html`<strong>${this.heading}</strong>${this.detail ? html`<p>${this.detail}</p>` : nothing}`;
+  }
+}
+customElements.define("x-empty-state", KanbanEmptyState);
 
 class KanbanBoard extends LitElement {
   private static readonly REVIEW_WINDOW_MS = 24 * 60 * 60 * 1000;

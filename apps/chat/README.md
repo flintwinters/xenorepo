@@ -4,11 +4,11 @@ Common Room is a standalone anonymous group-chat application. FastAPI serves
 the complete browser interface, synchronizes durable history, and broadcasts
 new messages over WebSockets.
 
-The frontend is a strict modular Lit graph. Its entrypoint only registers and
-mounts the room component; app-owned modules retain message contracts,
+The frontend is a strict Preact TSX graph with external CSS. Its entrypoint only
+mounts the room; app-owned modules retain runtime-checked message contracts,
 reconnecting transport, and responsive styling. Shells, rails, panes, command
-buttons, status indicators, and empty states come from the central Lit UI
-package, and esbuild still produces one self-contained `dist/index.html`.
+buttons, and empty states come from the central Preact UI package, and esbuild
+still produces one self-contained `dist/index.html`.
 
 Application-owned runtime data is stored in the visible `data/` directory.
 The default SQLite database is `data/chat.db`; set `CHAT_DATABASE_URL` to use a

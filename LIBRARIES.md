@@ -21,13 +21,11 @@ elements:
 
 | Custom element | Independent consumer count |
 | --- | ---: |
-| `x-console-shell` | 4 |
-| `x-utility-rail` | 4 |
-| `x-status-rail` | 4 |
-| `x-console-pane` | 4 |
-| `x-command-button` | 4 |
-| `x-status-indicator` | 3 |
-| `x-empty-state` | 3 |
+| `x-console-shell` | 2 |
+| `x-utility-rail` | 2 |
+| `x-status-rail` | 2 |
+| `x-console-pane` | 2 |
+| `x-command-button` | 2 |
 
 `consoleControls` has two independent consumers. Identities remain app-owned
 and discoverable from metadata; central policy records only the evidence count.
@@ -36,11 +34,13 @@ All consumers import the package boundary as `@xenorepo/lit-ui`.
 ## Console Preact UI contract
 
 The typed `ConsoleShell`, `UtilityRail`, `StatusRail`, `ConsolePane`, and
-`CommandButton` components each have two independent consumers. Their props
-extend the corresponding Preact native HTML attributes, named props replace
-slots, and stable `x-ui-*` classes are the styling boundary. The package owns
-only proved console geometry and interaction treatment; app layout remains in
-external app-owned CSS. All consumers import `@xenorepo/ui`.
+`CommandButton` components each have four independent consumers. `EmptyState`
+has two and owns only centered empty-result geometry around an app-owned heading
+and optional detail. Component props extend the corresponding Preact native
+HTML attributes, named props replace slots, and stable `x-ui-*` classes are the
+styling boundary. The package owns only proved console geometry and interaction
+treatment; app layout remains in external app-owned CSS. All consumers import
+`@xenorepo/ui`.
 
 ## Monotools production contract inventory
 

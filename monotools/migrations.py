@@ -1,4 +1,8 @@
-"""Versioned, recoverable database migration orchestration for monoapps."""
+"""Orchestrate versioned and recoverable monoapp database migrations.
+
+The migration ledger, backup phase, ordered steps, and transactional recording
+make schema evolution repeatable while preserving explicit recovery evidence.
+"""
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass

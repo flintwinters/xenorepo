@@ -1,4 +1,8 @@
-"""Shared HTTP security, provenance, principal, and response primitives."""
+"""Provide shared HTTP security and response primitives.
+
+The helpers enforce same-origin mutations, derive client provenance, manage
+principal cookies, and produce consistent error envelopes without domain policy.
+"""
 
 from collections.abc import Callable, Mapping
 from typing import Any, TypeVar

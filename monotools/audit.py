@@ -1,4 +1,8 @@
-"""Read-only architecture and structural audits for a Monotools workspace."""
+"""Measure architecture and structural invariants without mutation.
+
+The audit inventories dependency-boundary violations, oversized sources, and
+complex functions so root checks can reject drift through stable categories.
+"""
 
 from __future__ import annotations
 
@@ -150,6 +154,22 @@ def _app_source_html_violations(workspace: Path) -> list[AuditViolation]:
         if not EXCLUDED_PARTS.intersection(path.relative_to(workspace).parts)]
 
 
+def _monotools_documentation_violations(workspace: Path) -> list[AuditViolation]:
+    """Require a summary and explanatory paragraph in every platform module."""
+    directory = workspace / "monotools"
+    if not directory.is_dir():
+        return []
+    violations = []
+    for path in sorted(directory.glob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        sections = (ast.get_docstring(tree, clean=True) or "").split("\n\n", 1)
+        if len(sections) < 2 or not all(section.strip() for section in sections):
+            violations.append(AuditViolation("monotools-module-documentation",
+                str(path.relative_to(workspace)),
+                "module docstring must contain a summary and explanatory paragraph"))
+    return violations
+
+
 def audit_architecture(workspace: Path,
     definitions: tuple[AppDefinition, ...]) -> tuple[AuditViolation, ...]:
     """Return deterministic dependency and shared-boundary violations."""
@@ -158,6 +178,7 @@ def audit_architecture(workspace: Path,
     violations.extend(_frontend_boundary_violations(workspace, definitions))
     violations.extend(_custom_element_violations(workspace, definitions))
     violations.extend(_app_source_html_violations(workspace))
+    violations.extend(_monotools_documentation_violations(workspace))
     return tuple(sorted(violations))
 
 

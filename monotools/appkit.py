@@ -1,4 +1,8 @@
-"""Shared application infrastructure assembled from declarative metadata."""
+"""Assemble shared application infrastructure from declarative metadata.
+
+This module resolves an app's clock, database URL, schema preparation, and
+session factory into one typed context without absorbing application policy.
+"""
 
 from datetime import datetime, timezone
 from pathlib import Path

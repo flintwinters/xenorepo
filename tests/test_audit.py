@@ -19,7 +19,9 @@ class AuditTests(unittest.TestCase):
                 (directory / "frontend").mkdir(parents=True)
                 (directory / "backend").mkdir()
             (workspace / "monotools").mkdir()
-            (workspace / "monotools" / "policy.py").write_text("product = 'orion'\n", encoding="utf-8")
+            (workspace / "monotools" / "policy.py").write_text(
+                '"""Describe synthetic policy.\n\nExplain its test-only purpose.\n"""\nproduct = \'orion\'\n',
+                encoding="utf-8")
             (first / "backend" / "server.py").write_text(
                 "from apps.nebula.backend import server\n", encoding="utf-8")
             (first / "frontend" / "index.ts").write_text(
@@ -60,7 +62,8 @@ class AuditTests(unittest.TestCase):
             source.parent.mkdir()
             decisions = "\n".join(f"    if value == {index}: return {index}" for index in range(9))
             source.write_text(
-                f"def decide(value):\n{decisions}\n" + "padding = None\n" * 591,
+                f'"""Describe synthetic structure.\n\nExplain its audit purpose.\n"""\n'
+                f"def decide(value):\n{decisions}\n" + "padding = None\n" * 587,
                 encoding="utf-8",
             )
 
@@ -70,6 +73,23 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(len(report.large_files), 1)
         self.assertEqual(len(report.complex_functions), 1)
         self.assertIn("decide: 10", report.complex_functions[0].detail)
+
+    def test_architecture_audit_requires_explanatory_monotools_docstrings(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="audit-") as temporary:
+            workspace = Path(temporary)
+            directory = workspace / "monotools"
+            directory.mkdir()
+            (directory / "missing.py").write_text("value = 1\n", encoding="utf-8")
+            (directory / "shallow.py").write_text('"""Summary only."""\n', encoding="utf-8")
+            (directory / "documented.py").write_text(
+                '"""Useful summary.\n\nExplanation of the module boundary.\n"""\n', encoding="utf-8")
+
+            violations = audit_architecture(workspace, ())
+
+        self.assertEqual([(item.category, item.path) for item in violations], [
+            ("monotools-module-documentation", "monotools/missing.py"),
+            ("monotools-module-documentation", "monotools/shallow.py"),
+        ])
 
     def test_repository_baseline_has_zero_structural_violations(self) -> None:
         import manage

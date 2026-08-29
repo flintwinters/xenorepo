@@ -1,4 +1,8 @@
-"""Provider-neutral email delivery and a standard-library SMTP adapter."""
+"""Define provider-neutral email delivery and an SMTP adapter.
+
+The mail contract separates application-authored messages from transport while
+the standard adapter owns TLS, authentication, and delivery mechanics.
+"""
 
 from dataclasses import dataclass
 from email.message import EmailMessage

@@ -1,4 +1,8 @@
-"""Small polling watcher for rebuilding managed frontend artifacts."""
+"""Watch managed frontend inputs and rebuild changed artifacts.
+
+This polling implementation follows declared entries and their local or shared
+imports, producing deterministic rebuilds without app-specific watch scripts.
+"""
 
 from collections.abc import Callable
 from pathlib import Path

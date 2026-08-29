@@ -1,4 +1,8 @@
-"""Typer-native building blocks for application managers."""
+"""Build Typer-native command surfaces for application managers.
+
+This module turns app definitions and suite declarations into consistent leaf
+commands while keeping root orchestration generic and discoverable.
+"""
 
 from dataclasses import dataclass
 from pathlib import Path

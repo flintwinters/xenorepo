@@ -13,6 +13,7 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   await page.getByRole("button", { name: "modules", exact: true }).click();
   await expect(page.locator("x-xenorepo-cockpit")).toContainText("Monotools modules");
   await expect(page.locator("x-xenorepo-cockpit")).toContainText("audit");
+  await expect(page.locator(".module-table")).toContainText("Measure architecture and structural invariants");
   await expect(page.locator(".module-table")).toBeVisible();
 
   await page.getByRole("button", { name: "explorer", exact: true }).click();

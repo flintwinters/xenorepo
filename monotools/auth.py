@@ -1,4 +1,8 @@
-"""Shared opaque credential construction and storage-safe digests."""
+"""Construct opaque credentials and storage-safe digests.
+
+The helpers centralize unpredictable credential issuance and one-way hashing
+so applications can persist authenticators without storing bearer secrets.
+"""
 
 import hashlib
 import secrets

@@ -1,4 +1,8 @@
-"""Reusable build and validation operations."""
+"""Build and validate managed application artifacts.
+
+This module compiles declared Lit entries, checks source and artifact contracts,
+prepares databases, imports services, and coordinates repeatable app tests.
+"""
 
 from importlib import import_module
 import ast

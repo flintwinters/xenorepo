@@ -1,4 +1,8 @@
-"""Strict reusable SQLAlchemy column templates and metadata conformance."""
+"""Provide strict SQLAlchemy columns and metadata conformance checks.
+
+These templates encode portable identifier and timestamp shapes, while
+validators ensure app-owned models satisfy the shared persistence contracts.
+"""
 
 from dataclasses import dataclass
 from datetime import datetime

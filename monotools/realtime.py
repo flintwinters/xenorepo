@@ -1,4 +1,8 @@
-"""Typed, app-independent primitives for realtime WebSocket services."""
+"""Provide typed primitives for app-independent WebSocket services.
+
+The registry, provenance, connection model, and delivery results let monoapps
+coordinate realtime clients without moving their message policy into Monotools.
+"""
 
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass

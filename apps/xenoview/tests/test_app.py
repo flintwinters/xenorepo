@@ -57,6 +57,7 @@ class CockpitTests(unittest.TestCase):
         architecture = scan_architecture(ROOT)
         self.assertEqual([item["name"] for item in modules], sorted(item["name"] for item in modules))
         self.assertIn("audit", {item["name"] for item in modules})
+        self.assertTrue(all(item["description"] and item["explanation"] for item in modules))
         edges = {(item["source"], item["target"]) for item in architecture["edges"]}
         self.assertIn(("app:xenoview", "monotools"), edges)
         self.assertIn(("app:xenoview", "storage"), edges)

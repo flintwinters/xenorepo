@@ -1,4 +1,8 @@
-"""Static browser-proof validation which is safe to run before lifecycle mutation."""
+"""Validate browser-proof declarations before lifecycle mutation.
+
+This module parses owned Playwright suites, verifies required proof categories,
+and runs Monotools' trusted-input canaries through the shared test inventory.
+"""
 
 from __future__ import annotations
 

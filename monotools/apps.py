@@ -1,4 +1,8 @@
-"""Typed discovery for declarative YAML application definitions."""
+"""Discover and validate typed YAML application definitions.
+
+This module is the authoritative metadata boundary for monoapp identity,
+capabilities, frontend artifacts, routes, and declared shared imports.
+"""
 
 from collections.abc import Mapping
 from dataclasses import dataclass

@@ -1,4 +1,8 @@
-"""Shared FastAPI application construction for managed applications."""
+"""Construct FastAPI runtimes for managed applications.
+
+This module mounts health metadata and server-owned routes for declared,
+self-contained frontend artifacts while leaving domain endpoints app-owned.
+"""
 
 from pathlib import Path
 

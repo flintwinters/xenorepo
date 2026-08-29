@@ -152,11 +152,13 @@ def scan_modules(root: Path) -> list[dict[str, object]]:
     for path in sorted((root / "monotools").glob("*.py")):
         content = path.read_text(encoding="utf-8")
         tree = ast.parse(content, filename=str(path))
+        documentation = (ast.get_docstring(tree, clean=True) or "").split("\n\n", 1)
         public = sum(isinstance(node, (ast.ClassDef, ast.FunctionDef))
             and not node.name.startswith("_") for node in tree.body)
         modules.append({"name": path.stem, "path": str(path.relative_to(root)),
             "lines": len(content.splitlines()), "bytes": path.stat().st_size,
             "public_definitions": public, "inbound_apps": inbound[path.stem],
+            "description": documentation[0], "explanation": documentation[1],
             "dependencies": _module_dependencies(path)})
     return modules
 

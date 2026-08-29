@@ -1,4 +1,8 @@
-"""Browser-check lifecycle operations for managed applications."""
+"""Coordinate browser-check lifecycles for managed applications.
+
+The runner allocates services, databases, ports, evidence paths, and Playwright
+projects so universal and app-owned proofs execute against built artifacts.
+"""
 
 from __future__ import annotations
 

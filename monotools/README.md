@@ -4,6 +4,11 @@
 FastAPI applications. It is intentionally not a public SDK: abstractions enter
 only after more than one app has proved their boundary.
 
+Every top-level module begins with a docstring containing a concise summary, a
+blank line, and an explanatory paragraph describing its responsibility and
+boundary. Root structural checks enforce this contract, and the repository
+cockpit presents the same documentation without maintaining a parallel catalog.
+
 ## App contract
 
 Each app declares its name, title, importable FastAPI module, capabilities,

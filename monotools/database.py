@@ -1,4 +1,8 @@
-"""Shared SQLAlchemy construction with portable SQLite correctness defaults."""
+"""Construct SQLAlchemy resources with portable correctness defaults.
+
+This module resolves database configuration, enables SQLite foreign keys, and
+creates schema-aware session factories suitable for SQLite and PostgreSQL.
+"""
 
 from collections.abc import Callable
 import os

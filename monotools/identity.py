@@ -1,4 +1,8 @@
-"""Canonical identity schemas and operations for independent monoapp databases."""
+"""Define canonical identity schemas for independent monoapp databases.
+
+Applications selectively install account, identifier, credential, session, and
+realtime tables while these operations preserve shared identity invariants.
+"""
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta

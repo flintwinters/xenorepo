@@ -1,4 +1,8 @@
-"""Provider-neutral contracts for hosted recurring-payment checkout."""
+"""Define provider-neutral recurring-payment checkout contracts.
+
+The request, result, event, and gateway protocols let monoapps retain commerce
+facts while swapping hosted payment providers behind one narrow boundary.
+"""
 
 from dataclasses import dataclass
 from typing import Protocol

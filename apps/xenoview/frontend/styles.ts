@@ -41,7 +41,10 @@ export const cockpitStyles = [consoleControls, css`
   .note { padding: 10px 14px; color: #bdae93; } .note b { color: #fabd2f; }
   .module-table { overflow: auto; border: 1px solid #504945; background: #202223; }
   .module-table strong { color: #d3869b; }
-  .module-table td:nth-child(2), .module-table td:last-child { color: #928374; text-align: left; }
+  .module-table td:nth-child(2), .module-table td:last-child { text-align: left; }
+  .module-table td:first-child small, .module-table td:nth-child(2) small {
+    display: block; margin-top: 2px; color: #928374; white-space: normal; }
+  .module-table td:nth-child(2) { min-width: 360px; color: #bdae93; white-space: normal; }
   .tree { overflow: auto; border: 1px solid #504945; background: #202223ee; }
   details details { border-left: 1px solid #3c3836; }
   .tree-row { min-height: 19px; display: grid;

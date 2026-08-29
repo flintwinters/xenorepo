@@ -92,15 +92,24 @@ class CockpitTests(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(self.client.request("GET", "/api/history").json(), [])
 
-    def test_build_is_self_contained_modular_lit_client(self) -> None:
+    def test_openapi_describes_every_cockpit_response(self) -> None:
+        schemas = create_app(repository=self.repository).openapi()["components"]["schemas"]
+        self.assertTrue({"Overview", "ModuleFact", "TreeNode", "Architecture",
+            "SnapshotView", "SnapshotResult"}.issubset(schemas))
+        overview = schemas["Overview"]
+        self.assertEqual(overview["additionalProperties"], False)
+        self.assertIn("test_breakdown", overview["required"])
+
+    def test_build_is_self_contained_typed_preact_client(self) -> None:
         document = Path("apps/xenoview/dist/index.html").read_text(encoding="utf-8")
-        source = Path("apps/xenoview/frontend/index.ts").read_text(encoding="utf-8")
+        source = Path("apps/xenoview/frontend/index.tsx").read_text(encoding="utf-8")
+        client = Path("apps/xenoview/frontend/client.ts").read_text(encoding="utf-8")
         self.assertIn("XENO // COCKPIT", document)
         self.assertIn("/api/overview", document)
         self.assertNotIn("APP_BUNDLE", document)
-        self.assertIn('import "./console-ui.js";', source)
-        self.assertIn('import { cockpitStyles } from "./styles.js";', source)
-        self.assertNotIn("@xenorepo/lit-ui", source)
+        self.assertIn('from "@xenorepo/ui";', source)
+        self.assertIn('from "../data/openapi";', client)
+        self.assertNotIn("from \"lit\"", source)
 
 
 if __name__ == "__main__":

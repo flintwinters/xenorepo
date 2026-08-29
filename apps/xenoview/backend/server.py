@@ -6,6 +6,9 @@ from fastapi import FastAPI, HTTPException, Request, status
 
 from apps.xenoview.backend.database import Base, SnapshotRepository
 from apps.xenoview.backend.scanner import scan_architecture, scan_modules, scan_overview, scan_tree
+from apps.xenoview.backend.schemas import (
+    Architecture, ModuleFact, Overview, SnapshotResult, SnapshotView, TreeNode,
+)
 from monotools.appkit import create_app_context
 from monotools.http import enforce_same_origin
 from monotools.runtime import create_application
@@ -29,29 +32,30 @@ def create_app(database_url: str | None = None, repository: SnapshotRepository |
     application = create_application("xenoview")
     application.state.snapshots = snapshots
 
-    @application.get("/api/overview")
+    @application.get("/api/overview", response_model=Overview)
     async def overview() -> dict[str, object]:
         result = scan_overview(root)
         result["delta"] = _delta(result["metrics"], snapshots.latest())
         return result
 
-    @application.get("/api/modules")
+    @application.get("/api/modules", response_model=list[ModuleFact])
     async def modules() -> list[dict[str, object]]:
         return scan_modules(root)
 
-    @application.get("/api/tree")
+    @application.get("/api/tree", response_model=TreeNode)
     async def tree() -> dict[str, object]:
         return scan_tree(root)
 
-    @application.get("/api/architecture")
+    @application.get("/api/architecture", response_model=Architecture)
     async def architecture() -> dict[str, object]:
         return scan_architecture(root)
 
-    @application.get("/api/history")
+    @application.get("/api/history", response_model=list[SnapshotView])
     async def history() -> list[dict[str, object]]:
         return snapshots.list()
 
-    @application.post("/api/snapshots", status_code=status.HTTP_201_CREATED)
+    @application.post("/api/snapshots", response_model=SnapshotResult,
+        status_code=status.HTTP_201_CREATED)
     async def snapshot(request: Request) -> dict[str, object]:
         enforce_same_origin(request, lambda message: HTTPException(status_code=403, detail=message))
         current = scan_overview(root)

@@ -4,6 +4,7 @@ module: apps.xenoview.backend.server
 capabilities:
   - database
 imports:
+  - "@xenorepo/ui"
   - monotools.appkit
   - monotools.apps
   - monotools.audit
@@ -13,8 +14,8 @@ imports:
 frontend:
   artifacts:
     index:
-      format: lit
-      source: frontend/index.ts
+      format: preact
+      source: frontend/index.tsx
       output: index.html
   routes:
     /: index

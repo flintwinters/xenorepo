@@ -31,10 +31,13 @@ test("[acceptance] operator navigates repository evidence and records a baseline
     const bytes = row.querySelector<HTMLElement>(".tree-bytes");
     const name = row.querySelector<HTMLElement>("span");
     return { order: [lines, bytes, name].map((element) => element?.getBoundingClientRect().left),
+      height: row.getBoundingClientRect().height,
+      border: getComputedStyle(row).borderBottomWidth,
       font: lines ? getComputedStyle(lines).fontFamily : "" };
   }));
   expect(metadataLayout.every((item) => item.order[0]! < item.order[1]! &&
     item.order[1]! < item.order[2]!)).toBe(true);
+  expect(metadataLayout.every((item) => item.height <= 13 && item.border === "0px")).toBe(true);
   expect(metadataLayout.every((item) => item.font.includes("Courier New"))).toBe(true);
 
   await page.getByRole("button", { name: "architecture", exact: true }).click();

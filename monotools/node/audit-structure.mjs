@@ -1,3 +1,4 @@
+/** Measure JavaScript and TypeScript function complexity for Monotools audits. */
 import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";

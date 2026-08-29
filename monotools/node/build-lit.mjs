@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { mkdir } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 
 /** Bundle one Lit mount entry into a browser-ready, self-contained script. */
 export async function buildPageEntry(entry, output) {

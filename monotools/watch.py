@@ -26,7 +26,7 @@ def _lit_inputs(definition: AppDefinition, workspace: Path) -> tuple[Path, ...]:
         *(workspace / name for name in
             ("package.json", "package-lock.json", "tsconfig.frontend.json")),
         workspace / "packages" / "lit-ui" / "package.json",
-        *(workspace / "scripts" / name for name in ("build-lit.mjs", "check-lit.mjs")),
+        *(workspace / "monotools" / "node" / name for name in ("build-lit.mjs", "check-lit.mjs")),
         *(_files_beneath(workspace / "types"))]
     return tuple(inputs)
 

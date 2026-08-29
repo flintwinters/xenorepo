@@ -8,7 +8,7 @@ Applications are consumers; they do not import one another.
 
 | Library | Language | Location | Public responsibility | Adoption rule |
 | --- | --- | --- | --- | --- |
-| Monotools | Python + TypeScript tooling | `monotools/`, `scripts/check-lit.mjs`, `tsconfig.frontend.json` | Typed metadata, discovery, lifecycle orchestration, build validation, FastAPI runtime, portable persistence, generic transport primitives, and evidence handling. | A capability must be declarative and reusable by an arbitrary future monoapp. |
+| Monotools | Python + TypeScript tooling | `monotools/`, `tsconfig.frontend.json` | Typed metadata, discovery, lifecycle orchestration, build validation, FastAPI runtime, portable persistence, generic transport primitives, and evidence handling. | A capability must be declarative and reusable by an arbitrary future monoapp. |
 | Console Lit UI | TypeScript | `packages/lit-ui/` | Construction primitives for shells, panes, rails, controls, status, shared form treatment, design tokens, and browser-artifact chrome. | Every custom element must have at least two independent monoapp consumers. |
 | Browser Testing | JavaScript/TypeScript | `packages/browser-testing/` | Shared Playwright fixtures, strict browser diagnostics, trusted input drivers, schema-versioned evidence, and static proof validation. | Shared code contains no app routes, selectors, entities, or gesture semantics. |
 

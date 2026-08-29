@@ -16,7 +16,7 @@ import subprocess
 from monotools.apps import AppDefinition
 
 
-SOURCE_ROOTS = ("apps", "monotools", "packages", "scripts", "tests")
+SOURCE_ROOTS = ("apps", "monotools", "packages", "tests")
 SOURCE_SUFFIXES = frozenset({".py", ".js", ".ts", ".tsx", ".html"})
 TEXT_SUFFIXES = SOURCE_SUFFIXES | frozenset({".md", ".json", ".toml", ".yaml", ".yml"})
 EXCLUDED_PARTS = frozenset({".git", ".venv", "data", "dist", "historic", "node_modules", "__pycache__"})
@@ -55,8 +55,7 @@ def _source_files(workspace: Path) -> tuple[Path, ...]:
 
 
 def _central_text_files(workspace: Path) -> tuple[Path, ...]:
-    roots = [workspace, workspace / "monotools", workspace / "packages", workspace / "scripts",
-        workspace / "tests"]
+    roots = [workspace, workspace / "monotools", workspace / "packages", workspace / "tests"]
     candidates: set[Path] = set()
     for root in roots:
         if not root.is_dir():
@@ -219,7 +218,7 @@ def _python_complexity(path: Path, workspace: Path) -> list[AuditViolation]:
 def _script_complexity(workspace: Path, paths: tuple[Path, ...]) -> list[AuditViolation]:
     if not paths:
         return []
-    command = ["node", str(workspace / "scripts" / "audit-structure.mjs"),
+    command = ["node", str(workspace / "monotools" / "node" / "audit-structure.mjs"),
         *(str(path.relative_to(workspace)) for path in paths)]
     completed = subprocess.run(command, cwd=workspace, check=False, text=True, capture_output=True)
     if completed.returncode:

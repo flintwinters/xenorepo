@@ -28,7 +28,7 @@ class LifecycleError(RuntimeError):
 
 
 MAX_SOURCE_LINE_LENGTH = 120
-SOURCE_DIRECTORIES = ("apps", "monotools", "packages", "scripts", "tests")
+SOURCE_DIRECTORIES = ("apps", "monotools", "packages", "tests")
 SOURCE_EXCLUDED_DIRECTORIES = frozenset({".venv", "__pycache__", "data", "dist", "node_modules"})
 SOURCE_SUFFIXES = frozenset({".py", ".js", ".ts", ".tsx"})
 
@@ -78,7 +78,7 @@ def _validate_lit(definition: AppDefinition, workspace: Path) -> None:
     node = shutil.which("node")
     if node is None:
         raise LifecycleError("node not found; run python manage.py bootstrap before checking Lit pages")
-    command = [node, "scripts/check-lit.mjs",
+    command = [node, "monotools/node/check-lit.mjs",
         *(str(entry.relative_to(workspace)) for entry in entries)]
     completed = subprocess.run(command, cwd=workspace, check=False, text=True,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)

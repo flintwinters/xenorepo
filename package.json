@@ -6,7 +6,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build:lit": "node scripts/build-lit.mjs",
+    "build:lit": "node monotools/node/build-lit.mjs",
     "format:ts": "prettier --write \"apps/**/*.ts\" \"packages/**/*.ts\""
   },
   "devDependencies": {

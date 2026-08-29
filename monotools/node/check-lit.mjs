@@ -2,7 +2,7 @@ import ts from "typescript";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const root = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const configPath = resolve(root, "tsconfig.frontend.json");
 
 function compilerOptions() {
@@ -30,7 +30,7 @@ export function checkPageEntries(entries) {
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const entries = process.argv.slice(2);
   if (!entries.length) {
-    process.stderr.write("Usage: node scripts/check-lit.mjs <entry.ts> [...]\n");
+    process.stderr.write("Usage: node monotools/node/check-lit.mjs <entry.ts> [...]\n");
     process.exitCode = 2;
   } else {
     try {

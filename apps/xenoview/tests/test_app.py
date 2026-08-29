@@ -74,6 +74,10 @@ class CockpitTests(unittest.TestCase):
         apps = next(item for item in tree["children"] if item["name"] == "apps")
         xenoview = next(item for item in apps["children"] if item["name"] == "xenoview")
         self.assertNotIn("dist", {item["name"] for item in xenoview["children"]})
+        for directory in (tree, apps, xenoview):
+            expected = sorted(directory["children"],
+                key=lambda item: (-item["lines"], item["name"]))
+            self.assertEqual(directory["children"], expected)
 
     def test_snapshot_is_idempotent_schema_versioned_and_restart_durable(self) -> None:
         first = self.client.request("POST", "/api/snapshots").json()

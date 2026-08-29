@@ -178,6 +178,7 @@ def _tree_directory(facts: tuple[FileFact, ...], path: Path, depth: int) -> dict
     children.extend({"name": item.path.name, "path": str(item.path), "kind": "file",
         "bytes": item.bytes, "lines": item.lines} for item in matching
         if item.path.parent == path)
+    children.sort(key=lambda item: (-int(item["lines"]), str(item["name"])))
     return {"name": path.name or "xenorepo", "path": str(path) or ".", "kind": "directory",
         "bytes": sum(item.bytes for item in matching), "lines": sum(item.lines for item in matching),
         "children": children}

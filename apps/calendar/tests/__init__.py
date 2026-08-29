@@ -1,1 +1,0 @@
-"""Calendar Console tests."""

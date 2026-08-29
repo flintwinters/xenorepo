@@ -1,0 +1,4 @@
+[submodule "calendar"]
+	path = apps/calendar
+	url = git@github.com:flintwinters/calendar.git
+	branch = main

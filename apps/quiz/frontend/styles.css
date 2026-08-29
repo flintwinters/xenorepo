@@ -1,4 +1,4 @@
-export const styles1 = String.raw`html,
+html,
       body {
         overflow: hidden;
       }
@@ -209,4 +209,4 @@ export const styles1 = String.raw`html,
           font-size: 10px;
           padding: 3px;
         }
-      }`;
+      }

@@ -36,16 +36,16 @@ and JavaScript frontend compatibility only after the final consumer migrates.
   OpenAPI response contracts.
 - [x] **Event-stream consumer — complete.** Typed JSX, generated HTTP contracts,
   authentication, pagination parameters, and lifecycle-owned SSE preserve the wire.
-- [ ] **Inventory — active.** Replace imperative rendering with typed state while
-  preserving scoring, keyboard flow, completion, and restart.
-- [ ] **Realtime arena — queued.** Split typed state, view, and transport while
+- [x] **Inventory — complete.** Typed Preact state preserves scoring, keyboard
+  flow, completion, restart, and the non-diagnostic product boundary.
+- [ ] **Realtime arena — active.** Split typed state, view, and transport while
   preserving the complete protocol and behavior.
 - [ ] **Compatibility removal — queued.** Remove Lit and JavaScript frontend
   support and activate permanent Preact-only architecture gates.
 
 ## Current checkpoint
 
-Migrate inventory as one verified logical checkpoint. Preserve scoring,
-keyboard flow, completion, restart, and app-owned wide and narrow baselines
-while replacing imperative rendering with typed Preact state. Run
-`uv run manage.py verify`, update this file, and commit before the realtime arena.
+Migrate the realtime arena as one verified logical checkpoint. Split typed
+state, view, and transport while preserving the complete protocol, behavior,
+and app-owned wide and narrow baselines. Run `uv run manage.py verify`, update
+this file, and commit before compatibility removal.

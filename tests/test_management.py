@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 from monotools.apps import AppDefinitionError, ROOT
 from monotools.audit import AuditReport, AuditViolation
 from monotools.management import create_app_manager, create_cli, resolve_local_app
+from monotools.repositories import AppRepositoryState, RepositoryError, promote_to_submodule
 from monotools.scaffolding import ScaffoldError, scaffold_app
 import manage as repository_manager
 
@@ -91,6 +92,7 @@ frontend:
         command_names = {command.name or command.callback.__name__.replace("_", "-")
             for command in app.registered_commands}
         self.assertEqual(command_names, {"build", "check", "test", "ui-check"})
+        self.assertEqual({group.name for group in app.registered_groups}, {"git"})
 
     def test_standard_serve_delegates_to_shared_lifecycle(self) -> None:
         app, manage_file = self._manager()
@@ -274,6 +276,7 @@ frontend:
             self.assertEqual(definition.name, "signal_lab")
             self.assertEqual(definition.title, "Signal Lab")
             self.assertTrue((directory / "SPEC.md").is_file())
+            self.assertTrue((directory / ".gitignore").is_file())
             self.assertTrue((directory / "frontend/styles.css").is_file())
             self.assertTrue((directory / "tests/e2e/readiness.spec.ts").is_file())
             self.assertNotIn("{{app_name}}", (directory / "app.yaml").read_text(encoding="utf-8"))
@@ -289,6 +292,56 @@ frontend:
             ):
                 with self.subTest(name=name), self.assertRaisesRegex(ScaffoldError, message):
                     scaffold_app(apps_directory, name, title)
+
+    def test_repository_promotion_requires_explicit_valid_github_identity(self) -> None:
+        definition = repository_manager.MANAGERS[0][0]
+        for owner, repository, visibility, message in (
+            ("bad/owner", "app", "private", "owner"),
+            ("owner", "bad/repo", "private", "repository"),
+            ("owner", "app", "secret", "visibility"),
+        ):
+            with self.subTest(owner=owner, repository=repository, visibility=visibility), \
+                    self.assertRaisesRegex(RepositoryError, message):
+                promote_to_submodule(definition, ROOT, owner=owner, repository=repository,
+                    visibility=visibility, verify=lambda: None)
+
+    def test_repository_promotion_orders_history_remote_submodule_and_verification(self) -> None:
+        definition = repository_manager.MANAGERS[0][0]
+        split = "a" * 40
+        calls: list[tuple[tuple[str, ...], Path]] = []
+
+        def command(arguments: list[str], cwd: Path) -> str:
+            calls.append((tuple(arguments), cwd))
+            joined = " ".join(arguments)
+            if "ls-files --stage" in joined:
+                return "100644 b app.yaml"
+            if "status --short" in joined:
+                return ""
+            if "subtree split" in joined:
+                return split
+            if arguments[:3] == ["gh", "repo", "view"]:
+                return "git@github.com:owner/app.git"
+            if arguments[-3:] == ["rev-parse", "HEAD"] or joined.endswith("rev-parse HEAD"):
+                return split
+            return ""
+
+        verified: list[str] = []
+        state = AppRepositoryState("monolith", True, None, "current")
+        with patch("monotools.repositories.shutil.which", return_value="/usr/bin/tool"), \
+             patch("monotools.repositories.inspect_app_repository", return_value=state), \
+             patch("monotools.repositories._run", side_effect=command):
+            remote = promote_to_submodule(definition, ROOT, owner="owner", repository="app",
+                visibility="private", verify=lambda: verified.append("verified"))
+
+        self.assertEqual(remote, "git@github.com:owner/app.git")
+        self.assertEqual(verified, ["verified", "verified"])
+        commands = [" ".join(arguments) for arguments, _ in calls]
+        self.assertLess(next(i for i, item in enumerate(commands) if "subtree split" in item),
+            next(i for i, item in enumerate(commands) if "gh repo create" in item))
+        self.assertLess(next(i for i, item in enumerate(commands) if "git push" in item),
+            next(i for i, item in enumerate(commands) if "git rm -r" in item))
+        self.assertIn("git submodule add", "\n".join(commands))
+        self.assertTrue(commands[-1].startswith("git commit -m"))
 
     def test_specified_app_requires_an_owned_product_browser_journey(self) -> None:
         _, manage_file = self._manager()

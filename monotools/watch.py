@@ -17,6 +17,8 @@ def frontend_inputs(definition: AppDefinition, workspace: Path) -> tuple[Path, .
     inputs = [definition.directory / artifact.source for artifact in definition.artifacts]
     if any(artifact.format == "lit" for artifact in definition.artifacts):
         inputs.extend(_lit_inputs(definition, workspace))
+    if any(artifact.format == "preact" for artifact in definition.artifacts):
+        inputs.extend(_preact_inputs(definition, workspace))
     return tuple(sorted(path for path in inputs if path.is_file()))
 
 
@@ -24,9 +26,20 @@ def _lit_inputs(definition: AppDefinition, workspace: Path) -> tuple[Path, ...]:
     inputs = [*(_files_beneath(definition.directory / "frontend")),
         *(_files_beneath(workspace / "packages" / "lit-ui" / "src")),
         *(workspace / name for name in
-            ("package.json", "package-lock.json", "tsconfig.frontend.json")),
+            ("package.json", "package-lock.json", "tsconfig.frontend.json", "tsconfig.preact.json")),
         workspace / "packages" / "lit-ui" / "package.json",
         *(workspace / "monotools" / "node" / name for name in ("build-lit.mjs", "check-lit.mjs")),
+        *(_files_beneath(workspace / "types"))]
+    return tuple(inputs)
+
+
+def _preact_inputs(definition: AppDefinition, workspace: Path) -> tuple[Path, ...]:
+    inputs = [*(_files_beneath(definition.directory / "frontend")),
+        *(_files_beneath(workspace / "packages" / "ui" / "src")),
+        *(workspace / name for name in
+            ("package.json", "package-lock.json", "tsconfig.frontend.json", "tsconfig.preact.json")),
+        *(workspace / "monotools" / "node" / name for name in
+            ("build-preact.mjs", "check-frontend.mjs")),
         *(_files_beneath(workspace / "types"))]
     return tuple(inputs)
 

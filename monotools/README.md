@@ -54,15 +54,15 @@ yielding an event. Tests must include cross-thread publish/wait delivery.
 
 ## Frontend composition
 
-Legacy document artifacts compose their semantic body, CSS, and script with the
-shared console shell at build time. Lit artifacts export `mount(root)` and are
-bundled centrally with esbuild; they import reusable elements only from
-`@xenorepo/lit-ui`. Every artifact is self-contained: embedded CSS and
-JavaScript, no external assets, and no separate frontend service. Use
-modular TypeScript freely beneath an app's `frontend/` directory: Monotools
-strictly validates the complete import graph rooted at each declared Lit entry
-before mutating `dist/`, and watch mode recursively observes both that app tree
-and the shared Lit UI sources. Imported modules require no metadata. Use
+Frontend artifacts export `mount(root)` and are bundled centrally with esbuild.
+The temporary `lit` format remains available during migration; the `preact`
+format requires a TSX entry, Preact's automatic JSX transform, and imported
+external CSS. Every artifact is a self-contained document with embedded CSS
+and JavaScript and no external runtime assets or separate frontend service.
+Monotools validates the complete entry-rooted import graph before mutating
+`dist/`, watches app and relevant shared sources, and generates an API-only
+OpenAPI declaration in the owning app's ignored `data/` directory before type
+checking. Imported modules require no metadata. Use
 `python manage.py bootstrap` to verify Node 22, synchronize locked Python
 dependencies, run `npm ci`, and install the locked Chromium browser before
 frontend work.

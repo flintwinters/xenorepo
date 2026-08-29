@@ -19,7 +19,7 @@ APPS_DIRECTORY = ROOT / "apps"
 _ARTIFACT_NAME = re.compile(r"^[a-z][a-z0-9_-]*$")
 _ROUTE_PATH = re.compile(r"^/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$")
 _RESERVED_ROUTES = frozenset({"/health"})
-_FORMATS = frozenset({"lit"})
+_FORMATS = frozenset({"lit", "preact"})
 
 
 class AppDefinitionError(ValueError):
@@ -173,9 +173,11 @@ def _artifact(name: str, raw: object, path: Path) -> FrontendArtifact:
     if format_name not in _FORMATS:
         raise AppDefinitionError(f"{_display(path)} has unsupported frontend format: {format_name!r}")
     source = _relative_path(item.get("source"), path, f"{label}.source")
-    if source.suffix not in {".js", ".ts"}:
+    expected_suffixes = {".tsx"} if format_name == "preact" else {".js", ".ts"}
+    if source.suffix not in expected_suffixes:
         raise AppDefinitionError(
-            f"{_display(path)} frontend artifact source must be compilable JavaScript or TypeScript"
+            f"{_display(path)} {format_name} frontend artifact source must end in "
+            f"{', '.join(sorted(expected_suffixes))}"
         )
     output = _relative_path(item.get("output"), path, f"{label}.output")
     if output.suffix != ".html":

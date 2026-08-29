@@ -120,10 +120,13 @@ builder remains only until the last production consumer has migrated.
    wide and narrow visual baselines. Previously missing browser suites now
    characterize enrollment, account mode, and keyboard inventory behavior.
    Existing acceptance and trusted-input journeys remain unchanged.
-2. **Add generic Preact and API tooling — in progress.** Add metadata, build,
-   diagnostics, CSS inlining, OpenAPI generation, watcher, and platform-test
-   contracts while retaining the Lit compatibility path.
-3. **Prove shared Preact UI — pending.** Introduce only components jointly
+2. **Add generic Preact and API tooling — complete.** Metadata accepts only TSX
+   Preact entries, strict entry-rooted diagnostics precede `dist/` mutation,
+   imported CSS and JavaScript are inlined, and API-only OpenAPI declarations
+   are deterministically generated under ignored app data. Watchers, CSS
+   structural gates, locked dependencies, and synthetic platform tests cover
+   these contracts while Lit remains runnable.
+3. **Prove shared Preact UI — in progress.** Introduce only components jointly
    proved by two independent consumers and migrate that first pair.
 4. **Migrate the realtime and scheduling pair — pending.** Add the independently
    proved empty state and preserve realtime and trusted pointer behavior.
@@ -143,6 +146,6 @@ builder remains only until the last production consumer has migrated.
 
 ## Next action
 
-Implement generic Preact and OpenAPI tooling without migrating production
-consumers in the same checkpoint. Preserve the verified Lit baselines and the
-temporary Lit build path until all consumers have migrated.
+Create the typed shared Preact package from the boundaries independently proved
+by the first two consumers, migrate that pair with external CSS and generated
+HTTP types, and preserve their verified visual baselines.

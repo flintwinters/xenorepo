@@ -3,9 +3,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import Mock, patch
 
+from fastapi import FastAPI
+
 from monotools.apps import AppDefinition, AppDefinitionError, FrontendArtifact, ROOT, get_app, load_app
 from monotools.lifecycle import (
     LifecycleError,
+    build_app,
     validate_source_lines,
 )
 from monotools.watch import frontend_inputs, watch_frontend
@@ -24,7 +27,7 @@ class RepositoryAppTests(unittest.TestCase):
             capabilities=frozenset(),
         )
 
-    def test_source_line_validation_covers_python_javascript_and_typescript(self) -> None:
+    def test_source_line_validation_covers_programs_and_stylesheets(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="source-lines-") as temporary:
             workspace = Path(temporary)
             source = workspace / "apps" / "fixture"
@@ -32,22 +35,143 @@ class RepositoryAppTests(unittest.TestCase):
             python = source / "example.py"
             javascript = source / "example.js"
             typescript = source / "example.ts"
+            stylesheet = source / "example.css"
             python.write_text("answer = 42\n", encoding="utf-8")
             javascript.write_text("export const answer = 42;\n", encoding="utf-8")
             typescript.write_text("export const answer = 42;\n", encoding="utf-8")
+            stylesheet.write_text(".answer { color: green; }\n", encoding="utf-8")
 
             validate_source_lines(workspace)
             python.write_text(f'value = "{"p" * 121}"\n', encoding="utf-8")
             javascript.write_text(f'const value = "{"j" * 121}";\n', encoding="utf-8")
             typescript.write_text(f'const value = "{"t" * 121}";\n', encoding="utf-8")
+            stylesheet.write_text(f'.value {{ content: "{"c" * 121}"; }}\n', encoding="utf-8")
 
             with self.assertRaisesRegex(
                 LifecycleError,
+                r"apps/fixture/example\.css:1: 144 characters \(maximum 120\)[\s\S]*"
                 r"apps/fixture/example\.js:1: 138 characters \(maximum 120\)[\s\S]*"
                 r"apps/fixture/example\.py:1: 131 characters \(maximum 120\)[\s\S]*"
                 r"apps/fixture/example\.ts:1: 138 characters \(maximum 120\)",
             ):
                 validate_source_lines(workspace)
+
+    def test_preact_build_inlines_imported_css_and_javascript(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="preact-build-") as temporary:
+            directory = Path(temporary)
+            frontend = directory / "frontend"
+            frontend.mkdir()
+            (frontend / "index.css").write_text(".fixture { color: rgb(1, 2, 3); }\n", encoding="utf-8")
+            (frontend / "index.tsx").write_text(
+                'import { render } from "preact";\nimport "./index.css";\n'
+                'export function mount(root: HTMLElement) { render(<p class="fixture">Ready</p>, root); }\n',
+                encoding="utf-8",
+            )
+            definition = AppDefinition(
+                name="fixture", title="Fixture", directory=directory, module="fixture.server",
+                artifacts=(FrontendArtifact("index", "preact", Path("frontend/index.tsx"),
+                    Path("index.html")),), routes=(("/", "index"),), capabilities=frozenset(),
+            )
+
+            build_app(definition, ROOT)
+
+            document = (directory / "dist" / "index.html").read_text(encoding="utf-8")
+            self.assertIn(".fixture{color:#010203}", document)
+            self.assertIn("Ready", document)
+            self.assertNotIn('script src=', document)
+            self.assertNotIn('rel="stylesheet"', document)
+
+    def test_preact_metadata_requires_a_tsx_entry(self) -> None:
+        base = """name: fixture
+title: Fixture
+module: apps.fixture.backend.server
+frontend:
+  artifacts:
+    index:
+      format: preact
+      source: frontend/index.tsx
+      output: index.html
+  routes:
+    /: index
+"""
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="preact-metadata-") as temporary:
+            directory = Path(temporary) / "fixture"
+            (directory / "frontend").mkdir(parents=True)
+            (directory / "backend").mkdir()
+            (directory / "manage.py").touch()
+            (directory / "app.yaml").write_text(base, encoding="utf-8")
+            self.assertEqual(load_app(directory).artifacts[0].format, "preact")
+            (directory / "app.yaml").write_text(base.replace("index.tsx", "index.ts"), encoding="utf-8")
+            with self.assertRaisesRegex(AppDefinitionError, "preact.*must end in .tsx"):
+                load_app(directory)
+
+    def test_preact_diagnostics_preserve_the_existing_dist_artifact(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="preact-error-") as temporary:
+            directory = Path(temporary)
+            frontend = directory / "frontend"
+            frontend.mkdir()
+            (frontend / "index.tsx").write_text(
+                "export function mount(root: HTMLElement) { const broken: number = 'text'; root.remove(); }\n",
+                encoding="utf-8",
+            )
+            definition = AppDefinition(
+                name="fixture", title="Fixture", directory=directory, module="fixture.server",
+                artifacts=(FrontendArtifact("index", "preact", Path("frontend/index.tsx"),
+                    Path("index.html")),), routes=(("/", "index"),), capabilities=frozenset(),
+            )
+            output = directory / "dist" / "index.html"
+            output.parent.mkdir()
+            output.write_text("stable", encoding="utf-8")
+            from monotools.lifecycle import _validate_frontend
+
+            with self.assertRaisesRegex(LifecycleError, "Type 'string' is not assignable to type 'number'"):
+                _validate_frontend(definition, ROOT)
+            self.assertEqual(output.read_text(encoding="utf-8"), "stable")
+
+    def test_openapi_declaration_is_filtered_and_idempotent(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="openapi-") as temporary:
+            directory = Path(temporary)
+            application = FastAPI()
+
+            @application.get("/api/items/{item_id}")
+            def item(item_id: int) -> dict[str, int]:
+                return {"item_id": item_id}
+
+            @application.get("/health")
+            def health() -> dict[str, str]:
+                return {"status": "ok"}
+
+            definition = AppDefinition(
+                name="fixture", title="Fixture", directory=directory, module="fixture.server",
+                artifacts=(), routes=(), capabilities=frozenset(),
+            )
+            from monotools.lifecycle import _generate_openapi_types
+
+            _generate_openapi_types(definition, application, ROOT)
+            first = (directory / "data" / "openapi.d.ts").read_bytes()
+            _generate_openapi_types(definition, application, ROOT)
+            schema = (directory / "data" / "openapi.json").read_text(encoding="utf-8")
+            self.assertEqual((directory / "data" / "openapi.d.ts").read_bytes(), first)
+            self.assertIn('"/api/items/{item_id}"', schema)
+            self.assertNotIn('"/health"', schema)
+
+    def test_frontend_watch_includes_preact_css_tooling_and_shared_ui(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="preact-watch-") as temporary:
+            directory = Path(temporary)
+            frontend = directory / "frontend"
+            frontend.mkdir()
+            (frontend / "index.tsx").touch()
+            (frontend / "index.css").touch()
+            definition = AppDefinition(
+                name="fixture", title="Fixture", directory=directory, module="fixture.server",
+                artifacts=(FrontendArtifact("index", "preact", Path("frontend/index.tsx"),
+                    Path("index.html")),), routes=(("/", "index"),), capabilities=frozenset(),
+            )
+            inputs = frontend_inputs(definition, ROOT)
+            self.assertIn(frontend / "index.css", inputs)
+            self.assertIn(ROOT / "monotools" / "node" / "build-preact.mjs", inputs)
+            self.assertIn(ROOT / "monotools" / "node" / "check-frontend.mjs", inputs)
+            self.assertIn(ROOT / "tsconfig.preact.json", inputs)
 
     def test_library_catalog_describes_the_shared_frontend_and_backend_boundaries(self) -> None:
         catalog = (ROOT / "LIBRARIES.md").read_text(encoding="utf-8")
@@ -115,7 +239,7 @@ frontend:
             "reserved-route": (base.replace("/: index", "/health: index"), "reserved by the platform"),
             "invalid-output": (base.replace("output: index.html", "output: ../index.html"), "normalized relative path"),
             "authored-html": (base.replace("frontend/index.ts", "frontend/index.html"),
-                "source must be compilable JavaScript or TypeScript"),
+                r"lit frontend artifact source must end in .js, .ts"),
             "document-format": (base.replace("format: lit", "format: document"),
                 "unsupported frontend format"),
         }
@@ -209,8 +333,8 @@ frontend:
 
             with patch("monotools.lifecycle.subprocess.run", return_value=failed):
                 with self.assertRaisesRegex(LifecycleError, "nested/broken.ts.*TS2322"):
-                    from monotools.lifecycle import _validate_lit
-                    _validate_lit(definition, ROOT)
+                    from monotools.lifecycle import _validate_frontend
+                    _validate_frontend(definition, ROOT)
             self.assertEqual(output.read_bytes(), before)
 
     def test_console_panes_have_bounded_scroll_and_title_controls(self) -> None:

@@ -8,6 +8,7 @@ from importlib import import_module
 import ast
 from html import escape
 from pathlib import Path
+import json
 import os
 import py_compile
 import re
@@ -30,7 +31,7 @@ class LifecycleError(RuntimeError):
 MAX_SOURCE_LINE_LENGTH = 120
 SOURCE_DIRECTORIES = ("apps", "monotools", "packages", "tests")
 SOURCE_EXCLUDED_DIRECTORIES = frozenset({".venv", "__pycache__", "data", "dist", "node_modules"})
-SOURCE_SUFFIXES = frozenset({".py", ".js", ".ts", ".tsx"})
+SOURCE_SUFFIXES = frozenset({".py", ".js", ".ts", ".tsx", ".css"})
 
 
 def validate_source_lines(workspace: Path) -> None:
@@ -70,15 +71,14 @@ def _run(command: list[str], cwd: Path) -> None:
         raise LifecycleError(f"command failed ({completed.returncode}): {' '.join(command)}")
 
 
-def _validate_lit(definition: AppDefinition, workspace: Path) -> None:
-    entries = [definition.directory / artifact.source for artifact in definition.artifacts
-        if artifact.format == "lit"]
+def _validate_frontend(definition: AppDefinition, workspace: Path) -> None:
+    entries = [definition.directory / artifact.source for artifact in definition.artifacts]
     if not entries:
         return
     node = shutil.which("node")
     if node is None:
-        raise LifecycleError("node not found; run python manage.py bootstrap before checking Lit pages")
-    command = [node, "monotools/node/check-lit.mjs",
+        raise LifecycleError("node not found; run python manage.py bootstrap before checking frontends")
+    command = [node, "monotools/node/check-frontend.mjs",
         *(str(entry.relative_to(workspace)) for entry in entries)]
     completed = subprocess.run(command, cwd=workspace, check=False, text=True,
         stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
@@ -99,6 +99,29 @@ def _build_lit(definition: AppDefinition, artifact: FrontendArtifact, workspace:
         script = bundle.read_text(encoding="utf-8")
     finally:
         bundle.unlink(missing_ok=True)
+    _write_document(definition, artifact, script, "")
+
+
+def _build_preact(definition: AppDefinition, artifact: FrontendArtifact, workspace: Path) -> None:
+    npm = shutil.which("npm")
+    if npm is None:
+        raise LifecycleError("npm not found; run python manage.py bootstrap before building Preact pages")
+    bundle = definition.dist_directory / f"{artifact.name}.bundle.js"
+    stylesheet = definition.dist_directory / f"{artifact.name}.bundle.css"
+    source = definition.directory / artifact.source
+    _run([npm, "run", "build:preact", "--", str(source.relative_to(workspace)),
+        str(bundle.relative_to(workspace)), str(stylesheet.relative_to(workspace))], workspace)
+    try:
+        script = bundle.read_text(encoding="utf-8")
+        styles = stylesheet.read_text(encoding="utf-8")
+    finally:
+        bundle.unlink(missing_ok=True)
+        stylesheet.unlink(missing_ok=True)
+    _write_document(definition, artifact, script, styles)
+
+
+def _write_document(definition: AppDefinition, artifact: FrontendArtifact,
+    script: str, styles: str) -> None:
     output = definition.dist_directory / artifact.output
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
@@ -108,7 +131,8 @@ def _build_lit(definition: AppDefinition, artifact: FrontendArtifact, workspace:
         f"<meta name=\"xenorepo-artifact\" content=\"{escape(str(artifact.output))}\">\n"
         f"<title>{escape(definition.title)}</title>\n"
         "<style>html,body,#app{width:100%;height:100%;margin:0}"
-        "html,body{overflow:hidden;background:#1d2021;color:#ebdbb2}</style>\n"
+        "html,body{overflow:hidden;background:#1d2021;color:#ebdbb2}"
+        f"{styles}</style>\n"
         "</head>\n<body>\n<main id=\"app\"></main>\n"
         f"<script>{script}</script>\n</body>\n</html>\n",
         encoding="utf-8",
@@ -118,7 +142,8 @@ def _build_lit(definition: AppDefinition, artifact: FrontendArtifact, workspace:
 def build_app(definition: AppDefinition, workspace: Path) -> None:
     definition.dist_directory.mkdir(exist_ok=True)
     for artifact in definition.artifacts:
-        _build_lit(definition, artifact, workspace)
+        builder = _build_preact if artifact.format == "preact" else _build_lit
+        builder(definition, artifact, workspace)
 
 
 _SHARED_PACKAGE_IMPORT = re.compile(
@@ -133,7 +158,7 @@ def _declared_source_imports(definition: AppDefinition) -> tuple[str, ...]:
     for source in python_sources:
         discovered.update(_python_shared_imports(source))
     for source in definition.source_directory.rglob("*"):
-        if source.suffix in {".ts", ".js"}:
+        if source.suffix in {".ts", ".tsx", ".js"}:
             discovered.update(_SHARED_PACKAGE_IMPORT.findall(source.read_text(encoding="utf-8")))
     return tuple(sorted(discovered))
 
@@ -168,10 +193,30 @@ def validate_app(definition: AppDefinition, workspace: Path) -> None:
     if missing:
         raise LifecycleError(f"{definition.name} missing files: {', '.join(map(str, missing))}")
     _validate_declared_imports(definition)
-    _validate_lit(definition, workspace)
     py_compile.compile(str(definition.backend_directory / "server.py"), doraise=True)
     module = import_module(definition.module)
     _validate_runtime_contract(definition, module)
+    _generate_openapi_types(definition, module.app, workspace)
+    _validate_frontend(definition, workspace)
+
+
+def _generate_openapi_types(definition: AppDefinition, application: FastAPI,
+    workspace: Path) -> None:
+    """Generate deterministic app-owned declarations for HTTP API routes only."""
+    schema = application.openapi()
+    schema["paths"] = {
+        path: value for path, value in schema.get("paths", {}).items()
+        if path.startswith("/api/") or path == "/api"
+    }
+    data_directory = definition.directory / "data"
+    data_directory.mkdir(exist_ok=True)
+    schema_path = data_directory / "openapi.json"
+    declaration = data_directory / "openapi.d.ts"
+    schema_path.write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    generator = workspace / "node_modules" / ".bin" / "openapi-typescript"
+    if not generator.is_file():
+        raise LifecycleError("openapi-typescript not found; run python manage.py bootstrap")
+    _run([str(generator), str(schema_path), "--output", str(declaration)], workspace)
 
 
 def _required_sources(definition: AppDefinition) -> tuple[Path, ...]:

@@ -17,7 +17,7 @@ from monotools.apps import AppDefinition
 
 
 SOURCE_ROOTS = ("apps", "monotools", "packages", "tests")
-SOURCE_SUFFIXES = frozenset({".py", ".js", ".ts", ".tsx", ".html"})
+SOURCE_SUFFIXES = frozenset({".py", ".js", ".ts", ".tsx", ".css", ".html"})
 TEXT_SUFFIXES = SOURCE_SUFFIXES | frozenset({".md", ".json", ".toml", ".yaml", ".yml"})
 EXCLUDED_PARTS = frozenset({".git", ".venv", "data", "dist", "historic", "node_modules", "__pycache__"})
 MAX_SOURCE_LINES = 600

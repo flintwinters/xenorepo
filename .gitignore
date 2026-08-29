@@ -65,6 +65,8 @@ htmlcov/
 *.sqlite
 *.sqlite3
 apps/*/data/*.db
+apps/*/data/openapi.json
+apps/*/data/openapi.d.ts
 
 # Temporary app/runtime artifacts
 apps/*/data/ui-check/

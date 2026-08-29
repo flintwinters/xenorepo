@@ -101,7 +101,7 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
   }
   private modulesTable(): ComponentChildren {
     return <><div class="explorer-section-heading"><h2>Monotools modules</h2>
-      <span>{this.state.modules.length} top-level Python modules</span></div>
+      <span>{this.state.modules.length} Python modules in semantic packages</span></div>
       <div class="module-table"><table class="console-table"><thead><tr><th class="identity">Module</th>
         <th class="compact">Path</th><th class="prose">Description</th><th class="prose">Explanation</th>
         <th class="numeric">Lines</th><th class="numeric">Size</th><th class="numeric">Definitions</th>

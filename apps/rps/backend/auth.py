@@ -1,6 +1,6 @@
 """Opaque guest credential primitives."""
 
-from monotools.auth import issue_opaque_credential, opaque_credential_digest
+from monotools.persistence.auth import issue_opaque_credential, opaque_credential_digest
 
 
 def issue_credential() -> str:

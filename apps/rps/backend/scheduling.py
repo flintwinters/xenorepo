@@ -5,7 +5,7 @@ from collections.abc import Awaitable, Callable
 from datetime import datetime
 from typing import Protocol
 
-from monotools.appkit import Clock, SystemClock
+from monotools.runtime.appkit import Clock, SystemClock
 
 
 Callback = Callable[[], Awaitable[None]]

@@ -6,11 +6,11 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
-from monotools.apps import ROOT
-from monotools.browser import validate_browser_suite
-from monotools.lifecycle import LifecycleError
-from monotools.management import BrowserSuite
-from monotools.ui import run_ui_check
+from monotools.orchestration.apps import ROOT
+from monotools.orchestration.browser import validate_browser_suite
+from monotools.orchestration.lifecycle import LifecycleError
+from monotools.orchestration.management import BrowserSuite
+from monotools.orchestration.ui import run_ui_check
 from tests.support import synthetic_app_definition
 
 
@@ -71,11 +71,11 @@ class BrowserProofContractTests(unittest.TestCase):
     def test_static_failure_occurs_before_build_database_or_service_mutation(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="browser-app-") as temporary:
             definition = synthetic_app_definition(Path(temporary))
-            with patch("monotools.browser.validate_browser_suite",
+            with patch("monotools.orchestration.browser.validate_browser_suite",
                     side_effect=LifecycleError("BROWSER_PROOF_TAG_COUNT: bad")), \
-                 patch("monotools.ui.validate_app") as validate, \
-                 patch("monotools.ui.build_app") as build, \
-                 patch("monotools.ui.subprocess.Popen") as start:
+                 patch("monotools.orchestration.ui.validate_app") as validate, \
+                 patch("monotools.orchestration.ui.build_app") as build, \
+                 patch("monotools.orchestration.ui.subprocess.Popen") as start:
                 with self.assertRaisesRegex(LifecycleError, "BROWSER_PROOF_TAG_COUNT"):
                     run_ui_check(definition, ROOT, BrowserSuite(Path("bad")))
         validate.assert_not_called()

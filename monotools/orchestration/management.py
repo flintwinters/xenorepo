@@ -12,8 +12,8 @@ import sys
 import typer
 from rich.console import Console
 
-from monotools.apps import AppDefinition, AppDefinitionError, load_app
-from monotools.lifecycle import (
+from monotools.orchestration.apps import AppDefinition, AppDefinitionError, load_app
+from monotools.orchestration.lifecycle import (
     LifecycleError,
     build_app,
     run_test_suite,
@@ -21,8 +21,8 @@ from monotools.lifecycle import (
     validate_app,
     validate_dist,
 )
-from monotools.repositories import RepositoryError, inspect_app_repository, promote_to_submodule
-from monotools.ui import run_ui_check
+from monotools.orchestration.repositories import RepositoryError, inspect_app_repository, promote_to_submodule
+from monotools.orchestration.ui import run_ui_check
 
 
 console = Console()

@@ -22,7 +22,7 @@ from apps.microblog.backend.database import (
     create_session_factory,
     now,
 )
-from monotools.auth import opaque_credential_digest
+from monotools.persistence.auth import opaque_credential_digest
 
 
 class MicroblogTests(unittest.TestCase):

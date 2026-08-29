@@ -16,9 +16,9 @@ from apps.kanban.backend.database import (
     CardUpdate,
     prepare_database,
 )
-from monotools.appkit import create_app_context
-from monotools.http import domain_error_handler, enforce_same_origin
-from monotools.runtime import create_application
+from monotools.runtime.appkit import create_app_context
+from monotools.runtime.http import domain_error_handler, enforce_same_origin
+from monotools.runtime.application import create_application
 
 
 DEFAULT_DATABASE = Path(__file__).parent.parent / "data" / "kanban.db"

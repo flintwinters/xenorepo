@@ -12,8 +12,8 @@ from apps.chat.backend.database import (
     ParticipantAlias, Room, create_session_factory,
 )
 from apps.chat.backend.server import ConnectionHub
-from monotools.appkit import SystemClock
-from monotools.orm import (
+from monotools.runtime.appkit import SystemClock
+from monotools.persistence.orm import (
     REALTIME_CONNECTION_COLUMN_CONTRACTS,
     assert_realtime_connection_conformance,
 )

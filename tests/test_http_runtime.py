@@ -9,8 +9,8 @@ from unittest.mock import patch
 from fastapi.responses import JSONResponse
 from starlette.requests import Request
 
-from monotools.apps import ROOT
-from monotools.http import (
+from monotools.orchestration.apps import ROOT
+from monotools.runtime.http import (
     client_provenance,
     delete_session_cookie,
     domain_error_handler,
@@ -21,7 +21,7 @@ from monotools.http import (
     same_origin_allowed,
     set_session_cookie,
 )
-from monotools.runtime import create_application
+from monotools.runtime.application import create_application
 from tests.support import synthetic_app_definition
 
 
@@ -85,7 +85,7 @@ class RuntimePlatformTests(unittest.TestCase):
     def test_runtime_exposes_health_and_metadata_declared_documents(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="runtime-") as temporary:
             definition = synthetic_app_definition(Path(temporary))
-            with patch("monotools.runtime.get_app", return_value=definition) as get_app:
+        with patch("monotools.runtime.application.get_app", return_value=definition) as get_app:
                 application = create_application(definition.name)
 
         get_app.assert_called_once_with(definition.name)

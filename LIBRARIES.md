@@ -31,17 +31,17 @@ root orchestration surfaces rather than independently adopted app contracts.
 
 | Public module | Independent consumer count |
 | --- | ---: |
-| `monotools.appkit` | 7 |
-| `monotools.auth` | 2 |
-| `monotools.commerce` | 1 |
-| `monotools.database` | 6 |
-| `monotools.http` | 7 |
-| `monotools.lifecycle` | 1 |
-| `monotools.mailer` | 1 |
-| `monotools.management` | 9 |
-| `monotools.orm` | 2 |
-| `monotools.realtime` | 3 |
-| `monotools.runtime` | 9 |
+| `monotools.integrations.commerce` | 1 |
+| `monotools.integrations.mailer` | 1 |
+| `monotools.orchestration.lifecycle` | 1 |
+| `monotools.orchestration.management` | 9 |
+| `monotools.persistence.auth` | 2 |
+| `monotools.persistence.database` | 6 |
+| `monotools.persistence.orm` | 2 |
+| `monotools.runtime.appkit` | 7 |
+| `monotools.runtime.application` | 9 |
+| `monotools.runtime.http` | 7 |
+| `monotools.runtime.realtime` | 3 |
 
 Single-consumer modules are narrow typed integration contracts, not extracted
 domain implementations. A second consumer is required before application

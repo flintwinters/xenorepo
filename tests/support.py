@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Coroutine, TypeVar
 
-from monotools.apps import AppDefinition, FrontendArtifact
+from monotools.orchestration.apps import AppDefinition, FrontendArtifact
 
 
 Result = TypeVar("Result")

@@ -7,14 +7,14 @@ product intent remains app-owned in the generated specification and agent contex
 from pathlib import Path
 import shutil
 
-from monotools.apps import AppDefinitionError, load_app, validate_app_name
+from monotools.orchestration.apps import AppDefinitionError, load_app, validate_app_name
 
 
 class ScaffoldError(RuntimeError):
     """Raised when a monoapp skeleton cannot be created without ambiguity."""
 
 
-TEMPLATE_DIRECTORY = Path(__file__).resolve().parent / "templates" / "monoapp"
+TEMPLATE_DIRECTORY = Path(__file__).resolve().parents[1] / "templates" / "monoapp"
 TOKENS = ("app_name", "app_title")
 
 

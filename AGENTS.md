@@ -27,8 +27,8 @@ it, and **Monotools** is the canonical orchestration library.
   Typer/Rich commands for every app and recurring workflow.
 - Monoapps declare typed metadata and capabilities; Monotools owns discovery,
   scaffolding, lifecycle, build, validation, tests, and status reporting.
-- Every top-level Monotools module has a summary-and-explanation docstring; the
-  cockpit derives module descriptions from it.
+- Monotools uses `orchestration`, `runtime`, `persistence`, and
+  `integrations` packages; every module is documented and recursively discovered.
 - Plan a new monoapp in `apps/<app>/SPEC.md` as a shippable walking skeleton
   with real-world validation criteria before implementation.
 - Each monoapp separates `frontend/` and `backend/`; its root contains only

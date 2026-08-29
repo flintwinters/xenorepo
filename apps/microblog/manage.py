@@ -1,6 +1,6 @@
 """WIRE/98 lifecycle manager."""
 
-from monotools.management import create_app_manager
+from monotools.orchestration.management import create_app_manager
 
 
 manager = create_app_manager(

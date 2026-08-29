@@ -3,8 +3,8 @@ title: {{app_title}}
 module: apps.{{app_name}}.backend.server
 imports:
   - "@xenorepo/ui"
-  - monotools.management
-  - monotools.runtime
+  - monotools.orchestration.management
+  - monotools.runtime.application
 frontend:
   artifacts:
     index:

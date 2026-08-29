@@ -12,8 +12,8 @@ import re
 import statistics
 import subprocess
 
-from monotools.apps import AppDefinition, discover_apps
-from monotools.audit import EXCLUDED_PARTS, audit_workspace
+from monotools.orchestration.apps import AppDefinition, discover_apps
+from monotools.orchestration.audit import EXCLUDED_PARTS, audit_workspace
 
 
 LANGUAGES = {".css": "CSS", ".html": "HTML", ".js": "JavaScript", ".json": "JSON",
@@ -107,7 +107,7 @@ def _metrics(root: Path, facts: tuple[FileFact, ...], source: tuple[FileFact, ..
     return {
         "source_files": len(source), "source_lines": sum(lines),
         "repository_bytes": sum(item.bytes for item in facts), "monoapps": len(definitions),
-        "monotools_modules": len(tuple((root / "monotools").glob("*.py"))),
+        "monotools_modules": len(_monotools_modules(root)),
         "test_files": sum("tests" in item.path.parts for item in source),
         "test_cases": int(tests["total"]),
         "specified_apps": sum(item.specification.is_file() for item in definitions),
@@ -136,33 +136,43 @@ def scan_overview(root: Path) -> dict[str, object]:
             for item in sorted(source, key=lambda item: (-item.lines, str(item.path)))[:8]]}
 
 
-def _module_dependencies(path: Path) -> list[str]:
+def _monotools_modules(root: Path) -> tuple[Path, ...]:
+    return tuple(path for path in sorted((root / "monotools").rglob("*.py"))
+        if path.name != "__init__.py")
+
+
+def _module_name(root: Path, path: Path) -> str:
+    return ".".join(path.relative_to(root / "monotools").with_suffix("").parts)
+
+
+def _module_dependencies(root: Path, path: Path) -> list[str]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-    values = {node.module.split(".", 1)[1].split(".", 1)[0]
+    values = {node.module.removeprefix("monotools.")
         for node in ast.walk(tree) if isinstance(node, ast.ImportFrom) and node.module
         and node.module.startswith("monotools.")}
-    values.update(alias.name.split(".", 1)[1].split(".", 1)[0]
+    values.update(alias.name.removeprefix("monotools.")
         for node in ast.walk(tree) if isinstance(node, ast.Import)
         for alias in node.names if alias.name.startswith("monotools."))
-    return sorted(values - {path.stem})
+    return sorted(values - {_module_name(root, path)})
 
 
 def scan_modules(root: Path) -> list[dict[str, object]]:
     definitions = _definitions(root)
-    inbound = Counter(item.removeprefix("monotools.").split(".", 1)[0]
+    inbound = Counter(item.removeprefix("monotools.")
         for definition in definitions for item in definition.imports if item.startswith("monotools."))
     modules = []
-    for path in sorted((root / "monotools").glob("*.py")):
+    for path in _monotools_modules(root):
         content = path.read_text(encoding="utf-8")
         tree = ast.parse(content, filename=str(path))
         documentation = (ast.get_docstring(tree, clean=True) or "").split("\n\n", 1)
         public = sum(isinstance(node, (ast.ClassDef, ast.FunctionDef))
             and not node.name.startswith("_") for node in tree.body)
-        modules.append({"name": path.stem, "path": str(path.relative_to(root)),
+        name = _module_name(root, path)
+        modules.append({"name": name, "path": str(path.relative_to(root)),
             "lines": len(content.splitlines()), "bytes": path.stat().st_size,
-            "public_definitions": public, "inbound_apps": inbound[path.stem],
+            "public_definitions": public, "inbound_apps": inbound[name],
             "description": documentation[0], "explanation": documentation[1],
-            "dependencies": _module_dependencies(path)})
+            "dependencies": _module_dependencies(root, path)})
     return modules
 
 

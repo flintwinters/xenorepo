@@ -4,12 +4,12 @@ module: apps.microblog.backend.server
 capabilities:
   - database
 imports:
-  - monotools.appkit
-  - monotools.auth
-  - monotools.database
-  - monotools.http
-  - monotools.management
-  - monotools.runtime
+  - monotools.orchestration.management
+  - monotools.persistence.auth
+  - monotools.persistence.database
+  - monotools.runtime.appkit
+  - monotools.runtime.application
+  - monotools.runtime.http
 frontend:
   artifacts:
     index:

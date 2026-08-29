@@ -10,8 +10,8 @@ from unittest.mock import Mock, patch
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from monotools.apps import ROOT, get_app
-from monotools.ui import run_ui_check
+from monotools.orchestration.apps import ROOT, get_app
+from monotools.orchestration.ui import run_ui_check
 
 from apps.rps.backend.auth import credential_digest, issue_credential
 from apps.rps.backend.database import (
@@ -29,8 +29,8 @@ from apps.rps.backend.database import (
     now,
     throw_result,
 )
-from monotools.auth import opaque_credential_digest
-from monotools.orm import (
+from monotools.persistence.auth import opaque_credential_digest
+from monotools.persistence.orm import (
     REALTIME_CONNECTION_COLUMN_CONTRACTS,
     assert_realtime_connection_conformance,
 )
@@ -45,15 +45,15 @@ class RpsTests(unittest.TestCase):
         process.pid = 4200
         with TemporaryDirectory(dir=definition.directory / "data", prefix="ui-policy-") as temporary:
             artifacts = Path(temporary)
-            with patch("monotools.ui.validate_app"), \
-                 patch("monotools.browser.validate_browser_suite", return_value={"counts": {}}), \
-                 patch("monotools.ui.build_app"), patch("monotools.ui.validate_dist"), \
-                 patch("monotools.ui.ui_artifact_directory", return_value=artifacts), \
-                 patch("monotools.ui.available_local_port", return_value=8123), \
-                 patch("monotools.ui.subprocess.Popen", return_value=process), \
-                 patch("monotools.ui.wait_for_health"), \
-                 patch("monotools.ui._run_browser", return_value=0) as run, \
-                 patch("monotools.ui._terminate", return_value="clean"):
+            with patch("monotools.orchestration.ui.validate_app"), \
+                 patch("monotools.orchestration.browser.validate_browser_suite", return_value={"counts": {}}), \
+                 patch("monotools.orchestration.ui.build_app"), patch("monotools.orchestration.ui.validate_dist"), \
+                 patch("monotools.orchestration.ui.ui_artifact_directory", return_value=artifacts), \
+                 patch("monotools.orchestration.ui.available_local_port", return_value=8123), \
+                 patch("monotools.orchestration.ui.subprocess.Popen", return_value=process), \
+                 patch("monotools.orchestration.ui.wait_for_health"), \
+                 patch("monotools.orchestration.ui._run_browser", return_value=0) as run, \
+                 patch("monotools.orchestration.ui._terminate", return_value="clean"):
                 run_ui_check(definition, ROOT,
                     definition.directory / "tests" / "e2e" / "arena.spec.js")
 
@@ -95,7 +95,7 @@ class RpsTests(unittest.TestCase):
 
     def test_every_application_title_is_rock_paper_scissors(self) -> None:
         from apps.rps.backend.server import create_app
-        from monotools.apps import get_app
+        from monotools.orchestration.apps import get_app
 
         title = "Rock Paper Scissors"
         source = Path("apps/rps/frontend/view.js").read_text(encoding="utf-8")

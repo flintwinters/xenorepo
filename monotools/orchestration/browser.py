@@ -10,8 +10,8 @@ import json
 from pathlib import Path
 import subprocess
 
-from monotools.lifecycle import LifecycleError
-from monotools.management import BrowserSuite
+from monotools.orchestration.lifecycle import LifecycleError
+from monotools.orchestration.management import BrowserSuite
 
 
 def validate_browser_suite(suite: BrowserSuite, workspace: Path) -> dict[str, object]:

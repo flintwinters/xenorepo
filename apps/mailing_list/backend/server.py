@@ -7,9 +7,9 @@ from pydantic import BaseModel
 
 from apps.mailing_list.backend.database import Base, DomainError, MailingListRepository
 from apps.mailing_list.backend.providers import SandboxGateway
-from monotools.appkit import create_app_context
-from monotools.http import domain_error_handler, enforce_same_origin
-from monotools.runtime import create_application
+from monotools.runtime.appkit import create_app_context
+from monotools.runtime.http import domain_error_handler, enforce_same_origin
+from monotools.runtime.application import create_application
 
 
 DIRECTORY = Path(__file__).parent

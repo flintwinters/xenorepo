@@ -10,8 +10,8 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, aliased, mapped_column, sessionmaker
 
 from apps.microblog.backend.auth import PasswordHash, hash_password, normalize_handle, token_digest, verify_password
-from monotools.appkit import SystemClock
-from monotools.database import create_session_factory as _create_session_factory
+from monotools.runtime.appkit import SystemClock
+from monotools.persistence.database import create_session_factory as _create_session_factory
 
 
 SESSION_LIFETIME = timedelta(days=30)

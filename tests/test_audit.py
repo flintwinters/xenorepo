@@ -4,8 +4,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
 
-from monotools.apps import ROOT
-from monotools.audit import audit_architecture, audit_workspace
+from monotools.orchestration.apps import ROOT
+from monotools.orchestration.audit import audit_architecture, audit_workspace
 from tests.support import synthetic_app_definition
 
 

@@ -7,7 +7,7 @@ import json
 from sqlalchemy import DateTime, Integer, String, Text, UniqueConstraint, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
-from monotools.appkit import SystemClock
+from monotools.runtime.appkit import SystemClock
 
 
 SCHEMA_VERSION = 1

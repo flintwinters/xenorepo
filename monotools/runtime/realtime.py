@@ -10,7 +10,7 @@ import json
 from typing import Any, Generic, Protocol, TypeVar
 from urllib.parse import urlsplit
 
-from monotools.http import client_provenance
+from monotools.runtime.http import client_provenance
 
 
 Context = TypeVar("Context")

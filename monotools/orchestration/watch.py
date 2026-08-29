@@ -8,8 +8,8 @@ from collections.abc import Callable
 from pathlib import Path
 import time
 
-from monotools.apps import AppDefinition
-from monotools.lifecycle import build_app
+from monotools.orchestration.apps import AppDefinition
+from monotools.orchestration.lifecycle import build_app
 
 
 def frontend_inputs(definition: AppDefinition, workspace: Path) -> tuple[Path, ...]:

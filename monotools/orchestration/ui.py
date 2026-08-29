@@ -16,8 +16,8 @@ import signal
 import sys
 import time
 
-from monotools.apps import AppDefinition
-from monotools.lifecycle import LifecycleError, build_app, validate_app, validate_dist
+from monotools.orchestration.apps import AppDefinition
+from monotools.orchestration.lifecycle import LifecycleError, build_app, validate_app, validate_dist
 
 
 HEALTH_TIMEOUT_SECONDS = 15
@@ -96,8 +96,8 @@ def _run_browser(command: list[str], workspace: Path,
 
 
 def _browser_suites(workspace: Path, suite: object) -> tuple[object, object | None, dict, dict]:
-    from monotools.management import BrowserSuite
-    from monotools.browser import validate_browser_suite
+    from monotools.orchestration.management import BrowserSuite
+    from monotools.orchestration.browser import validate_browser_suite
 
     browser_suite = (suite if isinstance(suite, BrowserSuite)
         else BrowserSuite(Path(suite)) if suite is not None else None)

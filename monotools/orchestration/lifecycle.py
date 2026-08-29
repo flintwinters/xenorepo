@@ -21,7 +21,7 @@ from collections.abc import Callable, Mapping
 from fastapi import FastAPI
 from fastapi.routing import APIWebSocketRoute
 
-from monotools.apps import AppDefinition, FrontendArtifact
+from monotools.orchestration.apps import AppDefinition, FrontendArtifact
 
 
 class LifecycleError(RuntimeError):
@@ -281,7 +281,7 @@ def serve_app(definition: AppDefinition, workspace: Path, *, host: str = "127.0.
     build_app(definition, workspace)
     validate_dist(definition)
     if watch:
-        from monotools.watch import watch_frontend
+        from monotools.orchestration.watch import watch_frontend
 
         threading.Thread(
             target=watch_frontend,

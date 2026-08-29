@@ -14,7 +14,7 @@ from ruamel.yaml.constructor import DuplicateKeyError
 from ruamel.yaml.error import YAMLError
 
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 APPS_DIRECTORY = ROOT / "apps"
 _ARTIFACT_NAME = re.compile(r"^[a-z][a-z0-9_-]*$")
 _APP_NAME = re.compile(r"^[a-z][a-z0-9_]*$")

@@ -12,8 +12,8 @@ from apps.mailing_list.backend.database import (
     create_session_factory,
 )
 from apps.mailing_list.backend.providers import SandboxGateway
-from monotools.commerce import PaymentNotification
-from monotools.mailer import Mail, SmtpMailer
+from monotools.integrations.commerce import PaymentNotification
+from monotools.integrations.mailer import Mail, SmtpMailer
 
 
 class MailingListTests(unittest.TestCase):
@@ -55,7 +55,7 @@ class MailingListTests(unittest.TestCase):
         with self.assertRaisesRegex(DomainError, "Checkout not found"):
             self.repository.apply_notification(PaymentNotification("sandbox", "event", "missing", "paid"))
 
-    @patch("monotools.mailer.smtplib.SMTP")
+    @patch("monotools.integrations.mailer.smtplib.SMTP")
     def test_smtp_adapter_owns_tls_authentication_and_message_transport(self, smtp: MagicMock) -> None:
         connection = smtp.return_value.__enter__.return_value
         connection.send_message.return_value = {}

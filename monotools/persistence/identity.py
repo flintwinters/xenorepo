@@ -15,7 +15,7 @@ from uuid import uuid4
 from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, MetaData, String, Table, or_, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
-from monotools.auth import issue_opaque_credential, opaque_credential_digest
+from monotools.persistence.auth import issue_opaque_credential, opaque_credential_digest
 
 
 class MonotoolsBase(DeclarativeBase):

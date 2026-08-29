@@ -11,9 +11,9 @@ from typing import Protocol
 from sqlalchemy import MetaData
 from sqlalchemy.orm import Session, sessionmaker
 
-from monotools.apps import AppDefinition, get_app
-from monotools.database import DatabasePreparation, create_session_factory, resolve_database_url
-from monotools.identity import DatabaseSchema
+from monotools.orchestration.apps import AppDefinition, get_app
+from monotools.persistence.database import DatabasePreparation, create_session_factory, resolve_database_url
+from monotools.persistence.identity import DatabaseSchema
 
 
 class Clock(Protocol):

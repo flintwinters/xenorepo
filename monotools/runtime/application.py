@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
-from monotools.apps import get_app
+from monotools.orchestration.apps import get_app
 
 
 def _document_endpoint(document: Path):

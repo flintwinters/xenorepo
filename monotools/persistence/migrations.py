@@ -13,7 +13,7 @@ import shutil
 from sqlalchemy import Column, DateTime, Engine, Integer, MetaData, String, Table, inspect, select, text
 from sqlalchemy.engine import Connection
 
-from monotools.identity import DatabaseSchema
+from monotools.persistence.identity import DatabaseSchema
 
 
 MigrationAction = Callable[[Connection], None]

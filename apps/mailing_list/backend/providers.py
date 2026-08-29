@@ -1,7 +1,7 @@
 """Safe local providers used until live adapter credentials are configured."""
 
-from monotools.commerce import CheckoutRequest, HostedCheckout, PaymentNotification
-from monotools.mailer import DeliveryReceipt, Mail
+from monotools.integrations.commerce import CheckoutRequest, HostedCheckout, PaymentNotification
+from monotools.integrations.mailer import DeliveryReceipt, Mail
 
 
 class SandboxGateway:

@@ -6,7 +6,7 @@ from typing import Any
 
 from apps.rps.backend.database import DomainError, Player, RpsRepository
 from apps.rps.backend.scheduling import Clock, Scheduler
-from monotools.realtime import ConnectionRegistry, RealtimeSocket, SendReport, client_provenance
+from monotools.runtime.realtime import ConnectionRegistry, RealtimeSocket, SendReport, client_provenance
 
 
 ROUND_TIME = timedelta(seconds=10)

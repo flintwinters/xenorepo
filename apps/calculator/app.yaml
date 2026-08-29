@@ -3,8 +3,8 @@ title: Calculator
 module: apps.calculator.backend.server
 imports:
   - "@xenorepo/ui"
-  - monotools.management
-  - monotools.runtime
+  - monotools.orchestration.management
+  - monotools.runtime.application
 frontend:
   artifacts:
     index:

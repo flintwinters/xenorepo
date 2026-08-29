@@ -13,7 +13,7 @@ import json
 import re
 import subprocess
 
-from monotools.apps import AppDefinition
+from monotools.orchestration.apps import AppDefinition
 
 
 SOURCE_ROOTS = ("apps", "monotools", "packages", "tests")
@@ -161,7 +161,7 @@ def _monotools_documentation_violations(workspace: Path) -> list[AuditViolation]
     if not directory.is_dir():
         return []
     violations = []
-    for path in sorted(directory.glob("*.py")):
+    for path in sorted(directory.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         sections = (ast.get_docstring(tree, clean=True) or "").split("\n\n", 1)
         if len(sections) < 2 or not all(section.strip() for section in sections):

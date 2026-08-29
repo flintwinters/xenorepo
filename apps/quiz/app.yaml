@@ -2,8 +2,8 @@ name: quiz
 title: Working Style Inventory
 module: apps.quiz.backend.server
 imports:
-  - monotools.management
-  - monotools.runtime
+  - monotools.orchestration.management
+  - monotools.runtime.application
 frontend:
   artifacts:
     index:

@@ -10,7 +10,7 @@ import httpx
 from apps.xenoview.backend.database import Base, SnapshotRepository
 from apps.xenoview.backend.scanner import scan_architecture, scan_modules, scan_overview, scan_tree
 from apps.xenoview.backend.server import ROOT, create_app
-from monotools.database import create_session_factory
+from monotools.persistence.database import create_session_factory
 
 
 class Client:
@@ -56,7 +56,10 @@ class CockpitTests(unittest.TestCase):
         modules = scan_modules(ROOT)
         architecture = scan_architecture(ROOT)
         self.assertEqual([item["name"] for item in modules], sorted(item["name"] for item in modules))
-        self.assertIn("audit", {item["name"] for item in modules})
+        names = {item["name"] for item in modules}
+        self.assertIn("orchestration.audit", names)
+        self.assertTrue({"integrations.mailer", "orchestration.apps",
+            "persistence.database", "runtime.application"}.issubset(names))
         self.assertTrue(all(item["description"] and item["explanation"] for item in modules))
         edges = {(item["source"], item["target"]) for item in architecture["edges"]}
         self.assertNotIn("lit-ui", {item["id"] for item in architecture["nodes"]})

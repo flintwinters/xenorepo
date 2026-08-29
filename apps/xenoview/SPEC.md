@@ -20,7 +20,7 @@ The product succeeds when an owner can answer, within a minute: how large is the
 The primary scorecard tracks independently meaningful quantities rather than a composite score:
 
 - **Source files / lines / bytes:** maintained source and project documentation after deterministic exclusions.
-- **Monoapps / Monotools modules:** discovered app definitions and top-level Python modules.
+- **Monoapps / Monotools modules:** discovered app definitions and recursively discovered Python modules in semantic packages.
 - **Test files / test cases:** routinized Python and browser suites and statically declared test functions.
 - **Specification coverage:** active monoapps with `SPEC.md`, reported as numerator and denominator.
 - **Architecture violations / large files / complex functions:** the same structural audit concepts enforced by the root workflow.

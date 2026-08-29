@@ -5,13 +5,13 @@ capabilities:
   - database
 imports:
   - "@xenorepo/ui"
-  - monotools.appkit
-  - monotools.commerce
-  - monotools.database
-  - monotools.http
-  - monotools.mailer
-  - monotools.management
-  - monotools.runtime
+  - monotools.integrations.commerce
+  - monotools.integrations.mailer
+  - monotools.orchestration.management
+  - monotools.persistence.database
+  - monotools.runtime.appkit
+  - monotools.runtime.application
+  - monotools.runtime.http
 frontend:
   artifacts:
     index:

@@ -9,9 +9,9 @@ from apps.xenoview.backend.scanner import scan_architecture, scan_modules, scan_
 from apps.xenoview.backend.schemas import (
     Architecture, ModuleFact, Overview, SnapshotResult, SnapshotView, TreeNode,
 )
-from monotools.appkit import create_app_context
-from monotools.http import enforce_same_origin
-from monotools.runtime import create_application
+from monotools.runtime.appkit import create_app_context
+from monotools.runtime.http import enforce_same_origin
+from monotools.runtime.application import create_application
 
 
 ROOT = Path(__file__).resolve().parents[3]

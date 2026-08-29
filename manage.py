@@ -9,10 +9,12 @@ from rich.console import Console
 from rich.table import Table
 import typer
 
-from monotools.apps import AppDefinition, AppDefinitionError, discover_planned_apps, is_planned_app, load_app
-from monotools.audit import AuditReport, audit_workspace
-from monotools.browser import run_browser_framework_suite
-from monotools.lifecycle import (
+from monotools.orchestration.apps import (
+    AppDefinition, AppDefinitionError, discover_planned_apps, is_planned_app, load_app,
+)
+from monotools.orchestration.audit import AuditReport, audit_workspace
+from monotools.orchestration.browser import run_browser_framework_suite
+from monotools.orchestration.lifecycle import (
     LifecycleError,
     build_app,
     collect_app_status,
@@ -21,10 +23,10 @@ from monotools.lifecycle import (
     validate_source_lines,
     validate_dist,
 )
-from monotools.management import ApplicationManager, PythonSuite, create_cli
-from monotools.repositories import uninitialized_app_submodules
-from monotools.scaffolding import ScaffoldError, scaffold_app
-from monotools.ui import run_ui_check
+from monotools.orchestration.management import ApplicationManager, PythonSuite, create_cli
+from monotools.orchestration.repositories import uninitialized_app_submodules
+from monotools.orchestration.scaffolding import ScaffoldError, scaffold_app
+from monotools.orchestration.ui import run_ui_check
 
 
 ROOT = Path(__file__).resolve().parent

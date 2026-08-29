@@ -13,7 +13,7 @@ from sqlalchemy import MetaData, create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from monotools.identity import DatabaseSchema
+from monotools.persistence.identity import DatabaseSchema
 
 DatabasePreparation = Callable[[Engine], None]
 

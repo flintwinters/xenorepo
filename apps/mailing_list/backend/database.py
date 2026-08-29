@@ -9,9 +9,9 @@ from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, U
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
-from monotools.appkit import SystemClock
-from monotools.commerce import CheckoutRequest, HostedCheckout, PaymentGateway, PaymentNotification
-from monotools.database import create_session_factory as _create_session_factory
+from monotools.runtime.appkit import SystemClock
+from monotools.integrations.commerce import CheckoutRequest, HostedCheckout, PaymentGateway, PaymentNotification
+from monotools.persistence.database import create_session_factory as _create_session_factory
 
 
 EMAIL = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")

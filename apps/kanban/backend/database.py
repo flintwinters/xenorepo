@@ -17,7 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
-from monotools.database import create_session_factory as _create_session_factory
+from monotools.persistence.database import create_session_factory as _create_session_factory
 
 
 CardTitle = Annotated[

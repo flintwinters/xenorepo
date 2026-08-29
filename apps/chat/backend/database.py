@@ -9,9 +9,9 @@ from sqlalchemy import inspect, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
-from monotools.appkit import SystemClock
-from monotools.database import create_session_factory as _create_session_factory
-from monotools.orm import RealtimeConnectionTable
+from monotools.runtime.appkit import SystemClock
+from monotools.persistence.database import create_session_factory as _create_session_factory
+from monotools.persistence.orm import RealtimeConnectionTable
 
 
 class Base(DeclarativeBase):

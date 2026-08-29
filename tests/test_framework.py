@@ -12,22 +12,22 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from starlette.websockets import WebSocketDisconnect
 
 from tests.support import SocketDouble, run_async
-from monotools.auth import issue_opaque_credential, opaque_credential_digest
-from monotools.appkit import SystemClock, create_app_context
-from monotools.database import create_session_factory, resolve_database_url
-from monotools.identity import (
+from monotools.persistence.auth import issue_opaque_credential, opaque_credential_digest
+from monotools.runtime.appkit import SystemClock, create_app_context
+from monotools.persistence.database import create_session_factory, resolve_database_url
+from monotools.persistence.identity import (
     Account, AccountEmail, AccountHandle, AccountName,
     AuthenticationSession as CanonicalSession, DatabaseSchema, PasswordCredential,
     RealtimeConnection, SCHEMA_GROUPS, add_handle, create_account, issue_session,
     resolve_session, revoke_session, set_password, verify_password,
 )
-from monotools.migrations import Migration, migration_versions, run_migrations
-from monotools.orm import (
+from monotools.persistence.migrations import Migration, migration_versions, run_migrations
+from monotools.persistence.orm import (
     REALTIME_CONNECTION_COLUMN_CONTRACTS,
     RealtimeConnectionTable,
     assert_realtime_connection_conformance,
 )
-from monotools.realtime import (
+from monotools.runtime.realtime import (
     ConnectionRegistry,
     bounded_text,
     client_provenance,
@@ -88,7 +88,7 @@ class SharedFrameworkTests(unittest.TestCase):
 
     def test_app_context_centralizes_metadata_database_and_clock(self) -> None:
         definition = SimpleNamespace(name="fixture_app")
-        with patch("monotools.appkit.get_app", return_value=definition):
+        with patch("monotools.runtime.appkit.get_app", return_value=definition):
             context = create_app_context("fixture_app", metadata=MetaData(),
                 default_database=self.database, environment_key="FIXTURE_DATABASE_URL",
                 clock=SystemClock())

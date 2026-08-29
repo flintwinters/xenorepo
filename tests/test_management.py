@@ -11,17 +11,17 @@ from unittest.mock import ANY, patch
 import typer
 from typer.testing import CliRunner
 
-from monotools.apps import AppDefinitionError, ROOT
-from monotools.audit import AuditReport, AuditViolation
-from monotools.management import create_app_manager, create_cli, resolve_local_app
-from monotools.repositories import (
+from monotools.orchestration.apps import AppDefinitionError, ROOT
+from monotools.orchestration.audit import AuditReport, AuditViolation
+from monotools.orchestration.management import create_app_manager, create_cli, resolve_local_app
+from monotools.orchestration.repositories import (
     AppRepositoryState,
     RepositoryError,
     declared_app_submodules,
     promote_to_submodule,
     uninitialized_app_submodules,
 )
-from monotools.scaffolding import ScaffoldError, scaffold_app
+from monotools.orchestration.scaffolding import ScaffoldError, scaffold_app
 import manage as repository_manager
 
 
@@ -103,7 +103,7 @@ frontend:
     def test_standard_serve_delegates_to_shared_lifecycle(self) -> None:
         app, manage_file = self._manager()
         definition = resolve_local_app(manage_file)
-        with patch("monotools.management.serve_app", return_value=0) as serve:
+        with patch("monotools.orchestration.management.serve_app", return_value=0) as serve:
             result = CliRunner().invoke(app, ["serve", "--host", "0.0.0.0", "--port", "8123"])
 
         self.assertEqual(result.exit_code, 0)
@@ -161,9 +161,9 @@ frontend:
 
     def test_targeted_check_executes_only_the_selected_application(self) -> None:
         selected = repository_manager.MANAGERS[0][0]
-        with patch("monotools.management.validate_app") as validate, \
-             patch("monotools.management.build_app") as build, \
-             patch("monotools.management.validate_dist") as validate_dist:
+        with patch("monotools.orchestration.management.validate_app") as validate, \
+             patch("monotools.orchestration.management.build_app") as build, \
+             patch("monotools.orchestration.management.validate_dist") as validate_dist:
             result = CliRunner().invoke(repository_manager.app, [selected.name, "check"])
 
         self.assertEqual(result.exit_code, 0)
@@ -353,9 +353,9 @@ frontend:
 
         verified: list[str] = []
         state = AppRepositoryState("monolith", True, None, "current")
-        with patch("monotools.repositories.shutil.which", return_value="/usr/bin/tool"), \
-             patch("monotools.repositories.inspect_app_repository", return_value=state), \
-             patch("monotools.repositories._run", side_effect=command):
+        with patch("monotools.orchestration.repositories.shutil.which", return_value="/usr/bin/tool"), \
+             patch("monotools.orchestration.repositories.inspect_app_repository", return_value=state), \
+             patch("monotools.orchestration.repositories._run", side_effect=command):
             remote = promote_to_submodule(definition, ROOT, owner="owner", repository="app",
                 visibility="private", verify=lambda: verified.append("verified"))
 

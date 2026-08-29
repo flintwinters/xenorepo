@@ -5,14 +5,14 @@ capabilities:
   - database
   - realtime
 imports:
-  - monotools.appkit
-  - monotools.auth
-  - monotools.database
-  - monotools.http
-  - monotools.management
-  - monotools.orm
-  - monotools.realtime
-  - monotools.runtime
+  - monotools.orchestration.management
+  - monotools.persistence.auth
+  - monotools.persistence.database
+  - monotools.persistence.orm
+  - monotools.runtime.appkit
+  - monotools.runtime.application
+  - monotools.runtime.http
+  - monotools.runtime.realtime
 frontend:
   artifacts:
     index:

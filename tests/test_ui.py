@@ -6,8 +6,8 @@ from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import Mock, patch
 
-from monotools.apps import ROOT
-from monotools.ui import available_local_port, run_ui_check, ui_artifact_directory
+from monotools.orchestration.apps import ROOT
+from monotools.orchestration.ui import available_local_port, run_ui_check, ui_artifact_directory
 from tests.support import synthetic_app_definition
 
 
@@ -23,7 +23,7 @@ class BrowserLifecycleTests(unittest.TestCase):
         listener.__enter__ = Mock(return_value=listener)
         listener.__exit__ = Mock(return_value=False)
         listener.getsockname.return_value = ("127.0.0.1", 8123)
-        with patch("monotools.ui.socket.socket", return_value=listener) as factory:
+        with patch("monotools.orchestration.ui.socket.socket", return_value=listener) as factory:
             self.assertEqual(available_local_port(), 8123)
         factory.assert_called_once()
 
@@ -36,16 +36,16 @@ class BrowserLifecycleTests(unittest.TestCase):
                 capabilities=frozenset({"database"}))
             artifacts = Path(temporary)
             suite = definition.directory / "tests" / "e2e" / "journey.spec.js"
-            with patch("monotools.ui.validate_app") as validate, \
-                 patch("monotools.browser.validate_browser_suite", return_value={"counts": {}}), \
-                 patch("monotools.ui.build_app") as build, \
-                 patch("monotools.ui.validate_dist") as validate_dist, \
-                 patch("monotools.ui.ui_artifact_directory", return_value=artifacts), \
-                 patch("monotools.ui.available_local_port", return_value=8123), \
-                 patch("monotools.ui.subprocess.Popen", return_value=process) as popen, \
-                 patch("monotools.ui.wait_for_health") as health, \
-                 patch("monotools.ui._run_browser", return_value=0) as run, \
-                 patch("monotools.ui._terminate", return_value="clean"):
+            with patch("monotools.orchestration.ui.validate_app") as validate, \
+                 patch("monotools.orchestration.browser.validate_browser_suite", return_value={"counts": {}}), \
+                 patch("monotools.orchestration.ui.build_app") as build, \
+                 patch("monotools.orchestration.ui.validate_dist") as validate_dist, \
+                 patch("monotools.orchestration.ui.ui_artifact_directory", return_value=artifacts), \
+                 patch("monotools.orchestration.ui.available_local_port", return_value=8123), \
+                 patch("monotools.orchestration.ui.subprocess.Popen", return_value=process) as popen, \
+                 patch("monotools.orchestration.ui.wait_for_health") as health, \
+                 patch("monotools.orchestration.ui._run_browser", return_value=0) as run, \
+                 patch("monotools.orchestration.ui._terminate", return_value="clean"):
                 actual = run_ui_check(
                     definition, ROOT, suite
                 )
@@ -79,16 +79,16 @@ class BrowserLifecycleTests(unittest.TestCase):
         process.pid = 4201
         with TemporaryDirectory(dir=ROOT / "tests", prefix="ui-app-") as app_temporary, \
              TemporaryDirectory(dir=ROOT / "tests", prefix="ui-artifacts-") as temporary, \
-             patch("monotools.browser.validate_browser_suite",
+             patch("monotools.orchestration.browser.validate_browser_suite",
                 return_value={"counts": {"browser-integration": 1}}), \
-             patch("monotools.ui.validate_app"), patch("monotools.ui.build_app"), \
-             patch("monotools.ui.validate_dist"), \
-             patch("monotools.ui.ui_artifact_directory", return_value=Path(temporary)), \
-             patch("monotools.ui.available_local_port", return_value=8124), \
-             patch("monotools.ui.subprocess.Popen", return_value=process), \
-             patch("monotools.ui.wait_for_health"), \
-             patch("monotools.ui._run_browser", return_value=0) as run, \
-             patch("monotools.ui._terminate", return_value="clean"):
+             patch("monotools.orchestration.ui.validate_app"), patch("monotools.orchestration.ui.build_app"), \
+             patch("monotools.orchestration.ui.validate_dist"), \
+             patch("monotools.orchestration.ui.ui_artifact_directory", return_value=Path(temporary)), \
+             patch("monotools.orchestration.ui.available_local_port", return_value=8124), \
+             patch("monotools.orchestration.ui.subprocess.Popen", return_value=process), \
+             patch("monotools.orchestration.ui.wait_for_health"), \
+             patch("monotools.orchestration.ui._run_browser", return_value=0) as run, \
+             patch("monotools.orchestration.ui._terminate", return_value="clean"):
             definition = synthetic_app_definition(Path(app_temporary))
             run_ui_check(definition, ROOT)
         self.assertEqual(run.call_args.args[0][-1], "tests/browser-framework/universal.spec.js")

@@ -5,13 +5,13 @@ from unittest.mock import Mock, patch
 
 from fastapi import FastAPI
 
-from monotools.apps import AppDefinition, AppDefinitionError, FrontendArtifact, ROOT, get_app, load_app
-from monotools.lifecycle import (
+from monotools.orchestration.apps import AppDefinition, AppDefinitionError, FrontendArtifact, ROOT, get_app, load_app
+from monotools.orchestration.lifecycle import (
     LifecycleError,
     build_app,
     validate_source_lines,
 )
-from monotools.watch import frontend_inputs, watch_frontend
+from monotools.orchestration.watch import frontend_inputs, watch_frontend
 
 
 class RepositoryAppTests(unittest.TestCase):
@@ -122,7 +122,7 @@ frontend:
             output = directory / "dist" / "index.html"
             output.parent.mkdir()
             output.write_text("stable", encoding="utf-8")
-            from monotools.lifecycle import _validate_frontend
+            from monotools.orchestration.lifecycle import _validate_frontend
 
             with self.assertRaisesRegex(LifecycleError, "Type 'string' is not assignable to type 'number'"):
                 _validate_frontend(definition, ROOT)
@@ -145,7 +145,7 @@ frontend:
                 name="fixture", title="Fixture", directory=directory, module="fixture.server",
                 artifacts=(), routes=(), capabilities=frozenset(),
             )
-            from monotools.lifecycle import _generate_openapi_types
+            from monotools.orchestration.lifecycle import _generate_openapi_types
 
             _generate_openapi_types(definition, application, ROOT)
             first = (directory / "data" / "openapi.d.ts").read_bytes()
@@ -196,10 +196,10 @@ frontend:
             self.assertIn(frontend / "feature.ts", inputs)
             self.assertIn(ROOT / "tsconfig.frontend.json", inputs)
             report = Mock()
-            with patch("monotools.watch._snapshot", side_effect=[
+            with patch("monotools.orchestration.watch._snapshot", side_effect=[
                     ((Path("source"), 1),), ((Path("source"), 2),)
-                ]), patch("monotools.watch.build_app") as rebuild, patch(
-                    "monotools.watch.time.sleep", side_effect=[None, RuntimeError("stop")]
+                ]), patch("monotools.orchestration.watch.build_app") as rebuild, patch(
+                    "monotools.orchestration.watch.time.sleep", side_effect=[None, RuntimeError("stop")]
                 ):
                 with self.assertRaisesRegex(RuntimeError, "stop"):
                     watch_frontend(definition, ROOT, report, interval=0)
@@ -209,7 +209,7 @@ frontend:
     def test_unknown_app_error_reports_discovered_catalog(self) -> None:
         definitions = (self.fixture_definition(ROOT / "tests", name="alpha-lab"),
             self.fixture_definition(ROOT / "tests", name="beta-lab"))
-        with patch("monotools.apps.discover_apps", return_value=definitions):
+        with patch("monotools.orchestration.apps.discover_apps", return_value=definitions):
             with self.assertRaises(AppDefinitionError) as raised:
                 get_app("missing")
         self.assertEqual(
@@ -310,9 +310,9 @@ frontend:
             routes=(("/", "home"), ("/about", "about")),
             capabilities=frozenset(),
         )
-        from monotools.runtime import create_application
+        from monotools.runtime.application import create_application
 
-        with patch("monotools.runtime.get_app", return_value=definition):
+        with patch("monotools.runtime.application.get_app", return_value=definition):
             application = create_application("fixture")
         routes = {route.path: route for route in application.routes if hasattr(route, "path")}
         self.assertEqual(routes["/"].endpoint(), ROOT / "tests" / "dist" / "home.html")
@@ -329,9 +329,9 @@ frontend:
             failed = Mock(returncode=1,
                 stdout="tests/frontend/nested/broken.ts:3:7 - error TS2322")
 
-            with patch("monotools.lifecycle.subprocess.run", return_value=failed):
+            with patch("monotools.orchestration.lifecycle.subprocess.run", return_value=failed):
                 with self.assertRaisesRegex(LifecycleError, "nested/broken.ts.*TS2322"):
-                    from monotools.lifecycle import _validate_frontend
+                    from monotools.orchestration.lifecycle import _validate_frontend
                     _validate_frontend(definition, ROOT)
             self.assertEqual(output.read_bytes(), before)
 

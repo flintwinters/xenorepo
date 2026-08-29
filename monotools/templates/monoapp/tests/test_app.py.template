@@ -2,8 +2,8 @@
 
 import unittest
 
-from monotools.apps import ROOT, get_app
-from monotools.lifecycle import build_app
+from monotools.orchestration.apps import ROOT, get_app
+from monotools.orchestration.lifecycle import build_app
 
 
 class ApplicationTests(unittest.TestCase):

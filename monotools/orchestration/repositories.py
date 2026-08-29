@@ -12,7 +12,7 @@ import re
 import shutil
 import subprocess
 
-from monotools.apps import AppDefinition
+from monotools.orchestration.apps import AppDefinition
 
 
 class RepositoryError(RuntimeError):

@@ -91,6 +91,9 @@ export const consoleTable = css`
     text-transform: uppercase;
     white-space: nowrap;
   }
+  .console-table tbody tr:hover {
+    background: var(--console-row-hover, #32302f);
+  }
   .console-table :is(th, td).numeric {
     width: 1%;
     text-align: right;

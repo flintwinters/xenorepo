@@ -39,6 +39,20 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   expect(metadataLayout.every((item) => item.height <= 14 && item.border === "0px")).toBe(true);
   expect(metadataLayout.every((item) => item.font.includes("Courier New"))).toBe(true);
 
+  const e2eToggle = page.getByRole("button", { name: "Expand e2e directory" }).first();
+  await expect(e2eToggle).toHaveAttribute("aria-expanded", "false");
+  const e2eEntry = e2eToggle.locator("xpath=ancestor::td");
+  const e2ePath = await e2eEntry.getAttribute("data-path");
+  expect(e2ePath).toBeTruthy();
+  const selectedEntry = page.locator(`.tree-entry[data-path="${e2ePath}"]`);
+  const descendants = page.locator(`.tree-entry[data-path^="${e2ePath}/"]`);
+  await expect(descendants).toHaveCount(0);
+  await e2eToggle.click();
+  await expect(selectedEntry.getByRole("button")).toHaveAttribute("aria-expanded", "true");
+  expect(await descendants.count()).toBeGreaterThan(0);
+  await selectedEntry.getByRole("button").click();
+  await expect(descendants).toHaveCount(0);
+
   await page.getByRole("button", { name: "architecture", exact: true }).click();
   await expect(page.locator("#app")).toContainText("High-level architecture");
   await expect(page.locator("#app")).toContainText("FastAPI + dist");

@@ -11,7 +11,7 @@ The product succeeds when an owner can answer, within a minute: how large is the
 - An overview scorecard with source files, source lines, repository bytes, monoapps, Monotools modules, tests, documentation coverage, architecture violations, oversized files, and complex functions.
 - A durable snapshot timeline for comparing broad-strokes metrics over time. Snapshot creation is an explicit operator action and duplicate repository states are idempotent.
 - A Monotools module inventory showing file size, line count, public definitions, inbound monoapp declarations, and direct internal dependencies.
-- A bounded repository tree showing directories and relevant files with byte and line totals, excluding generated, private, and runtime-heavy directories.
+- A bounded, interactively collapsible repository tree showing directories and relevant files with byte and line totals, excluding generated, private, and runtime-heavy directories. Maintained end-to-end test subtrees remain measurable but start collapsed.
 - A high-level architecture map derived from app declarations and shared import relationships: repository, monoapps, Monotools, and persistence/runtime boundaries.
 - Visible measurement time, repository revision, dirty state, exclusions, failures, and definitions so the dashboard cannot imply false precision.
 

@@ -46,11 +46,13 @@ tr.total td { color: #fbf1c7; font-weight: bold; border-top: 2px solid #665c54; 
 .history td { font-variant-numeric: tabular-nums; }
 .explorer-table .console-table :is(th, td) { height: 13px; padding: 0 4px; border: 0;
   font-size: 11px; line-height: 13px; }
-.tree-row { cursor: default; }
 .tree-row:hover { background: #3c3836; }
 .tree-entry { width: 1%; white-space: nowrap; }
-.tree-entry span { display: inline-block; margin-left: calc(var(--depth) * 10px);
+.tree-entry > :is(span, button) { display: inline-block; margin: 0 0 0 calc(var(--depth) * 10px);
   color: var(--ls-color, #bdae93); }
+.tree-entry button { padding: 0; border: 0; background: transparent; font: inherit;
+  line-height: inherit; cursor: pointer; }
+.tree-entry button:focus-visible { outline: 1px solid #83a598; outline-offset: -1px; }
 .tree-entry::after { content: "  " attr(data-lines) "  " attr(data-bytes); color: #928374;
   font-family: "Courier New", monospace; font-variant-numeric: tabular-nums; }
 .diagram { display: grid; grid-template-columns: .8fr 1fr .9fr 2fr 1fr; gap: 10px; margin-bottom: 10px; }

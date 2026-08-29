@@ -8,7 +8,7 @@ import "./styles.css";
 type Page = "overview" | "explorer" | "architecture" | "history";
 interface State { page: Page; overview: Overview | null; modules: ModuleFact[];
   tree: TreeNode | null; architecture: Architecture | null; history: Snapshot[];
-  message: string; failed: boolean; busy: boolean; }
+  collapsedPaths: string[]; message: string; failed: boolean; busy: boolean; }
 
 const number = new Intl.NumberFormat("en-US");
 const bytes = (value: number) => value < 1024 ? `${value} B` : value < 1024 ** 2
@@ -20,6 +20,10 @@ const treeBytes = (value: number): string => {
   return `${Math.round(value / 1024 ** exponent)}${units[exponent]}`;
 };
 const label = (key: string) => key.replaceAll("_", " ");
+const initiallyCollapsed = (node: TreeNode): string[] => [
+  ...(node.kind === "directory" && node.name === "e2e" ? [node.path] : []),
+  ...(node.children ?? []).flatMap(initiallyCollapsed),
+];
 const ansiColor = (code: string): string => {
   const values = code.split(";").map(Number);
   const rgb = values.findIndex((value, index) => value === 38 && values[index + 1] === 2);
@@ -33,7 +37,8 @@ const ansiColor = (code: string): string => {
 
 class XenorepoCockpit extends Component<Record<string, never>, State> {
   override state: State = { page: "overview", overview: null, modules: [], tree: null,
-    architecture: null, history: [], message: "Scanning repository…", failed: false, busy: false };
+    architecture: null, history: [], collapsedPaths: [], message: "Scanning repository…",
+    failed: false, busy: false };
   override componentDidMount(): void { void this.load(); }
   private perform = async (action: () => Promise<void>): Promise<void> => {
     this.setState({ busy: true });
@@ -46,6 +51,7 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
     const [overview, modules, tree, architecture, history] = await loadCockpit();
     const state = overview.dirty ? " · working tree modified" : " · clean";
     this.setState({ overview, modules, tree, architecture, history,
+      collapsedPaths: initiallyCollapsed(tree),
       message: `Scan complete · ${overview.revision}${state}` });
   });
   private capture = async (): Promise<void> => this.perform(async () => {
@@ -112,15 +118,22 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
   private treeRows(node: TreeNode, modules: Map<string, ModuleFact>, depth = 0): ComponentChildren {
     const style = { "--depth": depth, "--ls-color": this.treeColor(node) };
     const module = modules.get(node.path);
+    const directory = node.kind === "directory";
+    const collapsed = directory && this.state.collapsedPaths.includes(node.path);
+    const toggle = (): void => this.setState(({ collapsedPaths }) => ({ collapsedPaths: collapsed
+      ? collapsedPaths.filter((path) => path !== node.path) : [...collapsedPaths, node.path] }));
     return <><tr class={`tree-row ${node.kind}`} style={style}><td class="tree-entry"
-      data-lines={treeLines(node.lines)} data-bytes={treeBytes(node.bytes)}>
-      <span>{node.kind === "directory" ? "▾ " : ""}{node.name}</span></td>
+      data-path={node.path} data-lines={treeLines(node.lines)} data-bytes={treeBytes(node.bytes)}>
+      {directory ? <button type="button" aria-expanded={!collapsed}
+        aria-label={`${collapsed ? "Expand" : "Collapse"} ${node.name} directory`} onClick={toggle}>
+        <span aria-hidden="true">{collapsed ? "▸ " : "▾ "}</span>{node.name}</button>
+        : <span>{node.name}</span>}</td>
       <td class="identity">{module && <strong>{module.name}</strong>}</td>
       <td class="prose">{module?.description}</td><td class="prose">{module?.explanation}</td>
       <td class="numeric">{module && number.format(module.public_definitions)}</td>
       <td class="numeric">{module && number.format(module.inbound_apps)}</td>
       <td>{module && (module.dependencies.join(", ") || "—")}</td></tr>
-      {node.children?.map((child) => this.treeRows(child, modules, depth + 1))}</>;
+      {!collapsed && node.children?.map((child) => this.treeRows(child, modules, depth + 1))}</>;
   }
   private explorerPage(): ComponentChildren {
     const modules = new Map(this.state.modules.map((item) => [item.path, item]));

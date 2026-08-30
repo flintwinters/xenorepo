@@ -15,5 +15,5 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
-- Thirteen typed audio/control modules and arbitrary acyclic routing pass app and browser acceptance.
+- Versioned YAML state, synth-only CodeMirror editing, and GUI-only loop editing pass wide/narrow acceptance.
 - Next: profile larger polyphonic graphs before introducing shared effect buses or AudioWorklets.

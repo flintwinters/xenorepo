@@ -26,10 +26,14 @@ FastAPI serves one self-contained Preact artifact containing three coordinated w
   steps without being retriggered. The musician can toggle notes and holds, adjust BPM, start or
   stop playback, and see the active step.
 
-The browser stores the circuit, waveform, notes, and BPM locally after every valid edit. Missing,
-malformed, or obsolete saved state falls back to the documented initial patch without preventing
-the instrument from loading. Audio begins only after an explicit user gesture and stops cleanly
-when playback is stopped or the page is left.
+The browser stores one versioned YAML document with explicit `synth` and `loop` sections after
+every valid edit. The patch bay and waveform remain graphical and also expose the synth section in
+a CodeMirror YAML editor; applying a valid draft updates the live synth atomically. Notes and BPM
+remain GUI-only even though the loop section is persisted as YAML. Missing, malformed, or obsolete
+saved state falls back to the documented initial patch without preventing the instrument from
+loading, while an invalid editor draft leaves live and saved state untouched and remains available
+for correction or explicit reversion. Audio begins only after an explicit user gesture and stops
+cleanly when playback is stopped or the page is left.
 
 ## Circuit module inventory
 
@@ -65,6 +69,9 @@ persist without requiring transport restart.
   held cell of the same pitch; removing an onset removes its contiguous holds.
 - Starting playback is repeatable, stopping releases scheduled voices, and graph edits rebuild the
   audio routing without accumulating browser audio nodes.
+- Synth YAML is validated through the same domain boundary as graphical edits before it can replace
+  live state; applying it preserves the current GUI-owned loop, and legacy JSON state migrates on
+  the next valid edit.
 - Keyboard users can reach controls, edit loop cells, and operate waveform presets and recovery
   actions. The layout remains usable at a narrow viewport; precision pointer drawing is a desktop
   acceptance claim, not a touch claim.

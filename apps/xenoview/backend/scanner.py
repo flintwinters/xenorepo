@@ -54,6 +54,11 @@ def _facts(root: Path) -> tuple[FileFact, ...]:
     return tuple(facts)
 
 
+def _is_app_source(fact: FileFact) -> bool:
+    return (len(fact.path.parts) > 1 and fact.path.parts[0] == "apps" and
+        "tests" not in fact.path.parts and fact.path.suffix in LANGUAGES)
+
+
 def _git(root: Path) -> tuple[str, bool]:
     revision = subprocess.run(["git", "rev-parse", "--short=12", "HEAD"], cwd=root,
         check=False, text=True, capture_output=True).stdout.strip() or "unavailable"
@@ -111,7 +116,8 @@ def _metrics(root: Path, facts: tuple[FileFact, ...], source: tuple[FileFact, ..
         "source_files": len(source), "source_lines": sum(lines),
         "repository_bytes": sum(item.bytes for item in facts), "monoapps": len(definitions),
         "monotools_modules": len(_monotools_modules(root)),
-        "test_files": sum("tests" in item.path.parts for item in source),
+        "test_files": sum("tests" in item.path.parts and item.path.suffix in LANGUAGES
+            for item in facts),
         "test_cases": int(tests["total"]),
         "specified_apps": sum(item.specification.is_file() for item in definitions),
         "architecture_violations": len(audit.architecture), "large_files": len(audit.large_files),
@@ -124,7 +130,7 @@ def _metrics(root: Path, facts: tuple[FileFact, ...], source: tuple[FileFact, ..
 
 def scan_overview(root: Path) -> dict[str, object]:
     facts, definitions = _facts(root), _definitions(root)
-    source = tuple(fact for fact in facts if fact.path.suffix in LANGUAGES)
+    source = tuple(fact for fact in facts if _is_app_source(fact))
     tests = _test_breakdown(facts, root, definitions)
     revision, dirty = _git(root)
     metrics = _metrics(root, facts, source, definitions, tests)

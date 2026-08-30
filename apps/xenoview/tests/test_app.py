@@ -46,10 +46,15 @@ class CockpitTests(unittest.TestCase):
         self.assertGreater(overview["metrics"]["source_lines"], 1000)
         self.assertEqual(overview["metrics"]["test_cases"],
             overview["test_breakdown"]["total"])
+        self.assertGreater(overview["metrics"]["test_files"], 0)
         self.assertEqual(set(overview["test_breakdown"]["monoapps"]),
             {path.parent.name for path in ROOT.glob("apps/*/app.yaml")})
         self.assertGreater(overview["test_breakdown"]["monorepo"], 0)
         self.assertIn("Python", {item["language"] for item in overview["language_lines"]})
+        self.assertNotIn("JavaScript",
+            {item["language"] for item in overview["language_lines"]})
+        self.assertTrue(all(item["path"].startswith("apps/") and
+            "/tests/" not in item["path"] for item in overview["largest_files"]))
         self.assertGreaterEqual(overview["specification"]["covered"], 1)
         self.assertLessEqual(overview["specification"]["covered"],
             overview["metrics"]["monoapps"])

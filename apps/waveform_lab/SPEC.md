@@ -14,8 +14,9 @@ It does not simulate component-level voltages, tolerances, or electrical behavio
 
 FastAPI serves one self-contained Preact artifact containing two coordinated work areas:
 
-- A CodeMirror YAML editor is the sole synth setup surface. Its `modules`, `connections`, and named
-  `waveform` fields define arbitrary acyclic serial and parallel routing and the oscillator shape.
+- A CodeMirror YAML editor is the sole synth setup surface. Its named, colored instrument arrays
+  each own `modules`, embedded connections, and a named `waveform`, defining independent arbitrary
+  acyclic serial and parallel routing and oscillator shapes.
   The audio layer derives its private single-cycle buffer; raw samples are never persisted or
   exposed. An incomplete or disconnected valid graph remains editable and silent;
   malformed or invalid drafts never replace the live setup and can be corrected or reverted.
@@ -61,6 +62,9 @@ restart.
 - Each connection is stored exactly once inside its source module with explicit `from`, `to`,
   `type`, and optional modulation `target`; there is no separate top-level connection section, and
   the embedded `from` must match its owning module.
+- Instrument names are unique and non-empty, colors are six-digit hex values, and every instrument
+  owns a self-contained graph. Loop notes reference an existing instrument by name; selecting an
+  instrument changes which notes the GUI edits, and assigned cells render in that instrument's color.
 - Module parameters are finite and bounded by their declared ranges. Bypass preserves graph
   topology, reset restores only the selected module's defaults, and removing a module cascades only
   its attached cables.

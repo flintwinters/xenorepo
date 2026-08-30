@@ -5,7 +5,7 @@ html, body, #app { width: 100%; height: 100%; overflow: hidden; }
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr);
 }
 .header-state { margin-left: auto; color: #8ec07c; }
-button, input { color: #ebdbb2; font: inherit; background: #282828; border: 1px solid #665c54; }
+button, input, select { color: #ebdbb2; font: inherit; background: #282828; border: 1px solid #665c54; }
 button { padding: 5px 8px; cursor: pointer; }
 button:hover, button:focus-visible { color: #fabd2f; border-color: #fabd2f; outline: none; }
 button:disabled { opacity: 0.45; cursor: default; }
@@ -35,6 +35,8 @@ button:disabled { opacity: 0.45; cursor: default; }
 .transport input { width: 58px; padding: 4px; }
 .transport input[type="range"] { width: 92px; padding: 0; accent-color: #b8bb26; }
 .transport output { min-width: 32px; color: #ebdbb2; }
+.transport select { max-width: 110px; padding: 3px; }
+.instrument-color { width: 10px; height: 10px; margin: 0; border: 1px solid #ebdbb2; }
 .transport span { margin-left: auto; color: #8ec07c; }
 .sequence-pane > .x-ui-pane-body {
   display: grid;
@@ -74,8 +76,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .pitch-row.natural button { background: #252827; }
 .pitch-row button.beat { border-left-color: #665c54; }
 .pitch-row button.bar { border-left: 2px solid #d3869b; }
-.pitch-row button.active { background: #b8bb26; box-shadow: inset 0 0 0 2px #d5d87a; }
-.pitch-row button.held { background: #7c8f22; border-inline-color: #7c8f22; }
+.pitch-row button.active { background: var(--note-color, #b8bb26); box-shadow: inset 0 0 0 1px #ebdbb2; }
 .pitch-row button.playing { border-right-color: #fabd2f; filter: brightness(1.6); }
 @media (max-width: 760px) {
   .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: 0.9fr 1.1fr; }

@@ -9,7 +9,7 @@ import {
 import "./styles.css";
 
 const storageKey = "waveform-lab-state-v1";
-interface ViewState { lab: LabState; playing: boolean; activeStep: number; }
+interface ViewState { lab: LabState; playing: boolean; activeStep: number; selectedInstrument: string; }
 
 function loadState(): LabState {
   const saved = localStorage.getItem(storageKey);
@@ -20,12 +20,17 @@ function loadState(): LabState {
 }
 
 class WaveformLab extends Component<Record<string, never>, ViewState> {
-  override state: ViewState = { lab: loadState(), playing: false, activeStep: -1 };
+  private initial = loadState();
+  override state: ViewState = { lab: this.initial, playing: false, activeStep: -1,
+    selectedInstrument: this.initial.instruments[0]?.name ?? "" };
   private engine = new SynthEngine();
 
   override componentWillUnmount(): void { this.engine.stop(); }
   private commit = (lab: LabState): void => {
-    this.engine.setVolume(lab.volume); this.setState({ lab }); localStorage.setItem(storageKey, encodeState(lab));
+    const selectedInstrument = lab.instruments.some((item) => item.name === this.state.selectedInstrument)
+      ? this.state.selectedInstrument : lab.instruments[0]?.name ?? "";
+    this.engine.setVolume(lab.volume); this.setState({ lab, selectedInstrument });
+    localStorage.setItem(storageKey, encodeState(lab));
   };
   private togglePlayback = async (): Promise<void> => {
     if (this.state.playing) {
@@ -34,28 +39,13 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
     await this.engine.start(() => this.state.lab, (activeStep) => this.setState({ activeStep }));
     this.setState({ playing: true });
   };
-  private toggleNote(step: number, pitch: number, hold: boolean): void {
-    const lab = this.state.lab;
-    if (hold) {
-      const previous = (step + lab.holds.length - 1) % lab.holds.length;
-      const anchored = lab.notes[previous]?.includes(pitch) || lab.holds[previous]?.includes(pitch);
-      const holds = lab.holds.map((values) => [...values]);
-      const current = holds[step] ?? [];
-      if (current.includes(pitch)) holds[step] = current.filter((value) => value !== pitch);
-      else if (anchored) holds[step] = [...current, pitch].sort((a, b) => a - b);
-      this.commit({ ...lab, holds }); return;
-    }
-    const notes = lab.notes.map((values) => [...values]); const current = notes[step] ?? [];
-    notes[step] = current.includes(pitch) ? current.filter((value) => value !== pitch)
-      : [...current, pitch].sort((a, b) => a - b);
-    const holds = lab.holds.map((values) => [...values]);
-    if (current.includes(pitch)) {
-      for (let index = (step + 1) % holds.length; holds[index]?.includes(pitch); index = (index + 1) % holds.length) {
-        holds[index] = holds[index]?.filter((value) => value !== pitch) ?? [];
-        if (index === step) break;
-      }
-    } else holds[step] = holds[step]?.filter((value) => value !== pitch) ?? [];
-    this.commit({ ...lab, notes, holds });
+  private toggleNote(step: number, pitch: number): void {
+    const notes = this.state.lab.notes.map((values) => [...values]); const current = notes[step] ?? [];
+    const instrument = this.state.selectedInstrument;
+    const exists = current.some((note) => note.pitch === pitch && note.instrument === instrument);
+    notes[step] = exists ? current.filter((note) => note.pitch !== pitch || note.instrument !== instrument)
+      : [...current, { pitch, instrument }].sort((a, b) => a.pitch - b.pitch || a.instrument.localeCompare(b.instrument));
+    this.commit({ ...this.state.lab, notes });
   }
   private renderSequencer() {
     const lab = this.state.lab;
@@ -69,19 +59,26 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
         <label>VOLUME <input aria-label="App volume" type="range" min="0" max="1" step="0.01" value={lab.volume}
           onInput={(event) => this.commit({ ...lab, volume: Number(event.currentTarget.value) })} />
           <output>{Math.round(lab.volume * 100)}%</output></label>
-        <span role="status">{hasPlayablePath(lab) ? "SIGNAL READY" : "PATCH INCOMPLETE — SILENT"}</span></div>
+        <label>INSTRUMENT <span class="instrument-color" style={{ background: lab.instruments.find((item) =>
+          item.name === this.state.selectedInstrument)?.color }} /><select aria-label="Loop instrument"
+          value={this.state.selectedInstrument} onChange={(event) => this.setState({ selectedInstrument: event.currentTarget.value })}>
+          {lab.instruments.map((instrument) => <option value={instrument.name}>{instrument.name}</option>)}</select></label>
+        <span role="status">{lab.instruments.some(hasPlayablePath) ? "SIGNAL READY" : "PATCH INCOMPLETE — SILENT"}</span></div>
       <div class="piano-scroll" tabIndex={0} aria-label="Scrollable two bar piano roll">
         <div class="piano-roll" role="grid" aria-label="Two bar piano roll"
           aria-rowcount={PITCHES.length} aria-colcount={32}>
         {PITCHES.map((pitch) => <div class={`pitch-row ${isNaturalPitch(pitch) ? "natural" : "sharp"}`} role="row">
           <span class="pitch-label">{midiLabel(pitch)}</span>
-          {lab.notes.map((values, step) => <button role="gridcell" class={`${values.includes(pitch) ? "active" : ""}
-            ${lab.holds[step]?.includes(pitch) ? "held" : ""}
+          {lab.notes.map((values, step) => {
+            const assignments = values.filter((note) => note.pitch === pitch);
+            const selected = assignments.find((note) => note.instrument === this.state.selectedInstrument);
+            const color = lab.instruments.find((item) => item.name === (selected ?? assignments[0])?.instrument)?.color;
+            return <button role="gridcell" class={`${assignments.length ? "active" : ""}
             ${this.state.activeStep === step ? "playing" : ""}
             ${step % 16 === 0 ? "bar" : step % 4 === 0 ? "beat" : ""}`}
-            aria-label={`${midiLabel(pitch)}, step ${step + 1}`} aria-pressed={values.includes(pitch)}
-            data-held={lab.holds[step]?.includes(pitch) ? "true" : undefined}
-            onClick={(event) => this.toggleNote(step, pitch, event.shiftKey)} />)}</div>)}</div></div>
+            style={{ "--note-color": color }} aria-label={`${midiLabel(pitch)}, step ${step + 1}`}
+            aria-pressed={Boolean(selected)} onClick={() => this.toggleNote(step, pitch)} />;
+          })}</div>)}</div></div>
     </ConsolePane>;
   }
   override render() {

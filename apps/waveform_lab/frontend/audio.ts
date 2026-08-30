@@ -1,4 +1,4 @@
-import { PARAMETER_BOUNDS, hasPlayablePath, noteLength, type LabState } from "./model.js";
+import { PARAMETER_BOUNDS, hasPlayablePath, type Instrument, type LabState } from "./model.js";
 import { buildModule, type AudioCaches, type RuntimeModule } from "./audio/factories.js";
 
 interface VoiceRuntime { sources: AudioScheduledSourceNode[]; nodes: AudioNode[]; cleanupTimer: number; }
@@ -25,8 +25,12 @@ export class SynthEngine {
         const uiDelay = Math.max(0, (this.nextStepTime - this.context.currentTime) * 1000);
         const uiTimer = window.setTimeout(() => { this.uiTimers.delete(uiTimer); onStep(scheduledStep); }, uiDelay);
         this.uiTimers.add(uiTimer);
-        if (hasPlayablePath(current)) for (const midi of notes)
-          this.play(midi, current, notes.length, noteLength(current, scheduledStep, midi), this.nextStepTime);
+        for (const note of notes) {
+          const instrument = current.instruments.find((item) => item.name === note.instrument);
+          const chordSize = notes.filter((item) => item.instrument === note.instrument).length;
+          if (instrument && hasPlayablePath(instrument))
+            this.play(note.pitch, instrument, current.bpm, chordSize, this.nextStepTime);
+        }
         this.step = (this.step + 1) % current.notes.length;
         this.nextStepTime += 60 / current.bpm / 4;
       }
@@ -51,20 +55,19 @@ export class SynthEngine {
     this.volume = audio.createGain(); node.connect(this.volume).connect(audio.destination); return node;
   }
 
-  private play(midi: number, state: LabState, chordSize: number, steps: number, now: number): void {
+  private play(midi: number, instrument: Instrument, bpm: number, chordSize: number, now: number): void {
     if (!this.context || !this.master) return;
-    const stepDuration = 60 / state.bpm / 4;
-    const gate = steps === 1 ? Math.max(0.025, Math.min(0.18, stepDuration * 0.68)) : stepDuration * steps * 0.94;
-    const modules = new Map(state.modules.map((module) => [module.id, module]));
+    const gate = Math.max(0.025, Math.min(0.18, 60 / bpm / 4 * 0.68));
+    const modules = new Map(instrument.modules.map((module) => [module.id, module]));
     const runtimes = new Map<string, RuntimeModule>();
-    for (const module of state.modules) runtimes.set(module.id, buildModule({ audio: this.context,
-      module, state, midi, now, gate, chordSize, caches: this.caches }));
+    for (const module of instrument.modules) runtimes.set(module.id, buildModule({ audio: this.context,
+      module, waveform: instrument.waveform, midi, now, gate, chordSize, caches: this.caches }));
 
-    const envelope = state.modules.find((module) => module.kind === "adsr" && !module.bypass);
+    const envelope = instrument.modules.find((module) => module.kind === "adsr" && !module.bypass);
     const attack = envelope?.parameters?.attack ?? 0.006; const decay = envelope?.parameters?.decay ?? 0;
     const sustain = envelope?.parameters?.sustain ?? 1; const release = envelope?.parameters?.release ?? 0.02;
     const effectiveOutputs = new Map<string, AudioNode>(); const extraNodes: AudioNode[] = [];
-    for (const module of state.modules) {
+    for (const module of instrument.modules) {
       const output = runtimes.get(module.id)?.output; if (!output) continue;
       if (module.kind !== "waveform" && module.kind !== "noise") { effectiveOutputs.set(module.id, output); continue; }
       const voiceGate = this.context.createGain(); voiceGate.gain.setValueAtTime(0, now);
@@ -74,11 +77,11 @@ export class SynthEngine {
       voiceGate.gain.linearRampToValueAtTime(0, now + gate + release);
       output.connect(voiceGate); effectiveOutputs.set(module.id, voiceGate); extraNodes.push(voiceGate);
     }
-    for (const edge of state.connections.filter((item) => (item.type ?? "audio") === "audio")) {
+    for (const edge of instrument.connections.filter((item) => (item.type ?? "audio") === "audio")) {
       const from = effectiveOutputs.get(edge.from); const to = runtimes.get(edge.to)?.input;
       if (from && to) from.connect(to);
     }
-    for (const edge of state.connections.filter((item) => item.type === "modulation")) {
+    for (const edge of instrument.connections.filter((item) => item.type === "modulation")) {
       const source = runtimes.get(edge.from)?.control; const target = edge.target
         ? runtimes.get(edge.to)?.targets[edge.target] : undefined; const targetModule = modules.get(edge.to);
       const bounds = targetModule && edge.target ? PARAMETER_BOUNDS[targetModule.kind][edge.target] : undefined;
@@ -86,7 +89,7 @@ export class SynthEngine {
       const depth = this.context.createGain(); depth.gain.value = (bounds[1] - bounds[0]) * 0.2;
       source.connect(depth).connect(target); extraNodes.push(depth);
     }
-    for (const module of state.modules.filter((item) => item.kind === "output"))
+    for (const module of instrument.modules.filter((item) => item.kind === "output"))
       runtimes.get(module.id)?.output?.connect(this.master);
 
     const all = [...runtimes.values()]; const sources = all.flatMap((item) => item.sources);

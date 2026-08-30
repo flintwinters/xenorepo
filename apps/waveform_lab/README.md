@@ -8,7 +8,8 @@ modules include waveform and noise sources, ADSR and LFO modulation, filtering, 
 compression, delay, chorus, convolution reverb, mixing, gain, and output. FastAPI serves the
 self-contained Preact interface; Web Audio and browser-local YAML storage provide sound and
 versioned patch persistence without a second runtime service. A CodeMirror YAML surface is the only
-synth setup editor and applies changes atomically, while the two-bar loop remains GUI-only.
+synth setup editor and applies changes atomically. Named, colored instruments own independent module
+graphs; the GUI-only loop selects an instrument and renders its assigned notes in that color.
 
 Use the Xenorepo cockpit for every lifecycle operation:
 

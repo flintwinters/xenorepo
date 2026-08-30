@@ -1,4 +1,4 @@
-import { waveformSamples, type LabState, type ModuleNode } from "../model.js";
+import { waveformSamples, type ModuleNode, type WaveformShape } from "../model.js";
 
 export interface AudioCaches { noise: Map<string, AudioBuffer>; impulses: Map<string, AudioBuffer>; }
 export interface RuntimeModule {
@@ -7,7 +7,7 @@ export interface RuntimeModule {
   tail: number;
 }
 interface BuildContext {
-  audio: AudioContext; module: ModuleNode; state: LabState; midi: number;
+  audio: AudioContext; module: ModuleNode; waveform: WaveformShape; midi: number;
   now: number; gate: number; chordSize: number; caches: AudioCaches;
 }
 
@@ -25,7 +25,7 @@ function wetDry(audio: AudioContext, effect: AudioNode, mix: number): RuntimeMod
   const built = runtime(input, output); built.nodes.push(effect, dry, wet); built.targets.mix = wet.gain; return built;
 }
 function periodicBuffer(context: BuildContext): AudioBuffer {
-  const samples = waveformSamples(context.state.waveform);
+  const samples = waveformSamples(context.waveform);
   const buffer = context.audio.createBuffer(1, samples.length, context.audio.sampleRate);
   buffer.copyToChannel(Float32Array.from(samples), 0); return buffer;
 }

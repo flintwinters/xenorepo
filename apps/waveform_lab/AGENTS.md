@@ -15,5 +15,5 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
-- Module-local routing and a fitted four-octave GUI loop pass wide/narrow acceptance.
+- Named, colored multi-instrument graphs and the fitted four-octave loop pass wide/narrow acceptance.
 - Next: profile larger polyphonic graphs before introducing shared effect buses or AudioWorklets.

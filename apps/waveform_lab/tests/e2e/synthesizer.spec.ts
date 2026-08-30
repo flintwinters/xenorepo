@@ -1,4 +1,14 @@
 import { expect, test } from "@xenorepo/browser-testing";
+import type { Locator, Page } from "@playwright/test";
+
+async function replaceYaml(page: Page, editor: Locator, find: string, replacement: string): Promise<void> {
+  await editor.locator(".cm-content").click();
+  await page.keyboard.press("Control+f");
+  await editor.getByRole("textbox", { name: "Find" }).fill(find);
+  await editor.getByRole("textbox", { name: "Replace" }).fill(replacement);
+  await editor.getByRole("button", { name: "replace all", exact: true }).click();
+  await page.keyboard.press("Escape");
+}
 
 test("[acceptance] the GUI loop survives reload and controls playback", async ({ page }) => {
   await page.goto("/");
@@ -46,6 +56,9 @@ test("[acceptance] the GUI loop survives reload and controls playback", async ({
 test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) => {
   await page.goto("/");
   const editor = page.getByLabel("Synth setup YAML editor");
+  await expect(editor).toContainText("instruments:");
+  await expect(editor).toContainText("name: main");
+  await expect(editor).toContainText('color: "#b8bb26"');
   await expect(editor).toContainText("modules:");
   await expect(editor).toContainText("waveform: sine");
   await expect(editor).not.toContainText("samples:");
@@ -74,17 +87,50 @@ test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) =
   await expect(page.getByText("SIGNAL READY")).toBeVisible();
 
   await page.getByRole("button", { name: "REVERT DRAFT" }).click();
-  await editor.locator(".cm-content").click();
-  await page.keyboard.press("Control+f");
-  await editor.getByRole("textbox", { name: "Find" }).fill("gain: 0.8");
-  await editor.getByRole("textbox", { name: "Replace" }).fill("gain: 1.25");
-  await editor.getByRole("button", { name: "replace all", exact: true }).click();
+  await replaceYaml(page, editor, "gain: 0.8", "gain: 1.25");
   await page.getByRole("button", { name: "APPLY YAML" }).click();
   await expect(page.getByText("Synth YAML applied and saved.")).toBeVisible();
   await page.reload();
   await expect(editor).toContainText("gain: 1.25");
   await expect(page.getByRole("gridcell", { name: "C4, step 1", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
+});
+
+test("[acceptance] named instruments color independent loop notes", async ({ page }) => {
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem("multi-instrument-seeded")) return;
+    sessionStorage.setItem("multi-instrument-seeded", "true");
+    localStorage.setItem("waveform-lab-state-v1", JSON.stringify({ version: 8,
+    synth: { instruments: [
+      { name: "bass", color: "#fb4934", waveform: "square", modules: [
+        { id: "bass-wave", kind: "waveform", detune: -120,
+          connections: [{ from: "bass-wave", to: "bass-output", type: "audio" }] },
+        { id: "bass-output", kind: "output", level: 0.7 }] },
+      { name: "main", color: "#b8bb26", waveform: "sine", modules: [
+        { id: "main-wave", kind: "waveform", detune: 0,
+          connections: [{ from: "main-wave", to: "main-output", type: "audio" }] },
+        { id: "main-output", kind: "output", level: 0.8 }] },
+      ] }, loop: { bpm: 120, volume: 0.8, notes: Array.from({ length: 32 }, () => []) },
+    }));
+  });
+  await page.goto("/");
+  const selector = page.getByLabel("Loop instrument");
+  await expect(selector.locator("option")).toHaveCount(2);
+  await selector.selectOption("bass");
+  const bassNote = page.getByRole("gridcell", { name: "C3, step 3", exact: true });
+  await bassNote.click();
+  await expect(bassNote).toHaveCSS("background-color", "rgb(251, 73, 52)");
+  await selector.selectOption("main");
+  const leadNote = page.getByRole("gridcell", { name: "C4, step 3", exact: true });
+  await leadNote.click();
+  await expect(leadNote).toHaveCSS("background-color", "rgb(184, 187, 38)");
+  await page.reload();
+  await expect(selector.locator("option")).toHaveCount(2);
+  await expect(bassNote).toHaveCSS("background-color", "rgb(251, 73, 52)");
+  await expect(leadNote).toHaveCSS("background-color", "rgb(184, 187, 38)");
+  await page.getByRole("button", { name: "PLAY", exact: false }).click();
+  await expect(page.getByText("RUNNING", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "STOP", exact: false }).click();
 });
 
 test("[acceptance] coordinate-bearing state migrates and malformed storage recovers", async ({ page }) => {
@@ -105,7 +151,7 @@ test("[acceptance] coordinate-bearing state migrates and malformed storage recov
   await page.getByLabel("Tempo in BPM").fill("134");
   await page.getByLabel("Tempo in BPM").press("Tab");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1")))
-    .toContain("version: 7\nsynth:");
+    .toContain("version: 8\nsynth:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toMatch(/\b[xy]:/);
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("samples:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("parameters:");

@@ -11,9 +11,8 @@ shared code is limited to provider-neutral infrastructure contracts.
 
 ## Current tasks
 
-- Complete the `SPEC.md` sandbox lifecycle through public HTTP boundaries,
-  including signed notification handling, idempotent activation, and visible
-  checkout status.
+- Preserve the verified sandbox enrollment lifecycle, actionable checkout
+  failures, and deterministic wide/narrow membership-desk baselines.
 - Add live hosted checkout, wallet-assisted payment, and SMTP only after sandbox
   lifecycle acceptance.
 - Keep payment, subscription, and delivery policy app-owned; share only

@@ -38,6 +38,15 @@ test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) =
   await expect(editor).toContainText("modules:");
   await expect(editor).toContainText("samples:");
   await expect(editor).not.toContainText("notes:");
+  const theme = await editor.evaluate((element) => ({
+    editor: getComputedStyle(element.querySelector(".cm-editor")!).backgroundColor,
+    gutter: getComputedStyle(element.querySelector(".cm-gutters")!).backgroundColor,
+    tokens: [...element.querySelectorAll<HTMLElement>(".cm-content span")]
+      .map((token) => getComputedStyle(token).color),
+  }));
+  expect(theme.editor).toBe("rgb(40, 40, 40)");
+  expect(theme.gutter).toBe("rgb(29, 32, 33)");
+  expect(new Set(theme.tokens).size).toBeGreaterThan(1);
   await page.getByRole("gridcell", { name: "C4, step 1", exact: true }).click();
 
   await editor.locator(".cm-content").click();

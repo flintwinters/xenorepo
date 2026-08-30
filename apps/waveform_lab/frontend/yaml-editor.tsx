@@ -6,6 +6,7 @@ import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { Component } from "preact";
 import { ConsolePane } from "@xenorepo/ui";
 import { applySynth, encodeSynth } from "./state-yaml.js";
+import { gruvbox } from "./gruvbox.js";
 import type { LabState } from "./model.js";
 
 interface Props { lab: LabState; commit: (lab: LabState) => void; }
@@ -21,7 +22,7 @@ export class SynthYamlEditor extends Component<Props, State> {
     if (!this.host) return;
     this.editor = new EditorView({ parent: this.host, state: EditorState.create({
       doc: encodeSynth(this.props.lab),
-      extensions: [basicSetup, history(), keymap.of([...defaultKeymap, ...historyKeymap]), yaml(),
+      extensions: [basicSetup, history(), keymap.of([...defaultKeymap, ...historyKeymap]), yaml(), ...gruvbox,
         EditorView.lineWrapping, EditorView.updateListener.of((update) => {
           if (update.docChanged && !this.replacing)
             this.setState({ dirty: true, notice: "Draft differs from the live synth.", rejected: false });

@@ -317,24 +317,30 @@ function connectionsOf(values: unknown[], modules: ModuleNode[], legacy: boolean
   return result;
 }
 
-/** Restores v3 or atomically migrates a valid v1/v2 patch; every defect returns a fresh patch. */
-export function restoreState(value: unknown): LabState {
-  const fallback = initialState();
-  if (
-    !record(value) ||
-    (value.version !== 1 && value.version !== 2 && value.version !== STATE_VERSION) ||
-    !Array.isArray(value.modules) ||
-    !Array.isArray(value.connections)
-  )
-    return fallback;
-  const legacyModules = value.version === 1;
-  const legacySequence = value.version !== STATE_VERSION;
-  const modules = modulesOf(value.modules, legacyModules);
-  const sequencer = sequence(value, legacySequence);
-  if (!modules || !sequencer) return fallback;
-  const connections = connectionsOf(value.connections, modules, legacyModules);
-  return connections ? { version: STATE_VERSION, modules, connections, ...sequencer } : fallback;
+function flattened(value: Record<string, unknown>): Record<string, unknown> | null {
+  if (value.version === 1 || value.version === 2) return value;
+  if (value.version !== STATE_VERSION) return null;
+  if (!record(value.synth) || !record(value.loop)) return value;
+  return { version: value.version, ...value.synth, ...value.loop };
 }
+
+/** Validates current nested YAML data or legacy flat state without manufacturing a fallback. */
+export function validatedState(value: unknown): LabState | null {
+  if (!record(value)) return null;
+  const saved = flattened(value);
+  if (!saved || (saved.version !== 1 && saved.version !== 2 && saved.version !== STATE_VERSION)
+    || !Array.isArray(saved.modules) || !Array.isArray(saved.connections)) return null;
+  const legacyModules = saved.version === 1;
+  const legacySequence = saved.version !== STATE_VERSION;
+  const modules = modulesOf(saved.modules, legacyModules);
+  const sequencer = sequence(saved, legacySequence);
+  if (!modules || !sequencer) return null;
+  const connections = connectionsOf(saved.connections, modules, legacyModules);
+  return connections ? { version: STATE_VERSION, modules, connections, ...sequencer } : null;
+}
+
+/** Restores current YAML data or atomically migrates valid legacy state; defects return a fresh patch. */
+export function restoreState(value: unknown): LabState { return validatedState(value) ?? initialState(); }
 
 export function drawSamples(samples: number[], from: [number, number], to: [number, number]): number[] {
   const next = [...samples];

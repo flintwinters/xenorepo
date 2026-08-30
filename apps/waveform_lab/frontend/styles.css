@@ -29,7 +29,8 @@ body {
 .circuit-pane {
   grid-column: 1;
 }
-.wave-pane {
+.wave-pane,
+.yaml-pane {
   grid-column: 2;
 }
 .sequence-pane {
@@ -261,6 +262,33 @@ body {
   color: #a89984;
   font-size: 11px;
 }
+.yaml-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px;
+}
+.yaml-toolbar span { margin-left: auto; color: #a89984; font-size: 10px; }
+.yaml-editor {
+  height: 360px;
+  overflow: hidden;
+  color: #ebdbb2;
+  background: #101414;
+  border-block: 1px solid #3c3836;
+}
+.yaml-editor .cm-editor { height: 100%; font-size: 12px; }
+.yaml-editor .cm-scroller { font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace; }
+.yaml-editor .cm-content,
+.yaml-editor .cm-gutter { caret-color: #fabd2f; }
+.yaml-editor .cm-gutters { color: #928374; background: #1d2021; border-right-color: #3c3836; }
+.yaml-editor .cm-activeLine,
+.yaml-editor .cm-activeLineGutter { background: #282828; }
+.yaml-editor .cm-selectionBackground,
+.yaml-editor .cm-content ::selection { background: #504945 !important; }
+.yaml-editor .cm-focused { outline: 2px solid #83a598; outline-offset: -2px; }
+.yaml-status,
+.yaml-alert { min-height: 20px; margin: 0; padding: 5px 8px; color: #8ec07c; }
+.yaml-alert { color: #fb4934; }
 .transport {
   border-bottom: 1px solid #3c3836;
 }

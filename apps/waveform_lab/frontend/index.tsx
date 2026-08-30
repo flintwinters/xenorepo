@@ -2,6 +2,8 @@ import { Component, render } from "preact";
 import { CommandButton, ConsolePane, ConsoleShell, StatusRail, UtilityRail } from "@xenorepo/ui";
 import { SynthEngine } from "./audio.js";
 import { CircuitPanel } from "./circuit.js";
+import { decodeState, encodeState } from "./state-yaml.js";
+import { SynthYamlEditor } from "./yaml-editor.js";
 import {
   PITCHES,
   SAMPLE_COUNT,
@@ -25,11 +27,15 @@ interface ViewState {
 
 function loadState(): LabState {
   try {
-    return restoreState(JSON.parse(localStorage.getItem(storageKey) ?? "null"));
+    const saved = localStorage.getItem(storageKey);
+    if (!saved) return initialState();
+    const restored = decodeState(saved);
+    if (restored) return restored;
   } catch {
-    localStorage.removeItem(storageKey);
-    return initialState();
+    // Invalid durable state is removed atomically below.
   }
+  localStorage.removeItem(storageKey);
+  return initialState();
 }
 
 function cellClass(lab: LabState, pitch: number, step: number, activeStep: number): string {
@@ -49,7 +55,7 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
   }
   private commit = (lab: LabState): void => {
     this.setState({ lab });
-    localStorage.setItem(storageKey, JSON.stringify(lab));
+    localStorage.setItem(storageKey, encodeState(lab));
   };
   private togglePlayback = async (): Promise<void> => {
     if (this.state.playing) {
@@ -238,6 +244,7 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
         <div class="workspace">
           <CircuitPanel lab={this.state.lab} commit={this.commit} />
           {this.renderWaveform()}
+          <SynthYamlEditor lab={this.state.lab} commit={this.commit} />
           {this.renderSequencer()}
         </div>
       </ConsoleShell>

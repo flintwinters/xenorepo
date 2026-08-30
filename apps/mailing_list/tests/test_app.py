@@ -14,7 +14,7 @@ from apps.mailing_list.backend.database import (
 )
 from apps.mailing_list.backend.providers import SandboxGateway
 from apps.mailing_list.backend.server import DEFAULT_DATABASE, SANDBOX_SECRET, create_app
-from monotools.integrations.commerce import PaymentNotification
+from monotools.integrations.commerce import HostedCheckout, PaymentNotification, RecurringTerms
 from monotools.integrations.mailer import Mail, SmtpMailer
 
 
@@ -43,6 +43,15 @@ class MailingListTests(unittest.TestCase):
             checkout = session.scalar(select(Checkout))
             self.assertEqual((subscriber.email, subscriber.state), ("reader@example.com", "pending"))
             self.assertEqual((checkout.amount_minor, checkout.currency, checkout.state), (500, "usd", "pending"))
+
+    def test_mailing_list_requests_monthly_recurring_checkout_terms(self) -> None:
+        gateway = MagicMock()
+        gateway.name = "capture"
+        gateway.create_checkout.return_value = HostedCheckout("capture", "external", "https://pay.test")
+        repository = MailingListRepository(self.sessions, gateway, self.repository.clock)
+        repository.begin_checkout("reader@example.com", 500, "USD", "success", "cancel")
+        request = gateway.create_checkout.call_args.args[0]
+        self.assertEqual(request.terms, RecurringTerms(500, "usd", "month"))
 
     def test_paid_notification_is_idempotent_and_activates_subscriber(self) -> None:
         hosted = self.repository.begin_checkout("reader@example.com", 500, "usd", "ok", "cancel")

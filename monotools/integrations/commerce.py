@@ -1,19 +1,35 @@
-"""Define provider-neutral recurring-payment checkout contracts.
+"""Define provider-neutral hosted-payment checkout contracts.
 
 The request, result, event, and gateway protocols let monoapps retain commerce
 facts while swapping hosted payment providers behind one narrow boundary.
 """
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
+
+
+@dataclass(frozen=True)
+class OneTimeTerms:
+    amount_minor: int
+    currency: str
+
+
+@dataclass(frozen=True)
+class RecurringTerms:
+    amount_minor: int
+    currency: str
+    interval: Literal["day", "week", "month", "year"]
+    interval_count: int = 1
+
+
+CheckoutTerms = OneTimeTerms | RecurringTerms
 
 
 @dataclass(frozen=True)
 class CheckoutRequest:
     reference: str
     email: str
-    amount_minor: int
-    currency: str
+    terms: CheckoutTerms
     success_url: str
     cancel_url: str
 
@@ -34,7 +50,7 @@ class PaymentNotification:
 
 
 class PaymentGateway(Protocol):
-    """The narrow surface an app needs from a recurring-payment provider."""
+    """The narrow surface an app needs from a hosted-payment provider."""
 
     name: str
 

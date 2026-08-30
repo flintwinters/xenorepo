@@ -11,7 +11,9 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from monotools.runtime.appkit import SystemClock
-from monotools.integrations.commerce import CheckoutRequest, HostedCheckout, PaymentGateway, PaymentNotification
+from monotools.integrations.commerce import (
+    CheckoutRequest, HostedCheckout, PaymentGateway, PaymentNotification, RecurringTerms,
+)
 from monotools.persistence.database import create_session_factory as _create_session_factory
 
 
@@ -98,7 +100,7 @@ class MailingListRepository:
                 session.flush()
             checkout_id = str(uuid4())
             hosted = self.gateway.create_checkout(CheckoutRequest(checkout_id, normalized,
-                amount_minor, currency.lower(), success_url, cancel_url))
+                RecurringTerms(amount_minor, currency.lower(), "month"), success_url, cancel_url))
             session.add(Checkout(id=checkout_id, subscriber_id=subscriber.id,
                 provider=hosted.provider, external_id=hosted.external_id,
                 amount_minor=amount_minor, currency=currency.lower(), state="pending",

@@ -162,7 +162,7 @@ test("[acceptance] box selection supports keyboard clipboard and group dragging"
   const d4s2 = page.getByRole("gridcell", { name: "D4, step 2", exact: true });
   await c4s1.click(); await d4s2.click();
   await dragBetween(page, c4s1, d4s2);
-  await expect(page.locator(".pitch-row button.selected")).toHaveCount(6);
+  await expect(page.locator(".note-cell.selected")).toHaveCount(6);
   await expect(c4s1).toHaveClass(/selection-left/);
   await expect(c4s1).toHaveClass(/selection-bottom/);
   await expect(d4s2).toHaveClass(/selection-top/);

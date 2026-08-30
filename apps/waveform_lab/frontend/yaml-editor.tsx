@@ -4,7 +4,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { Component } from "preact";
-import { ConsolePane } from "@xenorepo/ui";
+import { CommandButton, ConsolePane } from "@xenorepo/ui";
 import { applySynth, encodeSynth } from "./state-yaml.js";
 import { gruvbox } from "./gruvbox.js";
 import type { LabState } from "./model.js";
@@ -59,8 +59,8 @@ export class SynthYamlEditor extends Component<Props, State> {
 
   override render() {
     return <ConsolePane class="yaml-pane" title="SYNTH SETUP / YAML" tone="blue">
-      <div class="yaml-toolbar"><button onClick={this.apply}>APPLY YAML</button>
-        <button disabled={!this.state.dirty} onClick={this.revert}>REVERT DRAFT</button>
+      <div class="yaml-toolbar"><CommandButton onClick={this.apply}>APPLY YAML</CommandButton>
+        <CommandButton disabled={!this.state.dirty} onClick={this.revert}>REVERT DRAFT</CommandButton>
         <span>LOOP STATE REMAINS GUI-ONLY</span></div>
       <div class="yaml-editor" aria-label="Synth setup YAML editor" ref={(element) => { this.host = element; }} />
       <p class={this.state.rejected ? "yaml-alert" : "yaml-status"} role={this.state.rejected ? "alert" : "status"}>

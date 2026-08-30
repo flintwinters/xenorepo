@@ -5,10 +5,7 @@ html, body, #app { width: 100%; height: 100%; overflow: hidden; }
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr);
 }
 .header-state { margin-left: auto; color: #8ec07c; }
-button, input, select { color: #ebdbb2; font: inherit; background: #282828; border: 1px solid #665c54; }
-button { padding: 5px 8px; cursor: pointer; }
-button:hover, button:focus-visible { color: #fabd2f; border-color: #fabd2f; outline: none; }
-button:disabled { opacity: 0.45; cursor: default; }
+input, select { color: #ebdbb2; font: inherit; background: #282828; border: 1px solid #665c54; }
 .yaml-toolbar { display: flex; align-items: center; gap: 6px; padding: 7px; }
 .yaml-toolbar span { margin-left: auto; color: #a89984; font-size: 10px; }
 .yaml-pane > .x-ui-pane-body { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; overflow: hidden; }
@@ -29,15 +26,16 @@ button:disabled { opacity: 0.45; cursor: default; }
 .yaml-alert { color: #fb4934; }
 .transport { display: flex; align-items: center; gap: 6px; padding: 7px; flex-wrap: wrap; }
 .transport { border-bottom: 1px solid #3c3836; }
-.transport .play { min-width: 92px; color: #8ec07c; }
-.transport .play[aria-pressed="true"] { color: #fb4934; border-color: #fb4934; }
+.transport .play { min-width: 92px; }
+.transport .play .x-ui-command-control { color: #8ec07c; }
+.transport .play .x-ui-command-control[aria-pressed="true"] { color: #fb4934; border-color: #fb4934; }
 .transport label { display: flex; align-items: center; gap: 5px; color: #fabd2f; }
 .transport input { width: 58px; padding: 4px; }
 .transport input[type="range"] { width: 92px; padding: 0; accent-color: #b8bb26; }
 .transport output { min-width: 32px; color: #ebdbb2; }
 .transport select { max-width: 110px; padding: 3px; }
 .selection-tools { display: flex; align-items: center; gap: 3px; }
-.selection-tools button { padding: 3px 5px; }
+.selection-tools .x-ui-command-control { padding: 3px 5px; }
 .selection-tools output { min-width: 64px; color: #a89984; }
 .instrument-color { width: 10px; height: 10px; margin: 0; border: 1px solid #ebdbb2; }
 .transport span { margin-left: auto; color: #8ec07c; }
@@ -64,7 +62,7 @@ button:disabled { opacity: 0.45; cursor: default; }
   line-height: 1;
   white-space: nowrap;
 }
-.pitch-row button {
+.note-cell {
   min-width: 0;
   min-height: 0;
   height: 100%;
@@ -77,21 +75,24 @@ button:disabled { opacity: 0.45; cursor: default; }
   touch-action: none;
 }
 .pitch-row.natural .pitch-label { background: #3c3836; }
-.pitch-row.natural button { background: #252827; }
-.pitch-row button.beat { border-left-color: #665c54; }
-.pitch-row button.bar { border-left: 2px solid #d3869b; }
-.pitch-row button.active { background: var(--note-color, #b8bb26); box-shadow: inset 0 0 0 1px #ebdbb2; }
-.pitch-row button.selected {
+.pitch-row.natural .note-cell { background: #252827; }
+.note-cell.beat { border-left-color: #665c54; }
+.note-cell.bar { border-left: 2px solid #d3869b; }
+.pitch-row .note-cell.active {
+  background: var(--note-color, #b8bb26);
+  box-shadow: inset 0 0 0 1px #ebdbb2;
+}
+.pitch-row .note-cell.selected {
   background-image: linear-gradient(rgb(131 165 152 / 0.22), rgb(131 165 152 / 0.22));
   border-color: rgb(131 165 152 / 0.16);
   box-shadow: none;
   filter: none;
 }
-.pitch-row button.selection-top { border-top-color: #83a598; }
-.pitch-row button.selection-right { border-right-color: #83a598; }
-.pitch-row button.selection-bottom { border-bottom-color: #83a598; }
-.pitch-row button.selection-left { border-left-color: #83a598; }
-.pitch-row button.playing { border-right-color: #fabd2f; filter: brightness(1.6); }
+.note-cell.selection-top { border-top-color: #83a598; }
+.note-cell.selection-right { border-right-color: #83a598; }
+.note-cell.selection-bottom { border-bottom-color: #83a598; }
+.note-cell.selection-left { border-left-color: #83a598; }
+.pitch-row .note-cell.playing { border-right-color: #fabd2f; filter: brightness(1.6); }
 @media (max-width: 760px) {
   .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: 0.9fr 1.1fr; }
   .transport span { width: 100%; margin-left: 0; }

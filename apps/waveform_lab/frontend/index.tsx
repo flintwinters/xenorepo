@@ -1,5 +1,7 @@
 import { Component, render } from "preact";
-import { ConsolePane, ConsoleShell, ConsoleWorkspace, StatusRail, UtilityRail } from "@xenorepo/ui";
+import {
+  CommandButton, ConsolePane, ConsoleShell, ConsoleWorkspace, StatusRail, UtilityRail,
+} from "@xenorepo/ui";
 import { SynthEngine } from "./audio.js";
 import { decodeState, encodeState } from "./state-yaml.js";
 import { SynthYamlEditor } from "./yaml-editor.js";
@@ -123,8 +125,8 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
   private renderSequencer() {
     const lab = this.state.lab;
     return <ConsolePane class="sequence-pane" title="LOOP / 2 BARS / 4∕4" tone="purple">
-      <div class="transport"><button class="play" aria-pressed={this.state.playing} onClick={this.togglePlayback}>
-        {this.state.playing ? "■ STOP" : "▶ PLAY"}</button>
+      <div class="transport"><CommandButton class="play" pressed={this.state.playing}
+        onClick={this.togglePlayback}>{this.state.playing ? "■ STOP" : "▶ PLAY"}</CommandButton>
         <label>BPM <input aria-label="Tempo in BPM" type="number" min="40" max="240" value={lab.bpm}
           onChange={(event) => this.commit({ ...lab,
             bpm: Math.max(40, Math.min(240, Number(event.currentTarget.value) || 120)),
@@ -138,11 +140,13 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
           onChange={(event) => this.setState({ selectedInstrument: event.currentTarget.value })}>
           {lab.instruments.map((instrument) => <option value={instrument.name}>
             {instrument.name}</option>)}</select></label>
-        <div class="selection-tools" aria-label="Note selection controls"><button onClick={this.cut}
-          disabled={!this.state.selection.size}>CUT</button><button onClick={this.copy}
-            disabled={!this.state.selection.size}>COPY</button>
-          <button onClick={this.paste} disabled={!this.state.clipboard.length || !this.state.anchor}>PASTE</button>
-          <button onClick={this.deleteSelection} disabled={!this.state.selection.size}>DELETE</button>
+        <div class="selection-tools" aria-label="Note selection controls"><CommandButton onClick={this.cut}
+          disabled={!this.state.selection.size}>CUT</CommandButton><CommandButton onClick={this.copy}
+            disabled={!this.state.selection.size}>COPY</CommandButton>
+          <CommandButton onClick={this.paste}
+            disabled={!this.state.clipboard.length || !this.state.anchor}>PASTE</CommandButton>
+          <CommandButton onClick={this.deleteSelection}
+            disabled={!this.state.selection.size}>DELETE</CommandButton>
           <output>{this.state.selection.size} SELECTED</output></div>
         <span role="status">{lab.instruments.some(hasPlayablePath)
           ? "SIGNAL READY" : "PATCH INCOMPLETE — SILENT"}</span></div>
@@ -155,7 +159,7 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
             const assignments = values.filter((note) => note.pitch === pitch);
             const selected = assignments.find((note) => note.instrument === this.state.selectedInstrument);
             const color = lab.instruments.find((item) => item.name === (selected ?? assignments[0])?.instrument)?.color;
-            return <button role="gridcell" class={`${assignments.length ? "active" : ""}
+            return <button role="gridcell" class={`note-cell ${assignments.length ? "active" : ""}
             ${selectionClass(this.state.selection, { step, pitch })}
             ${this.state.activeStep === step ? "playing" : ""}
             ${step % 16 === 0 ? "bar" : step % 4 === 0 ? "beat" : ""}`}

@@ -15,5 +15,5 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
-- Implicit reserved outputs and lossless explicit-output migration pass wide/narrow acceptance.
+- Shared command controls and semantic piano-grid styling pass wide/narrow acceptance.
 - Next: profile larger polyphonic graphs before introducing shared effect buses or AudioWorklets.

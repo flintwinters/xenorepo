@@ -22,7 +22,7 @@ from fastapi import FastAPI
 from fastapi.routing import APIWebSocketRoute
 
 from monotools.orchestration.apps import AppDefinition, FrontendArtifact
-from monotools.runtime.application import api_openapi_schema
+from monotools.runtime.application import AGENT_TOOLS_ROUTE, api_openapi_schema
 
 
 class LifecycleError(RuntimeError):
@@ -217,6 +217,11 @@ def _required_sources(definition: AppDefinition) -> tuple[Path, ...]:
 def _validate_runtime_contract(definition: AppDefinition, module: object) -> None:
     if not isinstance(getattr(module, "app", None), FastAPI):
         raise LifecycleError(f"{definition.module} does not expose a FastAPI 'app'")
+    if not any(getattr(route, "path", None) == AGENT_TOOLS_ROUTE
+        for route in module.app.routes):
+        raise LifecycleError(
+            f"{definition.name} does not expose the platform {AGENT_TOOLS_ROUTE} registry"
+        )
     if "realtime" in definition.capabilities and not any(
         isinstance(route, APIWebSocketRoute) for route in module.app.routes
     ):

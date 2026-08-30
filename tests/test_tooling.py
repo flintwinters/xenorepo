@@ -8,9 +8,11 @@ from fastapi import FastAPI
 from monotools.orchestration.apps import AppDefinition, AppDefinitionError, FrontendArtifact, ROOT, get_app, load_app
 from monotools.orchestration.lifecycle import (
     LifecycleError,
+    _validate_runtime_contract,
     build_app,
     validate_source_lines,
 )
+from monotools.runtime.application import create_application
 from monotools.orchestration.watch import frontend_inputs, watch_frontend
 
 
@@ -315,14 +317,22 @@ frontend:
             routes=(("/", "home"), ("/about", "about")),
             capabilities=frozenset(),
         )
-        from monotools.runtime.application import create_application
-
         with patch("monotools.runtime.application.get_app", return_value=definition):
             application = create_application("fixture")
         routes = {route.path: route for route in application.routes if hasattr(route, "path")}
         self.assertEqual(routes["/"].endpoint(), ROOT / "tests" / "dist" / "home.html")
         self.assertEqual(routes["/about"].endpoint(), ROOT / "tests" / "dist" / "about.html")
         self.assertEqual(routes["/health"].endpoint(), {"status": "ok"})
+
+    def test_runtime_contract_requires_the_platform_agent_registry(self) -> None:
+        definition = self.fixture_definition(ROOT / "tests")
+        module = Mock(app=FastAPI())
+        with self.assertRaisesRegex(LifecycleError, "/agent/tools registry"):
+            _validate_runtime_contract(definition, module)
+
+        with patch("monotools.runtime.application.get_app", return_value=definition):
+            module.app = create_application(definition.name)
+        _validate_runtime_contract(definition, module)
 
     def test_frontend_type_error_is_actionable_before_build_mutation(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="frontend-error-") as temporary:

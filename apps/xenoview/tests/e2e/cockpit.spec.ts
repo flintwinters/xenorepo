@@ -49,6 +49,19 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   expect(metadataLayout.every((item) => item.height <= 14 && item.border === "0px")).toBe(true);
   expect(metadataLayout.every((item) => item.font.includes("Courier New"))).toBe(true);
 
+  const appStates = await page.locator('.tree-entry[data-path^="apps/"]').evaluateAll((entries) =>
+    entries.filter((entry) => /^apps\/[^/]+$/.test(entry.getAttribute("data-path") ?? ""))
+      .flatMap((entry) => {
+        const button = entry.querySelector("button");
+        return button ? [button.getAttribute("aria-expanded")] : [];
+      }));
+  expect(appStates.length).toBeGreaterThan(1);
+  expect(appStates.every((expanded) => expanded === "false")).toBe(true);
+  const xenoviewToggle = page.locator('.tree-entry[data-path="apps/xenoview"] button');
+  await expect(xenoviewToggle).toHaveAccessibleName("Expand xenoview directory");
+  await xenoviewToggle.click();
+  await expect(xenoviewToggle).toHaveAttribute("aria-expanded", "true");
+
   const e2eToggle = page.getByRole("button", { name: "Expand e2e directory" }).first();
   await expect(e2eToggle).toHaveAttribute("aria-expanded", "false");
   const e2eEntry = e2eToggle.locator("xpath=ancestor::td");

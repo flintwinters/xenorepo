@@ -21,8 +21,13 @@ const treeBytes = (value: number): string => {
   return `${Math.round(value / 1024 ** exponent)}${units[exponent]}`;
 };
 const label = (key: string) => key.replaceAll("_", " ");
+const isAppRoot = (path: string): boolean => {
+  const parts = path.split("/");
+  return parts.length === 2 && parts[0] === "apps";
+};
 const initiallyCollapsed = (node: TreeNode): string[] => [
-  ...(node.kind === "directory" && node.name === "e2e" ? [node.path] : []),
+  ...(node.kind === "directory" && (isAppRoot(node.path) || node.name === "e2e")
+    ? [node.path] : []),
   ...(node.children ?? []).flatMap(initiallyCollapsed),
 ];
 const ansiColor = (code: string): string => {

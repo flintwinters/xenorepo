@@ -74,11 +74,23 @@ class CommitFact(Contract):
     languages: list[ChangeFact]
 
 
+class AppLinePoint(Contract):
+    revision: str
+    committed_at: str
+    lines: int
+
+
+class AppLineSeries(Contract):
+    name: str
+    points: list[AppLinePoint]
+
+
 class RepositoryHistory(Contract):
     available: bool
     truncated: bool
     limit: int
     commits: list[CommitFact]
+    app_lines: list[AppLineSeries]
 
 
 class TreeNode(Contract):

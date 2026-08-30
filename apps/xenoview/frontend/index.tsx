@@ -150,6 +150,29 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
         {this.state.tree && this.treeRows(this.state.tree, modules)}
       </tbody></table></div></section>;
   }
+  private appLineGraphs(): ComponentChildren {
+    const series = this.state.repositoryHistory?.app_lines ?? [];
+    return <section class="app-lines" aria-label="App line counts over time">
+      <div class="section-heading"><div><p class="eyebrow">Maintained lines by app</p>
+        <h2>Absolute line counts over time</h2></div><p>Oldest visible commit → HEAD</p></div>
+      <div class="line-graphs">{series.map((item) => {
+        const values = item.points.map((point) => point.lines);
+        const low = Math.min(...values), high = Math.max(...values);
+        const range = Math.max(1, high - low), denominator = Math.max(1, item.points.length - 1);
+        const coordinates = item.points.map((point, index) =>
+          `${(index / denominator) * 320},${82 - ((point.lines - low) / range) * 72}`).join(" ");
+        const first = item.points[0], last = item.points.at(-1);
+        return <article class="line-graph"><header><strong>{item.name}</strong>
+          <span>{number.format(last?.lines ?? 0)} lines</span></header>
+          <svg viewBox="0 0 320 90" role="img"
+            aria-label={`${item.name} line count from ${number.format(first?.lines ?? 0)} to ${number.format(last?.lines ?? 0)}`}>
+            <line x1="0" y1="82" x2="320" y2="82" /><polyline points={coordinates} />
+          </svg><footer><span>{first ? new Date(first.committed_at).toLocaleDateString() : "—"}</span>
+            <span>{number.format(low)}–{number.format(high)}</span>
+            <span>{last ? new Date(last.committed_at).toLocaleDateString() : "—"}</span></footer>
+        </article>;
+      })}</div></section>;
+  }
   private historyPage(): ComponentChildren {
     const history = this.state.repositoryHistory;
     const changes = (items: { name: string; added: number; deleted: number }[]) => items.length
@@ -158,6 +181,7 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
     return <section class="page"><div class="page-heading"><div><p class="eyebrow">Automatic Git timeline</p>
       <h1>Repository trajectory</h1></div><p>{history?.commits.length ?? 0} commits loaded
         {history?.truncated ? ` · newest ${history.limit}` : ""}</p></div>
+      {history?.available && history.app_lines.length ? this.appLineGraphs() : null}
       {history?.available && history.commits.length ? <div class="history"><table class="console-table"><thead><tr>
         <th class="compact">Committed</th><th class="compact">Revision</th><th>Change</th>
         <th class="numeric">Lines</th><th>Apps</th><th>Languages</th></tr></thead><tbody>

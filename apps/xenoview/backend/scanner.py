@@ -188,13 +188,12 @@ def _change_group(changes: dict[str, list[int]]) -> list[dict[str, object]]:
         for name, values in sorted(changes.items())]
 
 
-def _change_owner(path: str, definitions: tuple[AppDefinition, ...]) -> str:
+def _change_owner(path: str) -> str:
     parts = Path(path).parts
-    app_names = {item.name for item in definitions}
-    return parts[1] if len(parts) > 2 and parts[0] == "apps" and parts[1] in app_names else "platform"
+    return parts[1] if len(parts) > 2 and parts[0] == "apps" else "platform"
 
 
-def _commit_history(root: Path, definitions: tuple[AppDefinition, ...], block: str) -> dict[str, object]:
+def _commit_history(root: Path, block: str) -> dict[str, object]:
     header, *rows = block.splitlines()
     revision, committed_at, subject = header.split(_FIELD_SEPARATOR, 2)
     apps: dict[str, list[int]] = {}
@@ -209,7 +208,7 @@ def _commit_history(root: Path, definitions: tuple[AppDefinition, ...], block: s
             continue
         additions += added
         deletions += deleted
-        app_change = apps.setdefault(_change_owner(path, definitions), [0, 0])
+        app_change = apps.setdefault(_change_owner(path), [0, 0])
         app_change[0] += added
         app_change[1] += deleted
         language = LANGUAGES.get(Path(path).suffix)
@@ -222,6 +221,94 @@ def _commit_history(root: Path, definitions: tuple[AppDefinition, ...], block: s
         "apps": _change_group(apps), "languages": _change_group(languages)}
 
 
+def _head_source_path(root: Path, row: str) -> str | None:
+    columns = row.split(":", 3)
+    if len(columns) < 3 or Path(columns[1]).suffix not in LANGUAGES:
+        return None
+    return columns[1] if _included(root / columns[1], root) else None
+
+
+def _head_app_lines(root: Path) -> dict[str, int]:
+    result = subprocess.run(["git", "grep", "-I", "-n", "-e", "^", "HEAD", "--", "apps/"],
+        cwd=root, check=False, text=True, capture_output=True)
+    counts: Counter[str] = Counter()
+    if result.returncode not in {0, 1}:
+        return {}
+    for row in result.stdout.splitlines():
+        path = _head_source_path(root, row)
+        if path:
+            owner = _change_owner(path)
+            if owner != "platform":
+                counts[owner] += 1
+    return dict(counts)
+
+
+def _head_line_count(root: Path) -> int:
+    result = subprocess.run(["git", "grep", "-I", "-n", "-e", "^", "HEAD", "--", "."],
+        cwd=root, check=False, text=True, capture_output=True)
+    if result.returncode not in {0, 1}:
+        return 0
+    return sum(_head_source_path(root, row) is not None for row in result.stdout.splitlines())
+
+
+def _repository_root(directory: Path) -> Path | None:
+    result = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=directory,
+        check=False, text=True, capture_output=True)
+    return Path(result.stdout.strip()).resolve() if result.returncode == 0 else None
+
+
+def _independent_app_series(definition: AppDefinition, limit: int) -> dict[str, object] | None:
+    directory = definition.directory.resolve()
+    if _repository_root(directory) != directory:
+        return None
+    command = ["git", "log", f"--max-count={limit}", "--date=iso-strict",
+        f"--format={_COMMIT_MARKER}%H{_FIELD_SEPARATOR}%aI{_FIELD_SEPARATOR}%s", "--numstat", "--", "."]
+    result = subprocess.run(command, cwd=directory, check=False, text=True, capture_output=True)
+    if result.returncode:
+        return None
+    commits = [_commit_history(directory, block)
+        for block in result.stdout.split(_COMMIT_MARKER)[1:]]
+    total = _head_line_count(directory)
+    points = []
+    for commit in commits:
+        points.append({"revision": commit["revision"], "committed_at": commit["committed_at"],
+            "lines": max(0, total)})
+        total = total - commit["additions"] + commit["deletions"]
+    return {"name": definition.name, "points": list(reversed(points))}
+
+
+def _changed_app_names(commits: list[dict[str, object]]) -> set[str]:
+    return {change["name"] for commit in commits for change in commit["apps"]
+        if change["name"] != "platform"}
+
+
+def _root_app_line_series(root: Path,
+    commits: list[dict[str, object]]) -> dict[str, dict[str, object]]:
+    totals = _head_app_lines(root)
+    names = set(totals)
+    names.update(_changed_app_names(commits))
+    points = {name: [] for name in names}
+    for commit in commits:
+        for name in names:
+            points[name].append({"revision": commit["revision"],
+                "committed_at": commit["committed_at"], "lines": max(0, totals.get(name, 0))})
+        for change in commit["apps"]:
+            if change["name"] != "platform":
+                totals[change["name"]] = (totals.get(change["name"], 0) -
+                    change["added"] + change["deleted"])
+    return {name: {"name": name, "points": list(reversed(points[name]))} for name in names}
+
+
+def _app_line_series(root: Path, definitions: tuple[AppDefinition, ...],
+    commits: list[dict[str, object]], limit: int) -> list[dict[str, object]]:
+    series = _root_app_line_series(root, commits)
+    for definition in definitions:
+        independent = _independent_app_series(definition, limit)
+        if independent:
+            series[definition.name] = independent
+    return [series[name] for name in sorted(series)]
+
+
 def scan_history(root: Path, limit: int = HISTORY_LIMIT) -> dict[str, object]:
     """Project bounded Git numstats into app and language change timelines."""
     definitions = _definitions(root)
@@ -229,12 +316,14 @@ def scan_history(root: Path, limit: int = HISTORY_LIMIT) -> dict[str, object]:
         f"--format={_COMMIT_MARKER}%H{_FIELD_SEPARATOR}%aI{_FIELD_SEPARATOR}%s", "--numstat", "--"]
     result = subprocess.run(command, cwd=root, check=False, text=True, capture_output=True)
     if result.returncode:
-        return {"available": False, "truncated": False, "limit": limit, "commits": []}
-    commits = [_commit_history(root, definitions, block)
+        return {"available": False, "truncated": False, "limit": limit,
+            "commits": [], "app_lines": []}
+    commits = [_commit_history(root, block)
         for block in result.stdout.split(_COMMIT_MARKER)[1:]]
     truncated = len(commits) > limit
+    commits = commits[:limit]
     return {"available": True, "truncated": truncated, "limit": limit,
-        "commits": commits[:limit]}
+        "commits": commits, "app_lines": _app_line_series(root, definitions, commits, limit)}
 
 
 def _tree_child_names(matching: tuple[FileFact, ...], path: Path) -> list[str]:

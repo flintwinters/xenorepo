@@ -81,6 +81,16 @@ class CockpitTests(unittest.TestCase):
             for item in commit["languages"]}
         self.assertTrue(changed_languages)
 
+    def test_app_line_history_covers_root_apps_and_submodules(self) -> None:
+        series = scan_history(ROOT, limit=12)["app_lines"]
+        self.assertTrue(series)
+        self.assertTrue(all(0 < len(item["points"]) <= 12 for item in series))
+        self.assertTrue(all(point["lines"] >= 0 for item in series for point in item["points"]))
+        names = [item["name"] for item in series]
+        self.assertEqual(names, sorted(names))
+        current_apps = {path.parent.name for path in ROOT.glob("apps/*/app.yaml")}
+        self.assertTrue(current_apps.issubset(names))
+
     def test_tree_is_complete_and_excludes_dependencies_and_artifacts(self) -> None:
         tree = scan_tree(ROOT)
         self.assertEqual((tree["kind"], tree["name"]), ("directory", "xenorepo"))

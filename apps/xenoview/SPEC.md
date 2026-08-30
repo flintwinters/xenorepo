@@ -9,7 +9,7 @@ The product succeeds when an owner can answer, within a minute: how large is the
 ## Feature inventory
 
 - An overview scorecard with source files, source lines, repository bytes, monoapps, Monotools modules, tests, documentation coverage, architecture violations, oversized files, and complex functions.
-- An automatic, bounded Git timeline showing added and deleted maintained-text lines per commit, grouped by monoapp and language; no operator sampling is required. Durable snapshots remain optional broad-metric baselines.
+- Automatic, bounded Git history showing absolute maintained-text line-count graphs per monoapp and added/deleted lines per commit grouped by monoapp and language; no operator sampling is required. Durable snapshots remain optional broad-metric baselines.
 - A Monotools module inventory showing file size, line count, public definitions, exact consuming monoapps, and direct internal dependencies.
 - A bounded, interactively collapsible repository tree showing directories and relevant files with byte and line totals, excluding generated, private, and runtime-heavy directories. Maintained end-to-end test subtrees remain measurable but start collapsed.
 - Visible measurement time, repository revision, dirty state, exclusions, failures, and definitions so the dashboard cannot imply false precision.
@@ -35,7 +35,7 @@ FastAPI serves a Preact client and three read-only views backed by one determini
 - `GET /api/overview` returns the current scorecard, audit counts, latest saved delta, exclusions, revision, and dirty state.
 - `GET /api/modules` returns the Monotools inventory.
 - `GET /api/tree` returns a bounded hierarchical repository projection.
-- `GET /api/repository-history` derives commit, app, and language changes from Git without mutation. `GET /api/history` returns optional saved metric baselines; `POST /api/snapshots` records one after same-origin validation.
+- `GET /api/repository-history` derives absolute app line trajectories plus commit, app, and language changes from Git without mutation. `GET /api/history` returns optional saved metric baselines; `POST /api/snapshots` records one after same-origin validation.
 
 SQLite stores snapshots in `data/xenoview.db`; `XENOVIEW_DATABASE_URL` may select another SQLAlchemy database. Scans never write to source control or execute repository code. Results use a short process-local cache invalidated by the explicit snapshot operation.
 

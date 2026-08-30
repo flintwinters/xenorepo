@@ -65,6 +65,9 @@ test("[acceptance] operator navigates repository evidence and records a baseline
 
   await page.getByRole("button", { name: "history", exact: true }).click();
   await expect(page.locator("#app")).toContainText("Automatic Git timeline");
+  await expect(page.locator(".app-lines")).toContainText("Absolute line counts over time");
+  await expect(page.locator(".line-graph svg").first()).toBeVisible();
+  expect(await page.locator(".line-graph").count()).toBeGreaterThan(1);
   await expect(page.locator(".history")).toContainText("Apps");
   await expect(page.locator(".history")).toContainText("Languages");
 

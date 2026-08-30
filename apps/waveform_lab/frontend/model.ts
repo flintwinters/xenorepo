@@ -1,6 +1,6 @@
 const SAMPLE_COUNT = 128;
 export const STEP_COUNT = 32;
-export const STATE_VERSION = 5 as const;
+export const STATE_VERSION = 6 as const;
 export const PITCHES = Array.from({ length: 24 }, (_, index) => 83 - index);
 export type WaveformShape = "sine" | "square" | "saw" | "triangle";
 
@@ -94,17 +94,22 @@ function validParameters(kind: ModuleKind, value: unknown): value is ModuleParam
     return finite(value[name]) && value[name] >= range[0] && value[name] <= range[1];
   });
 }
-type StateVersion = 1 | 2 | 3 | 4 | typeof STATE_VERSION;
+type StateVersion = 1 | 2 | 3 | 4 | 5 | typeof STATE_VERSION;
 function validModule(value: unknown, version: StateVersion): value is ModuleNode {
   if (!record(value) || typeof value.id !== "string" || !value.id || !kinds.has(value.kind as ModuleKind)) return false;
   const kind = value.kind as ModuleKind;
   if (version === 1) return finite(value.x) && finite(value.y) && ["waveform", "gain", "output"].includes(kind);
   if (version === 2 && (!finite(value.x) || !finite(value.y))) return false;
-  if (version >= 3) {
+  if (version >= 3 && version < STATE_VERSION) {
     const expected = new Set(["id", "kind", "parameters", ...(bypassable.has(kind) ? ["bypass"] : [])]);
     if (Object.keys(value).some((name) => !expected.has(name))) return false;
   }
-  if (!validParameters(kind, value.parameters)) return false;
+  if (version === STATE_VERSION) {
+    const expected = new Set(["id", "kind", ...Object.keys(PARAMETER_BOUNDS[kind]),
+      ...(bypassable.has(kind) ? ["bypass"] : [])]);
+    if (Object.keys(value).some((name) => !expected.has(name)) || !validParameters(kind,
+      Object.fromEntries(Object.keys(PARAMETER_BOUNDS[kind]).map((name) => [name, value[name]])))) return false;
+  } else if (!validParameters(kind, value.parameters)) return false;
   return bypassable.has(kind) ? typeof value.bypass === "boolean" : value.bypass === undefined;
 }
 function edgeType(edge: Connection): ConnectionType { return edge.type ?? "audio"; }
@@ -198,6 +203,13 @@ function modulesOf(values: unknown[], version: StateVersion): ModuleNode[] | nul
   const modules = values.map((value) => {
     const node = value as ModuleNode;
     if (version === 1) return createModule(node.id, node.kind);
+    if (version === STATE_VERSION) {
+      const raw = value as unknown as Record<string, unknown>;
+      return { id: node.id, kind: node.kind,
+        parameters: Object.fromEntries(Object.keys(PARAMETER_BOUNDS[node.kind])
+          .map((name) => [name, raw[name] as number])),
+        ...(node.bypass === undefined ? {} : { bypass: node.bypass }) };
+    }
     return { id: node.id, kind: node.kind, parameters: { ...node.parameters },
       ...(node.bypass === undefined ? {} : { bypass: node.bypass }) };
   });
@@ -221,7 +233,7 @@ function connectionsOf(values: unknown[], modules: ModuleNode[], legacy: boolean
 
 function flattened(value: Record<string, unknown>): Record<string, unknown> | null {
   if (value.version === 1) return value;
-  if (value.version !== 2 && value.version !== 3 && value.version !== 4
+  if (value.version !== 2 && value.version !== 3 && value.version !== 4 && value.version !== 5
       && value.version !== STATE_VERSION) return null;
   if (!record(value.synth) || !record(value.loop)) return value;
   return { version: value.version, ...value.synth, ...value.loop };
@@ -232,6 +244,7 @@ export function validatedState(value: unknown): LabState | null {
   if (!record(value)) return null;
   const saved = flattened(value);
   if (!saved || (saved.version !== 1 && saved.version !== 2 && saved.version !== 3 && saved.version !== 4
+      && saved.version !== 5
       && saved.version !== STATE_VERSION)
     || !Array.isArray(saved.modules) || !Array.isArray(saved.connections)) return null;
   const version = saved.version as StateVersion;

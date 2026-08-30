@@ -1,10 +1,15 @@
 import { parse, stringify } from "yaml";
-import { STATE_VERSION, validatedState, type LabState } from "./model.js";
+import { STATE_VERSION, validatedState, type LabState, type ModuleNode } from "./model.js";
 
-export type SynthState = Pick<LabState, "modules" | "connections" | "waveform">;
+interface SynthState { modules: object[]; connections: LabState["connections"]; waveform: LabState["waveform"]; }
+
+function moduleOf(module: ModuleNode): object {
+  return { id: module.id, kind: module.kind, ...module.parameters,
+    ...(module.bypass === undefined ? {} : { bypass: module.bypass }) };
+}
 
 function synthOf(state: LabState): SynthState {
-  return { modules: state.modules, connections: state.connections, waveform: state.waveform };
+  return { modules: state.modules.map(moduleOf), connections: state.connections, waveform: state.waveform };
 }
 
 function documentOf(state: LabState): object {

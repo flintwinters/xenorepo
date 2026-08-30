@@ -10,6 +10,15 @@ async function replaceYaml(page: Page, editor: Locator, find: string, replacemen
   await page.keyboard.press("Escape");
 }
 
+async function dragBetween(page: Page, from: Locator, to: Locator): Promise<void> {
+  const start = await from.boundingBox(); const end = await to.boundingBox();
+  if (!start || !end) throw new Error("Loop cells must have visible bounds");
+  await page.mouse.move(start.x + start.width / 2, start.y + start.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(end.x + end.width / 2, end.y + end.height / 2, { steps: 4 });
+  await page.mouse.up();
+}
+
 test("[acceptance] the GUI loop survives reload and controls playback", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("SIGNAL READY")).toBeVisible();
@@ -132,6 +141,33 @@ test("[acceptance] named instruments color independent loop notes", async ({ pag
   await page.getByRole("button", { name: "PLAY", exact: false }).click();
   await expect(page.getByText("RUNNING", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "STOP", exact: false }).click();
+});
+
+test("[acceptance] box selection supports keyboard clipboard and group dragging", async ({ page }) => {
+  await page.goto("/");
+  const c4s1 = page.getByRole("gridcell", { name: "C4, step 1", exact: true });
+  const d4s2 = page.getByRole("gridcell", { name: "D4, step 2", exact: true });
+  await c4s1.click(); await d4s2.click();
+  await dragBetween(page, c4s1, d4s2);
+  await expect(page.locator(".pitch-row button.selected")).toHaveCount(6);
+  await expect(page.getByText("6 SELECTED", { exact: true })).toBeVisible();
+
+  await page.keyboard.press("Control+x");
+  await expect(c4s1).toHaveAttribute("aria-pressed", "false");
+  await expect(d4s2).toHaveAttribute("aria-pressed", "false");
+  await page.keyboard.press("Control+v");
+  await expect(c4s1).toHaveAttribute("aria-pressed", "true");
+  await expect(d4s2).toHaveAttribute("aria-pressed", "true");
+
+  const c5s5 = page.getByRole("gridcell", { name: "C5, step 5", exact: true });
+  await dragBetween(page, c4s1, c5s5);
+  await expect(c4s1).toHaveAttribute("aria-pressed", "false");
+  await expect(d4s2).toHaveAttribute("aria-pressed", "false");
+  await expect(c5s5).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("gridcell", { name: "D5, step 6", exact: true }))
+    .toHaveAttribute("aria-pressed", "true");
+  await page.reload();
+  await expect(c5s5).toHaveAttribute("aria-pressed", "true");
 });
 
 test("[acceptance] coordinate-bearing state migrates and malformed storage recovers", async ({ page }) => {

@@ -36,6 +36,9 @@ button:disabled { opacity: 0.45; cursor: default; }
 .transport input[type="range"] { width: 92px; padding: 0; accent-color: #b8bb26; }
 .transport output { min-width: 32px; color: #ebdbb2; }
 .transport select { max-width: 110px; padding: 3px; }
+.selection-tools { display: flex; align-items: center; gap: 3px; }
+.selection-tools button { padding: 3px 5px; }
+.selection-tools output { min-width: 64px; color: #a89984; }
 .instrument-color { width: 10px; height: 10px; margin: 0; border: 1px solid #ebdbb2; }
 .transport span { margin-left: auto; color: #8ec07c; }
 .sequence-pane > .x-ui-pane-body {
@@ -71,12 +74,14 @@ button:disabled { opacity: 0.45; cursor: default; }
   line-height: 0;
   border: 1px solid #282828;
   background: #1d2021;
+  touch-action: none;
 }
 .pitch-row.natural .pitch-label { background: #3c3836; }
 .pitch-row.natural button { background: #252827; }
 .pitch-row button.beat { border-left-color: #665c54; }
 .pitch-row button.bar { border-left: 2px solid #d3869b; }
 .pitch-row button.active { background: var(--note-color, #b8bb26); box-shadow: inset 0 0 0 1px #ebdbb2; }
+.pitch-row button.selected { box-shadow: inset 0 0 0 2px #fabd2f; filter: brightness(1.25); }
 .pitch-row button.playing { border-right-color: #fabd2f; filter: brightness(1.6); }
 @media (max-width: 760px) {
   .workspace { grid-template-columns: minmax(0, 1fr); grid-template-rows: 0.9fr 1.1fr; }

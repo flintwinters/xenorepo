@@ -15,5 +15,5 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
-- Default-aware multi-instrument YAML and the fitted four-octave loop pass wide/narrow acceptance.
+- Box selection, group note movement, and clipboard editing pass wide/narrow acceptance.
 - Next: profile larger polyphonic graphs before introducing shared effect buses or AudioWorklets.

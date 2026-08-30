@@ -6,10 +6,15 @@ import { SynthYamlEditor } from "./yaml-editor.js";
 import {
   PITCHES, hasPlayablePath, initialState, isNaturalPitch, midiLabel, type LabState,
 } from "./model.js";
+import {
+  boxCells, cellKey, moveSelected, pasteNotes, relativeOffsets, removeSelected, selectedNotes,
+  type Cell, type NoteOffset,
+} from "./loop-selection.js";
 import "./styles.css";
 
 const storageKey = "waveform-lab-state-v1";
-interface ViewState { lab: LabState; playing: boolean; activeStep: number; selectedInstrument: string; }
+interface ViewState { lab: LabState; playing: boolean; activeStep: number; selectedInstrument: string;
+  selection: Set<string>; clipboard: NoteOffset[]; anchor: Cell | null; }
 
 function loadState(): LabState {
   const saved = localStorage.getItem(storageKey);
@@ -22,10 +27,13 @@ function loadState(): LabState {
 class WaveformLab extends Component<Record<string, never>, ViewState> {
   private initial = loadState();
   override state: ViewState = { lab: this.initial, playing: false, activeStep: -1,
-    selectedInstrument: this.initial.instruments[0]?.name ?? "" };
+    selectedInstrument: this.initial.instruments[0]?.name ?? "", selection: new Set(), clipboard: [], anchor: null };
   private engine = new SynthEngine();
+  private gesture: { start: Cell; mode: "box" | "move"; notes: Cell[] } | null = null;
+  private dragged = false;
 
-  override componentWillUnmount(): void { this.engine.stop(); }
+  override componentDidMount(): void { window.addEventListener("keydown", this.keyDown); }
+  override componentWillUnmount(): void { this.engine.stop(); window.removeEventListener("keydown", this.keyDown); }
   private commit = (lab: LabState): void => {
     const selectedInstrument = lab.instruments.some((item) => item.name === this.state.selectedInstrument)
       ? this.state.selectedInstrument : lab.instruments[0]?.name ?? "";
@@ -44,9 +52,74 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
     const instrument = this.state.selectedInstrument;
     const exists = current.some((note) => note.pitch === pitch && note.instrument === instrument);
     notes[step] = exists ? current.filter((note) => note.pitch !== pitch || note.instrument !== instrument)
-      : [...current, { pitch, instrument }].sort((a, b) => a.pitch - b.pitch || a.instrument.localeCompare(b.instrument));
+      : [...current, { pitch, instrument }]
+        .sort((a, b) => a.pitch - b.pitch || a.instrument.localeCompare(b.instrument));
     this.commit({ ...this.state.lab, notes });
   }
+  private select = (cell: Cell): void => {
+    this.setState({ selection: new Set([cellKey(cell)]), anchor: cell });
+  };
+  private copy = (): void => {
+    const notes = selectedNotes(this.state.lab, this.state.selection, this.state.selectedInstrument);
+    if (notes.length && this.state.anchor)
+      this.setState({ clipboard: relativeOffsets(notes, this.state.anchor) });
+  };
+  private cut = (): void => { this.copy(); this.deleteSelection(); };
+  private deleteSelection = (): void => {
+    if (!this.state.selection.size) return;
+    this.commit(removeSelected(this.state.lab, this.state.selection, this.state.selectedInstrument));
+  };
+  private paste = (): void => {
+    if (!this.state.anchor || !this.state.clipboard.length) return;
+    const lab = pasteNotes(this.state.lab, this.state.clipboard, this.state.anchor, this.state.selectedInstrument);
+    const selection = new Set(this.state.clipboard.map((note) => cellKey({ step: this.state.anchor!.step + note.step,
+      pitch: PITCHES[PITCHES.indexOf(this.state.anchor!.pitch) + note.pitch] ?? -1 })));
+    this.commit(lab); this.setState({ selection });
+  };
+  private keyDown = (event: KeyboardEvent): void => {
+    const target = event.target as HTMLElement | null;
+    if (target?.closest("input, select, textarea, [contenteditable=true], .cm-editor")) return;
+    if (!(event.ctrlKey || event.metaKey) && event.key !== "Delete" && event.key !== "Backspace") return;
+    const key = event.key.toLowerCase();
+    if ((event.ctrlKey || event.metaKey) && key === "c") this.copy();
+    else if ((event.ctrlKey || event.metaKey) && key === "x") this.cut();
+    else if ((event.ctrlKey || event.metaKey) && key === "v") this.paste();
+    else if (event.key === "Delete" || event.key === "Backspace") this.deleteSelection(); else return;
+    event.preventDefault();
+  };
+  private pointerDown = (event: PointerEvent, cell: Cell): void => {
+    if (event.button !== 0) return;
+    const notes = selectedNotes(this.state.lab, this.state.selection, this.state.selectedInstrument);
+    const active = notes.some((note) => cellKey(note) === cellKey(cell));
+    this.gesture = { start: cell, mode: active ? "move" : "box", notes }; this.dragged = false;
+    (event.currentTarget as HTMLElement).setPointerCapture(event.pointerId);
+  };
+  private pointerMove = (event: PointerEvent): void => {
+    if (!this.gesture || !(event.buttons & 1)) return;
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-cell]");
+    if (!target) return;
+    const cell = { step: Number(target.dataset.step), pitch: Number(target.dataset.pitch) };
+    if (cellKey(cell) === cellKey(this.gesture.start)) return;
+    this.dragged = true;
+    if (this.gesture.mode === "box")
+      this.setState({ selection: boxCells(this.gesture.start, cell), anchor: this.gesture.start });
+    else this.setState({ selection: new Set(this.gesture.notes.map((note) => cellKey(note))), anchor: cell });
+  };
+  private pointerUp = (event: PointerEvent): void => {
+    if (!this.gesture) return;
+    const gesture = this.gesture; this.gesture = null;
+    const target = document.elementFromPoint(event.clientX, event.clientY)?.closest<HTMLElement>("[data-cell]");
+    const cell = target ? { step: Number(target.dataset.step), pitch: Number(target.dataset.pitch) } : gesture.start;
+    if (this.dragged && gesture.mode === "move") {
+      const lab = moveSelected(
+        this.state.lab, gesture.notes, gesture.start, cell, this.state.selectedInstrument,
+      );
+      const moved = relativeOffsets(gesture.notes, gesture.start).map((note) => ({ step: cell.step + note.step,
+        pitch: PITCHES[PITCHES.indexOf(cell.pitch) + note.pitch] })).filter((note): note is Cell =>
+        note.step >= 0 && note.step < 32 && typeof note.pitch === "number");
+      this.commit(lab); this.setState({ selection: new Set(moved.map(cellKey)), anchor: cell });
+    } else if (!this.dragged) { this.toggleNote(cell.step, cell.pitch); this.select(cell); }
+  };
   private renderSequencer() {
     const lab = this.state.lab;
     return <ConsolePane class="sequence-pane" title="LOOP / 2 BARS / 4∕4" tone="purple">
@@ -61,10 +134,19 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
           <output>{Math.round(lab.volume * 100)}%</output></label>
         <label>INSTRUMENT <span class="instrument-color" style={{ background: lab.instruments.find((item) =>
           item.name === this.state.selectedInstrument)?.color }} /><select aria-label="Loop instrument"
-          value={this.state.selectedInstrument} onChange={(event) => this.setState({ selectedInstrument: event.currentTarget.value })}>
-          {lab.instruments.map((instrument) => <option value={instrument.name}>{instrument.name}</option>)}</select></label>
-        <span role="status">{lab.instruments.some(hasPlayablePath) ? "SIGNAL READY" : "PATCH INCOMPLETE — SILENT"}</span></div>
-      <div class="piano-scroll" tabIndex={0} aria-label="Scrollable two bar piano roll">
+          value={this.state.selectedInstrument}
+          onChange={(event) => this.setState({ selectedInstrument: event.currentTarget.value })}>
+          {lab.instruments.map((instrument) => <option value={instrument.name}>
+            {instrument.name}</option>)}</select></label>
+        <div class="selection-tools" aria-label="Note selection controls"><button onClick={this.cut}
+          disabled={!this.state.selection.size}>CUT</button><button onClick={this.copy}
+            disabled={!this.state.selection.size}>COPY</button>
+          <button onClick={this.paste} disabled={!this.state.clipboard.length || !this.state.anchor}>PASTE</button>
+          <button onClick={this.deleteSelection} disabled={!this.state.selection.size}>DELETE</button>
+          <output>{this.state.selection.size} SELECTED</output></div>
+        <span role="status">{lab.instruments.some(hasPlayablePath)
+          ? "SIGNAL READY" : "PATCH INCOMPLETE — SILENT"}</span></div>
+      <div class="piano-scroll" tabIndex={0} aria-label="Two bar piano roll editor">
         <div class="piano-roll" role="grid" aria-label="Two bar piano roll"
           aria-rowcount={PITCHES.length} aria-colcount={32}>
         {PITCHES.map((pitch) => <div class={`pitch-row ${isNaturalPitch(pitch) ? "natural" : "sharp"}`} role="row">
@@ -74,10 +156,14 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
             const selected = assignments.find((note) => note.instrument === this.state.selectedInstrument);
             const color = lab.instruments.find((item) => item.name === (selected ?? assignments[0])?.instrument)?.color;
             return <button role="gridcell" class={`${assignments.length ? "active" : ""}
+            ${this.state.selection.has(cellKey({ step, pitch })) ? "selected" : ""}
             ${this.state.activeStep === step ? "playing" : ""}
             ${step % 16 === 0 ? "bar" : step % 4 === 0 ? "beat" : ""}`}
+            data-cell data-step={step} data-pitch={pitch}
             style={{ "--note-color": color }} aria-label={`${midiLabel(pitch)}, step ${step + 1}`}
-            aria-pressed={Boolean(selected)} onClick={() => this.toggleNote(step, pitch)} />;
+            aria-pressed={Boolean(selected)} onDblClick={() => this.toggleNote(step, pitch)}
+            onPointerDown={(event) => this.pointerDown(event, { step, pitch })}
+            onPointerMove={this.pointerMove} onPointerUp={this.pointerUp} />;
           })}</div>)}</div></div>
     </ConsolePane>;
   }

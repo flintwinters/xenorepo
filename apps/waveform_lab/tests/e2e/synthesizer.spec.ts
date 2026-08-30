@@ -214,12 +214,36 @@ test("[acceptance] legacy patches migrate and malformed state recovers", async (
   await expect(page.getByRole("gridcell", { name: "C4, step 1", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("slider", { name: "Gain 1 gain" })).toHaveValue("0.8");
   await page.getByRole("slider", { name: "Gain 1 gain" }).fill("1.1");
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("waveform-lab-state-v1") ?? "null").version)).toBe(
-    3,
-  );
+  expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).toContain("version: 3\nsynth:");
 
   await page.evaluate(() => localStorage.setItem("waveform-lab-state-v1", "{malformed"));
   await page.reload();
   await expect(page.getByLabel("Tempo in BPM")).toHaveValue("120");
   await expect(page.getByText("SIGNAL READY")).toBeVisible();
+});
+
+test("[acceptance] synth YAML applies atomically while the loop stays GUI-only", async ({ page }) => {
+  await page.goto("/");
+  const editor = page.getByLabel("Synth setup YAML editor");
+  await expect(editor).toContainText("modules:");
+  await expect(editor).not.toContainText("notes:");
+  await page.getByRole("gridcell", { name: "C4, step 1", exact: true }).click();
+  await editor.locator(".cm-content").click();
+  await page.keyboard.press("Control+A");
+  await page.keyboard.type("synth:\n  modules: invalid");
+  await page.getByRole("button", { name: "APPLY YAML" }).click();
+  await expect(page.getByRole("alert")).toContainText("violates");
+  await expect(page.getByText("SIGNAL READY")).toBeVisible();
+
+  await page.getByRole("button", { name: "REVERT DRAFT" }).click();
+  await editor.locator(".cm-content").click();
+  await page.keyboard.press("Control+f");
+  await editor.getByRole("textbox", { name: "Find" }).fill("gain: 0.8");
+  await editor.getByRole("textbox", { name: "Replace" }).fill("gain: 1.25");
+  await editor.getByRole("button", { name: "replace all", exact: true }).click();
+  await page.getByRole("button", { name: "APPLY YAML" }).click();
+  await expect(page.getByRole("slider", { name: "Gain 1 gain" })).toHaveValue("1.25");
+  await page.reload();
+  await expect(page.getByRole("slider", { name: "Gain 1 gain" })).toHaveValue("1.25");
+  await expect(page.getByRole("gridcell", { name: "C4, step 1", exact: true })).toHaveAttribute("aria-pressed", "true");
 });

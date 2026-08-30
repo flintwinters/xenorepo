@@ -15,5 +15,5 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
-- Module-embedded routing in compact Gruvbox YAML and the fitted GUI loop pass acceptance.
+- Module-local routing and a fitted four-octave GUI loop pass wide/narrow acceptance.
 - Next: profile larger polyphonic graphs before introducing shared effect buses or AudioWorklets.

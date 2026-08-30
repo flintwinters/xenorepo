@@ -3,7 +3,7 @@ import { expect, test } from "@xenorepo/browser-testing";
 test("[acceptance] the GUI loop survives reload and controls playback", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByText("SIGNAL READY")).toBeVisible();
-  await expect(page.getByRole("gridcell")).toHaveCount(24 * 32);
+  await expect(page.getByRole("gridcell")).toHaveCount(48 * 32);
   await expect(page.getByLabel("Patch bay")).toHaveCount(0);
   await expect(page.getByLabel("Draw one cycle waveform")).toHaveCount(0);
   const overflow = await page.evaluate(() => ({
@@ -15,6 +15,14 @@ test("[acceptance] the GUI loop survives reload and controls playback", async ({
       > document.querySelector<HTMLElement>(".piano-scroll")!.clientHeight,
   }));
   expect(overflow).toEqual({ documentX: false, documentY: false, pianoX: false, pianoY: false });
+  await expect(page.getByRole("gridcell", { name: "C3, step 1", exact: true })).toBeVisible();
+  await expect(page.getByRole("gridcell", { name: "B6, step 32", exact: true })).toBeVisible();
+  const natural = await page.getByRole("gridcell", { name: "C4, step 2", exact: true })
+    .evaluate((cell) => getComputedStyle(cell).backgroundColor);
+  const sharp = await page.getByRole("gridcell", { name: "C♯4, step 2", exact: true })
+    .evaluate((cell) => getComputedStyle(cell).backgroundColor);
+  expect(natural).toBe("rgb(37, 40, 39)");
+  expect(sharp).toBe("rgb(29, 32, 33)");
 
   const first = page.getByRole("gridcell", { name: "C4, step 1", exact: true });
   const last = page.getByRole("gridcell", { name: "B5, step 32", exact: true });

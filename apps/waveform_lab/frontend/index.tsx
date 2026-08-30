@@ -4,7 +4,7 @@ import { SynthEngine } from "./audio.js";
 import { decodeState, encodeState } from "./state-yaml.js";
 import { SynthYamlEditor } from "./yaml-editor.js";
 import {
-  PITCHES, hasPlayablePath, initialState, midiLabel, type LabState,
+  PITCHES, hasPlayablePath, initialState, isNaturalPitch, midiLabel, type LabState,
 } from "./model.js";
 import "./styles.css";
 
@@ -71,8 +71,10 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
           <output>{Math.round(lab.volume * 100)}%</output></label>
         <span role="status">{hasPlayablePath(lab) ? "SIGNAL READY" : "PATCH INCOMPLETE — SILENT"}</span></div>
       <div class="piano-scroll" tabIndex={0} aria-label="Scrollable two bar piano roll">
-        <div class="piano-roll" role="grid" aria-label="Two bar piano roll" aria-rowcount={24} aria-colcount={32}>
-        {PITCHES.map((pitch) => <div class="pitch-row" role="row"><span class="pitch-label">{midiLabel(pitch)}</span>
+        <div class="piano-roll" role="grid" aria-label="Two bar piano roll"
+          aria-rowcount={PITCHES.length} aria-colcount={32}>
+        {PITCHES.map((pitch) => <div class={`pitch-row ${isNaturalPitch(pitch) ? "natural" : "sharp"}`} role="row">
+          <span class="pitch-label">{midiLabel(pitch)}</span>
           {lab.notes.map((values, step) => <button role="gridcell" class={`${values.includes(pitch) ? "active" : ""}
             ${lab.holds[step]?.includes(pitch) ? "held" : ""}
             ${this.state.activeStep === step ? "playing" : ""}

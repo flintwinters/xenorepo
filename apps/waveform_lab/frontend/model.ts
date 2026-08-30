@@ -1,7 +1,7 @@
 const SAMPLE_COUNT = 128;
 export const STEP_COUNT = 32;
 export const STATE_VERSION = 7 as const;
-export const PITCHES = Array.from({ length: 24 }, (_, index) => 83 - index);
+export const PITCHES = Array.from({ length: 48 }, (_, index) => 95 - index);
 export type WaveformShape = "sine" | "square" | "saw" | "triangle";
 
 export type ModuleKind = "waveform" | "gain" | "output" | "filter" | "adsr" | "saturation"
@@ -280,4 +280,7 @@ export function restoreState(value: unknown): LabState { return validatedState(v
 export function midiLabel(midi: number): string {
   const names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
   return `${names[midi % 12]}${Math.floor(midi / 12) - 1}`;
+}
+export function isNaturalPitch(midi: number): boolean {
+  return [0, 2, 4, 5, 7, 9, 11].includes(midi % 12);
 }

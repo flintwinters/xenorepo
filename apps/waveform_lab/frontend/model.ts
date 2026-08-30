@@ -32,6 +32,12 @@ export const PARAMETER_BOUNDS: Readonly<Record<ModuleKind, Bounds>> = {
   compressor: { threshold: [-100, 0], ratio: [1, 20], attack: [0, 1], release: [0, 1] },
   noise: { color: [0, 2], level: [0, 1] }, lfo: { shape: [0, 3], rate: [0.01, 30], depth: [0, 1] },
 };
+export const MODULATION_TARGETS: Readonly<Partial<Record<ModuleKind, readonly string[]>>> = {
+  waveform: ["detune"], gain: ["gain"], output: ["level"], filter: ["frequency", "resonance"],
+  saturation: ["drive", "mix"], delay: ["time", "feedback", "mix"], reverb: ["mix"],
+  mixer: ["level"], chorus: ["rate", "depth", "mix"],
+  compressor: ["threshold", "ratio", "attack", "release"], noise: ["level"],
+};
 const defaults: Readonly<Record<ModuleKind, ModuleParameters>> = {
   waveform: { detune: 0 }, gain: { gain: 0.8 }, output: { level: 0.8 },
   filter: { mode: 0, frequency: 1200, resonance: 1 },
@@ -122,7 +128,7 @@ export function validConnection(modules: ModuleNode[], edge: Connection, existin
   const occupied = existing.some((item) => edgeType(item) === "modulation"
     && item.to === edge.to && item.target === edge.target);
   return !occupied && controls.has(from.kind) && typeof edge.target === "string"
-    && Object.hasOwn(PARAMETER_BOUNDS[to.kind], edge.target);
+    && (MODULATION_TARGETS[to.kind]?.includes(edge.target) ?? false);
 }
 
 export function hasPlayablePath(state: LabState): boolean {

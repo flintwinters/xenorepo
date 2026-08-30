@@ -12,10 +12,13 @@ from apps.mailing_list.backend.database import (
     Checkout, DomainError, MailingListRepository, PaymentEvent, Subscriber,
     create_session_factory,
 )
-from apps.mailing_list.backend.providers import SandboxGateway
-from apps.mailing_list.backend.server import DEFAULT_DATABASE, SANDBOX_SECRET, create_app
+from apps.mailing_list.backend.providers import (
+    SANDBOX_SECRET, STRIPE_API_KEY, STRIPE_WEBHOOK_KEY, SandboxGateway, configured_gateway,
+)
+from apps.mailing_list.backend.server import DEFAULT_DATABASE, create_app
 from monotools.integrations.commerce import HostedCheckout, PaymentNotification, RecurringTerms
 from monotools.integrations.mailer import Mail, SmtpMailer
+from monotools.integrations.stripe import StripeGateway
 
 
 class MailingListTests(unittest.TestCase):
@@ -33,6 +36,16 @@ class MailingListTests(unittest.TestCase):
 
     def test_default_database_uses_the_app_owned_data_directory(self) -> None:
         self.assertEqual(DEFAULT_DATABASE, Path("apps/mailing_list/data/mailing-list.db").resolve())
+
+    def test_gateway_configuration_is_complete_or_safely_sandboxed(self) -> None:
+        with patch.dict("os.environ", {}, clear=True):
+            self.assertIsInstance(configured_gateway(), SandboxGateway)
+        with patch.dict("os.environ", {STRIPE_API_KEY: "sk_test_configured"}, clear=True):
+            with self.assertRaisesRegex(RuntimeError, STRIPE_WEBHOOK_KEY):
+                configured_gateway()
+        configured = {STRIPE_API_KEY: "sk_test_configured", STRIPE_WEBHOOK_KEY: "whsec_test"}
+        with patch.dict("os.environ", configured, clear=True):
+            self.assertIsInstance(configured_gateway(), StripeGateway)
 
     def test_checkout_normalizes_identity_and_retains_commercial_facts(self) -> None:
         hosted = self.repository.begin_checkout("  Reader@Example.COM ", 500, "USD",
@@ -94,6 +107,29 @@ class MailingListTests(unittest.TestCase):
                 invalid = client.post("/api/checkouts", json={"email": "not-an-email"})
                 self.assertEqual(invalid.status_code, 400)
                 self.assertEqual(invalid.json(), {"error": "Enter a valid email address."})
+        finally:
+            app_database.unlink(missing_ok=True)
+
+    def test_public_webhook_uses_the_gateway_signature_contract_and_ignores_noise(self) -> None:
+        app_database = Path("apps/mailing_list/data/test-mailing-list-stripe-api.db")
+        app_database.unlink(missing_ok=True)
+        gateway = MagicMock()
+        gateway.name, gateway.signature_header = "stripe", "stripe-signature"
+        gateway.create_checkout.return_value = HostedCheckout(
+            "stripe", "cs_live_return", "https://checkout.stripe.test/session")
+        gateway.parse_notification.return_value = None
+        try:
+            with TestClient(create_app(f"sqlite:///{app_database}", gateway)) as client:
+                created = client.post("/api/checkouts", json={"email": "reader@example.test"})
+                self.assertEqual(created.status_code, 201)
+                request = gateway.create_checkout.call_args.args[0]
+                self.assertIn("session_id={CHECKOUT_SESSION_ID}", request.success_url)
+                ignored = client.post("/api/webhooks/payments/stripe", content=b"event",
+                    headers={"stripe-signature": "signed"})
+                self.assertEqual(ignored.status_code, 204)
+                gateway.parse_notification.assert_called_once_with(b"event", "signed")
+                missing = client.post("/api/webhooks/payments/sandbox", content=b"event")
+                self.assertEqual(missing.status_code, 404)
         finally:
             app_database.unlink(missing_ok=True)
 

@@ -3,13 +3,23 @@
 import hashlib
 import hmac
 import json
+import os
 
-from monotools.integrations.commerce import CheckoutRequest, HostedCheckout, PaymentNotification
+from monotools.integrations.commerce import (
+    CheckoutRequest, HostedCheckout, PaymentGateway, PaymentNotification,
+)
 from monotools.integrations.mailer import DeliveryReceipt, Mail
+from monotools.integrations.stripe import StripeGateway
+
+
+STRIPE_API_KEY = "MAILING_LIST_STRIPE_SECRET_KEY"
+STRIPE_WEBHOOK_KEY = "MAILING_LIST_STRIPE_WEBHOOK_SECRET"
+SANDBOX_SECRET = "dispatch-ledger-local-sandbox"
 
 
 class SandboxGateway:
     name = "sandbox"
+    signature_header = "x-payment-signature"
 
     def __init__(self, secret: str) -> None:
         self._secret = secret.encode()
@@ -43,3 +53,13 @@ class RecordingMailer:
     def send(self, mail: Mail) -> DeliveryReceipt:
         self.messages.append(mail)
         return DeliveryReceipt(self.name, str(len(self.messages)))
+
+
+def configured_gateway() -> PaymentGateway:
+    """Select sandbox or Stripe only from a complete app-owned configuration."""
+    api_key, webhook_secret = os.environ.get(STRIPE_API_KEY), os.environ.get(STRIPE_WEBHOOK_KEY)
+    if not api_key and not webhook_secret:
+        return SandboxGateway(SANDBOX_SECRET)
+    if not api_key or not webhook_secret:
+        raise RuntimeError(f"Configure both {STRIPE_API_KEY} and {STRIPE_WEBHOOK_KEY}.")
+    return StripeGateway(api_key, webhook_secret)

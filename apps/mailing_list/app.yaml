@@ -7,6 +7,7 @@ imports:
   - "@xenorepo/ui"
   - monotools.integrations.commerce
   - monotools.integrations.mailer
+  - monotools.integrations.stripe
   - monotools.orchestration.management
   - monotools.persistence.database
   - monotools.runtime.appkit

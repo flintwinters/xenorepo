@@ -100,7 +100,8 @@ class MailingListRepository:
                 session.flush()
             checkout_id = str(uuid4())
             hosted = self.gateway.create_checkout(CheckoutRequest(checkout_id, normalized,
-                RecurringTerms(amount_minor, currency.lower(), "month"), success_url, cancel_url))
+                "Independent dispatch", RecurringTerms(amount_minor, currency.lower(), "month"),
+                success_url, cancel_url))
             session.add(Checkout(id=checkout_id, subscriber_id=subscriber.id,
                 provider=hosted.provider, external_id=hosted.external_id,
                 amount_minor=amount_minor, currency=currency.lower(), state="pending",

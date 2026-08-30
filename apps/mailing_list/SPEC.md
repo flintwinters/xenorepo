@@ -37,8 +37,19 @@ owned by this monoapp.
 5. The return view resolves the checkout and displays active, cancelled, failed,
    or still-pending status without exposing internal database identifiers.
 
-Live checkout, wallet presentation, recurring renewal, unsubscribe, publication
-authoring, and SMTP delivery follow only after this sandbox lifecycle passes.
+Stripe Checkout now follows the accepted sandbox lifecycle through a monthly
+subscription Checkout Session and signed checkout events. Recurring renewal and
+cancellation policy, wallet presentation, unsubscribe, publication authoring,
+and email delivery remain later lifecycle expansions.
+
+## Stripe test-mode operation
+
+The app uses its deterministic sandbox unless both
+`MAILING_LIST_STRIPE_SECRET_KEY` and `MAILING_LIST_STRIPE_WEBHOOK_SECRET` are
+configured. An incomplete pair fails startup. Forward Stripe CLI events to
+`/api/webhooks/payments/stripe`; the CLI-issued `whsec_…` value is the webhook
+secret. The return view resolves the Checkout Session state from durable local
+facts and never treats a browser redirect as proof of payment.
 
 ## Acceptance criteria
 

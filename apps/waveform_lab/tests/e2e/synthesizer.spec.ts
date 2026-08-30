@@ -38,6 +38,7 @@ test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) =
   await expect(editor).toContainText("modules:");
   await expect(editor).toContainText("samples:");
   await expect(editor).not.toContainText("notes:");
+  await expect(editor).not.toContainText(/\b[xy]:/);
   const theme = await editor.evaluate((element) => ({
     editor: getComputedStyle(element.querySelector(".cm-editor")!).backgroundColor,
     gutter: getComputedStyle(element.querySelector(".cm-gutters")!).backgroundColor,
@@ -70,16 +71,17 @@ test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) =
     .toHaveAttribute("aria-pressed", "true");
 });
 
-test("[acceptance] legacy state migrates to nested YAML and malformed storage recovers", async ({ page }) => {
+test("[acceptance] coordinate-bearing state migrates and malformed storage recovers", async ({ page }) => {
   await page.addInitScript(() => {
     if (sessionStorage.getItem("waveform-lab-fixture-seeded")) return;
     sessionStorage.setItem("waveform-lab-fixture-seeded", "true");
     const notes = Array.from({ length: 32 }, () => [] as number[]); notes[0]?.push(60);
-    localStorage.setItem("waveform-lab-state-v1", JSON.stringify({ version: 1,
-      modules: [{ id: "waveform-1", kind: "waveform", x: 28, y: 46 },
-        { id: "gain-1", kind: "gain", x: 280, y: 112 },
-        { id: "output-1", kind: "output", x: 520, y: 62 }],
-      connections: [{ from: "waveform-1", to: "gain-1" }, { from: "gain-1", to: "output-1" }],
+    localStorage.setItem("waveform-lab-state-v1", JSON.stringify({ version: 2,
+      modules: [{ id: "waveform-1", kind: "waveform", x: 28, y: 46, parameters: { detune: 0 } },
+        { id: "gain-1", kind: "gain", x: 280, y: 112, parameters: { gain: 0.8 } },
+        { id: "output-1", kind: "output", x: 520, y: 62, parameters: { level: 0.8 } }],
+      connections: [{ from: "waveform-1", to: "gain-1", type: "audio" },
+        { from: "gain-1", to: "output-1", type: "audio" }],
       samples: Array.from({ length: 128 }, (_, index) => Math.sin(index / 128 * Math.PI * 2)), notes, bpm: 133 }));
   });
   await page.goto("/");
@@ -87,7 +89,8 @@ test("[acceptance] legacy state migrates to nested YAML and malformed storage re
   await page.getByLabel("Tempo in BPM").fill("134");
   await page.getByLabel("Tempo in BPM").press("Tab");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1")))
-    .toContain("version: 2\nsynth:");
+    .toContain("version: 3\nsynth:");
+  expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toMatch(/\b[xy]:/);
 
   await page.evaluate(() => localStorage.setItem("waveform-lab-state-v1", "{malformed"));
   await page.reload();

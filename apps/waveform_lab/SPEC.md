@@ -60,6 +60,8 @@ restart.
 - Module parameters are finite and bounded by their declared ranges. Bypass preserves graph
   topology, reset restores only the selected module's defaults, and removing a module cascades only
   its attached cables.
+- Modules contain only sonic identity, type, parameters, and optional bypass state; obsolete visual
+  canvas coordinates are migrated away and are not part of current synth YAML.
 - BPM is finite and bounded from 40 through 240. The sequencer has exactly 32 steps and its note
   pitches remain inside the declared two-octave range. Every held cell continues an onset or prior
   held cell of the same pitch; removing an onset removes its contiguous holds.

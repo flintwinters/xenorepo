@@ -26,6 +26,8 @@ HTML attributes, named props replace slots, and stable `x-ui-*` classes are the
 styling boundary. The package owns only proved console geometry and interaction
 treatment; app layout remains in external app-owned CSS. All consumers import
 `@xenorepo/ui`.
+Established catalogued controls are the default for matching semantics. The
+independent-consumer rule governs creating abstractions, not consuming them.
 
 ## Monotools production contract inventory
 

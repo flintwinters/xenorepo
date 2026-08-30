@@ -431,6 +431,13 @@ frontend:
         self.assertIn("inset 0 -1px rgb(255 255 255 / 0.08)", styles)
         self.assertNotIn("transition:", styles)
 
+    def test_console_command_buttons_expose_toggle_state_only_when_requested(self) -> None:
+        components = (ROOT / "packages" / "ui" / "src" / "index.tsx").read_text(
+            encoding="utf-8")
+
+        self.assertIn("pressed === undefined ? {}", components)
+        self.assertNotIn("pressed = false", components)
+
 
 if __name__ == "__main__":
     unittest.main()

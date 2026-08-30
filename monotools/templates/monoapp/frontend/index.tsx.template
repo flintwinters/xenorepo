@@ -1,14 +1,19 @@
 import { render } from "preact";
-import { ConsolePane, ConsoleShell, ConsoleWorkspace, StatusRail, UtilityRail } from "@xenorepo/ui";
+import { useState } from "preact/hooks";
+import {
+  CommandButton, ConsolePane, ConsoleShell, ConsoleWorkspace, StatusRail, UtilityRail,
+} from "@xenorepo/ui";
 import "./styles.css";
 
 function Application() {
+  const [checked, setChecked] = useState(false);
   const header = <UtilityRail><strong>{{app_title}}</strong><span>WALKING SKELETON</span></UtilityRail>;
   const footer = <StatusRail><span>READY</span><span>MONOTOOLS MANAGED</span></StatusRail>;
   return <ConsoleShell class="app-shell" header={header} footer={footer}>
     <ConsoleWorkspace class="workspace">
-      <ConsolePane title="STATUS" tone="green">
-        <p role="status">{{app_title}} is ready for product behavior.</p>
+      <ConsolePane title="STATUS" tone="green" titleEnd={<CommandButton pressed={checked}
+        onClick={() => setChecked(!checked)}>CHECK</CommandButton>}>
+        <p role="status">{{app_title}} is {checked ? "checked" : "ready"} for product behavior.</p>
       </ConsolePane>
     </ConsoleWorkspace>
   </ConsoleShell>;

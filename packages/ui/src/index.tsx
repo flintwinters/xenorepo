@@ -50,10 +50,11 @@ interface CommandButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement>
   appearance?: "default" | "subtle";
 }
 
-export function CommandButton({ pressed = false, appearance = "default", class: className,
+export function CommandButton({ pressed, appearance = "default", class: className,
   children, ...props }: CommandButtonProps) {
   return <span class={classes("x-ui-command", `x-ui-command-${appearance}`, className as string | undefined)}>
-    <button class="x-ui-command-control" aria-pressed={pressed} {...props}>{children}</button>
+    <button class="x-ui-command-control" {...(pressed === undefined ? {} : { "aria-pressed": pressed })}
+      {...props}>{children}</button>
   </span>;
 }
 

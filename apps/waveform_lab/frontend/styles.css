@@ -53,7 +53,7 @@ button:disabled { opacity: 0.45; cursor: default; }
 .transport span { margin-left: auto; color: #8ec07c; }
 .sequence-pane, .sequence-pane > .x-ui-pane-body { overflow: visible; }
 .piano-scroll { overflow-x: auto; overflow-y: hidden; background: #111; } .piano-roll { min-width: 920px; }
-.pitch-row { display: grid; grid-template-columns: 48px repeat(32, 1fr); height: clamp(26px, 3.2vh, 34px); }
+.pitch-row { display: grid; grid-template-columns: 48px repeat(32, 1fr); height: clamp(18px, 2.2vh, 24px); }
 .pitch-label { position: sticky; left: 0; z-index: 2; padding: 2px 5px; color: #ebdbb2; font-size: 10px; background: #282828; border: 1px solid #3c3836; }
 .pitch-row button { min-width: 24px; padding: 0; border: 1px solid #282828; background: #1d2021; }
 .pitch-row button.beat { border-left-color: #665c54; } .pitch-row button.bar { border-left: 2px solid #d3869b; }

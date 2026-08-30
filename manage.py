@@ -13,6 +13,9 @@ from monotools.orchestration.apps import (
     AppDefinition, AppDefinitionError, discover_planned_apps, is_planned_app, load_app,
 )
 from monotools.orchestration.browser import run_browser_framework_suite
+from monotools.orchestration.environment import (
+    EnvironmentConfigurationError, activated_environment,
+)
 from monotools.orchestration.lifecycle import (
     LifecycleError,
     build_app,
@@ -272,10 +275,11 @@ def check() -> None:
             raise LifecycleError(f"structural audit failed: {details}")
         current = discover_managers()
         for definition, _ in current:
-            validate_app(definition, ROOT)
-            build_app(definition, ROOT)
-            validate_dist(definition)
-    except (ManagerError, LifecycleError) as error:
+            with activated_environment(ROOT, definition.directory):
+                validate_app(definition, ROOT)
+                build_app(definition, ROOT)
+                validate_dist(definition)
+    except (EnvironmentConfigurationError, ManagerError, LifecycleError) as error:
         _fail(error)
     console.print(
         f"[bold green]All checks passed[/] ({len(current)} app(s); structural audit clean)"
@@ -285,12 +289,18 @@ def check() -> None:
 @app.command()
 def test() -> None:
     """Run the curated platform and application regression suite exactly once."""
-    suites = (PythonSuite(ROOT / "tests"), *(manager.python_suite for _, manager in MANAGERS))
-    for suite in suites:
-        result = run_test_suite(ROOT, suite.path)
+    suites = ((PythonSuite(ROOT / "tests"), None),
+        *((manager.python_suite, definition.directory) for definition, manager in MANAGERS))
+    for suite, app_directory in suites:
+        try:
+            with activated_environment(ROOT, app_directory):
+                result = run_test_suite(ROOT, suite.path)
+        except EnvironmentConfigurationError as error:
+            _fail(error)
         if result:
             raise typer.Exit(result)
-    browser_result = run_browser_framework_suite(ROOT)
+    with activated_environment(ROOT):
+        browser_result = run_browser_framework_suite(ROOT)
     if browser_result:
         raise typer.Exit(browser_result)
     console.print("[bold green]Tests passed[/]")
@@ -307,8 +317,9 @@ def ui_check(app_name: str | None = typer.Argument(None),
         _fail(f"unknown app '{app_name}'; available: {', '.join(d.name for d, _ in MANAGERS)}")
     try:
         for definition, manager in selected:
-            run_ui_check(definition, ROOT, manager.browser_suite, evidence=evidence)
-    except LifecycleError as error:
+            with activated_environment(ROOT, definition.directory):
+                run_ui_check(definition, ROOT, manager.browser_suite, evidence=evidence)
+    except (EnvironmentConfigurationError, LifecycleError) as error:
         _fail(error)
     console.print(f"[bold green]browser proofs passed[/] ({len(selected)} app(s))")
 

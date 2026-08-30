@@ -51,6 +51,11 @@ configured. An incomplete pair fails startup. Forward Stripe CLI events to
 secret. The return view resolves the Checkout Session state from durable local
 facts and never treats a browser redirect as proof of payment.
 
+For local operation, place both variables in `apps/mailing_list/.env` as
+`KEY=value` lines. Monotools loads the workspace `.env` first, then the app-owned
+file; variables exported by the invoking process have final authority. Dotenv
+files are ignored by Git and their values are never rendered by the lifecycle UI.
+
 ## Acceptance criteria
 
 - Browser acceptance covers enrollment, sandbox payment, return, and visible

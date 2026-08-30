@@ -11,6 +11,9 @@ import typer
 from rich.console import Console
 
 from monotools.orchestration.apps import AppDefinition, AppDefinitionError, load_app
+from monotools.orchestration.environment import (
+    EnvironmentConfigurationError, activated_environment,
+)
 from monotools.orchestration.lifecycle import (
     LifecycleError,
     build_app,
@@ -110,9 +113,10 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
     def build() -> None:
         """Compile the frontend into the local dist directory."""
         try:
-            build_app(definition, workspace)
-            validate_dist(definition)
-        except LifecycleError as error:
+            with activated_environment(workspace, definition.directory):
+                build_app(definition, workspace)
+                validate_dist(definition)
+        except (EnvironmentConfigurationError, LifecycleError) as error:
             _fail(error)
         console.print(f"[green]Built[/] {definition.name} -> {definition.dist_directory}")
 
@@ -120,17 +124,22 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
     def check() -> None:
         """Validate metadata, sources, imports, and the production build."""
         try:
-            validate_app(definition, workspace)
-            build_app(definition, workspace)
-            validate_dist(definition)
-        except LifecycleError as error:
+            with activated_environment(workspace, definition.directory):
+                validate_app(definition, workspace)
+                build_app(definition, workspace)
+                validate_dist(definition)
+        except (EnvironmentConfigurationError, LifecycleError) as error:
             _fail(error)
         console.print(f"[bold green]Checks passed[/] {definition.name}")
 
     @app.command()
     def test() -> None:
         """Run this application's curated Python suite."""
-        result = run_test_suite(workspace, test_suite)
+        try:
+            with activated_environment(workspace, definition.directory):
+                result = run_test_suite(workspace, test_suite)
+        except EnvironmentConfigurationError as error:
+            _fail(error)
         if result:
             raise typer.Exit(result)
         console.print(f"[bold green]Tests passed[/] {definition.name}")
@@ -144,9 +153,10 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
         declared = (BrowserSuite(browser_path, proof_kinds, viewports, input_modalities)
             if browser_path is not None else None)
         try:
-            artifacts = run_ui_check(definition, workspace, declared, evidence=evidence,
-                update_snapshots=update_snapshots)
-        except LifecycleError as error:
+            with activated_environment(workspace, definition.directory):
+                artifacts = run_ui_check(definition, workspace, declared, evidence=evidence,
+                    update_snapshots=update_snapshots)
+        except (EnvironmentConfigurationError, LifecycleError) as error:
             _fail(error)
         matrix = "wide/narrow route smoke"
         if declared:
@@ -170,9 +180,10 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
                 help="Rebuild frontend artifacts when their inputs change.")) -> None:
             """Build and serve this application through FastAPI."""
             try:
-                result = serve_app(definition, workspace, host=host, port=port,
-                    watch=watch, report=console.print)
-            except (AppDefinitionError, LifecycleError) as error:
+                with activated_environment(workspace, definition.directory):
+                    result = serve_app(definition, workspace, host=host, port=port,
+                        watch=watch, report=console.print)
+            except (AppDefinitionError, EnvironmentConfigurationError, LifecycleError) as error:
                 _fail(error)
             if result:
                 raise typer.Exit(result)

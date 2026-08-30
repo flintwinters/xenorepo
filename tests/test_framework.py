@@ -3,6 +3,7 @@
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
+import os
 import unittest
 from unittest.mock import patch
 
@@ -15,6 +16,9 @@ from tests.support import SocketDouble, run_async
 from monotools.persistence.auth import issue_opaque_credential, opaque_credential_digest
 from monotools.runtime.appkit import SystemClock, create_app_context
 from monotools.persistence.database import create_session_factory, resolve_database_url
+from monotools.orchestration.environment import (
+    EnvironmentConfigurationError, activated_environment, resolve_dotenv_environment,
+)
 from monotools.persistence.identity import (
     Account, AccountEmail, AccountHandle, AccountName,
     AuthenticationSession as CanonicalSession, DatabaseSchema, PasswordCredential,
@@ -85,6 +89,39 @@ class SharedFrameworkTests(unittest.TestCase):
                 resolve_database_url(None, "FIXTURE_DATABASE_URL", default_path),
                 "sqlite:///tests/resolved-database.db",
             )
+
+    def test_dotenv_resolution_is_app_scoped_with_explicit_environment_authority(self) -> None:
+        workspace = Path("tests/data/dotenv-workspace")
+        app_directory = workspace / "apps" / "fixture"
+        app_directory.mkdir(parents=True, exist_ok=True)
+        (workspace / ".env").write_text("SHARED=workspace\nROOT_ONLY=root\n", encoding="utf-8")
+        (app_directory / ".env").write_text("SHARED=app\nAPP_ONLY=app\n", encoding="utf-8")
+        self.addCleanup((app_directory / ".env").unlink, missing_ok=True)
+        self.addCleanup((workspace / ".env").unlink, missing_ok=True)
+
+        resolved = resolve_dotenv_environment(
+            workspace, app_directory, {"SHARED": "process", "PROCESS_ONLY": "process"}
+        )
+
+        self.assertEqual(resolved, {
+            "SHARED": "process", "ROOT_ONLY": "root", "APP_ONLY": "app",
+            "PROCESS_ONLY": "process",
+        })
+
+    def test_activated_dotenv_environment_restores_the_process_and_rejects_bare_keys(self) -> None:
+        workspace = Path("tests/data/dotenv-activation")
+        workspace.mkdir(parents=True, exist_ok=True)
+        dotenv = workspace / ".env"
+        dotenv.write_text("LOCAL_VALUE=loaded\n", encoding="utf-8")
+        self.addCleanup(dotenv.unlink, missing_ok=True)
+        with patch.dict("os.environ", {"EXISTING": "preserved"}, clear=True):
+            with activated_environment(workspace) as environment:
+                self.assertEqual(environment["LOCAL_VALUE"], "loaded")
+                self.assertEqual(os.environ["EXISTING"], "preserved")
+            self.assertEqual(dict(os.environ), {"EXISTING": "preserved"})
+        dotenv.write_text("MISSING_VALUE\n", encoding="utf-8")
+        with self.assertRaisesRegex(EnvironmentConfigurationError, "MISSING_VALUE"):
+            resolve_dotenv_environment(workspace, environ={})
 
     def test_app_context_centralizes_metadata_database_and_clock(self) -> None:
         definition = SimpleNamespace(name="fixture_app")

@@ -1,4 +1,4 @@
-"""Create deterministic monoapp walking skeletons from platform-owned templates.
+"""Provision deterministic monoapp walking skeletons from platform-owned templates.
 
 The scaffolder owns only repeatable application structure and boundary wiring;
 product intent remains app-owned in the generated specification and agent context.

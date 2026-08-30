@@ -5,7 +5,7 @@ from tempfile import TemporaryDirectory
 import unittest
 
 from monotools.orchestration.apps import ROOT
-from xenorepo.audit import audit_architecture, audit_workspace
+from monotools.provisioning.audit import audit_architecture, audit_workspace
 from tests.support import synthetic_app_definition
 
 
@@ -18,10 +18,10 @@ class AuditTests(unittest.TestCase):
             for directory in (first, second):
                 (directory / "frontend").mkdir(parents=True)
                 (directory / "backend").mkdir()
-            (workspace / "monotools").mkdir()
-            (workspace / "monotools" / "policy.py").write_text(
+            (workspace / "monotools" / "orchestration").mkdir(parents=True)
+            (workspace / "monotools" / "orchestration" / "policy.py").write_text(
                 '"""Describe synthetic policy.\n\nExplain its test-only purpose.\n"""\n'
-                "from xenorepo.audit import audit_workspace\nproduct = 'orion'\n",
+                "from monotools.provisioning.audit import audit_workspace\nproduct = 'orion'\n",
                 encoding="utf-8")
             (first / "backend" / "server.py").write_text(
                 "from apps.nebula.backend import server\n", encoding="utf-8")
@@ -46,7 +46,7 @@ class AuditTests(unittest.TestCase):
 
         self.assertEqual({item.category for item in violations}, {
             "central-app-identity", "cross-app-import", "frontend-boundary-import",
-            "app-source-html", "legacy-frontend-javascript", "monotools-xenorepo-import",
+            "app-source-html", "legacy-frontend-javascript", "orchestration-provisioning-import",
         })
         html_violations = [item for item in violations if item.category == "app-source-html"]
         self.assertEqual([item.path for item in html_violations], ["apps/orion/frontend/legacy.html"])

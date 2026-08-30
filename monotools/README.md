@@ -83,7 +83,7 @@ test skeleton. Replace the generated product placeholders and acceptance
 journey; the template is structure, not a product specification.
 
 When mounted by Xenorepo, every managed app exposes `git status` and
-`git create-repo` through the `xenorepo` control-plane package. Promotion requires
+`git create-repo` through `monotools.provisioning`. Promotion requires
 explicit `--owner`, `--repository`, and `--visibility` values, a clean Xenorepo
 worktree, GitHub CLI authentication, and two successful complete verification
 runs. It extracts app-only history, pushes it to GitHub, remounts the same path
@@ -97,9 +97,10 @@ deferred until a mature app proves that separate contract. Repository identity
 is therefore absent from `app.yaml`, so promotion does not constrain that later
 packaging decision.
 
-These repository and structural-audit policies intentionally do not live in
-Monotools: standalone monoapp managers expose only generic lifecycle commands,
-and the root Xenorepo manager adds its ownership controls while mounting them.
+These repository and structural-audit policies intentionally live in Monotools'
+separate provisioning package: standalone monoapp managers expose only generic
+lifecycle commands, and the root Xenorepo manager adds provisioning controls
+while mounting them.
 
 ## Browser verification
 

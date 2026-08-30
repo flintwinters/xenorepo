@@ -15,17 +15,17 @@ from typer.testing import CliRunner
 
 from monotools.orchestration import apps as app_registry
 from monotools.orchestration.apps import AppDefinitionError, ROOT
-from xenorepo.audit import AuditReport, AuditViolation
+from monotools.provisioning.audit import AuditReport, AuditViolation
 from monotools.orchestration.management import create_app_manager, create_cli, resolve_local_app
 from monotools.orchestration.output import print_error
-from xenorepo.repositories import (
+from monotools.provisioning.repositories import (
     AppRepositoryState,
     RepositoryError,
     declared_app_submodules,
     promote_to_submodule,
     uninitialized_app_submodules,
 )
-from monotools.orchestration.scaffolding import ScaffoldError, scaffold_app
+from monotools.provisioning.scaffolding import ScaffoldError, scaffold_app
 import manage as repository_manager
 
 
@@ -401,9 +401,9 @@ frontend:
 
         verified: list[str] = []
         state = AppRepositoryState("monolith", True, None, "current")
-        with patch("xenorepo.repositories.shutil.which", return_value="/usr/bin/tool"), \
-             patch("xenorepo.repositories.inspect_app_repository", return_value=state), \
-             patch("xenorepo.repositories._run", side_effect=command):
+        with patch("monotools.provisioning.repositories.shutil.which", return_value="/usr/bin/tool"), \
+             patch("monotools.provisioning.repositories.inspect_app_repository", return_value=state), \
+             patch("monotools.provisioning.repositories._run", side_effect=command):
             remote = promote_to_submodule(definition, ROOT, owner="owner", repository="app",
                 visibility="private", verify=lambda: verified.append("verified"))
 

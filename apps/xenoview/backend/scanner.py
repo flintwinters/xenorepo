@@ -13,7 +13,7 @@ import statistics
 import subprocess
 
 from monotools.orchestration.apps import AppDefinition, discover_apps
-from xenorepo.audit import EXCLUDED_PARTS, audit_workspace
+from monotools.provisioning.audit import EXCLUDED_PARTS, audit_workspace
 
 
 LANGUAGES = {".css": "CSS", ".html": "HTML", ".js": "JavaScript", ".json": "JSON",

@@ -13,7 +13,9 @@ import typer
 
 from monotools.orchestration.management import ApplicationManager, create_cli
 from monotools.orchestration.output import print_error
-from xenorepo.repositories import RepositoryError, inspect_app_repository, promote_to_submodule
+from monotools.provisioning.repositories import (
+    RepositoryError, inspect_app_repository, promote_to_submodule,
+)
 
 
 console = Console()

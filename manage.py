@@ -27,11 +27,11 @@ from monotools.orchestration.lifecycle import (
 )
 from monotools.orchestration.management import ApplicationManager, PythonSuite, create_cli
 from monotools.orchestration.output import print_error
-from monotools.orchestration.scaffolding import ScaffoldError, scaffold_app
 from monotools.orchestration.ui import run_ui_check
-from xenorepo.audit import AuditReport, audit_workspace
-from xenorepo.management import attach_repository_commands
-from xenorepo.repositories import uninitialized_app_submodules
+from monotools.provisioning.audit import AuditReport, audit_workspace
+from monotools.provisioning.management import attach_repository_commands
+from monotools.provisioning.repositories import uninitialized_app_submodules
+from monotools.provisioning.scaffolding import ScaffoldError, scaffold_app
 
 
 ROOT = Path(__file__).resolve().parent

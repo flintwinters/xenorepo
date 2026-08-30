@@ -6,9 +6,9 @@ update its contract whenever its public surface changes.
 
 Applications are consumers; they do not import one another.
 
-Repository-specific composition lives in `xenorepo/`, outside the reusable
-library catalog. It may depend on Monotools contracts; Monotools must not depend
-on Xenorepo's audit, Git/submodule, or manager-mounting policy.
+Repository-specific composition lives in `monotools/provisioning/`, separate
+from reusable monoapp orchestration. Provisioning may depend on orchestration
+contracts; `monotools.orchestration` must not depend on provisioning policy.
 
 | Library | Language | Location | Public responsibility | Adoption rule |
 | --- | --- | --- | --- | --- |

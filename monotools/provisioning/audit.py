@@ -101,17 +101,17 @@ def _python_app_import_violations(workspace: Path,
     return violations
 
 
-def _monotools_dependency_violations(workspace: Path) -> list[AuditViolation]:
-    """Reject dependencies from reusable Monotools into Xenorepo policy."""
-    directory = workspace / "monotools"
+def _orchestration_dependency_violations(workspace: Path) -> list[AuditViolation]:
+    """Reject dependencies from reusable orchestration into provisioning policy."""
+    directory = workspace / "monotools" / "orchestration"
     if not directory.is_dir():
         return []
     violations = []
     for path in sorted(directory.rglob("*.py")):
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
         for module, line_number in _imported_modules(tree):
-            if module == "xenorepo" or module.startswith("xenorepo."):
-                violations.append(AuditViolation("monotools-xenorepo-import",
+            if module == "monotools.provisioning" or module.startswith("monotools.provisioning."):
+                violations.append(AuditViolation("orchestration-provisioning-import",
                     f"{path.relative_to(workspace)}:{line_number}", module))
     return violations
 
@@ -205,7 +205,7 @@ def audit_architecture(workspace: Path,
     """Return deterministic dependency and shared-boundary violations."""
     violations = _central_identity_violations(workspace, definitions)
     violations.extend(_python_app_import_violations(workspace, definitions))
-    violations.extend(_monotools_dependency_violations(workspace))
+    violations.extend(_orchestration_dependency_violations(workspace))
     violations.extend(_frontend_boundary_violations(workspace, definitions))
     violations.extend(_app_source_html_violations(workspace))
     violations.extend(_legacy_frontend_source_violations(workspace))

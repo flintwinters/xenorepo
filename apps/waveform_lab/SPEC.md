@@ -12,23 +12,20 @@ It does not simulate component-level voltages, tolerances, or electrical behavio
 
 ## Walking skeleton
 
-FastAPI serves one self-contained Preact artifact containing three coordinated work areas:
+FastAPI serves one self-contained Preact artifact containing two coordinated work areas:
 
-- A freeform circuit canvas can add, move, connect, disconnect, bypass, reset, and remove modules.
-  Typed audio and modulation ports permit arbitrary acyclic serial and parallel routing. A Mixer
-  combines branches; an incomplete or disconnected graph remains editable and silent.
-- The Waveform module opens a strong single-cycle editor. Pointer drawing produces one normalized
-  amplitude for every horizontal sample position, preserving a vertical-line-test-passing function
-  that can be resampled deterministically into a Web Audio periodic wave. Sine, square, saw, and
-  triangle presets, undo, and reset make exploration recoverable.
+- A CodeMirror YAML editor is the sole synth setup surface. Its `modules`, `connections`, and
+  `samples` fields define arbitrary acyclic serial and parallel routing and a normalized
+  single-cycle waveform. An incomplete or disconnected valid graph remains editable and silent;
+  malformed or invalid drafts never replace the live setup and can be corrected or reverted.
 - A piano-roll loop spans C4 through B5 over two bars of 4/4 time at sixteenth-note resolution: 24
   pitches by 32 steps. Multiple notes may occupy a step, and a note can be held through subsequent
   steps without being retriggered. The musician can toggle notes and holds, adjust BPM, start or
   stop playback, and see the active step.
 
 The browser stores one versioned YAML document with explicit `synth` and `loop` sections after
-every valid edit. The patch bay and waveform remain graphical and also expose the synth section in
-a CodeMirror YAML editor; applying a valid draft updates the live synth atomically. Notes and BPM
+every valid edit. CodeMirror replaces the patch-bay and waveform GUIs as the synth setup control
+surface; applying a valid draft updates the live synth atomically. Notes and BPM
 remain GUI-only even though the loop section is persisted as YAML. Missing, malformed, or obsolete
 saved state falls back to the documented initial patch without preventing the instrument from
 loading, while an invalid editor draft leaves live and saved state untouched and remains available
@@ -48,14 +45,13 @@ cleanly when playback is stopped or the page is left.
   browser destination. LFO and ADSR expose typed modulation outputs to compatible Gain, Filter,
   Saturation, Delay, Reverb, Chorus, and Compressor parameters.
 
-Every adjustable parameter is visible directly on its expanded module. Effects expose bypass and
-reset controls. Parameter changes made during playback rebuild or update the graph coherently and
-persist without requiring transport restart.
+Every adjustable parameter and bypass state is represented explicitly in YAML. Applying parameter
+changes during playback rebuilds the graph coherently and persists without requiring transport
+restart.
 
 ## Product invariants and states
 
-- Waveform samples are finite normalized values in `[-1, 1]`; drawing interpolates across skipped
-  pointer positions and never creates multiple amplitudes for one horizontal position.
+- Waveform samples are finite normalized values in `[-1, 1]`, with exactly one amplitude per sample.
 - Circuit connections reference existing typed ports, reject self-connections and duplicates, and
   are removed with their module. Audio connections cannot originate at Output or terminate at a
   source. Modulation connections require a control source and compatible target parameter. Cycles
@@ -69,24 +65,23 @@ persist without requiring transport restart.
   held cell of the same pitch; removing an onset removes its contiguous holds.
 - Starting playback is repeatable, stopping releases scheduled voices, and graph edits rebuild the
   audio routing without accumulating browser audio nodes.
-- Synth YAML is validated through the same domain boundary as graphical edits before it can replace
+- Synth YAML is validated through the domain boundary before it can replace
   live state; applying it preserves the current GUI-owned loop, and legacy JSON state migrates on
   the next valid edit.
-- Keyboard users can reach controls, edit loop cells, and operate waveform presets and recovery
-  actions. The layout remains usable at a narrow viewport; precision pointer drawing is a desktop
-  acceptance claim, not a touch claim.
+- Keyboard users can reach the YAML controls, edit loop cells, and operate recovery actions. The
+  layout remains usable at a narrow viewport.
 
 ## Real-world validation
 
-In a desktop Chromium session, retain the initial playable patch and build a parallel branch using
-Noise, Filter, Saturation, Chorus, Delay, Reverb, Compressor, and Mixer. Adjust every module, bypass
-and reset an effect, and connect LFO and ADSR modulation to compatible parameters. Attempt invalid
-audio, modulation, duplicate, and cyclic cables and confirm they are rejected without damaging the
-patch. Choose a waveform preset, draw a visibly different waveform, and undo the drawing. Enter
+In a desktop Chromium session, retain the initial playable patch and use YAML to build a parallel
+branch with Noise, Filter, Saturation, Chorus, Delay, Reverb, Compressor, and Mixer. Configure
+module parameters, bypass state, LFO and ADSR modulation, and waveform samples. Attempt malformed,
+out-of-range, duplicate, and cyclic setup documents and confirm they are rejected without damaging
+the patch. Enter
 notes at the first and last steps across both octaves, change BPM during playback, and observe the
 playhead cross the two-bar boundary. Reload and confirm the graph, controls, waveform, notes, and
 tempo survive. Remove a routed module and confirm only its cables disappear. Complete the control
-journey by keyboard at a narrow viewport, excluding freehand drawing.
+journey by keyboard at a narrow viewport.
 
 Automated acceptance proves deterministic waveform normalization and interpolation, circuit graph
 validation and cascading removal, saved-state validation and recovery, sequencer dimensions and BPM

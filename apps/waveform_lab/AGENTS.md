@@ -15,5 +15,5 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
-- Versioned YAML state, synth-only CodeMirror editing, and GUI-only loop editing pass wide/narrow acceptance.
+- Raw-YAML-only synth setup and the GUI-only loop editor are the active wide/narrow acceptance boundary.
 - Next: profile larger polyphonic graphs before introducing shared effect buses or AudioWorklets.

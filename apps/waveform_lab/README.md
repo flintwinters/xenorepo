@@ -3,12 +3,12 @@
 [Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)
 
 Waveform Lab is a browser-based modular synthesizer centered on a precise single-cycle waveform
-editor, a typed freeform circuit workbench, and a two-bar piano roll. Its thirteen audio and control
+definition, typed modular routing, and a two-bar piano roll. Its thirteen audio and control
 modules include waveform and noise sources, ADSR and LFO modulation, filtering, saturation,
 compression, delay, chorus, convolution reverb, mixing, gain, and output. FastAPI serves the
 self-contained Preact interface; Web Audio and browser-local YAML storage provide sound and
-versioned patch persistence without a second runtime service. A CodeMirror YAML surface supports
-direct synth setup editing with atomic validation, while the two-bar loop remains GUI-only.
+versioned patch persistence without a second runtime service. A CodeMirror YAML surface is the only
+synth setup editor and applies changes atomically, while the two-bar loop remains GUI-only.
 
 Use the Xenorepo cockpit for every lifecycle operation:
 

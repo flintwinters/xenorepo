@@ -14,10 +14,9 @@ It does not simulate component-level voltages, tolerances, or electrical behavio
 
 FastAPI serves one self-contained Preact artifact containing three coordinated work areas:
 
-- A freeform circuit canvas can add, move, connect, disconnect, and remove Waveform, Gain, and
-  Output modules. Typed audio ports permit only meaningful output-to-input connections. A complete
-  Waveform-to-Gain-to-Output path is the initial patch, while editing operations remain available
-  during playback.
+- A freeform circuit canvas can add, move, connect, disconnect, bypass, reset, and remove modules.
+  Typed audio and modulation ports permit arbitrary acyclic serial and parallel routing. A Mixer
+  combines branches; an incomplete or disconnected graph remains editable and silent.
 - The Waveform module opens a strong single-cycle editor. Pointer drawing produces one normalized
   amplitude for every horizontal sample position, preserving a vertical-line-test-passing function
   that can be resampled deterministically into a Web Audio periodic wave. Sine, square, saw, and
@@ -31,13 +30,35 @@ malformed, or obsolete saved state falls back to the documented initial patch wi
 the instrument from loading. Audio begins only after an explicit user gesture and stops cleanly
 when playback is stopped or the page is left.
 
+## Circuit module inventory
+
+- **Sources:** Waveform emits the user-drawn periodic signal for sequenced pitches; Noise emits a
+  bounded noise signal. Neither accepts an audio input.
+- **Dynamics and tone:** Gain controls level; ADSR shapes triggered notes; Filter provides
+  low-pass, high-pass, band-pass, and notch modes; Compressor bounds dynamics; Saturation applies
+  a continuously variable nonlinear waveshaping curve.
+- **Time and space:** Delay controls time, feedback, and wet mix; Chorus controls rate, depth, and
+  wet mix; Reverb controls decay and wet mix through a deterministic generated impulse response.
+- **Routing and control:** Mixer combines audio branches; Output connects the final signal to the
+  browser destination. LFO and ADSR expose typed modulation outputs to compatible Gain, Filter,
+  Saturation, Delay, Reverb, Chorus, and Compressor parameters.
+
+Every adjustable parameter is visible directly on its expanded module. Effects expose bypass and
+reset controls. Parameter changes made during playback rebuild or update the graph coherently and
+persist without requiring transport restart.
+
 ## Product invariants and states
 
 - Waveform samples are finite normalized values in `[-1, 1]`; drawing interpolates across skipped
   pointer positions and never creates multiple amplitudes for one horizontal position.
 - Circuit connections reference existing typed ports, reject self-connections and duplicates, and
-  are removed with their module. An incomplete patch remains editable and silent rather than
+  are removed with their module. Audio connections cannot originate at Output or terminate at a
+  source. Modulation connections require a control source and compatible target parameter. Cycles
+  are rejected before mutation. An incomplete patch remains editable and silent rather than
   failing the application.
+- Module parameters are finite and bounded by their declared ranges. Bypass preserves graph
+  topology, reset restores only the selected module's defaults, and removing a module cascades only
+  its attached cables.
 - BPM is finite and bounded from 40 through 240. The sequencer has exactly 32 steps and its note
   pitches remain inside the declared two-octave range.
 - Starting playback is repeatable, stopping releases scheduled voices, and graph edits rebuild the
@@ -48,12 +69,14 @@ when playback is stopped or the page is left.
 
 ## Real-world validation
 
-In a desktop Chromium session, add and reposition modules, replace connections to produce a valid
-Waveform-to-Gain-to-Output patch, choose a preset, draw a visibly different waveform, and undo the
-drawing. Enter notes at the first and last steps across both octaves, set a non-default BPM, start
-playback, and observe the playhead cross the two-bar boundary. Reload and confirm that the circuit,
-waveform, notes, and tempo survive. Remove a required connection and confirm playback becomes silent
-while editing remains available, then reconnect it and recover sound. Complete the same control
+In a desktop Chromium session, retain the initial playable patch and build a parallel branch using
+Noise, Filter, Saturation, Chorus, Delay, Reverb, Compressor, and Mixer. Adjust every module, bypass
+and reset an effect, and connect LFO and ADSR modulation to compatible parameters. Attempt invalid
+audio, modulation, duplicate, and cyclic cables and confirm they are rejected without damaging the
+patch. Choose a waveform preset, draw a visibly different waveform, and undo the drawing. Enter
+notes at the first and last steps across both octaves, change BPM during playback, and observe the
+playhead cross the two-bar boundary. Reload and confirm the graph, controls, waveform, notes, and
+tempo survive. Remove a routed module and confirm only its cables disappear. Complete the control
 journey by keyboard at a narrow viewport, excluding freehand drawing.
 
 Automated acceptance proves deterministic waveform normalization and interpolation, circuit graph
@@ -62,8 +85,9 @@ bounds, self-contained FastAPI delivery, and the principal wide and narrow brows
 
 ## Deferred scope
 
-Additional module types, component-level analog simulation, modulation and control-voltage ports,
-polyphonic voice controls, envelopes, filters, effects, automation lanes, sample import, MIDI,
-recording, audio export, collaboration, accounts, server persistence, touch-drawing acceptance, and
-mobile audio-engine claims are deferred. The circuit model stays app-owned until another monoapp
-proves a generic contract.
+Component-level electrical simulation, user-defined module code, modulation-rate audio rendering,
+polyphonic voice allocation controls, automation lanes, sample import, MIDI, recording, audio
+export, collaboration, accounts, server persistence, touch-drawing acceptance, and mobile
+audio-engine claims are deferred. The analog-style modules are musically useful Web Audio models,
+not claims of hardware equivalence. The circuit model stays app-owned until another monoapp proves
+a generic contract.

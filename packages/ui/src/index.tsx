@@ -17,6 +17,10 @@ export function ConsoleShell({ header, footer, children, class: className, ...pr
   </div>;
 }
 
+export function ConsoleWorkspace({ class: className, ...props }: DivProps) {
+  return <div class={classes("x-ui-workspace", className as string | undefined)} {...props} />;
+}
+
 export function UtilityRail({ class: className, ...props }: DivProps) {
   return <div class={classes("x-ui-rail", className as string | undefined)} {...props} />;
 }

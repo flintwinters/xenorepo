@@ -1,10 +1,5 @@
 .app-shell { height: 100%; }
 .workspace {
-  display: grid;
-  place-items: center;
-  min-height: 0;
-  padding: 24px;
-  background: #1d2021;
+  grid-template-columns: minmax(0, 1fr);
 }
-.workspace > section { width: min(680px, 100%); }
 .workspace p { margin: 0; padding: 24px; color: #b8bb26; }

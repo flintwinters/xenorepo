@@ -387,6 +387,17 @@ frontend:
         self.assertIn(".x-ui-pane-body { min-height: 0; overflow: auto; }", compact_styles)
         self.assertIn('class="x-ui-title-end"', components)
 
+    def test_console_workspace_owns_flush_hairline_panel_layout(self) -> None:
+        styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
+            encoding="utf-8")
+        components = (ROOT / "packages" / "ui" / "src" / "index.tsx").read_text(
+            encoding="utf-8")
+        compact_styles = " ".join(styles.split())
+
+        self.assertIn('class={classes("x-ui-workspace"', components)
+        self.assertIn(".x-ui-workspace { display: grid;", compact_styles)
+        self.assertIn("gap: 1px; padding: 0; overflow: hidden;", compact_styles)
+
     def test_content_height_panes_never_create_vertical_scrollports(self) -> None:
         styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
             encoding="utf-8")

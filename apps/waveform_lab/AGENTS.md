@@ -15,5 +15,5 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
-- Box selection, group note movement, and clipboard editing pass wide/narrow acceptance.
+- Top-level instrument-name-map YAML and list-form migration pass wide/narrow acceptance.
 - Next: profile larger polyphonic graphs before introducing shared effect buses or AudioWorklets.

@@ -2,8 +2,6 @@ import { parse, stringify } from "yaml";
 import { STATE_VERSION, defaultParameters, validatedState,
   type Connection, type Instrument, type LabState, type ModuleNode } from "./model.js";
 
-interface SynthState { instruments: object[]; }
-
 function moduleOf(module: ModuleNode, instrument: Instrument): object {
   const defaults = defaultParameters(module.kind);
   const parameters = Object.fromEntries(Object.entries(module.parameters ?? {})
@@ -20,18 +18,18 @@ function connectionOf(connection: Connection): object {
     ...(connection.target === undefined ? {} : { target: connection.target }) };
 }
 
-function synthOf(state: LabState): SynthState {
-  return { instruments: state.instruments.map((instrument) => ({
-    name: instrument.name, color: instrument.color,
+function instrumentMapOf(state: LabState): Record<string, object> {
+  return Object.fromEntries(state.instruments.map((instrument) => [instrument.name, {
+    color: instrument.color,
     ...(instrument.waveform === "sine" ? {} : { waveform: instrument.waveform }),
     modules: instrument.modules.map((module) => moduleOf(module, instrument)),
-  })) };
+  }]));
 }
 
 function documentOf(state: LabState): object {
   return {
     version: STATE_VERSION,
-    synth: synthOf(state),
+    ...instrumentMapOf(state),
     loop: { bpm: state.bpm, volume: state.volume, notes: state.notes },
   };
 }
@@ -43,7 +41,7 @@ export function decodeState(source: string): LabState | null {
 }
 
 export function encodeSynth(state: LabState): string {
-  return stringify({ synth: synthOf(state) }, { lineWidth: 0 });
+  return stringify(instrumentMapOf(state), { lineWidth: 0 });
 }
 
 export function applySynth(source: string, current: LabState): LabState {
@@ -51,11 +49,13 @@ export function applySynth(source: string, current: LabState): LabState {
   try { parsed = parse(source); } catch (error) {
     throw new Error(error instanceof Error ? error.message : "YAML could not be parsed.");
   }
-  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || !("synth" in parsed))
-    throw new Error("The document must contain a synth mapping.");
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+    throw new Error("The document must map instrument names to their setup.");
+  if ("version" in parsed || "loop" in parsed)
+    throw new Error("Instrument names cannot be 'version' or 'loop'.");
   const candidate = validatedState({
     version: STATE_VERSION,
-    synth: (parsed as { synth: unknown }).synth,
+    ...parsed,
     loop: { bpm: current.bpm, volume: current.volume, notes: current.notes },
   });
   if (!candidate) throw new Error("Synth YAML violates the module, connection, or waveform contract.");

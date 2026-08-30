@@ -1,6 +1,6 @@
 const SAMPLE_COUNT = 128;
 export const STEP_COUNT = 32;
-export const STATE_VERSION = 9 as const;
+export const STATE_VERSION = 10 as const;
 export const PITCHES = Array.from({ length: 48 }, (_, index) => 95 - index);
 export type WaveformShape = "sine" | "square" | "saw" | "triangle";
 
@@ -100,7 +100,7 @@ function validParameters(kind: ModuleKind, value: unknown): value is ModuleParam
     return finite(value[name]) && value[name] >= range[0] && value[name] <= range[1];
   });
 }
-type StateVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | typeof STATE_VERSION;
+type StateVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | typeof STATE_VERSION;
 function flatParameters(kind: ModuleKind, value: Record<string, unknown>, requireAll: boolean
     ): ModuleParameters | null {
   const parameters = defaultParameters(kind);
@@ -124,10 +124,10 @@ function validModule(value: unknown, version: StateVersion): value is ModuleNode
     const expected = new Set(["id", "kind", ...Object.keys(PARAMETER_BOUNDS[kind]),
       ...(bypassable.has(kind) ? ["bypass"] : []), ...(version >= 7 ? ["connections"] : [])]);
     if (Object.keys(value).some((name) => !expected.has(name))
-      || !flatParameters(kind, value, version < STATE_VERSION)) return false;
+      || !flatParameters(kind, value, version < 9)) return false;
     if (version >= 7 && value.connections !== undefined && !Array.isArray(value.connections)) return false;
   } else if (!validParameters(kind, value.parameters)) return false;
-  return bypassable.has(kind) ? (version === STATE_VERSION ? value.bypass === undefined
+  return bypassable.has(kind) ? (version >= 9 ? value.bypass === undefined
     || typeof value.bypass === "boolean" : typeof value.bypass === "boolean") : value.bypass === undefined;
 }
 function edgeType(edge: Connection): ConnectionType { return edge.type ?? "audio"; }
@@ -178,7 +178,7 @@ export function hasPlayablePath(instrument: Instrument): boolean {
 
 function waveformOf(saved: Record<string, unknown>, version: StateVersion): WaveformShape | null {
   if (version >= 5)
-    if (version === STATE_VERSION && saved.waveform === undefined) return "sine";
+    if (version >= 9 && saved.waveform === undefined) return "sine";
   if (version >= 5)
     return ["sine", "square", "saw", "triangle"].includes(saved.waveform as string)
       ? saved.waveform as WaveformShape : null;
@@ -216,7 +216,7 @@ function modulesOf(values: unknown[], version: StateVersion): ModuleNode[] | nul
     if (version === 1) return createModule(node.id, node.kind);
     if (version >= 6) {
       const raw = value as unknown as Record<string, unknown>;
-      const parameters = flatParameters(node.kind, raw, version < STATE_VERSION);
+      const parameters = flatParameters(node.kind, raw, version < 9);
       if (!parameters) throw new Error("validated module parameters were not recoverable");
       return { id: node.id, kind: node.kind,
         parameters, ...(bypassable.has(node.kind) ? { bypass: node.bypass ?? false } : {}) };
@@ -256,16 +256,19 @@ function embeddedConnections(values: unknown[]): unknown[] | null {
   return connections;
 }
 
-function instrumentOf(value: unknown, version: StateVersion): Instrument | null {
-  if (!record(value) || typeof value.name !== "string" || !value.name.trim()
-      || !/^#[0-9a-fA-F]{6}$/.test(value.color as string) || !Array.isArray(value.modules)) return null;
-  if (Object.keys(value).some((key) => !["name", "color", "waveform", "modules"].includes(key))) return null;
+function instrumentOf(value: unknown, version: StateVersion, mappedName?: string): Instrument | null {
+  if (!record(value) || !/^#[0-9a-fA-F]{6}$/.test(value.color as string)
+      || !Array.isArray(value.modules)) return null;
+  const name = mappedName ?? value.name;
+  if (typeof name !== "string" || !name.trim()) return null;
+  const fields = mappedName ? ["color", "waveform", "modules"] : ["name", "color", "waveform", "modules"];
+  if (Object.keys(value).some((key) => !fields.includes(key))) return null;
   const modules = modulesOf(value.modules, version);
   const embedded = embeddedConnections(value.modules);
   const waveform = waveformOf(value, version);
   if (!modules || !embedded || !waveform) return null;
   const connections = connectionsOf(embedded, modules, false);
-  return connections ? { name: value.name, color: value.color as string,
+  return connections ? { name, color: value.color as string,
     waveform, modules, connections } : null;
 }
 
@@ -273,7 +276,7 @@ function flattened(value: Record<string, unknown>): Record<string, unknown> | nu
   if (value.version === 1) return value;
   if (value.version !== 2 && value.version !== 3 && value.version !== 4 && value.version !== 5
       && value.version !== 6 && value.version !== 7 && value.version !== 8
-      && value.version !== STATE_VERSION) return null;
+      && value.version !== 9 && value.version !== STATE_VERSION) return null;
   if (!record(value.synth) || !record(value.loop)) return value;
   return { version: value.version, ...value.synth, ...value.loop };
 }
@@ -284,8 +287,18 @@ export function validatedState(value: unknown): LabState | null {
   const saved = flattened(value);
   if (!saved || (saved.version !== 1 && saved.version !== 2 && saved.version !== 3 && saved.version !== 4
       && saved.version !== 5 && saved.version !== 6 && saved.version !== 7 && saved.version !== 8
-      && saved.version !== STATE_VERSION)) return null;
+      && saved.version !== 9 && saved.version !== STATE_VERSION)) return null;
   const version = saved.version as StateVersion;
+  if (version === STATE_VERSION) {
+    if (!record(saved.loop)) return null;
+    const entries = Object.entries(saved).filter(([name]) => name !== "version" && name !== "loop");
+    if (!entries.length) return null;
+    const instruments = entries.map(([name, instrument]) => instrumentOf(instrument, version, name));
+    if (instruments.some((instrument) => !instrument)) return null;
+    const validInstruments = instruments as Instrument[];
+    const sequencer = sequence(saved.loop as Record<string, unknown>, version, new Set(entries.map(([name]) => name)));
+    return sequencer ? { version: STATE_VERSION, instruments: validInstruments, ...sequencer } : null;
+  }
   if (version >= 8) {
     if (!Array.isArray(saved.instruments) || !saved.instruments.length) return null;
     const instruments = saved.instruments.map((instrument) => instrumentOf(instrument, version));

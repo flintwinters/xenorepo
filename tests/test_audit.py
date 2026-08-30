@@ -69,6 +69,17 @@ class AuditTests(unittest.TestCase):
         self.assertEqual(len(report.complex_functions), 1)
         self.assertIn("decide: 10", report.complex_functions[0].detail)
 
+    def test_runtime_state_is_not_maintained_source(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="audit-") as temporary:
+            workspace = Path(temporary)
+            runtime = workspace / ".state" / "generated.py"
+            runtime.parent.mkdir()
+            runtime.write_text("\n".join("if value: pass" for _ in range(700)), encoding="utf-8")
+
+            report = audit_workspace(workspace, ())
+
+        self.assertEqual((report.large_files, report.complex_functions), ((), ()))
+
     def test_architecture_audit_requires_explanatory_monotools_docstrings(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="audit-") as temporary:
             workspace = Path(temporary)

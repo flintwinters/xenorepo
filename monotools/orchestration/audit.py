@@ -19,7 +19,9 @@ from monotools.orchestration.apps import AppDefinition
 SOURCE_ROOTS = ("apps", "monotools", "packages", "tests")
 SOURCE_SUFFIXES = frozenset({".py", ".js", ".ts", ".tsx", ".css", ".html"})
 TEXT_SUFFIXES = SOURCE_SUFFIXES | frozenset({".md", ".json", ".toml", ".yaml", ".yml"})
-EXCLUDED_PARTS = frozenset({".git", ".venv", "data", "dist", "historic", "node_modules", "__pycache__"})
+EXCLUDED_PARTS = frozenset({
+    ".git", ".state", ".venv", "data", "dist", "historic", "node_modules", "__pycache__",
+})
 MAX_SOURCE_LINES = 600
 MAX_CYCLOMATIC_COMPLEXITY = 8
 _SCRIPT_IMPORT = re.compile(r"(?:from\s+|import\s*)[\"']([^\"']+)[\"']")

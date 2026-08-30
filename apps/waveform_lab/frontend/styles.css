@@ -1,0 +1,45 @@
+.lab-shell { height: 100%; }
+.workspace { display: grid; grid-template-columns: minmax(400px, 1.15fr) minmax(360px, 0.85fr); gap: 9px; min-height: 0; padding: 10px; overflow: auto; background: #181a1b; }
+.circuit-pane { grid-column: 1; } .wave-pane { grid-column: 2; } .sequence-pane { grid-column: 1 / 3; }
+.header-state { margin-left: auto; color: #8ec07c; }
+button, input { color: #ebdbb2; font: inherit; background: #282828; border: 1px solid #665c54; }
+button { padding: 5px 8px; cursor: pointer; }
+button:hover, button:focus-visible { color: #fabd2f; border-color: #fabd2f; outline: none; }
+button:disabled { opacity: 0.45; cursor: default; }
+.module-tools, .wave-tools, .transport { display: flex; align-items: center; gap: 6px; padding: 7px; flex-wrap: wrap; }
+.circuit { position: relative; height: 350px; overflow: hidden; background-color: #202322;
+  background-image: radial-gradient(#504945 1px, transparent 1px); background-size: 16px 16px; border-block: 1px solid #3c3836; }
+.cables { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.cables line { stroke: #fabd2f; stroke-width: 3; stroke-linecap: round; filter: drop-shadow(0 0 3px #000); }
+.module { position: absolute; width: 152px; height: 92px; color: #ebdbb2; background: #3c3836;
+  border: 1px solid #928374; box-shadow: 4px 5px 0 rgb(0 0 0 / 0.4); touch-action: none; user-select: none; }
+.module header { display: flex; justify-content: space-between; align-items: center; padding: 5px 7px; cursor: move; border-bottom: 1px solid #504945; }
+.module header button { padding: 0 5px; }
+.module.waveform { border-top: 3px solid #8ec07c; } .module.gain { border-top: 3px solid #fabd2f; } .module.output { border-top: 3px solid #d3869b; }
+.port { position: absolute; top: 42px; padding: 4px; font-size: 10px; border-radius: 50%; }
+.port.input { left: -13px; } .port.output { right: -17px; } .port.armed { color: #1d2021; background: #fabd2f; }
+.module-id { position: absolute; left: 8px; bottom: 7px; max-width: 130px; color: #a89984; font-size: 10px; overflow: hidden; }
+.connections { display: flex; gap: 5px; margin: 0; padding: 6px; list-style: none; overflow-x: auto; }
+.connections li { flex: none; padding-left: 6px; color: #a89984; border-left: 2px solid #fabd2f; }
+.connections button { margin-left: 7px; padding: 2px 4px; font-size: 10px; }
+.wave-editor { display: block; width: calc(100% - 14px); height: 250px; margin: 0 7px; cursor: crosshair;
+  background: #101414; border: 1px solid #504945; touch-action: none; }
+.wave-grid { fill: none; stroke: #3c3836; stroke-width: 2; }
+.wave-editor polyline { fill: none; stroke: #b8bb26; stroke-width: 4; vector-effect: non-scaling-stroke; }
+.editor-note { margin: 7px; color: #a89984; font-size: 11px; }
+.transport { border-bottom: 1px solid #3c3836; }
+.transport .play { min-width: 92px; color: #8ec07c; } .transport .play[aria-pressed="true"] { color: #fb4934; border-color: #fb4934; }
+.transport label { display: flex; align-items: center; gap: 5px; color: #fabd2f; } .transport input { width: 58px; padding: 4px; }
+.transport span { margin-left: auto; color: #8ec07c; }
+.piano-scroll { max-height: 360px; overflow: auto; background: #111; } .piano-roll { min-width: 920px; }
+.pitch-row { display: grid; grid-template-columns: 48px repeat(32, 1fr); height: 21px; }
+.pitch-label { position: sticky; left: 0; z-index: 2; padding: 2px 5px; color: #ebdbb2; font-size: 10px; background: #282828; border: 1px solid #3c3836; }
+.pitch-row button { min-width: 24px; padding: 0; border: 1px solid #282828; background: #1d2021; }
+.pitch-row button.beat { border-left-color: #665c54; } .pitch-row button.bar { border-left: 2px solid #d3869b; }
+.pitch-row button.active { background: #b8bb26; box-shadow: inset 0 0 0 2px #d5d87a; }
+.pitch-row button.playing { border-right-color: #fabd2f; filter: brightness(1.6); }
+@media (max-width: 760px) {
+  .workspace { display: block; padding: 0; } .workspace > section { margin-bottom: 6px; }
+  .circuit { height: 330px; overflow: auto; } .wave-editor { height: 220px; }
+  .transport span { width: 100%; margin-left: 0; }
+}

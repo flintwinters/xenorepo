@@ -60,8 +60,8 @@ restart.
   are rejected before mutation. An incomplete patch remains editable and silent rather than
   failing the application.
 - Each connection is stored exactly once inside its source module with explicit `from`, `to`,
-  `type`, and optional modulation `target`; there is no separate top-level connection section, and
-  the embedded `from` must match its owning module.
+  optional `type`, and optional modulation `target`; omitted type means audio. There is no separate
+  top-level connection section, and the embedded `from` must match its owning module.
 - Instrument names are unique and non-empty, colors are six-digit hex values, and every instrument
   owns a self-contained graph. Loop notes reference an existing instrument by name; selecting an
   instrument changes which notes the GUI edits, and assigned cells render in that instrument's color.
@@ -71,6 +71,8 @@ restart.
 - Modules contain only sonic identity, type, parameters, and optional bypass state; obsolete visual
   canvas coordinates are migrated away and are not part of current synth YAML. Each parameter is a
   direct module field rather than being hidden under a `parameters` wrapper.
+- Omitted module parameters use their module-kind defaults, omitted bypass means enabled, and an
+  omitted instrument waveform means sine. Canonical YAML suppresses these default values.
 - BPM is finite and bounded from 40 through 240. The sequencer has exactly 32 steps and its note
   pitches remain inside the declared four-octave range. App volume is finite and bounded from silence
   through unity gain, remains independent of synth Output modules, and is applied at the destination.

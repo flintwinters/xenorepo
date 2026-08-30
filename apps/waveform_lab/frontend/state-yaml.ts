@@ -1,18 +1,29 @@
 import { parse, stringify } from "yaml";
-import { STATE_VERSION, validatedState, type Instrument, type LabState, type ModuleNode } from "./model.js";
+import { STATE_VERSION, defaultParameters, validatedState,
+  type Connection, type Instrument, type LabState, type ModuleNode } from "./model.js";
 
 interface SynthState { instruments: object[]; }
 
 function moduleOf(module: ModuleNode, instrument: Instrument): object {
-  const connections = instrument.connections.filter((edge) => edge.from === module.id);
-  return { id: module.id, kind: module.kind, ...module.parameters,
-    ...(module.bypass === undefined ? {} : { bypass: module.bypass }),
+  const defaults = defaultParameters(module.kind);
+  const parameters = Object.fromEntries(Object.entries(module.parameters ?? {})
+    .filter(([name, value]) => value !== defaults[name]));
+  const connections = instrument.connections.filter((edge) => edge.from === module.id).map(connectionOf);
+  return { id: module.id, kind: module.kind, ...parameters,
+    ...(module.bypass ? { bypass: true } : {}),
     ...(connections.length ? { connections } : {}) };
+}
+
+function connectionOf(connection: Connection): object {
+  return { from: connection.from, to: connection.to,
+    ...((connection.type ?? "audio") === "audio" ? {} : { type: connection.type }),
+    ...(connection.target === undefined ? {} : { target: connection.target }) };
 }
 
 function synthOf(state: LabState): SynthState {
   return { instruments: state.instruments.map((instrument) => ({
-    name: instrument.name, color: instrument.color, waveform: instrument.waveform,
+    name: instrument.name, color: instrument.color,
+    ...(instrument.waveform === "sine" ? {} : { waveform: instrument.waveform }),
     modules: instrument.modules.map((module) => moduleOf(module, instrument)),
   })) };
 }

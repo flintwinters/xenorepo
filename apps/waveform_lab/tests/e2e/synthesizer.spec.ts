@@ -6,6 +6,15 @@ test("[acceptance] the GUI loop survives reload and controls playback", async ({
   await expect(page.getByRole("gridcell")).toHaveCount(24 * 32);
   await expect(page.getByLabel("Patch bay")).toHaveCount(0);
   await expect(page.getByLabel("Draw one cycle waveform")).toHaveCount(0);
+  const overflow = await page.evaluate(() => ({
+    documentX: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    documentY: document.documentElement.scrollHeight > document.documentElement.clientHeight,
+    pianoX: document.querySelector<HTMLElement>(".piano-scroll")!.scrollWidth
+      > document.querySelector<HTMLElement>(".piano-scroll")!.clientWidth,
+    pianoY: document.querySelector<HTMLElement>(".piano-scroll")!.scrollHeight
+      > document.querySelector<HTMLElement>(".piano-scroll")!.clientHeight,
+  }));
+  expect(overflow).toEqual({ documentX: false, documentY: false, pianoX: false, pianoY: false });
 
   const first = page.getByRole("gridcell", { name: "C4, step 1", exact: true });
   const last = page.getByRole("gridcell", { name: "B5, step 32", exact: true });

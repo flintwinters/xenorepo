@@ -69,7 +69,8 @@ restart.
   live state; applying it preserves the current GUI-owned loop, and legacy JSON state migrates on
   the next valid edit.
 - Keyboard users can reach the YAML controls, edit loop cells, and operate recovery actions. The
-  layout remains usable at a narrow viewport.
+  document and loop remain fully fitted without scrollbars at wide and narrow viewports; only the
+  code editor owns overflow and scrolling.
 
 ## Real-world validation
 

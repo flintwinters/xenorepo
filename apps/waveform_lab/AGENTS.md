@@ -15,4 +15,5 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
-- Prove the first Waveform Lab walking skeleton against its specification and acceptance journey.
+- Initial modular synth skeleton passes app check, test, and wide/narrow browser acceptance.
+- Next: deepen waveform tools or circuit modules only from a newly specified user journey.

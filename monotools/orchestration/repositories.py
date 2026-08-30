@@ -4,6 +4,8 @@ This module changes source ownership without changing the application-platform
 contract: promoted apps remain deliberate consumers of their enclosing Xenorepo.
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
 from configparser import ConfigParser
 from dataclasses import dataclass
@@ -11,8 +13,10 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+from typing import TYPE_CHECKING
 
-from monotools.orchestration.apps import AppDefinition
+if TYPE_CHECKING:
+    from monotools.orchestration.apps import AppDefinition
 
 
 class RepositoryError(RuntimeError):

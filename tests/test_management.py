@@ -11,6 +11,7 @@ from unittest.mock import ANY, patch
 import typer
 from typer.testing import CliRunner
 
+from monotools.orchestration import apps as app_registry
 from monotools.orchestration.apps import AppDefinitionError, ROOT
 from monotools.orchestration.audit import AuditReport, AuditViolation
 from monotools.orchestration.management import create_app_manager, create_cli, resolve_local_app
@@ -173,10 +174,12 @@ frontend:
 
     def test_root_check_executes_every_application_once_in_stable_order(self) -> None:
         with patch("manage.validate_app") as validate, patch("manage.build_app") as build, \
-             patch("manage.validate_dist") as validate_dist:
+             patch("manage.validate_dist") as validate_dist, \
+             patch("manage.uninitialized_app_submodules", return_value=()), \
+             patch("manage.discover_managers", return_value=repository_manager.MANAGERS):
             result = CliRunner().invoke(repository_manager.app, ["check"])
 
-        self.assertEqual(result.exit_code, 0)
+        self.assertEqual(result.exit_code, 0, result.output)
         definitions = [definition for definition, _ in repository_manager.MANAGERS]
         self.assertEqual([call.args[0] for call in validate.call_args_list], definitions)
         self.assertEqual([call.args[0] for call in build.call_args_list], definitions)
@@ -195,6 +198,7 @@ frontend:
                 values[field] = (violation,)
                 report = AuditReport(**values)
                 with patch("manage._collect_audit", return_value=report), \
+                     patch("manage.uninitialized_app_submodules", return_value=()), \
                      patch("manage.validate_app") as validate, \
                      patch("manage.build_app") as build:
                     result = CliRunner().invoke(repository_manager.app, ["check"], color=False)
@@ -284,6 +288,8 @@ frontend:
             (bleb / "data/cache.json").write_text("{}\n", encoding="utf-8")
             self.assertEqual(uninitialized_app_submodules(workspace), (bleb,))
             self.assertEqual(repository_manager.discover_managers(apps_directory), ())
+            with patch.object(app_registry, "APPS_DIRECTORY", apps_directory):
+                self.assertEqual(app_registry.discover_apps(), ())
 
             (bleb / ".git").write_text("gitdir: ../../.git/modules/apps/bleb\n",
                 encoding="utf-8")

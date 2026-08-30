@@ -13,6 +13,8 @@ from ruamel.yaml import YAML
 from ruamel.yaml.constructor import DuplicateKeyError
 from ruamel.yaml.error import YAMLError
 
+from monotools.orchestration.repositories import uninitialized_app_submodules
+
 
 ROOT = Path(__file__).resolve().parents[2]
 APPS_DIRECTORY = ROOT / "apps"
@@ -290,9 +292,11 @@ def load_app(directory: Path) -> AppDefinition:
 def discover_apps() -> tuple[AppDefinition, ...]:
     if not APPS_DIRECTORY.is_dir():
         return ()
+    uninitialized = {path.resolve()
+        for path in uninitialized_app_submodules(APPS_DIRECTORY.parent)}
     return tuple(load_app(directory) for directory in sorted(APPS_DIRECTORY.iterdir())
                  if directory.is_dir() and not directory.name.startswith((".", "_"))
-                 and not is_planned_app(directory))
+                 and directory.resolve() not in uninitialized and not is_planned_app(directory))
 
 
 def is_planned_app(directory: Path) -> bool:

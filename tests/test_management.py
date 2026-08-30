@@ -266,7 +266,7 @@ frontend:
             with self.assertRaisesRegex(repository_manager.ManagerError, "has no manage.py"):
                 repository_manager.discover_managers(apps_directory)
 
-    def test_declared_empty_submodules_are_visible_but_do_not_block_bootstrap(self) -> None:
+    def test_declared_uninitialized_submodules_ignore_stale_generated_files(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="submodules-") as temporary:
             workspace = Path(temporary)
             apps_directory = workspace / "apps"
@@ -280,7 +280,14 @@ frontend:
             self.assertEqual(declared_app_submodules(workspace), (bleb,))
             self.assertEqual(uninitialized_app_submodules(workspace), (bleb,))
             self.assertEqual(repository_manager.discover_managers(apps_directory), ())
-            (bleb / "README.md").write_text("partial\n", encoding="utf-8")
+            (bleb / "data").mkdir()
+            (bleb / "data/cache.json").write_text("{}\n", encoding="utf-8")
+            self.assertEqual(uninitialized_app_submodules(workspace), (bleb,))
+            self.assertEqual(repository_manager.discover_managers(apps_directory), ())
+
+            (bleb / ".git").write_text("gitdir: ../../.git/modules/apps/bleb\n",
+                encoding="utf-8")
+            self.assertEqual(uninitialized_app_submodules(workspace), ())
             with self.assertRaisesRegex(repository_manager.ManagerError, "has no manage.py"):
                 repository_manager.discover_managers(apps_directory)
 

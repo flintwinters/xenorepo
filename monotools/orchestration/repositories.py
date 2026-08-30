@@ -54,7 +54,7 @@ def declared_app_submodules(workspace: Path) -> tuple[Path, ...]:
 def uninitialized_app_submodules(workspace: Path) -> tuple[Path, ...]:
     """Return declared app submodules whose working trees have not been populated."""
     return tuple(path for path in declared_app_submodules(workspace)
-        if not path.is_dir() or not any(path.iterdir()))
+        if not (path / ".git").exists())
 
 
 def _run(command: list[str], cwd: Path) -> str:

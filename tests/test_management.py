@@ -15,10 +15,10 @@ from typer.testing import CliRunner
 
 from monotools.orchestration import apps as app_registry
 from monotools.orchestration.apps import AppDefinitionError, ROOT
-from monotools.orchestration.audit import AuditReport, AuditViolation
+from xenorepo.audit import AuditReport, AuditViolation
 from monotools.orchestration.management import create_app_manager, create_cli, resolve_local_app
 from monotools.orchestration.output import print_error
-from monotools.orchestration.repositories import (
+from xenorepo.repositories import (
     AppRepositoryState,
     RepositoryError,
     declared_app_submodules,
@@ -111,7 +111,7 @@ frontend:
         command_names = {command.name or command.callback.__name__.replace("_", "-")
             for command in app.registered_commands}
         self.assertEqual(command_names, {"build", "check", "test", "ui-check", "verify"})
-        self.assertEqual({group.name for group in app.registered_groups}, {"git"})
+        self.assertEqual(app.registered_groups, [])
 
     def test_standard_serve_delegates_to_shared_lifecycle(self) -> None:
         app, manage_file = self._manager()
@@ -180,6 +180,7 @@ frontend:
         self.assertEqual(result.exit_code, 0)
         for command in ("build", "check", "test", "serve", "ui-check", "verify"):
             self.assertIn(command, result.output)
+        self.assertIn("git", result.output)
         self.assertNotIn("bootstrap", result.output)
         self.assertNotIn("status", result.output)
 
@@ -400,9 +401,9 @@ frontend:
 
         verified: list[str] = []
         state = AppRepositoryState("monolith", True, None, "current")
-        with patch("monotools.orchestration.repositories.shutil.which", return_value="/usr/bin/tool"), \
-             patch("monotools.orchestration.repositories.inspect_app_repository", return_value=state), \
-             patch("monotools.orchestration.repositories._run", side_effect=command):
+        with patch("xenorepo.repositories.shutil.which", return_value="/usr/bin/tool"), \
+             patch("xenorepo.repositories.inspect_app_repository", return_value=state), \
+             patch("xenorepo.repositories._run", side_effect=command):
             remote = promote_to_submodule(definition, ROOT, owner="owner", repository="app",
                 visibility="private", verify=lambda: verified.append("verified"))
 

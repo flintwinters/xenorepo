@@ -1,4 +1,4 @@
-"""Inspect and promote monoapp Git repository boundaries.
+"""Inspect and promote Xenorepo monoapp Git repository boundaries.
 
 This module changes source ownership without changing the application-platform
 contract: promoted apps remain deliberate consumers of their enclosing Xenorepo.

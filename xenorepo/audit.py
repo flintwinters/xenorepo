@@ -16,7 +16,7 @@ import subprocess
 from monotools.orchestration.apps import AppDefinition
 
 
-SOURCE_ROOTS = ("apps", "monotools", "packages", "tests")
+SOURCE_ROOTS = ("apps", "monotools", "packages", "tests", "xenorepo")
 SOURCE_SUFFIXES = frozenset({".py", ".js", ".ts", ".tsx", ".css", ".html"})
 TEXT_SUFFIXES = SOURCE_SUFFIXES | frozenset({".md", ".json", ".toml", ".yaml", ".yml"})
 EXCLUDED_PARTS = frozenset({
@@ -58,7 +58,8 @@ def _source_files(workspace: Path) -> tuple[Path, ...]:
 
 
 def _central_text_files(workspace: Path) -> tuple[Path, ...]:
-    roots = [workspace, workspace / "monotools", workspace / "packages", workspace / "tests"]
+    roots = [workspace, workspace / "monotools", workspace / "packages", workspace / "tests",
+        workspace / "xenorepo"]
     candidates: set[Path] = set()
     for root in roots:
         if not root.is_dir():
@@ -97,6 +98,21 @@ def _python_app_import_violations(workspace: Path,
                 if module.startswith("apps.") and module != owned and not module.startswith(owned + "."):
                     violations.append(AuditViolation("cross-app-import",
                         f"{path.relative_to(workspace)}:{line_number}", module))
+    return violations
+
+
+def _monotools_dependency_violations(workspace: Path) -> list[AuditViolation]:
+    """Reject dependencies from reusable Monotools into Xenorepo policy."""
+    directory = workspace / "monotools"
+    if not directory.is_dir():
+        return []
+    violations = []
+    for path in sorted(directory.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        for module, line_number in _imported_modules(tree):
+            if module == "xenorepo" or module.startswith("xenorepo."):
+                violations.append(AuditViolation("monotools-xenorepo-import",
+                    f"{path.relative_to(workspace)}:{line_number}", module))
     return violations
 
 
@@ -189,6 +205,7 @@ def audit_architecture(workspace: Path,
     """Return deterministic dependency and shared-boundary violations."""
     violations = _central_identity_violations(workspace, definitions)
     violations.extend(_python_app_import_violations(workspace, definitions))
+    violations.extend(_monotools_dependency_violations(workspace))
     violations.extend(_frontend_boundary_violations(workspace, definitions))
     violations.extend(_app_source_html_violations(workspace))
     violations.extend(_legacy_frontend_source_violations(workspace))

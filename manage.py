@@ -12,7 +12,6 @@ import typer
 from monotools.orchestration.apps import (
     AppDefinition, AppDefinitionError, discover_planned_apps, is_planned_app, load_app,
 )
-from monotools.orchestration.audit import AuditReport, audit_workspace
 from monotools.orchestration.browser import run_browser_framework_suite
 from monotools.orchestration.lifecycle import (
     LifecycleError,
@@ -25,9 +24,11 @@ from monotools.orchestration.lifecycle import (
 )
 from monotools.orchestration.management import ApplicationManager, PythonSuite, create_cli
 from monotools.orchestration.output import print_error
-from monotools.orchestration.repositories import uninitialized_app_submodules
 from monotools.orchestration.scaffolding import ScaffoldError, scaffold_app
 from monotools.orchestration.ui import run_ui_check
+from xenorepo.audit import AuditReport, audit_workspace
+from xenorepo.management import attach_repository_commands
+from xenorepo.repositories import uninitialized_app_submodules
 
 
 ROOT = Path(__file__).resolve().parent
@@ -152,6 +153,7 @@ monoapp = create_cli("Create and manage Xenorepo monoapps.")
 app.add_typer(monoapp, name="monoapp")
 MANAGERS = discover_managers()
 for definition, manager in MANAGERS:
+    attach_repository_commands(manager, ROOT)
     app.add_typer(manager.app, name=definition.name)
 
 

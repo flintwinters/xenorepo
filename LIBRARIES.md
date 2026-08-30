@@ -6,6 +6,10 @@ update its contract whenever its public surface changes.
 
 Applications are consumers; they do not import one another.
 
+Repository-specific composition lives in `xenorepo/`, outside the reusable
+library catalog. It may depend on Monotools contracts; Monotools must not depend
+on Xenorepo's audit, Git/submodule, or manager-mounting policy.
+
 | Library | Language | Location | Public responsibility | Adoption rule |
 | --- | --- | --- | --- | --- |
 | Monotools | Python + TypeScript tooling | `monotools/`, `tsconfig.preact.json` | Typed metadata, discovery, lifecycle orchestration, build validation, FastAPI runtime, portable persistence, generic transport primitives, and evidence handling. | A capability must be declarative and reusable by an arbitrary future monoapp. |

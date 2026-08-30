@@ -1,5 +1,7 @@
 import { Component, createRef } from "preact";
-import { CommandButton, ConsolePane, ConsoleShell, EmptyState, StatusRail, UtilityRail } from "@xenorepo/ui";
+import {
+  CommandButton, ConsolePane, ConsoleShell, ConsoleWorkspace, EmptyState, StatusRail, UtilityRail,
+} from "@xenorepo/ui";
 import { ChatTransport } from "./socket.js";
 import type { ChatMessage, ConnectionState, ServerEvent } from "./types.js";
 import "./styles.css";
@@ -168,7 +170,7 @@ export class ChatRoom extends Component<Record<string, never>, ChatState> {
     );
     return (
       <ConsoleShell class="chat-shell" aria-label="Common Room live chat" header={header} footer={footer}>
-        <section class="mosaic">
+        <ConsoleWorkspace class="mosaic">
           <ConsolePane class="roster" title="CHANNEL INDEX">
             <ul class="channel-list">
               <li>
@@ -237,7 +239,7 @@ export class ChatRoom extends Component<Record<string, never>, ChatState> {
               </CommandButton>
             </form>
           </ConsolePane>
-        </section>
+        </ConsoleWorkspace>
       </ConsoleShell>
     );
   }

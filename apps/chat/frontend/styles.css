@@ -37,12 +37,8 @@
   --indicator: #fe8019;
 }
 .mosaic {
-  min-height: 0;
-  display: grid;
   grid-template-columns: 176px minmax(360px, 1fr) 220px;
   grid-template-rows: minmax(0, 1fr) 145px;
-  gap: 1px;
-  background: #111;
 }
 .mosaic > .x-ui-pane {
   min-width: 0;

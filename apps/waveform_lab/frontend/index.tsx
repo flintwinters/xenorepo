@@ -1,5 +1,5 @@
 import { Component, render } from "preact";
-import { ConsolePane, ConsoleShell, StatusRail, UtilityRail } from "@xenorepo/ui";
+import { ConsolePane, ConsoleShell, ConsoleWorkspace, StatusRail, UtilityRail } from "@xenorepo/ui";
 import { SynthEngine } from "./audio.js";
 import { decodeState, encodeState } from "./state-yaml.js";
 import { SynthYamlEditor } from "./yaml-editor.js";
@@ -86,9 +86,9 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
     const header = <UtilityRail><strong>WAVEFORM LAB</strong><span>MODULAR SIGNAL WORKBENCH</span>
       <span class="header-state">{this.state.playing ? "RUNNING" : "READY"}</span></UtilityRail>;
     const footer = <StatusRail><span>WEB AUDIO</span><span>13 MODULE TYPES · AUDIO + MODULATION</span></StatusRail>;
-    return <ConsoleShell class="lab-shell" header={header} footer={footer}><div class="workspace">
+    return <ConsoleShell class="lab-shell" header={header} footer={footer}><ConsoleWorkspace class="workspace">
       <SynthYamlEditor lab={this.state.lab} commit={this.commit} />{this.renderSequencer()}
-    </div></ConsoleShell>;
+    </ConsoleWorkspace></ConsoleShell>;
   }
 }
 

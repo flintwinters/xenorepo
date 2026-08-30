@@ -90,11 +90,7 @@
         margin-right: auto;
       }
       .workspace {
-        min-height: 0;
-        display: grid;
         grid-template-columns: 220px minmax(320px, 1fr);
-        gap: 1px;
-        background: var(--dark);
       }
       .pane {
         min-height: 0;

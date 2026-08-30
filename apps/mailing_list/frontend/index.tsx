@@ -4,6 +4,7 @@ import {
   CommandButton,
   ConsolePane,
   ConsoleShell,
+  ConsoleWorkspace,
   StatusRail,
   UtilityRail,
 } from "@xenorepo/ui";
@@ -123,7 +124,7 @@ function Enrollment() {
     footer={<StatusRail><span class={`mailing-indicator ${statusTone}`}><i /><span role="status">
       {phaseLabel[phase]}
     </span></span><span class="mailing-footer-note">NO ADS · CANCEL ANY TIME</span></StatusRail>}>
-    <section class="mailing-body" aria-labelledby="mailing-title">
+    <ConsoleWorkspace class="mailing-body" aria-labelledby="mailing-title">
       <div class="mailing-editorial">
         <p class="mailing-kicker">A MONTHLY FIELD LETTER</p>
         <h1 id="mailing-title">Reporting for people who still read past the headline.</h1>
@@ -182,7 +183,7 @@ function Enrollment() {
           <p class="mailing-assurance">SECURE CHECKOUT · EMAIL USED ONLY FOR DELIVERY</p>
         </div>
       </ConsolePane>
-    </section>
+    </ConsoleWorkspace>
   </ConsoleShell>;
 }
 

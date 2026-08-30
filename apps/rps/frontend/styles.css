@@ -95,10 +95,7 @@
         color: var(--muted);
       }
       .landing-mosaic {
-        min-height: 0;
-        display: grid;
         grid-template-columns: minmax(260px, 2fr) minmax(280px, 1fr);
-        gap: 1px;
       }
       .entry-body {
         display: grid;
@@ -231,11 +228,8 @@
         color: var(--red);
       }
       .mosaic {
-        min-height: 0;
-        display: grid;
         grid-template-columns: 190px 1fr;
         grid-template-rows: 1fr 164px;
-        gap: 1px;
       }
       .pane {
         min-height: 0;

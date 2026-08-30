@@ -395,8 +395,11 @@ frontend:
         compact_styles = " ".join(styles.split())
 
         self.assertIn('class={classes("x-ui-workspace"', components)
-        self.assertIn(".x-ui-workspace { display: grid;", compact_styles)
-        self.assertIn("gap: 1px; padding: 0; overflow: hidden;", compact_styles)
+        self.assertIn(".x-ui-workspace { display: grid !important;", compact_styles)
+        self.assertIn(
+            "gap: 1px !important; padding: 0 !important; overflow: hidden !important;",
+            compact_styles,
+        )
 
     def test_content_height_panes_never_create_vertical_scrollports(self) -> None:
         styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(

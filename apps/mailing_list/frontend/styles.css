@@ -9,13 +9,7 @@
 .mailing-header strong { color: #f2e7c6; letter-spacing: 0.12em; }
 .mailing-header-end { margin-left: auto; color: #b8bb26; }
 .mailing-body {
-  display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
-  width: min(1040px, calc(100% - 64px));
-  margin: auto;
-  border: 1px solid #504945;
-  background: #202322;
-  box-shadow: 0 18px 50px #090a0a99;
 }
 .mailing-editorial {
   position: relative;

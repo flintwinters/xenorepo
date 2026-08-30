@@ -24,12 +24,8 @@ html,
         color: var(--aqua);
       }
       .grid {
-        min-height: 0;
-        display: grid;
         grid-template-columns: 190px minmax(360px, 1fr) 230px;
         grid-template-rows: minmax(300px, 1fr) 155px;
-        gap: 1px;
-        background: #111;
       }
       .pane {
         display: grid;

@@ -11,8 +11,10 @@ shared code is limited to provider-neutral infrastructure contracts.
 
 ## Current tasks
 
-- Extend the proven subscription contracts with hosted checkout, including
-  wallet-assisted payment, signed webhooks, and SMTP only after sandbox
+- Complete the `SPEC.md` sandbox lifecycle through public HTTP boundaries,
+  including signed notification handling, idempotent activation, and visible
+  checkout status.
+- Add live hosted checkout, wallet-assisted payment, and SMTP only after sandbox
   lifecycle acceptance.
 - Keep payment, subscription, and delivery policy app-owned; share only
   provider-neutral contracts with an independently proven consumer boundary.

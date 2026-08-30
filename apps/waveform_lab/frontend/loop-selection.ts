@@ -5,6 +5,22 @@ export interface NoteOffset { step: number; pitch: number; }
 
 export const cellKey = ({ step, pitch }: Cell): string => `${step}:${pitch}`;
 
+export function selectionClass(selection: Set<string>, cell: Cell): string {
+  if (!selection.has(cellKey(cell))) return "";
+  const row = PITCHES.indexOf(cell.pitch);
+  const neighbors = {
+    top: PITCHES[row - 1], right: cell.step + 1,
+    bottom: PITCHES[row + 1], left: cell.step - 1,
+  };
+  const edges = [
+    !selection.has(cellKey({ step: cell.step, pitch: neighbors.top ?? -1 })) && "selection-top",
+    !selection.has(cellKey({ step: neighbors.right, pitch: cell.pitch })) && "selection-right",
+    !selection.has(cellKey({ step: cell.step, pitch: neighbors.bottom ?? -1 })) && "selection-bottom",
+    !selection.has(cellKey({ step: neighbors.left, pitch: cell.pitch })) && "selection-left",
+  ];
+  return ["selected", ...edges.filter(Boolean)].join(" ");
+}
+
 export function boxCells(start: Cell, end: Cell): Set<string> {
   const lowStep = Math.min(start.step, end.step); const highStep = Math.max(start.step, end.step);
   const startRow = PITCHES.indexOf(start.pitch); const endRow = PITCHES.indexOf(end.pitch);

@@ -7,7 +7,7 @@ import {
   PITCHES, hasPlayablePath, initialState, isNaturalPitch, midiLabel, type LabState,
 } from "./model.js";
 import {
-  boxCells, cellKey, moveSelected, pasteNotes, relativeOffsets, removeSelected, selectedNotes,
+  boxCells, cellKey, moveSelected, pasteNotes, relativeOffsets, removeSelected, selectedNotes, selectionClass,
   type Cell, type NoteOffset,
 } from "./loop-selection.js";
 import "./styles.css";
@@ -156,7 +156,7 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
             const selected = assignments.find((note) => note.instrument === this.state.selectedInstrument);
             const color = lab.instruments.find((item) => item.name === (selected ?? assignments[0])?.instrument)?.color;
             return <button role="gridcell" class={`${assignments.length ? "active" : ""}
-            ${this.state.selection.has(cellKey({ step, pitch })) ? "selected" : ""}
+            ${selectionClass(this.state.selection, { step, pitch })}
             ${this.state.activeStep === step ? "playing" : ""}
             ${step % 16 === 0 ? "bar" : step % 4 === 0 ? "beat" : ""}`}
             data-cell data-step={step} data-pitch={pitch}

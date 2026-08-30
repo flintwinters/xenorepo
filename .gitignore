@@ -69,5 +69,6 @@ apps/*/data/openapi.json
 apps/*/data/openapi.d.ts
 
 # Temporary app/runtime artifacts
+apps/*/README.md
 apps/*/data/ui-check/
 tests/data/

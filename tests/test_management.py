@@ -123,12 +123,24 @@ frontend:
         for definition in definitions:
             self.assertIn(definition.name, result.output)
 
-    def test_active_monoapp_readmes_link_to_xenorepo_at_the_top(self) -> None:
-        link = "[Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)"
+    def test_generated_monoapp_readmes_are_ignored_and_untracked(self) -> None:
         for definition, _ in repository_manager.MANAGERS:
             with self.subTest(app=definition.name):
-                lines = (definition.directory / "README.md").read_text(encoding="utf-8").splitlines()
-                self.assertEqual(lines[2], link)
+                readme = definition.directory / "README.md"
+                ignored = subprocess.run(
+                    ["git", "check-ignore", "--quiet", str(readme.relative_to(ROOT))],
+                    cwd=ROOT,
+                    check=False,
+                )
+                tracked = subprocess.run(
+                    ["git", "ls-files", "--error-unmatch", str(readme.relative_to(ROOT))],
+                    cwd=ROOT,
+                    check=False,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+                self.assertEqual(ignored.returncode, 0)
+                self.assertNotEqual(tracked.returncode, 0)
 
     def test_root_cockpit_cold_start_discovers_the_complete_inventory(self) -> None:
         """Prove the real entrypoint imports before in-process test fixtures can mask it."""

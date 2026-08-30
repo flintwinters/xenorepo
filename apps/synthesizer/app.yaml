@@ -1,0 +1,15 @@
+name: synthesizer
+title: Waveform Synthesizer
+module: apps.synthesizer.backend.server
+imports:
+  - "@xenorepo/ui"
+  - monotools.orchestration.management
+  - monotools.runtime.application
+frontend:
+  artifacts:
+    index:
+      format: preact
+      source: frontend/index.tsx
+      output: index.html
+  routes:
+    /: index

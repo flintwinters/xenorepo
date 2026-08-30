@@ -11,38 +11,64 @@ import { checkout, offering, settleSandbox } from "./client.js";
 import "./styles.css";
 
 type Offering = Awaited<ReturnType<typeof offering>>;
+type CheckoutPhase = "loading" | "ready" | "creating" | "awaiting" | "settling" | "active" | "cancelled" | "failed";
+
+const phaseLabel: Record<CheckoutPhase, string> = {
+  loading: "LOADING OFFER",
+  ready: "CHECKOUT READY",
+  creating: "OPENING CHECKOUT",
+  awaiting: "PAYMENT PENDING",
+  settling: "CONFIRMING PAYMENT",
+  active: "SUBSCRIPTION ACTIVE",
+  cancelled: "CHECKOUT CANCELLED",
+  failed: "ACTION REQUIRED",
+};
 
 function Enrollment() {
   const [details, setDetails] = useState<Offering>();
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState("Loading current membership terms…");
   const [sandboxCheckout, setSandboxCheckout] = useState<string>();
+  const [phase, setPhase] = useState<CheckoutPhase>("loading");
 
-  useEffect(() => { void offering().then(setDetails); }, []);
+  useEffect(() => {
+    void offering().then((result) => {
+      setDetails(result); setPhase("ready");
+      setMessage("Secure enrollment is ready.");
+    }).catch((error) => {
+      setPhase("failed");
+      setMessage(error instanceof Error ? error.message : "Unable to load membership terms.");
+    });
+  }, []);
 
   async function submit(event: SubmitEvent) {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement;
     const email = new FormData(form).get("email");
     if (typeof email !== "string") return;
-    setMessage("CREATING SECURE CHECKOUT…");
+    setPhase("creating"); setMessage("Creating a secure checkout…");
     try {
       const result = await checkout(email);
-      setMessage(`CHECKOUT ${result.checkout_id} READY VIA ${result.provider.toUpperCase()}`);
+      setPhase("awaiting"); setMessage(`Checkout ready via ${result.provider}.`);
       if (result.checkout_url.startsWith("http")) location.assign(result.checkout_url);
       else setSandboxCheckout(result.checkout_id);
     } catch (error) {
+      setPhase("failed");
       setMessage(error instanceof Error ? error.message : "CHECKOUT FAILED");
     }
   }
 
   async function settle(state: "paid" | "cancelled") {
     if (!sandboxCheckout) return;
-    setMessage(state === "paid" ? "CONFIRMING PAYMENT…" : "CANCELLING CHECKOUT…");
+    setPhase("settling");
+    setMessage(state === "paid" ? "Confirming payment…" : "Cancelling checkout…");
     try {
       const result = await settleSandbox(sandboxCheckout, state);
-      setMessage(result.state === "paid" ? "SUBSCRIPTION ACTIVE" : "CHECKOUT CANCELLED");
+      const paid = result.state === "paid";
+      setPhase(paid ? "active" : "cancelled");
+      setMessage(paid ? "SUBSCRIPTION ACTIVE" : "CHECKOUT CANCELLED");
       setSandboxCheckout(undefined);
     } catch (error) {
+      setPhase("failed");
       setMessage(error instanceof Error ? error.message : "CHECKOUT UPDATE FAILED");
     }
   }
@@ -51,25 +77,56 @@ function Enrollment() {
     ? new Intl.NumberFormat(undefined, { style: "currency", currency: details.currency })
       .format(details.amount_minor / 100)
     : "—";
+  const busy = phase === "loading" || phase === "creating" || phase === "settling";
+  const statusTone = phase === "failed" || phase === "cancelled" ? "warning" : phase === "active" ? "active" : "ready";
   return <ConsoleShell class="mailing-frame"
-    header={<UtilityRail><strong>DISPATCH LEDGER</strong><span>PAID SUBSCRIBER INTAKE</span></UtilityRail>}
-    footer={<StatusRail><span class="mailing-indicator"><i /><span role="status">
-      PAYMENT GATEWAY READY
-    </span></span></StatusRail>}>
-    <section class="mailing-body">
-      <ConsolePane title="MEMBERSHIP" tone="green"><div class="mailing-card">
-        <strong>Independent dispatch</strong>
-        <div class="mailing-price">{price} / {details?.interval ?? "month"}</div>
-        <form id="enroll" onSubmit={submit}>
-          <label>Email address<input name="email" type="email" required autoComplete="email" maxLength={320} /></label>
-          <CommandButton id="submit" type="submit">CONTINUE TO PAYMENT</CommandButton>
-        </form>
-        {sandboxCheckout && <div class="mailing-actions">
-          <CommandButton type="button" onClick={() => void settle("paid")}>COMPLETE SANDBOX PAYMENT</CommandButton>
-          <CommandButton type="button" onClick={() => void settle("cancelled")}>CANCEL</CommandButton>
-        </div>}
-        <div id="message" class="mailing-message" role="status" aria-live="polite">{message}</div>
-      </div></ConsolePane>
+    header={<UtilityRail class="mailing-header"><strong>DISPATCH LEDGER</strong>
+      <span>VOL. 01 / INDEPENDENT CORRESPONDENCE</span><span class="mailing-header-end">MONTHLY</span>
+    </UtilityRail>}
+    footer={<StatusRail><span class={`mailing-indicator ${statusTone}`}><i /><span role="status">
+      {phaseLabel[phase]}
+    </span></span><span class="mailing-footer-note">NO ADS · CANCEL ANY TIME</span></StatusRail>}>
+    <section class="mailing-body" aria-labelledby="mailing-title">
+      <div class="mailing-editorial">
+        <p class="mailing-kicker">A MONTHLY FIELD LETTER</p>
+        <h1 id="mailing-title">Reporting for people who still read past the headline.</h1>
+        <p class="mailing-deck">One considered dispatch each month: independent reporting,
+          annotated sources, and a clear account of what changed.</p>
+        <div class="mailing-rule"><span>IN EACH EDITION</span></div>
+        <ul class="mailing-manifest">
+          <li><strong>01</strong><span><b>One durable argument</b>Built to remain useful after the news cycle.</span></li>
+          <li><strong>02</strong><span><b>Primary sources</b>Links, notes, and uncertainty included.</span></li>
+          <li><strong>03</strong><span><b>Reader-supported</b>No sponsors, tracking pitches, or filler.</span></li>
+        </ul>
+      </div>
+      <ConsolePane class="mailing-membership" title="MEMBERSHIP DESK" tone="green"
+        titleEnd={<span>{details?.payment_provider?.toUpperCase() ?? "CONNECTING"}</span>}>
+        <div class="mailing-card">
+          <div><p class="mailing-eyebrow">FOUNDING READER RATE</p>
+            <strong class="mailing-offer">Independent dispatch</strong></div>
+          <div class="mailing-price"><span>{price}</span><small> / {details?.interval ?? "month"}</small></div>
+          <p class="mailing-terms">One edition every month. Your membership funds the reporting
+            directly and can be cancelled at any time.</p>
+          <form id="enroll" onSubmit={submit}>
+            <label for="email">Email address</label>
+            <input id="email" name="email" type="email" required autoComplete="email" maxLength={320}
+              placeholder="reader@example.com" disabled={busy || phase === "active"} />
+            <CommandButton id="submit" type="submit" disabled={!details || busy || phase === "active"}>
+              {phase === "creating" ? "OPENING…" : phase === "active" ? "MEMBERSHIP ACTIVE" : "CONTINUE TO PAYMENT"}
+            </CommandButton>
+          </form>
+          {sandboxCheckout && <div class="mailing-actions" aria-label="Sandbox checkout controls">
+            <p>LOCAL CHECKOUT PREVIEW</p>
+            <CommandButton type="button" disabled={busy} onClick={() => void settle("paid")}>COMPLETE SANDBOX PAYMENT</CommandButton>
+            <CommandButton type="button" appearance="subtle" disabled={busy}
+              onClick={() => void settle("cancelled")}>CANCEL</CommandButton>
+          </div>}
+          <div id="message" class={`mailing-message ${statusTone}`} role="status" aria-live="polite">
+            <i /> <span>{message}</span>
+          </div>
+          <p class="mailing-assurance">SECURE CHECKOUT · EMAIL USED ONLY FOR DELIVERY</p>
+        </div>
+      </ConsolePane>
     </section>
   </ConsoleShell>;
 }

@@ -23,6 +23,7 @@ from fastapi.routing import APIWebSocketRoute
 
 from monotools.orchestration.apps import AppDefinition, FrontendArtifact
 from monotools.runtime.application import AGENT_TOOLS_ROUTE, api_openapi_schema
+from monotools.runtime.openapi import OpenAPIContractError, validate_api_openapi_schema
 
 
 class LifecycleError(RuntimeError):
@@ -189,6 +190,10 @@ def _generate_openapi_types(definition: AppDefinition, application: FastAPI,
     workspace: Path) -> None:
     """Generate deterministic app-owned declarations for HTTP API routes only."""
     schema = api_openapi_schema(application)
+    try:
+        validate_api_openapi_schema(schema)
+    except OpenAPIContractError as error:
+        raise LifecycleError(f"{definition.name} {error}") from error
     data_directory = definition.directory / "data"
     data_directory.mkdir(exist_ok=True)
     schema_path = data_directory / "openapi.json"

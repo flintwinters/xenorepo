@@ -348,6 +348,8 @@ frontend:
             self.assertTrue((directory / ".gitignore").is_file())
             self.assertTrue((directory / "frontend/styles.css").is_file())
             self.assertTrue((directory / "tests/e2e/readiness.spec.ts").is_file())
+            server = (directory / "backend/server.py").read_text(encoding="utf-8")
+            self.assertIn("create_application", server)
             readme = (directory / "README.md").read_text(encoding="utf-8")
             self.assertEqual(readme.splitlines()[2],
                 "[Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)")

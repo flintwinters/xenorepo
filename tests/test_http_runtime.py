@@ -22,6 +22,7 @@ from monotools.runtime.http import (
     set_session_cookie,
 )
 from monotools.runtime.application import AGENT_TOOLS_ROUTE, create_application
+from monotools.runtime.openapi import OpenAPIContractError, validate_api_openapi_schema
 from tests.support import synthetic_app_definition
 
 
@@ -111,6 +112,51 @@ class RuntimePlatformTests(unittest.TestCase):
         self.assertEqual(set(registry["paths"]), {"/api/widgets/{widget_id}"})
         self.assertEqual(registry["info"]["title"], definition.title)
         self.assertNotIn(AGENT_TOOLS_ROUTE, application.openapi()["paths"])
+
+    def test_openapi_contract_accepts_constrained_inputs_and_outputs(self) -> None:
+        schema = {"paths": {"/api/widgets/{widget_id}": {"post": {
+            "operationId": "replace_widget",
+            "parameters": [{"name": "widget_id", "in": "path",
+                "schema": {"type": "string"}}],
+            "requestBody": {"content": {"application/json": {"schema": {
+                "type": "object", "properties": {"enabled": {"type": "boolean"}},
+                "additionalProperties": False,
+            }}}},
+            "responses": {
+                "200": {"content": {"application/json": {"schema": {
+                    "$ref": "#/components/schemas/Widget"}}}},
+                "204": {"description": "No change"},
+            },
+        }}}}
+        validate_api_openapi_schema(schema)
+
+    def test_openapi_contract_reports_every_ambiguous_tool_boundary(self) -> None:
+        schema = {"paths": {
+            "/api/loose": {"post": {
+                "parameters": [{"schema": {}}],
+                "requestBody": {"content": {"application/json": {"schema": {
+                    "type": "object"}}}},
+                "responses": {"200": {"content": {
+                    "application/json": {"schema": {"title": "Still ambiguous"}}}}},
+            }},
+            "/api/silent": {"get": {
+                "operationId": "read",
+                "responses": {"200": {"description": "Untyped"}},
+            }},
+            "/api/duplicate": {"get": {
+                "operationId": "read",
+                "responses": {"204": {"description": "Bodyless"}},
+            }},
+        }}
+        with self.assertRaises(OpenAPIContractError) as raised:
+            validate_api_openapi_schema(schema)
+        message = str(raised.exception)
+        for expected in ("POST /api/loose must declare operationId",
+                "parameters[0].schema must declare a non-empty schema",
+                "must constrain object properties", "must declare a concrete type",
+                "responses.200", "duplicates operationId"):
+            with self.subTest(expected=expected):
+                self.assertIn(expected, message)
 
 
 if __name__ == "__main__":

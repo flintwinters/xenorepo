@@ -21,6 +21,11 @@ independent facts; routes map server-owned URL paths to logical artifact names.
 contract, imports its service, builds its browser documents, and validates the
 resulting `dist/` directory. The service owns `/health`, the API-only OpenAPI
 registry at `/agent/tools`, its declared document routes, and its domain routes.
+The lifecycle rejects agent operations without unique operation identifiers,
+constrained parameter and request schemas, or typed success responses. Bodyless
+`204` responses remain explicit contracts. The same check gates ordinary builds,
+complete verification, and both verification passes required for repository
+promotion.
 
 Apps remain product owners. Domain entities, repositories, migrations,
 authentication semantics, and high-level realtime coordinators stay local.

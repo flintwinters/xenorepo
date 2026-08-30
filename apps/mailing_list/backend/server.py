@@ -92,7 +92,9 @@ def create_app(database_url: str | None = None, gateway: PaymentGateway | None =
             notification.external_checkout_id)
         return CheckoutStatusResponse(**asdict(status), repeated=not changed)
 
-    @application.post("/api/webhooks/payments/{provider}", response_model=None)
+    @application.post("/api/webhooks/payments/{provider}",
+        response_model=CheckoutStatusResponse,
+        responses={204: {"description": "Notification acknowledged without a state transition."}})
     async def payment_webhook(provider: str, request: Request):
         if provider != payment_gateway.name:
             raise DomainError("Payment provider is unavailable.", "missing")

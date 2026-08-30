@@ -147,7 +147,8 @@ def create_app(database_url: str | None = None) -> FastAPI:
         account = current_account(request)
         return repository.posts(account.id if account else None, parsed_before, parsed_limit)
 
-    @application.get("/api/events", response_class=StreamingResponse)
+    @application.get("/api/events", response_class=StreamingResponse,
+        responses={200: {"content": {"text/event-stream": {"schema": {"type": "string"}}}}})
     def live_events(request: Request) -> StreamingResponse:
         try:
             last_seen = int(request.headers.get("last-event-id", "0"))

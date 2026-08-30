@@ -9,8 +9,7 @@ automation, short feedback loops, and actionable failures. Promote recurring
 operations and protections into Monotools instead of accumulating app-specific
 scripts.
 
-Make owner-level decisions for the whole outcome, not the requested task.
-Identify the real objective and
+Make owner-level decisions, not the requested task. Identify the objective and
 binding constraint; compare inaction, existing solutions, and the simplest
 adequate intervention. Allocate resources by expected value and opportunity
 cost. Move quickly on reversible choices, preserve optionality around
@@ -31,6 +30,10 @@ it, and **Monotools** is the canonical orchestration library.
   `integrations` packages; every module is documented and recursively discovered.
 - Plan a new monoapp in `apps/<app>/SPEC.md` as a shippable walking skeleton
   with real-world validation criteria before implementation.
+- Before creating a monoapp, ask the user broad-strokes, close-ended clarifying
+  questions until the intended walking-skeleton specification and acceptance
+  criteria are decision-complete; then run the creation routine, preserve its
+  generated files, and customize them in place.
 - Each monoapp separates `frontend/` and `backend/`; its root contains only
   administration, structure, entrypoints, and information. Its sole root-level
   Python file is `manage.py`, and it has a standalone-deployment README.

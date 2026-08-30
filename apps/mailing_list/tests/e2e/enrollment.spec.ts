@@ -11,7 +11,13 @@ test("[acceptance] enrollment reaches the sandbox checkout", async ({ page }) =>
   await expect(page.getByRole("heading", { name: "You’re on the ledger." })).toBeVisible();
   await expect(page.getByText("Payment confirmed")).toBeVisible();
   await expect(page.getByText("$5.00 / month").last()).toBeVisible();
+  await expect(page.getByText("1 signed event stored")).toBeVisible();
+  const confirmation = page.getByLabel("You’re on the ledger.");
+  await expect(confirmation.getByText("SANDBOX")).toBeVisible();
   await expect(page.getByText("Edition delivery will become available")).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "You’re on the ledger." })).toBeVisible();
+  await expect(page.getByText("1 signed event stored")).toBeVisible();
 });
 
 test("[visual] initial enrollment ledger", async ({ page }) => {

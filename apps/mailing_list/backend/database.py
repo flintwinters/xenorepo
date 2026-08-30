@@ -6,7 +6,9 @@ from datetime import datetime
 import re
 from uuid import uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, UniqueConstraint, select
+from sqlalchemy import (
+    CheckConstraint, DateTime, ForeignKey, Integer, String, UniqueConstraint, func, select,
+)
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
@@ -71,6 +73,11 @@ class PaymentEvent(Base):
 class CheckoutStatus:
     checkout_id: str
     state: str
+    provider: str
+    created_at: datetime
+    paid_at: datetime | None
+    event_count: int
+    last_event_at: datetime | None
 
 
 def create_session_factory(database_url: str) -> sessionmaker[Session]:
@@ -137,4 +144,8 @@ class MailingListRepository:
                 Checkout.provider == provider, Checkout.external_id == external_id))
             if checkout is None:
                 raise DomainError("Checkout not found.", "missing")
-            return CheckoutStatus(checkout.external_id, checkout.state)
+            event_count, last_event_at = session.execute(select(
+                func.count(PaymentEvent.id), func.max(PaymentEvent.occurred_at),
+            ).where(PaymentEvent.checkout_id == checkout.id)).one()
+            return CheckoutStatus(checkout.external_id, checkout.state, checkout.provider,
+                checkout.created_at, checkout.paid_at, event_count, last_event_at)

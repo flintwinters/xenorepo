@@ -100,6 +100,9 @@ class MailingListTests(unittest.TestCase):
                 paid = client.post("/api/webhooks/payments/sandbox", content=payload,
                     headers={"x-payment-signature": signature})
                 self.assertEqual(paid.json()["state"], "paid")
+                self.assertEqual((paid.json()["provider"], paid.json()["event_count"]),
+                    ("sandbox", 1))
+                self.assertIsNotNone(paid.json()["paid_at"])
                 replay = client.post("/api/webhooks/payments/sandbox", content=payload,
                     headers={"x-payment-signature": signature})
                 self.assertEqual(replay.json()["repeated"], True)
@@ -107,6 +110,9 @@ class MailingListTests(unittest.TestCase):
                 invalid = client.post("/api/checkouts", json={"email": "not-an-email"})
                 self.assertEqual(invalid.status_code, 400)
                 self.assertEqual(invalid.json(), {"error": "Enter a valid email address."})
+            with TestClient(create_app(f"sqlite:///{app_database}")) as restarted:
+                durable = restarted.get(f"/api/checkouts/{checkout_id}").json()
+                self.assertEqual((durable["state"], durable["event_count"]), ("paid", 1))
         finally:
             app_database.unlink(missing_ok=True)
 

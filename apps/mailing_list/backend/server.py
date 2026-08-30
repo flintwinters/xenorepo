@@ -1,5 +1,7 @@
 """FastAPI runtime for paid mailing-list enrollment."""
 
+from dataclasses import asdict
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, Request, Response
@@ -39,6 +41,11 @@ class CheckoutResponse(BaseModel):
 class CheckoutStatusResponse(BaseModel):
     checkout_id: str
     state: str
+    provider: str
+    created_at: datetime
+    paid_at: datetime | None
+    event_count: int
+    last_event_at: datetime | None
     repeated: bool = False
 
 
@@ -71,7 +78,7 @@ def create_app(database_url: str | None = None, gateway: PaymentGateway | None =
     @application.get("/api/checkouts/{checkout_id}")
     def checkout_status(checkout_id: str) -> CheckoutStatusResponse:
         status = repository.checkout_status(payment_gateway.name, checkout_id)
-        return CheckoutStatusResponse(checkout_id=status.checkout_id, state=status.state)
+        return CheckoutStatusResponse(**asdict(status))
 
     async def accept_notification(request: Request, signature: str | None):
         try:
@@ -83,8 +90,7 @@ def create_app(database_url: str | None = None, gateway: PaymentGateway | None =
         changed = repository.apply_notification(notification)
         status = repository.checkout_status(notification.provider,
             notification.external_checkout_id)
-        return CheckoutStatusResponse(checkout_id=status.checkout_id, state=status.state,
-            repeated=not changed)
+        return CheckoutStatusResponse(**asdict(status), repeated=not changed)
 
     @application.post("/api/webhooks/payments/{provider}", response_model=None)
     async def payment_webhook(provider: str, request: Request):
@@ -104,8 +110,7 @@ def create_app(database_url: str | None = None, gateway: PaymentGateway | None =
             raise RuntimeError("Sandbox settlement did not produce a payment notification.")
         changed = repository.apply_notification(notification)
         status = repository.checkout_status(payment_gateway.name, checkout_id)
-        return CheckoutStatusResponse(checkout_id=status.checkout_id, state=status.state,
-            repeated=not changed)
+        return CheckoutStatusResponse(**asdict(status), repeated=not changed)
 
     return application
 

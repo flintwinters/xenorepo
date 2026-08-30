@@ -11,6 +11,7 @@ import { checkout, checkoutStatus, offering, settleSandbox } from "./client.js";
 import "./styles.css";
 
 type Offering = Awaited<ReturnType<typeof offering>>;
+type Receipt = Awaited<ReturnType<typeof checkoutStatus>>;
 type CheckoutPhase = "loading" | "ready" | "creating" | "awaiting" | "settling" | "active" | "cancelled" | "failed";
 
 const phaseLabel: Record<CheckoutPhase, string> = {
@@ -28,6 +29,7 @@ function Enrollment() {
   const [details, setDetails] = useState<Offering>();
   const [message, setMessage] = useState("Loading current membership terms…");
   const [sandboxCheckout, setSandboxCheckout] = useState<string>();
+  const [receipt, setReceipt] = useState<Receipt>();
   const [phase, setPhase] = useState<CheckoutPhase>("loading");
 
   useEffect(() => {
@@ -54,6 +56,7 @@ function Enrollment() {
     try {
       for (let attempt = 0; attempt < 6; attempt += 1) {
         const result = await checkoutStatus(sessionId);
+        setReceipt(result);
         if (result.state === "paid") {
           setPhase("active"); setMessage("SUBSCRIPTION ACTIVE"); return;
         }
@@ -94,8 +97,12 @@ function Enrollment() {
     try {
       const result = await settleSandbox(sandboxCheckout, state);
       const paid = result.state === "paid";
+      setReceipt(result);
       setPhase(paid ? "active" : "cancelled");
       setMessage(paid ? "SUBSCRIPTION ACTIVE" : "CHECKOUT CANCELLED");
+      const query = paid ? `?checkout=success&session_id=${encodeURIComponent(result.checkout_id)}`
+        : "?checkout=cancelled";
+      history.replaceState(null, "", query);
       setSandboxCheckout(undefined);
     } catch (error) {
       setPhase("failed");
@@ -144,7 +151,13 @@ function Enrollment() {
               <h2 id="confirmation-title">You’re on the ledger.</h2></div>
             <dl><div><dt>MEMBERSHIP</dt><dd>Independent dispatch</dd></div>
               <div><dt>RENEWS</dt><dd>{price} / {details?.interval ?? "month"}</dd></div>
-              <div><dt>STATUS</dt><dd>Active</dd></div></dl>
+              <div><dt>STATUS</dt><dd>Active</dd></div>
+              <div><dt>PROVIDER</dt><dd>{receipt?.provider.toUpperCase() ?? "CONFIRMED"}</dd></div>
+              <div><dt>WEBHOOK</dt><dd>{receipt ? `${receipt.event_count} signed event stored` : "Recorded"}</dd></div>
+              <div><dt>ACTIVATED</dt><dd>{receipt?.paid_at
+                ? new Date(receipt.paid_at).toLocaleString() : "Just now"}</dd></div>
+              <div><dt>REFERENCE</dt><dd>{receipt?.checkout_id.slice(-12) ?? "Available after refresh"}</dd></div>
+            </dl>
             <p>Your subscription is recorded. Edition delivery will become available with the
               upcoming mail-service checkpoint.</p>
           </section> : <form id="enroll" onSubmit={submit}>

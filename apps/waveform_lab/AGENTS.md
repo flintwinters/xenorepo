@@ -15,5 +15,5 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
-- Initial modular synth skeleton passes app check, test, and wide/narrow browser acceptance.
-- Next: deepen waveform tools or circuit modules only from a newly specified user journey.
+- Thirteen typed audio/control modules and arbitrary acyclic routing pass app and browser acceptance.
+- Next: profile larger polyphonic graphs before introducing shared effect buses or AudioWorklets.

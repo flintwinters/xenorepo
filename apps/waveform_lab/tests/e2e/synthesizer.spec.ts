@@ -79,6 +79,8 @@ test("[acceptance] the complete analog module palette exposes direct persistent 
     await connectAudio(page, chain[index] ?? "", chain[index + 1] ?? "");
   await connectAudio(page, "Noise 1", "Gain 1");
   await connectAudio(page, "Gain 1", "Mixer 1");
+  await page.getByRole("button", { name: "Adsr 1 modulation output" }).click();
+  await page.getByRole("button", { name: "Reverb 1 mix modulation input" }).click();
   await expect(page.getByText("SIGNAL READY")).toBeVisible();
   await page.getByRole("combobox", { name: "Filter 1 mode" }).selectOption("2");
   await page.getByRole("slider", { name: "Filter 1 frequency" }).fill("2400");
@@ -121,4 +123,29 @@ test("[acceptance] typed audio and modulation cables reject cycles atomically", 
   await expect(page.getByRole("list", { name: "Connections" }).getByRole("listitem")).toHaveCount(before);
   await page.reload();
   await expect(page.getByRole("list", { name: "Connections" })).toContainText("Lfo 1 modulation → Filter 1 frequency");
+});
+
+test("[acceptance] legacy patches migrate and malformed state recovers", async ({ page }) => {
+  await page.addInitScript(() => {
+    if (sessionStorage.getItem("waveform-lab-fixture-seeded")) return;
+    sessionStorage.setItem("waveform-lab-fixture-seeded", "true");
+    const notes = Array.from({ length: 32 }, () => [] as number[]); notes[0]?.push(60);
+    localStorage.setItem("waveform-lab-state-v1", JSON.stringify({ version: 1,
+      modules: [{ id: "waveform-1", kind: "waveform", x: 28, y: 46 },
+        { id: "gain-1", kind: "gain", x: 280, y: 112 },
+        { id: "output-1", kind: "output", x: 520, y: 62 }],
+      connections: [{ from: "waveform-1", to: "gain-1" }, { from: "gain-1", to: "output-1" }],
+      samples: Array.from({ length: 128 }, (_, index) => Math.sin(index / 128 * Math.PI * 2)), notes, bpm: 133 }));
+  });
+  await page.goto("/");
+  await expect(page.getByLabel("Tempo in BPM")).toHaveValue("133");
+  await expect(page.getByRole("gridcell", { name: "C4, step 1", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("slider", { name: "Gain 1 gain" })).toHaveValue("0.8");
+  await page.getByRole("slider", { name: "Gain 1 gain" }).fill("1.1");
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("waveform-lab-state-v1") ?? "null").version)).toBe(2);
+
+  await page.evaluate(() => localStorage.setItem("waveform-lab-state-v1", "{malformed"));
+  await page.reload();
+  await expect(page.getByLabel("Tempo in BPM")).toHaveValue("120");
+  await expect(page.getByText("SIGNAL READY")).toBeVisible();
 });

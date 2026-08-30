@@ -1,10 +1,10 @@
 import { parse, stringify } from "yaml";
 import { STATE_VERSION, validatedState, type LabState } from "./model.js";
 
-export type SynthState = Pick<LabState, "modules" | "connections" | "samples">;
+export type SynthState = Pick<LabState, "modules" | "connections" | "waveform">;
 
 function synthOf(state: LabState): SynthState {
-  return { modules: state.modules, connections: state.connections, samples: state.samples };
+  return { modules: state.modules, connections: state.connections, waveform: state.waveform };
 }
 
 function documentOf(state: LabState): object {

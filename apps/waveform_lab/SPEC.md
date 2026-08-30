@@ -14,9 +14,10 @@ It does not simulate component-level voltages, tolerances, or electrical behavio
 
 FastAPI serves one self-contained Preact artifact containing two coordinated work areas:
 
-- A CodeMirror YAML editor is the sole synth setup surface. Its `modules`, `connections`, and
-  `samples` fields define arbitrary acyclic serial and parallel routing and a normalized
-  single-cycle waveform. An incomplete or disconnected valid graph remains editable and silent;
+- A CodeMirror YAML editor is the sole synth setup surface. Its `modules`, `connections`, and named
+  `waveform` fields define arbitrary acyclic serial and parallel routing and the oscillator shape.
+  The audio layer derives its private single-cycle buffer; raw samples are never persisted or
+  exposed. An incomplete or disconnected valid graph remains editable and silent;
   malformed or invalid drafts never replace the live setup and can be corrected or reverted.
 - A piano-roll loop spans C4 through B5 over two bars of 4/4 time at sixteenth-note resolution: 24
   pitches by 32 steps. Multiple notes may occupy a step. The musician can toggle notes, adjust BPM,
@@ -50,7 +51,8 @@ restart.
 
 ## Product invariants and states
 
-- Waveform samples are finite normalized values in `[-1, 1]`, with exactly one amplitude per sample.
+- Waveform is one of `sine`, `square`, `saw`, or `triangle`; deterministic finite normalized samples
+  are derived only inside the audio layer.
 - Circuit connections reference existing typed ports, reject self-connections and duplicates, and
   are removed with their module. Audio connections cannot originate at Output or terminate at a
   source. Modulation connections require a control source and compatible target parameter. Cycles
@@ -77,7 +79,7 @@ restart.
 
 In a desktop Chromium session, retain the initial playable patch and use YAML to build a parallel
 branch with Noise, Filter, Saturation, Chorus, Delay, Reverb, Compressor, and Mixer. Configure
-module parameters, bypass state, LFO and ADSR modulation, and waveform samples. Attempt malformed,
+module parameters, bypass state, LFO and ADSR modulation, and a named waveform. Attempt malformed,
 out-of-range, duplicate, and cyclic setup documents and confirm they are rejected without damaging
 the patch. Enter
 notes at the first and last steps across both octaves, change BPM during playback, and observe the

@@ -15,5 +15,5 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
-- Coordinate-free Gruvbox synth YAML, master volume, and the fitted GUI loop pass wide/narrow acceptance.
+- Compact Gruvbox synth YAML, master volume, and the fitted GUI loop pass wide/narrow acceptance.
 - Next: profile larger polyphonic graphs before introducing shared effect buses or AudioWorklets.

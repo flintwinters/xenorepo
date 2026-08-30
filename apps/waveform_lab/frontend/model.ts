@@ -1,7 +1,8 @@
-export const SAMPLE_COUNT = 128;
+const SAMPLE_COUNT = 128;
 export const STEP_COUNT = 32;
-export const STATE_VERSION = 4 as const;
+export const STATE_VERSION = 5 as const;
 export const PITCHES = Array.from({ length: 24 }, (_, index) => 83 - index);
+export type WaveformShape = "sine" | "square" | "saw" | "triangle";
 
 export type ModuleKind = "waveform" | "gain" | "output" | "filter" | "adsr" | "saturation"
   | "delay" | "reverb" | "mixer" | "chorus" | "compressor" | "noise" | "lfo";
@@ -17,7 +18,7 @@ export interface Connection {
 }
 export interface LabState {
   version: typeof STATE_VERSION; modules: ModuleNode[]; connections: Connection[];
-  samples: number[]; notes: number[][]; holds: number[][]; bpm: number; volume: number;
+  waveform: WaveformShape; notes: number[][]; holds: number[][]; bpm: number; volume: number;
 }
 
 type Bounds = Readonly<Record<string, readonly [number, number]>>;
@@ -58,7 +59,7 @@ export function createModule(id: string, kind: ModuleKind): ModuleNode {
   return { id, kind, parameters: defaultParameters(kind), ...(bypassable.has(kind) ? { bypass: false } : {}) };
 }
 
-export function preset(kind: "sine" | "square" | "saw" | "triangle"): number[] {
+export function waveformSamples(kind: WaveformShape): number[] {
   return Array.from({ length: SAMPLE_COUNT }, (_, index) => {
     const phase = index / SAMPLE_COUNT;
     if (kind === "sine") return Math.sin(phase * Math.PI * 2);
@@ -75,7 +76,7 @@ export function initialState(): LabState {
       createModule("output-1", "output")],
     connections: [{ from: "waveform-1", to: "gain-1", type: "audio" },
       { from: "gain-1", to: "output-1", type: "audio" }],
-    samples: preset("sine"), notes: emptySequence(), holds: emptySequence(), bpm: 120, volume: 0.8,
+    waveform: "sine", notes: emptySequence(), holds: emptySequence(), bpm: 120, volume: 0.8,
   };
 }
 
@@ -93,7 +94,7 @@ function validParameters(kind: ModuleKind, value: unknown): value is ModuleParam
     return finite(value[name]) && value[name] >= range[0] && value[name] <= range[1];
   });
 }
-type StateVersion = 1 | 2 | 3 | typeof STATE_VERSION;
+type StateVersion = 1 | 2 | 3 | 4 | typeof STATE_VERSION;
 function validModule(value: unknown, version: StateVersion): value is ModuleNode {
   if (!record(value) || typeof value.id !== "string" || !value.id || !kinds.has(value.kind as ModuleKind)) return false;
   const kind = value.kind as ModuleKind;
@@ -152,6 +153,19 @@ export function hasPlayablePath(state: LabState): boolean {
   return false;
 }
 
+function waveformOf(saved: Record<string, unknown>, version: StateVersion): WaveformShape | null {
+  if (version === STATE_VERSION)
+    return ["sine", "square", "saw", "triangle"].includes(saved.waveform as string)
+      ? saved.waveform as WaveformShape : null;
+  if (!Array.isArray(saved.samples) || saved.samples.length !== SAMPLE_COUNT
+      || !saved.samples.every((sample) => finite(sample) && sample >= -1 && sample <= 1)) return null;
+  const shapes: WaveformShape[] = ["sine", "square", "saw", "triangle"];
+  return shapes.reduce((best, shape) => {
+    const error = waveformSamples(shape).reduce((sum, sample, index) =>
+      sum + (sample - (saved.samples as number[])[index]!) ** 2, 0);
+    return error < best.error ? { shape, error } : best;
+  }, { shape: "sine" as WaveformShape, error: Number.POSITIVE_INFINITY }).shape;
+}
 function emptySequence(): number[][] { return Array.from({ length: STEP_COUNT }, () => []); }
 function pitchSequence(value: unknown): number[][] | null {
   if (!Array.isArray(value) || value.length !== STEP_COUNT) return null;
@@ -164,17 +178,14 @@ function pitchSequence(value: unknown): number[][] | null {
   return result;
 }
 function sequence(saved: Record<string, unknown>, version: StateVersion
-    ): Pick<LabState, "samples" | "notes" | "holds" | "bpm" | "volume"> | null {
-  if (!Array.isArray(saved.samples) || !Array.isArray(saved.notes) || !finite(saved.bpm)) return null;
-  if (saved.samples.length !== SAMPLE_COUNT || !saved.samples.every((sample) => finite(sample) && sample >= -1 && sample <= 1)
-    || saved.notes.length !== STEP_COUNT) return null;
+    ): Pick<LabState, "notes" | "holds" | "bpm" | "volume"> | null {
+  if (!Array.isArray(saved.notes) || !finite(saved.bpm) || saved.notes.length !== STEP_COUNT) return null;
   const notes = pitchSequence(saved.notes);
   const holds = version < 3 ? emptySequence() : pitchSequence(saved.holds);
   if (!notes || !holds) return null;
   const volume = version < STATE_VERSION ? 0.8 : saved.volume;
   if (!finite(volume) || volume < 0 || volume > 1) return null;
-  return { samples: [...saved.samples] as number[], notes, holds,
-    bpm: Math.max(40, Math.min(240, saved.bpm)), volume };
+  return { notes, holds, bpm: Math.max(40, Math.min(240, saved.bpm)), volume };
 }
 export function noteLength(state: Pick<LabState, "notes" | "holds">, step: number, pitch: number): number {
   if (!state.notes[step]?.includes(pitch)) return 0;
@@ -210,7 +221,8 @@ function connectionsOf(values: unknown[], modules: ModuleNode[], legacy: boolean
 
 function flattened(value: Record<string, unknown>): Record<string, unknown> | null {
   if (value.version === 1) return value;
-  if (value.version !== 2 && value.version !== 3 && value.version !== STATE_VERSION) return null;
+  if (value.version !== 2 && value.version !== 3 && value.version !== 4
+      && value.version !== STATE_VERSION) return null;
   if (!record(value.synth) || !record(value.loop)) return value;
   return { version: value.version, ...value.synth, ...value.loop };
 }
@@ -219,32 +231,22 @@ function flattened(value: Record<string, unknown>): Record<string, unknown> | nu
 export function validatedState(value: unknown): LabState | null {
   if (!record(value)) return null;
   const saved = flattened(value);
-  if (!saved || (saved.version !== 1 && saved.version !== 2 && saved.version !== 3
+  if (!saved || (saved.version !== 1 && saved.version !== 2 && saved.version !== 3 && saved.version !== 4
       && saved.version !== STATE_VERSION)
     || !Array.isArray(saved.modules) || !Array.isArray(saved.connections)) return null;
   const version = saved.version as StateVersion;
   const legacy = version === 1;
   const modules = modulesOf(saved.modules, version);
   const sequencer = sequence(saved, version);
-  if (!modules || !sequencer) return null;
+  const waveform = waveformOf(saved, version);
+  if (!modules || !sequencer || !waveform) return null;
   const connections = connectionsOf(saved.connections, modules, legacy);
-  return connections ? { version: STATE_VERSION, modules, connections, ...sequencer } : null;
+  return connections ? { version: STATE_VERSION, modules, connections, waveform, ...sequencer } : null;
 }
 
 /** Restores current YAML data or atomically migrates valid legacy state; defects return a fresh patch. */
 export function restoreState(value: unknown): LabState { return validatedState(value) ?? initialState(); }
 
-export function drawSamples(samples: number[], from: [number, number], to: [number, number]): number[] {
-  const next = [...samples];
-  const [start, end] = from[0] <= to[0] ? [from, to] : [to, from];
-  const low = Math.max(0, Math.min(SAMPLE_COUNT - 1, Math.round(start[0])));
-  const high = Math.max(0, Math.min(SAMPLE_COUNT - 1, Math.round(end[0])));
-  for (let index = low; index <= high; index += 1) {
-    const ratio = high === low ? 1 : (index - low) / (high - low);
-    next[index] = Math.max(-1, Math.min(1, start[1] + (end[1] - start[1]) * ratio));
-  }
-  return next;
-}
 export function midiLabel(midi: number): string {
   const names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
   return `${names[midi % 12]}${Math.floor(midi / 12) - 1}`;

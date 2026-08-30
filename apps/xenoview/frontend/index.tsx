@@ -2,12 +2,13 @@
 import { Component, render, type ComponentChildren } from "preact";
 import { CommandButton, ConsolePane, ConsoleShell, StatusRail, UtilityRail } from "@xenorepo/ui";
 import { captureSnapshot, loadCockpit, loadHistory, type Architecture,
-  type ModuleFact, type Overview, type Snapshot, type TreeNode } from "./client.js";
+  type ModuleFact, type Overview, type RepositoryHistory, type Snapshot, type TreeNode } from "./client.js";
 import "./styles.css";
 
 type Page = "overview" | "explorer" | "architecture" | "history";
 interface State { page: Page; overview: Overview | null; modules: ModuleFact[];
-  tree: TreeNode | null; architecture: Architecture | null; history: Snapshot[];
+  tree: TreeNode | null; architecture: Architecture | null; repositoryHistory: RepositoryHistory | null;
+  snapshots: Snapshot[];
   collapsedPaths: string[]; message: string; failed: boolean; busy: boolean; }
 
 const number = new Intl.NumberFormat("en-US");
@@ -37,7 +38,7 @@ const ansiColor = (code: string): string => {
 
 class XenorepoCockpit extends Component<Record<string, never>, State> {
   override state: State = { page: "overview", overview: null, modules: [], tree: null,
-    architecture: null, history: [], collapsedPaths: [], message: "Scanning repository…",
+    architecture: null, repositoryHistory: null, snapshots: [], collapsedPaths: [], message: "Scanning repository…",
     failed: false, busy: false };
   override componentDidMount(): void { void this.load(); }
   private perform = async (action: () => Promise<void>): Promise<void> => {
@@ -48,18 +49,18 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
     finally { this.setState({ busy: false }); }
   };
   private load = async (): Promise<void> => this.perform(async () => {
-    const [overview, modules, tree, architecture, history] = await loadCockpit();
+    const [overview, modules, tree, architecture, repositoryHistory, snapshots] = await loadCockpit();
     const state = overview.dirty ? " · working tree modified" : " · clean";
-    this.setState({ overview, modules, tree, architecture, history,
+    this.setState({ overview, modules, tree, architecture, repositoryHistory, snapshots,
       collapsedPaths: initiallyCollapsed(tree),
       message: `Scan complete · ${overview.revision}${state}` });
   });
   private capture = async (): Promise<void> => this.perform(async () => {
     const created = await captureSnapshot();
-    const history = await loadHistory();
+    const snapshots = await loadHistory();
     const overview = this.state.overview;
     if (overview) overview.delta = Object.fromEntries(Object.keys(overview.metrics).map((key) => [key, 0]));
-    this.setState({ history, overview, page: "history", message: created
+    this.setState({ snapshots, overview, page: "history", message: created
       ? "Snapshot recorded" : "Current repository state was already recorded" });
   });
   private metric(key: string, value: number): ComponentChildren {
@@ -132,6 +133,7 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
       <td class="prose">{module?.description}</td><td class="prose">{module?.explanation}</td>
       <td class="numeric">{module && number.format(module.public_definitions)}</td>
       <td class="numeric">{module && number.format(module.inbound_apps)}</td>
+      <td>{module && (module.used_by_apps.join(", ") || "—")}</td>
       <td>{module && (module.dependencies.join(", ") || "—")}</td></tr>
       {!collapsed && node.children?.map((child) => this.treeRows(child, modules, depth + 1))}</>;
   }
@@ -144,7 +146,7 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
       <div class="explorer-table"><table class="console-table"><thead><tr><th>File · lines · size</th>
         <th class="identity">Module</th><th class="prose">Description</th>
         <th class="prose">Explanation</th><th class="numeric">Definitions</th>
-        <th class="numeric">Apps</th><th>Dependencies</th></tr></thead><tbody>
+        <th class="numeric">Apps</th><th>Used by</th><th>Dependencies</th></tr></thead><tbody>
         {this.state.tree && this.treeRows(this.state.tree, modules)}
       </tbody></table></div></section>;
   }
@@ -163,20 +165,27 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
           <span>→ {edge.label} →</span><b>{names.get(edge.target)}</b></div>)}</div></ConsolePane></section>;
   }
   private historyPage(): ComponentChildren {
-    const keys = ["source_lines", "source_files", "repository_bytes", "test_cases",
-      "architecture_violations", "large_files", "complex_functions"];
-    return <section class="page"><div class="page-heading"><div><p class="eyebrow">Schema v1 timeline</p>
-      <h1>Repository trajectory</h1></div><p>{this.state.history.length} explicit snapshots</p></div>
-      {this.state.history.length ? <div class="history"><table class="console-table"><thead><tr>
-        <th class="compact">Captured</th><th class="compact">Revision</th>
-        {keys.map((key) => <th class="numeric">{label(key)}</th>)}</tr></thead><tbody>
-        {[...this.state.history].reverse().map((item) => <tr><td>{new Date(item.captured_at).toLocaleString()}</td>
-          <td>{item.revision}{item.dirty ? "*" : ""}</td>{keys.map((key) => <td class="numeric">
-            {key.includes("bytes") ? bytes(item.metrics[key] ?? 0)
-              : number.format(item.metrics[key] ?? 0)}</td>)}</tr>)}
-        </tbody></table></div> : <div class="empty"><h2>No snapshots yet</h2>
-          <p>Record the current state to establish a baseline.
-          Sampling is explicit so the timeline reflects meaningful checkpoints.</p></div>}</section>;
+    const history = this.state.repositoryHistory;
+    const changes = (items: { name: string; added: number; deleted: number }[]) => items.length
+      ? items.map((item) =>
+        `${item.name} +${number.format(item.added)} −${number.format(item.deleted)}`).join(" · ") : "—";
+    return <section class="page"><div class="page-heading"><div><p class="eyebrow">Automatic Git timeline</p>
+      <h1>Repository trajectory</h1></div><p>{history?.commits.length ?? 0} commits loaded
+        {history?.truncated ? ` · newest ${history.limit}` : ""}</p></div>
+      {history?.available && history.commits.length ? <div class="history"><table class="console-table"><thead><tr>
+        <th class="compact">Committed</th><th class="compact">Revision</th><th>Change</th>
+        <th class="numeric">Lines</th><th>Apps</th><th>Languages</th></tr></thead><tbody>
+        {history.commits.map((item) => <tr><td>{new Date(item.committed_at).toLocaleString()}</td>
+          <td>{item.revision}</td><td class="subject">{item.subject}</td>
+          <td class="numeric change-lines"><span>+{number.format(item.additions)}</span>
+            <b>−{number.format(item.deletions)}</b></td>
+          <td>{changes(item.apps)}</td><td>{changes(item.languages)}</td></tr>)}
+        </tbody></table></div> : <div class="empty"><h2>Git history unavailable</h2>
+          <p>The current repository can still be inspected; initialize or fetch Git history
+            to see its trajectory.</p></div>}
+      <p class="history-note">Derived from maintained text-file numstats. Binary and excluded generated/runtime paths
+        are not represented as line changes. {this.state.snapshots.length} optional metric
+        baselines recorded.</p></section>;
   }
   override render(): ComponentChildren {
     const pages: Page[] = ["overview", "explorer", "architecture", "history"];

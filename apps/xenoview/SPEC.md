@@ -9,8 +9,8 @@ The product succeeds when an owner can answer, within a minute: how large is the
 ## Feature inventory
 
 - An overview scorecard with source files, source lines, repository bytes, monoapps, Monotools modules, tests, documentation coverage, architecture violations, oversized files, and complex functions.
-- A durable snapshot timeline for comparing broad-strokes metrics over time. Snapshot creation is an explicit operator action and duplicate repository states are idempotent.
-- A Monotools module inventory showing file size, line count, public definitions, inbound monoapp declarations, and direct internal dependencies.
+- An automatic, bounded Git timeline showing added and deleted maintained-text lines per commit, grouped by monoapp and language; no operator sampling is required. Durable snapshots remain optional broad-metric baselines.
+- A Monotools module inventory showing file size, line count, public definitions, exact consuming monoapps, and direct internal dependencies.
 - A bounded, interactively collapsible repository tree showing directories and relevant files with byte and line totals, excluding generated, private, and runtime-heavy directories. Maintained end-to-end test subtrees remain measurable but start collapsed.
 - A high-level architecture map derived from app declarations and shared import relationships: repository, monoapps, Monotools, and persistence/runtime boundaries.
 - Visible measurement time, repository revision, dirty state, exclusions, failures, and definitions so the dashboard cannot imply false precision.
@@ -37,16 +37,16 @@ FastAPI serves a Preact client and four read-only views backed by one determinis
 - `GET /api/modules` returns the Monotools inventory.
 - `GET /api/tree` returns a bounded hierarchical repository projection.
 - `GET /api/architecture` returns typed nodes and edges derived from repository structure and app metadata.
-- `GET /api/history` returns saved snapshots; `POST /api/snapshots` explicitly records the current stable metrics after same-origin validation.
+- `GET /api/repository-history` derives commit, app, and language changes from Git without mutation. `GET /api/history` returns optional saved metric baselines; `POST /api/snapshots` records one after same-origin validation.
 
 SQLite stores snapshots in `data/xenoview.db`; `XENOVIEW_DATABASE_URL` may select another SQLAlchemy database. Scans never write to source control or execute repository code. Results use a short process-local cache invalidated by the explicit snapshot operation.
 
 ## Real-world pilot and acceptance
 
-Run the cockpit against Xenorepo, inspect the largest files and Monotools modules, trace several monoapp dependency edges back to `app.yaml`, save a snapshot, make a small source change, and save another. Confirm that the timeline and deltas preserve both states across a service restart and that generated data does not distort counts.
+Run the cockpit against Xenorepo, inspect the largest files and Monotools modules, trace exact monoapp consumers back to `app.yaml`, and inspect several commits across app and language changes without recording a snapshot. Optionally save two baselines around a small source change and confirm that generated data does not distort either projection.
 
-Automated acceptance covers deterministic exclusions and ordering, line/byte aggregation, module dependency extraction, app-declaration edges, audit mapping, bounded tree output, revision/dirty reporting, snapshot idempotence, schema-versioned history, restart persistence, same-origin mutation protection, modular TypeScript compilation, self-contained FastAPI delivery, and browser navigation across the overview, modules, explorer, architecture, and history views.
+Automated acceptance covers deterministic exclusions and ordering, line/byte aggregation, module dependency extraction and exact consumers, app-declaration edges, audit mapping, bounded tree output, revision/dirty reporting, bounded automatic Git history grouped by app and language, snapshot idempotence, restart persistence, same-origin mutation protection, modular TypeScript compilation, self-contained FastAPI delivery, and browser navigation across the overview, explorer, architecture, and history views.
 
 ## Deferred scope
 
-Live filesystem watching, background sampling, remote Git providers, CI ingestion, commit authorship, semantic code quality scoring, runtime telemetry, task management, source editing, arbitrary filesystem browsing, and predictive forecasts are deferred. The cockpit owns product presentation and snapshot persistence; generic measurements should move into Monotools only after another consumer proves a stable shared contract.
+Live filesystem watching, remote Git providers, submodule-internal history aggregation, CI ingestion, commit authorship, historical source-tree reconstruction, semantic code quality scoring, runtime telemetry, task management, source editing, arbitrary filesystem browsing, and predictive forecasts are deferred. The cockpit owns product presentation and snapshot persistence; generic measurements should move into Monotools only after another consumer proves a stable shared contract.

@@ -175,12 +175,15 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
 
     @app.command("ui-check")
     def ui_check(evidence: bool = typer.Option(False, "--evidence",
-            help="Retain trace, video, and HAR evidence for successful checks.")) -> None:
+            help="Retain trace, video, and HAR evidence for successful checks."),
+        update_snapshots: bool = typer.Option(False, "--update-snapshots",
+            help="Replace app-owned visual baselines with verified current output.")) -> None:
         """Run universal journeys and any app-owned browser suite."""
         declared = (BrowserSuite(browser_path, proof_kinds, viewports, input_modalities)
             if browser_path is not None else None)
         try:
-            artifacts = run_ui_check(definition, workspace, declared, evidence=evidence)
+            artifacts = run_ui_check(definition, workspace, declared, evidence=evidence,
+                update_snapshots=update_snapshots)
         except LifecycleError as error:
             _fail(error)
         matrix = "wide/narrow route smoke"
@@ -195,7 +198,7 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
         """Run this app's checks, Python suite, and complete browser proof matrix."""
         check()
         test()
-        ui_check(evidence=False)
+        ui_check(evidence=False, update_snapshots=False)
 
     if include_serve:
         @app.command()

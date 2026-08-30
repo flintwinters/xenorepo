@@ -177,7 +177,7 @@ def _write_summary(path: Path, definition: AppDefinition, workspace: Path, suite
 
 
 def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = None,
-    *, evidence: bool = False) -> Path:
+    *, evidence: bool = False, update_snapshots: bool = False) -> Path:
     """Build, serve, and browser-check one application with preserved evidence."""
     universal_suite, browser_suite, universal_report, proof_report = _browser_suites(workspace, suite)
     validate_app(definition, workspace)
@@ -197,6 +197,8 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = Non
     if browser_suite:
         suites.append(browser_suite.path)
     command = [str(playwright), "test", *(str(path.relative_to(workspace)) for path in suites)]
+    if update_snapshots:
+        command.append("--update-snapshots")
     started = time.time()
     run = _BrowserRun()
     try:

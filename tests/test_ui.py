@@ -47,7 +47,7 @@ class BrowserLifecycleTests(unittest.TestCase):
                  patch("monotools.orchestration.ui._run_browser", return_value=0) as run, \
                  patch("monotools.orchestration.ui._terminate", return_value="clean"):
                 actual = run_ui_check(
-                    definition, ROOT, suite
+                    definition, ROOT, suite, update_snapshots=True
                 )
                 summary = __import__("json").loads((artifacts / "summary.json").read_text())
 
@@ -67,6 +67,7 @@ class BrowserLifecycleTests(unittest.TestCase):
             str(ROOT / "node_modules" / ".bin" / "playwright"), "test",
             "tests/browser-framework/universal.spec.js",
             str(suite.relative_to(ROOT)),
+            "--update-snapshots",
         ])
         self.assertEqual(run.call_args.args[2]["BASE_URL"], "http://127.0.0.1:8123")
         self.assertEqual(run.call_args.args[2][database_key],
@@ -92,6 +93,7 @@ class BrowserLifecycleTests(unittest.TestCase):
             definition = synthetic_app_definition(Path(app_temporary))
             run_ui_check(definition, ROOT)
         self.assertEqual(run.call_args.args[0][-1], "tests/browser-framework/universal.spec.js")
+        self.assertNotIn("--update-snapshots", run.call_args.args[0])
 
 
 if __name__ == "__main__":

@@ -63,13 +63,15 @@ class CockpitTests(unittest.TestCase):
         self.assertTrue({"integrations.mailer", "orchestration.apps",
             "persistence.database", "runtime.application"}.issubset(names))
         self.assertTrue(all(item["description"] and item["explanation"] for item in modules))
-        appkit = next(item for item in modules if item["name"] == "runtime.appkit")
-        self.assertIn("xenoview", appkit["used_by_apps"])
-        self.assertEqual(appkit["inbound_apps"], len(appkit["used_by_apps"]))
         edges = {(item["source"], item["target"]) for item in architecture["edges"]}
         self.assertNotIn("lit-ui", {item["id"] for item in architecture["nodes"]})
         self.assertIn(("app:xenoview", "monotools"), edges)
         self.assertIn(("app:xenoview", "storage"), edges)
+
+    def test_modules_name_their_exact_app_consumers(self) -> None:
+        appkit = next(item for item in scan_modules(ROOT) if item["name"] == "runtime.appkit")
+        self.assertIn("xenoview", appkit["used_by_apps"])
+        self.assertEqual(appkit["inbound_apps"], len(appkit["used_by_apps"]))
 
     def test_git_history_is_automatic_and_grouped_by_app_and_language(self) -> None:
         history = scan_history(ROOT, limit=12)

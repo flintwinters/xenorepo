@@ -194,6 +194,34 @@ def _change_owner(path: str, definitions: tuple[AppDefinition, ...]) -> str:
     return parts[1] if len(parts) > 2 and parts[0] == "apps" and parts[1] in app_names else "platform"
 
 
+def _commit_history(root: Path, definitions: tuple[AppDefinition, ...], block: str) -> dict[str, object]:
+    header, *rows = block.splitlines()
+    revision, committed_at, subject = header.split(_FIELD_SEPARATOR, 2)
+    apps: dict[str, list[int]] = {}
+    languages: dict[str, list[int]] = {}
+    additions = deletions = 0
+    for row in rows:
+        columns = row.split("\t", 2)
+        if len(columns) != 3 or not columns[0].isdigit() or not columns[1].isdigit():
+            continue
+        added, deleted, path = int(columns[0]), int(columns[1]), columns[2]
+        if not _included(root / path, root):
+            continue
+        additions += added
+        deletions += deleted
+        app_change = apps.setdefault(_change_owner(path, definitions), [0, 0])
+        app_change[0] += added
+        app_change[1] += deleted
+        language = LANGUAGES.get(Path(path).suffix)
+        if language:
+            language_change = languages.setdefault(language, [0, 0])
+            language_change[0] += added
+            language_change[1] += deleted
+    return {"revision": revision[:12], "committed_at": committed_at,
+        "subject": subject, "additions": additions, "deletions": deletions,
+        "apps": _change_group(apps), "languages": _change_group(languages)}
+
+
 def scan_history(root: Path, limit: int = HISTORY_LIMIT) -> dict[str, object]:
     """Project bounded Git numstats into app and language change timelines."""
     definitions = _definitions(root)
@@ -202,33 +230,8 @@ def scan_history(root: Path, limit: int = HISTORY_LIMIT) -> dict[str, object]:
     result = subprocess.run(command, cwd=root, check=False, text=True, capture_output=True)
     if result.returncode:
         return {"available": False, "truncated": False, "limit": limit, "commits": []}
-    commits: list[dict[str, object]] = []
-    for block in result.stdout.split(_COMMIT_MARKER)[1:]:
-        header, *rows = block.splitlines()
-        revision, committed_at, subject = header.split(_FIELD_SEPARATOR, 2)
-        apps: dict[str, list[int]] = {}
-        languages: dict[str, list[int]] = {}
-        additions = deletions = 0
-        for row in rows:
-            columns = row.split("\t", 2)
-            if len(columns) != 3 or not columns[0].isdigit() or not columns[1].isdigit():
-                continue
-            added, deleted, path = int(columns[0]), int(columns[1]), columns[2]
-            if not _included(root / path, root):
-                continue
-            additions += added
-            deletions += deleted
-            app_change = apps.setdefault(_change_owner(path, definitions), [0, 0])
-            app_change[0] += added
-            app_change[1] += deleted
-            language = LANGUAGES.get(Path(path).suffix)
-            if language:
-                language_change = languages.setdefault(language, [0, 0])
-                language_change[0] += added
-                language_change[1] += deleted
-        commits.append({"revision": revision[:12], "committed_at": committed_at,
-            "subject": subject, "additions": additions, "deletions": deletions,
-            "apps": _change_group(apps), "languages": _change_group(languages)})
+    commits = [_commit_history(root, definitions, block)
+        for block in result.stdout.split(_COMMIT_MARKER)[1:]]
     truncated = len(commits) > limit
     return {"available": True, "truncated": truncated, "limit": limit,
         "commits": commits[:limit]}

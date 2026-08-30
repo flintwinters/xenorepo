@@ -23,6 +23,7 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   await expect(page.locator("#app")).toContainText("Files and semantic Monotools modules");
   await expect(page.locator("#app")).toContainText("audit");
   await expect(page.locator(".explorer-table")).toContainText("Measure architecture and structural invariants");
+  await expect(page.locator(".explorer-table")).toContainText("Used by");
   await expect(page.locator(".explorer-table")).toBeVisible();
   await expect(page.locator(".page table")).toHaveCount(1);
   const widths = await page.locator(".explorer-table th").evaluateAll((headers) => Object.fromEntries(
@@ -63,6 +64,11 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   await page.getByRole("button", { name: "architecture", exact: true }).click();
   await expect(page.locator("#app")).toContainText("High-level architecture");
   await expect(page.locator("#app")).toContainText("FastAPI + dist");
+
+  await page.getByRole("button", { name: "history", exact: true }).click();
+  await expect(page.locator("#app")).toContainText("Automatic Git timeline");
+  await expect(page.locator(".history")).toContainText("Apps");
+  await expect(page.locator(".history")).toContainText("Languages");
 
   await page.getByRole("button", { name: "RECORD SNAPSHOT", exact: true }).click();
   await expect(page.locator("#app")).toContainText("Repository trajectory");

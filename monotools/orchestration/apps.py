@@ -18,7 +18,7 @@ APPS_DIRECTORY = ROOT / "apps"
 _ARTIFACT_NAME = re.compile(r"^[a-z][a-z0-9_-]*$")
 _APP_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 _ROUTE_PATH = re.compile(r"^/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$")
-_RESERVED_ROUTES = frozenset({"/health"})
+_RESERVED_ROUTES = frozenset({"/agent/tools", "/health"})
 _FRONTEND_FORMAT = "preact"
 
 

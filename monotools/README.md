@@ -19,8 +19,8 @@ drift between that declaration and source. Artifact source, output, and format a
 independent facts; routes map server-owned URL paths to logical artifact names.
 `python manage.py check` discovers every definition, validates its source
 contract, imports its service, builds its browser documents, and validates the
-resulting `dist/` directory. The service owns `/health`, its declared document
-routes, and its domain routes.
+resulting `dist/` directory. The service owns `/health`, the API-only OpenAPI
+registry at `/agent/tools`, its declared document routes, and its domain routes.
 
 Apps remain product owners. Domain entities, repositories, migrations,
 authentication semantics, and high-level realtime coordinators stay local.

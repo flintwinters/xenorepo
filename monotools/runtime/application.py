@@ -11,6 +11,20 @@ from fastapi.responses import FileResponse
 
 from monotools.orchestration.apps import get_app
 
+AGENT_TOOLS_ROUTE = "/agent/tools"
+
+
+def api_openapi_schema(application: FastAPI) -> dict[str, object]:
+    """Return the live OpenAPI registry restricted to app-owned API routes."""
+    schema = application.openapi()
+    return {
+        **schema,
+        "paths": {
+            path: value for path, value in schema.get("paths", {}).items()
+            if path == "/api" or path.startswith("/api/")
+        },
+    }
+
 
 def _document_endpoint(document: Path):
     def serve_document() -> Path:
@@ -27,6 +41,10 @@ def create_application(app_name: str) -> FastAPI:
     @application.get("/health")
     def health() -> dict[str, str]:
         return {"status": "ok"}
+
+    @application.get(AGENT_TOOLS_ROUTE, include_in_schema=False)
+    def agent_tools() -> dict[str, object]:
+        return api_openapi_schema(application)
 
     for route, artifact_name in definition.routes:
         endpoint = _document_endpoint(definition.dist_directory / definition.artifact(artifact_name).output)

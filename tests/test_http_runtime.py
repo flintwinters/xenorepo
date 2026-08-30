@@ -21,7 +21,7 @@ from monotools.runtime.http import (
     same_origin_allowed,
     set_session_cookie,
 )
-from monotools.runtime.application import create_application
+from monotools.runtime.application import AGENT_TOOLS_ROUTE, create_application
 from tests.support import synthetic_app_definition
 
 
@@ -95,6 +95,22 @@ class RuntimePlatformTests(unittest.TestCase):
             with self.subTest(route=path):
                 self.assertEqual(Path(routes[path].endpoint()),
                     definition.dist_directory / definition.artifact(artifact_name).output)
+
+    def test_runtime_exposes_live_api_openapi_registry_for_agents(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="runtime-") as temporary:
+            definition = synthetic_app_definition(Path(temporary))
+        with patch("monotools.runtime.application.get_app", return_value=definition):
+            application = create_application(definition.name)
+
+        @application.get("/api/widgets/{widget_id}")
+        def widget(widget_id: int) -> dict[str, int]:
+            return {"widget_id": widget_id}
+
+        routes = {route.path: route for route in application.routes if hasattr(route, "path")}
+        registry = routes[AGENT_TOOLS_ROUTE].endpoint()
+        self.assertEqual(set(registry["paths"]), {"/api/widgets/{widget_id}"})
+        self.assertEqual(registry["info"]["title"], definition.title)
+        self.assertNotIn(AGENT_TOOLS_ROUTE, application.openapi()["paths"])
 
 
 if __name__ == "__main__":

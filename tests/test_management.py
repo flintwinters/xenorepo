@@ -123,6 +123,13 @@ frontend:
         for definition in definitions:
             self.assertIn(definition.name, result.output)
 
+    def test_active_monoapp_readmes_link_to_xenorepo_at_the_top(self) -> None:
+        link = "[Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)"
+        for definition, _ in repository_manager.MANAGERS:
+            with self.subTest(app=definition.name):
+                lines = (definition.directory / "README.md").read_text(encoding="utf-8").splitlines()
+                self.assertEqual(lines[2], link)
+
     def test_root_cockpit_cold_start_discovers_the_complete_inventory(self) -> None:
         """Prove the real entrypoint imports before in-process test fixtures can mask it."""
         result = subprocess.run(
@@ -316,6 +323,9 @@ frontend:
             self.assertTrue((directory / ".gitignore").is_file())
             self.assertTrue((directory / "frontend/styles.css").is_file())
             self.assertTrue((directory / "tests/e2e/readiness.spec.ts").is_file())
+            readme = (directory / "README.md").read_text(encoding="utf-8")
+            self.assertEqual(readme.splitlines()[2],
+                "[Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)")
             self.assertNotIn("{{app_name}}", (directory / "app.yaml").read_text(encoding="utf-8"))
             with self.assertRaisesRegex(ScaffoldError, "refusing to overwrite"):
                 scaffold_app(apps_directory, "signal_lab", "Again")

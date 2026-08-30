@@ -1,5 +1,7 @@
 # Rock Paper Scissors
 
+[Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)
+
 Rock Paper Scissors is a standalone live competitive arena. Guests enter a
 streak-aware queue, receive simultaneous concealed ten-second rounds, and may
 recover an interrupted match for five seconds through their durable guest

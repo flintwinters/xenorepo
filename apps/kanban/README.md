@@ -1,5 +1,7 @@
 # Kanban Console
 
+[Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)
+
 Kanban Console is a compact, durable single-board workflow application. It
 supports card creation, renaming, ordering, movement, deletion, and linear
 undo/redo history through one FastAPI service and a self-contained browser

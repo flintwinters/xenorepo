@@ -1,5 +1,7 @@
 # Xenorepo Cockpit
 
+[Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)
+
 An evidence-first command-and-control view of Xenorepo's maintained footprint, Monotools modules, declared architecture, and explicit historical snapshots.
 
 ## Standalone deployment

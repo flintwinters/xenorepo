@@ -1,5 +1,7 @@
 # Common Room
 
+[Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)
+
 Common Room is a standalone anonymous group-chat application. FastAPI serves
 the complete browser interface, synchronizes durable history, and broadcasts
 new messages over WebSockets.

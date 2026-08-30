@@ -1,5 +1,7 @@
 # Working Style Inventory
 
+[Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)
+
 Working Style Inventory is a standalone, eight-item non-diagnostic
 psychometric self-reflection exercise. Participants rate workplace statements
 on a five-point scale and receive a local working-style profile across focus,

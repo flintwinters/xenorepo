@@ -1,5 +1,7 @@
 # WIRE/98
 
+[Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)
+
 WIRE/98 is a standalone public microblog. Visitors can read the newest-first
 feed, create an account, publish posts of up to 280 characters, and record
 durable like and unlike transitions.

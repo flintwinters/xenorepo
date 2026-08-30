@@ -1,5 +1,7 @@
 # Calculator
 
+[Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)
+
 A responsive, keyboard-friendly four-function calculator built as a strict
 Preact monoapp. It supports chained operations, decimal input, sign changes,
 percent conversion, correction, and clear error recovery.

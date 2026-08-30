@@ -29,6 +29,7 @@ CheckoutTerms = OneTimeTerms | RecurringTerms
 class CheckoutRequest:
     reference: str
     email: str
+    label: str
     terms: CheckoutTerms
     success_url: str
     cancel_url: str
@@ -53,7 +54,10 @@ class PaymentGateway(Protocol):
     """The narrow surface an app needs from a hosted-payment provider."""
 
     name: str
+    signature_header: str
 
     def create_checkout(self, request: CheckoutRequest) -> HostedCheckout: ...
 
-    def parse_notification(self, payload: bytes, signature: str | None) -> PaymentNotification: ...
+    def parse_notification(
+        self, payload: bytes, signature: str | None
+    ) -> PaymentNotification | None: ...

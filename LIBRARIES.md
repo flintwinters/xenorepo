@@ -33,6 +33,7 @@ root orchestration surfaces rather than independently adopted app contracts.
 | --- | ---: |
 | `monotools.integrations.commerce` | 1 |
 | `monotools.integrations.mailer` | 1 |
+| `monotools.integrations.stripe` | 1 |
 | `monotools.orchestration.lifecycle` | 1 |
 | `monotools.orchestration.management` | 9 |
 | `monotools.persistence.auth` | 2 |

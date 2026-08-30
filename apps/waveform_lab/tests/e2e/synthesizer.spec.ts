@@ -76,6 +76,8 @@ test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) =
   await expect(editor).not.toContainText("parameters:");
   await expect(editor).toContainText("from: waveform-1");
   await expect(editor).toContainText("to: gain-1");
+  await expect(editor).toContainText("to: output");
+  await expect(editor).not.toContainText("kind: output");
   await expect(editor).not.toContainText("type: audio");
   await expect(editor).not.toContainText("notes:");
   await expect(editor).not.toContainText("volume:");
@@ -129,6 +131,11 @@ test("[acceptance] named instruments color independent loop notes", async ({ pag
   const editor = page.getByLabel("Synth setup YAML editor");
   await expect(editor).toContainText("bass:");
   await expect(editor).toContainText("main:");
+  await expect(editor).toContainText("output:");
+  await expect(editor).toContainText("level: 0.7");
+  await expect(editor).toContainText("to: output");
+  await expect(editor).not.toContainText("bass-output");
+  await expect(editor).not.toContainText("main-output");
   await expect(editor).not.toContainText("name: bass");
   const selector = page.getByLabel("Loop instrument");
   await expect(selector.locator("option")).toHaveCount(2);
@@ -194,13 +201,15 @@ test("[acceptance] coordinate-bearing state migrates and malformed storage recov
   await page.getByLabel("Tempo in BPM").fill("134");
   await page.getByLabel("Tempo in BPM").press("Tab");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1")))
-    .toContain("version: 10\nmain:");
+    .toContain("version: 11\nmain:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("synth:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("instruments:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toMatch(/\b[xy]:/);
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("samples:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("parameters:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("name: main");
+  expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("kind: output");
+  expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).toContain("to: output");
   await expect(page.getByLabel("Synth setup YAML editor")).not.toContainText("waveform:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("type: audio");
   await expect(page.getByLabel("App volume")).toHaveValue("0.8");

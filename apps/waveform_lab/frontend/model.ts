@@ -1,6 +1,6 @@
 const SAMPLE_COUNT = 128;
 export const STEP_COUNT = 32;
-export const STATE_VERSION = 10 as const;
+export const STATE_VERSION = 11 as const;
 export const PITCHES = Array.from({ length: 48 }, (_, index) => 95 - index);
 export type WaveformShape = "sine" | "square" | "saw" | "triangle";
 
@@ -79,9 +79,9 @@ export function initialState(): LabState {
     version: STATE_VERSION,
     instruments: [{ name: "main", color: "#b8bb26", waveform: "sine",
       modules: [createModule("waveform-1", "waveform"), createModule("gain-1", "gain"),
-        createModule("output-1", "output")],
+        createModule("output", "output")],
       connections: [{ from: "waveform-1", to: "gain-1", type: "audio" },
-        { from: "gain-1", to: "output-1", type: "audio" }] }],
+        { from: "gain-1", to: "output", type: "audio" }] }],
     notes: Array.from({ length: STEP_COUNT }, () => []), bpm: 120, volume: 0.8,
   };
 }
@@ -100,7 +100,7 @@ function validParameters(kind: ModuleKind, value: unknown): value is ModuleParam
     return finite(value[name]) && value[name] >= range[0] && value[name] <= range[1];
   });
 }
-type StateVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | typeof STATE_VERSION;
+type StateVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | typeof STATE_VERSION;
 function flatParameters(kind: ModuleKind, value: Record<string, unknown>, requireAll: boolean
     ): ModuleParameters | null {
   const parameters = defaultParameters(kind);
@@ -261,9 +261,20 @@ function instrumentOf(value: unknown, version: StateVersion, mappedName?: string
       || !Array.isArray(value.modules)) return null;
   const name = mappedName ?? value.name;
   if (typeof name !== "string" || !name.trim()) return null;
-  const fields = mappedName ? ["color", "waveform", "modules"] : ["name", "color", "waveform", "modules"];
+  const fields = mappedName ? ["color", "waveform", "output", "modules"]
+    : ["name", "color", "waveform", "modules"];
   if (Object.keys(value).some((key) => !fields.includes(key))) return null;
-  const modules = modulesOf(value.modules, version);
+  if (version === STATE_VERSION && value.modules.some((module) =>
+    record(module) && (module.id === "output" || module.kind === "output"))) return null;
+  const parsedModules = modulesOf(value.modules, version);
+  let reservedOutput = createModule("output", "output");
+  if (version === STATE_VERSION && value.output !== undefined) {
+    if (!record(value.output) || Object.keys(value.output).some((field) => field !== "level")
+      || !finite(value.output.level) || value.output.level < 0 || value.output.level > 1) return null;
+    reservedOutput = { ...reservedOutput, parameters: { level: value.output.level } };
+  }
+  const modules = parsedModules && version === STATE_VERSION
+    ? [...parsedModules, reservedOutput] : parsedModules;
   const embedded = embeddedConnections(value.modules);
   const waveform = waveformOf(value, version);
   if (!modules || !embedded || !waveform) return null;
@@ -272,11 +283,24 @@ function instrumentOf(value: unknown, version: StateVersion, mappedName?: string
     waveform, modules, connections } : null;
 }
 
+function withReservedOutput(instrument: Instrument): Instrument | null {
+  const outputs = instrument.modules.filter((module) => module.kind === "output");
+  if (outputs.length !== 1) return null;
+  const output = outputs[0] as ModuleNode;
+  if (output.id !== "output" && instrument.modules.some((module) => module.id === "output")) return null;
+  return { ...instrument,
+    modules: instrument.modules.map((module) => module === output
+      ? { ...output, id: "output" } : module),
+    connections: instrument.connections.map((edge) => ({ ...edge,
+      from: edge.from === output.id ? "output" : edge.from,
+      to: edge.to === output.id ? "output" : edge.to })) };
+}
+
 function flattened(value: Record<string, unknown>): Record<string, unknown> | null {
   if (value.version === 1) return value;
   if (value.version !== 2 && value.version !== 3 && value.version !== 4 && value.version !== 5
       && value.version !== 6 && value.version !== 7 && value.version !== 8
-      && value.version !== 9 && value.version !== STATE_VERSION) return null;
+      && value.version !== 9 && value.version !== 10 && value.version !== STATE_VERSION) return null;
   if (!record(value.synth) || !record(value.loop)) return value;
   return { version: value.version, ...value.synth, ...value.loop };
 }
@@ -287,7 +311,7 @@ export function validatedState(value: unknown): LabState | null {
   const saved = flattened(value);
   if (!saved || (saved.version !== 1 && saved.version !== 2 && saved.version !== 3 && saved.version !== 4
       && saved.version !== 5 && saved.version !== 6 && saved.version !== 7 && saved.version !== 8
-      && saved.version !== 9 && saved.version !== STATE_VERSION)) return null;
+      && saved.version !== 9 && saved.version !== 10 && saved.version !== STATE_VERSION)) return null;
   const version = saved.version as StateVersion;
   if (version === STATE_VERSION) {
     if (!record(saved.loop)) return null;
@@ -303,7 +327,9 @@ export function validatedState(value: unknown): LabState | null {
     if (!Array.isArray(saved.instruments) || !saved.instruments.length) return null;
     const instruments = saved.instruments.map((instrument) => instrumentOf(instrument, version));
     if (instruments.some((instrument) => !instrument)) return null;
-    const validInstruments = instruments as Instrument[];
+    const migratedInstruments = (instruments as Instrument[]).map(withReservedOutput);
+    if (migratedInstruments.some((instrument) => !instrument)) return null;
+    const validInstruments = migratedInstruments as Instrument[];
     const names = validInstruments.map((instrument) => instrument.name);
     if (new Set(names).size !== names.length) return null;
     const sequencer = sequence(saved, version, new Set(names));
@@ -318,8 +344,10 @@ export function validatedState(value: unknown): LabState | null {
   const waveform = waveformOf(saved, version);
   if (!modules || !sequencer || !waveform) return null;
   const connections = connectionsOf(connectionValues, modules, legacy);
-  const instruments = connections ? [{ name: "main", color: "#b8bb26", waveform, modules, connections }] : null;
-  return instruments ? { version: STATE_VERSION, instruments, ...sequencer } : null;
+  const migrated = connections ? { name: "main", color: "#b8bb26", waveform, modules, connections } : null;
+  const instruments = migrated ? [withReservedOutput(migrated)] : null;
+  if (instruments?.some((instrument) => !instrument)) return null;
+  return instruments ? { version: STATE_VERSION, instruments: instruments as Instrument[], ...sequencer } : null;
 }
 
 /** Restores current YAML data or atomically migrates valid legacy state; defects return a fresh patch. */

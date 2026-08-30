@@ -19,11 +19,17 @@ function connectionOf(connection: Connection): object {
 }
 
 function instrumentMapOf(state: LabState): Record<string, object> {
-  return Object.fromEntries(state.instruments.map((instrument) => [instrument.name, {
-    color: instrument.color,
-    ...(instrument.waveform === "sine" ? {} : { waveform: instrument.waveform }),
-    modules: instrument.modules.map((module) => moduleOf(module, instrument)),
-  }]));
+  return Object.fromEntries(state.instruments.map((instrument) => {
+    const output = instrument.modules.find((module) => module.kind === "output");
+    const level = output?.parameters?.level ?? defaultParameters("output").level;
+    return [instrument.name, {
+      color: instrument.color,
+      ...(instrument.waveform === "sine" ? {} : { waveform: instrument.waveform }),
+      ...(level === defaultParameters("output").level ? {} : { output: { level } }),
+      modules: instrument.modules.filter((module) => module.kind !== "output")
+        .map((module) => moduleOf(module, instrument)),
+    }];
+  }));
 }
 
 function documentOf(state: LabState): object {

@@ -75,6 +75,25 @@
 }
 .mailing-card input::placeholder { color: #766f65; }
 .mailing-card .x-ui-command-control { height: 100%; padding-inline: 12px; }
+.mailing-confirmation {
+  display: grid; grid-template-columns: auto 1fr; gap: 12px; padding: 16px;
+  border: 1px solid #6f7110; background: #20251c; box-shadow: inset 3px 0 #b8bb26;
+}
+.mailing-confirmation-mark {
+  display: grid; width: 34px; height: 34px; margin: 0; place-items: center;
+  color: #1d2021; font-size: 20px; background: #b8bb26; border-radius: 50%;
+}
+.mailing-confirmation h2 { margin: 0; color: #f2e7c6; font: 700 20px/1.1 Georgia, serif; }
+.mailing-confirmation .mailing-eyebrow { margin-bottom: 5px; }
+.mailing-confirmation dl { grid-column: 1 / -1; display: grid; gap: 1px; margin: 2px 0; background: #4d4c32; }
+.mailing-confirmation dl div {
+  display: grid; grid-template-columns: 84px 1fr; gap: 10px; padding: 7px 9px; background: #181a1b;
+}
+.mailing-confirmation dt { color: #8e887d; font-size: 9px; letter-spacing: 0.08em; }
+.mailing-confirmation dd { margin: 0; color: #e8dfc5; text-align: right; }
+.mailing-confirmation > p:last-child {
+  grid-column: 1 / -1; margin: 2px 0 0; color: #bdae93; line-height: 1.4;
+}
 .mailing-message {
   display: flex; align-items: center; gap: 7px; min-height: 30px; padding: 7px 9px;
   color: #d5d1bd; background: #181a1b; border-left: 2px solid #83a598;

@@ -8,6 +8,10 @@ test("[acceptance] enrollment reaches the sandbox checkout", async ({ page }) =>
   await expect(page.getByText("COMPLETE SANDBOX PAYMENT")).toBeVisible();
   await page.getByText("COMPLETE SANDBOX PAYMENT").click();
   await expect(page.locator("#message")).toHaveText("SUBSCRIPTION ACTIVE");
+  await expect(page.getByRole("heading", { name: "You’re on the ledger." })).toBeVisible();
+  await expect(page.getByText("Payment confirmed")).toBeVisible();
+  await expect(page.getByText("$5.00 / month").last()).toBeVisible();
+  await expect(page.getByText("Edition delivery will become available")).toBeVisible();
 });
 
 test("[visual] initial enrollment ledger", async ({ page }) => {

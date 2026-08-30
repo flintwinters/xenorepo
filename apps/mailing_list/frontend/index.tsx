@@ -138,14 +138,23 @@ function Enrollment() {
           <div class="mailing-price"><span>{price}</span><small> / {details?.interval ?? "month"}</small></div>
           <p class="mailing-terms">One edition every month. Your membership funds the reporting
             directly and can be cancelled at any time.</p>
-          <form id="enroll" onSubmit={submit}>
-            <label for="email">Email address</label>
-            <input id="email" name="email" type="email" required autoComplete="email" maxLength={320}
-              placeholder="reader@example.com" disabled={busy || phase === "active"} />
-            <CommandButton id="submit" type="submit" disabled={!details || busy || phase === "active"}>
-              {phase === "creating" ? "OPENING…" : phase === "active" ? "MEMBERSHIP ACTIVE" : "CONTINUE TO PAYMENT"}
-            </CommandButton>
-          </form>
+          {phase === "active" ? <section class="mailing-confirmation" aria-labelledby="confirmation-title">
+            <p class="mailing-confirmation-mark" aria-hidden="true">✓</p>
+            <div><p class="mailing-eyebrow">PAYMENT CONFIRMED</p>
+              <h2 id="confirmation-title">You’re on the ledger.</h2></div>
+            <dl><div><dt>MEMBERSHIP</dt><dd>Independent dispatch</dd></div>
+              <div><dt>RENEWS</dt><dd>{price} / {details?.interval ?? "month"}</dd></div>
+              <div><dt>STATUS</dt><dd>Active</dd></div></dl>
+            <p>Your subscription is recorded. Edition delivery will become available with the
+              upcoming mail-service checkpoint.</p>
+          </section> : <form id="enroll" onSubmit={submit}>
+              <label for="email">Email address</label>
+              <input id="email" name="email" type="email" required autoComplete="email" maxLength={320}
+                placeholder="reader@example.com" disabled={busy} />
+              <CommandButton id="submit" type="submit" disabled={!details || busy}>
+                {phase === "creating" ? "OPENING…" : "CONTINUE TO PAYMENT"}
+              </CommandButton>
+            </form>}
           {sandboxCheckout && <div class="mailing-actions" aria-label="Sandbox checkout controls">
             <p>LOCAL CHECKOUT PREVIEW</p>
             <CommandButton type="button" disabled={busy} onClick={() => void settle("paid")}>

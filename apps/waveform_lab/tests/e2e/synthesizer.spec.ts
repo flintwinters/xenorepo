@@ -42,6 +42,8 @@ test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) =
   await expect(editor).toContainText("waveform: sine");
   await expect(editor).not.toContainText("samples:");
   await expect(editor).not.toContainText("parameters:");
+  await expect(editor).toContainText("from: waveform-1");
+  await expect(editor).toContainText("to: gain-1");
   await expect(editor).not.toContainText("notes:");
   await expect(editor).not.toContainText("volume:");
   await expect(editor).not.toContainText(/\b[xy]:/);
@@ -95,10 +97,12 @@ test("[acceptance] coordinate-bearing state migrates and malformed storage recov
   await page.getByLabel("Tempo in BPM").fill("134");
   await page.getByLabel("Tempo in BPM").press("Tab");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1")))
-    .toContain("version: 6\nsynth:");
+    .toContain("version: 7\nsynth:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toMatch(/\b[xy]:/);
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("samples:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("parameters:");
+  expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1")))
+    .not.toMatch(/\nsynth:\n  connections:/);
   await expect(page.getByLabel("Synth setup YAML editor")).toContainText("waveform: sine");
   await expect(page.getByLabel("App volume")).toHaveValue("0.8");
 

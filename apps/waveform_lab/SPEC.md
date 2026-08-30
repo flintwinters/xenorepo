@@ -58,6 +58,9 @@ restart.
   source. Modulation connections require a control source and compatible target parameter. Cycles
   are rejected before mutation. An incomplete patch remains editable and silent rather than
   failing the application.
+- Each connection is stored exactly once inside its source module with explicit `from`, `to`,
+  `type`, and optional modulation `target`; there is no separate top-level connection section, and
+  the embedded `from` must match its owning module.
 - Module parameters are finite and bounded by their declared ranges. Bypass preserves graph
   topology, reset restores only the selected module's defaults, and removing a module cascades only
   its attached cables.

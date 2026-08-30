@@ -1,1 +1,0 @@
-"""Waveform Synthesizer backend package."""

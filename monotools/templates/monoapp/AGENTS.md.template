@@ -8,6 +8,7 @@ Define the user outcome and the smallest real-world journey that proves {{app_ti
 
 {{app_title}} owns its product behavior and consumes generic Monotools contracts from the enclosing
 Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
+Compose established shell, pane, rail, command, and empty-state controls from `@xenorepo/ui`.
 
 Inventory shared UI primitives and tokens before writing presentation code. Reuse toolkit commands
 and empty states unless their semantics are demonstrably unsuitable. Treat every border, gap,

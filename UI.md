@@ -18,9 +18,6 @@ Use tiny crisp monospaced typography, near-solid leading, shallow chrome, compac
 
 ## Command controls
 
-Use `CommandButton` from `@xenorepo/ui` for ordinary commands. Use native buttons only when semantics
-require a distinct treatment, such as tabs, grid cells, tree toggles, or drag handles.
-
 All ordinary command buttons share one restrained construction. Use a compact content-sized dark face approximately one text row high, tight horizontal padding, a neutral one-pixel outline, and square or nearly square corners. Shade the face with a subtle light-to-dark vertical gradient. Add a faint translucent highlight just inside the upper edge, restrained darker inset shading along the lower edge, and a short soft shadow centered directly beneath the face. The result should look gently raised and clean, not chunky, pixel-stacked, or heavily beveled.
 
 Do not use asymmetric pale top-and-left borders against black right-and-bottom borders. Do not use a detached hard one-pixel offset shadow, multiple visible outline tiers, large vertical padding, broad minimum widths, or a shadow displaced sideways. Do not stretch ordinary commands into ribbons merely to fill a toolbar. Keep discrete commands content-sized and separated by a narrow consistent gap. Do not present browser-default controls or oversized form chrome.
@@ -46,3 +43,5 @@ Use semantic landmarks and real compact interactions. Do not use pills, transluc
 Do not use technical language anywhere it is not required in the UI.
 
 Do not use javascript alerts in place of modals.
+
+Avoid scrollbars.

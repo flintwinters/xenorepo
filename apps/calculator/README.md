@@ -1,7 +1,7 @@
 # Calculator
 
 A responsive, keyboard-friendly four-function calculator built as a strict
-Lit monoapp. It supports chained operations, decimal input, sign changes,
+Preact monoapp. It supports chained operations, decimal input, sign changes,
 percent conversion, correction, and clear error recovery.
 
 Use the repository cockpit for every lifecycle operation:

@@ -31,7 +31,7 @@ History retains the stable scalar subset of these measurements, plus revision an
 
 ## Walking skeleton
 
-FastAPI serves a Lit client and four read-only views backed by one deterministic repository scanner:
+FastAPI serves a Preact client and four read-only views backed by one deterministic repository scanner:
 
 - `GET /api/overview` returns the current scorecard, audit counts, latest saved delta, exclusions, revision, and dirty state.
 - `GET /api/modules` returns the Monotools inventory.

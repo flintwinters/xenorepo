@@ -21,7 +21,7 @@ class RepositoryAppTests(unittest.TestCase):
             title="Sample Laboratory",
             directory=directory,
             module=f"apps.{name}.backend.server",
-            artifacts=(FrontendArtifact("index", "lit", Path("frontend/index.ts"),
+            artifacts=(FrontendArtifact("index", "preact", Path("frontend/index.tsx"),
                 Path("index.html")),),
             routes=(("/", "index"),),
             capabilities=frozenset(),
@@ -155,7 +155,7 @@ frontend:
             self.assertIn('"/api/items/{item_id}"', schema)
             self.assertNotIn('"/health"', schema)
 
-    def test_frontend_watch_includes_preact_css_tooling_and_shared_ui(self) -> None:
+    def test_frontend_watch_includes_css_tooling_and_shared_ui(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="preact-watch-") as temporary:
             directory = Path(temporary)
             frontend = directory / "frontend"
@@ -182,19 +182,19 @@ frontend:
         self.assertIn("Applications are consumers; they do not", catalog)
         self.assertIn("import one another.", catalog)
 
-    def test_frontend_watch_rebuilds_declared_lit_inputs(self) -> None:
+    def test_frontend_watch_rebuilds_declared_inputs(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="watch-") as temporary:
             directory = Path(temporary) / "sample-lab"
             frontend = directory / "frontend"
             frontend.mkdir(parents=True)
-            (frontend / "index.ts").touch()
+            (frontend / "index.tsx").touch()
             (frontend / "feature.ts").touch()
             definition = self.fixture_definition(directory)
             inputs = frontend_inputs(definition, ROOT)
 
-            self.assertIn(frontend / "index.ts", inputs)
+            self.assertIn(frontend / "index.tsx", inputs)
             self.assertIn(frontend / "feature.ts", inputs)
-            self.assertIn(ROOT / "tsconfig.frontend.json", inputs)
+            self.assertIn(ROOT / "tsconfig.preact.json", inputs)
             report = Mock()
             with patch("monotools.orchestration.watch._snapshot", side_effect=[
                     ((Path("source"), 1),), ((Path("source"), 2),)
@@ -224,8 +224,8 @@ module: apps.fixture.backend.server
 frontend:
   artifacts:
     index:
-      format: lit
-      source: frontend/index.ts
+      format: preact
+      source: frontend/index.tsx
       output: index.html
   routes:
     /: index
@@ -236,10 +236,12 @@ frontend:
             "unknown-artifact": (base.replace("/: index", "/: missing"), "unknown frontend artifact"),
             "reserved-route": (base.replace("/: index", "/health: index"), "reserved by the platform"),
             "invalid-output": (base.replace("output: index.html", "output: ../index.html"), "normalized relative path"),
-            "authored-html": (base.replace("frontend/index.ts", "frontend/index.html"),
-                r"lit frontend artifact source must end in .js, .ts"),
-            "document-format": (base.replace("format: lit", "format: document"),
-                "unsupported frontend format"),
+            "authored-html": (base.replace("frontend/index.tsx", "frontend/index.html"),
+                r"preact frontend artifact source must end in .tsx"),
+            "legacy-format": (base.replace("format: preact", "format: lit"),
+                "frontend format must be 'preact', got 'lit'"),
+            "document-format": (base.replace("format: preact", "format: document"),
+                "frontend format must be 'preact', got 'document'"),
         }
         with TemporaryDirectory(dir=ROOT / "tests", prefix="metadata-") as temporary:
             directory = Path(temporary) / "fixture"
@@ -260,8 +262,8 @@ module: apps.fixture.backend.server
 frontend:
   artifacts:
     index:
-      format: lit
-      source: frontend/index.ts
+      format: preact
+      source: frontend/index.tsx
       output: index.html
   routes:
     /: index
@@ -292,7 +294,7 @@ frontend:
                             "apps.fixture.backend.server", "apps.fixture.server")
                     else:
                         contents = contents.replace(
-                            "source: frontend/index.ts", "source: index.ts")
+                            "source: frontend/index.tsx", "source: index.tsx")
                     (directory / "app.yaml").write_text(contents, encoding="utf-8")
                     with self.assertRaisesRegex(AppDefinitionError, message):
                         load_app(directory)
@@ -304,8 +306,8 @@ frontend:
             directory=ROOT / "tests",
             module="tests.fixture",
             artifacts=(
-                FrontendArtifact("home", "lit", Path("frontend/home.ts"), Path("home.html")),
-                FrontendArtifact("about", "lit", Path("frontend/about.ts"), Path("about.html")),
+                FrontendArtifact("home", "preact", Path("frontend/home.tsx"), Path("home.html")),
+                FrontendArtifact("about", "preact", Path("frontend/about.tsx"), Path("about.html")),
             ),
             routes=(("/", "home"), ("/about", "about")),
             capabilities=frozenset(),
@@ -319,8 +321,8 @@ frontend:
         self.assertEqual(routes["/about"].endpoint(), ROOT / "tests" / "dist" / "about.html")
         self.assertEqual(routes["/health"].endpoint(), {"status": "ok"})
 
-    def test_lit_type_error_is_actionable_before_build_mutation(self) -> None:
-        with TemporaryDirectory(dir=ROOT / "tests", prefix="lit-error-") as temporary:
+    def test_frontend_type_error_is_actionable_before_build_mutation(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="frontend-error-") as temporary:
             definition = self.fixture_definition(Path(temporary))
             output = definition.dist_directory / "index.html"
             output.parent.mkdir()

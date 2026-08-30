@@ -20,7 +20,7 @@ _ARTIFACT_NAME = re.compile(r"^[a-z][a-z0-9_-]*$")
 _APP_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 _ROUTE_PATH = re.compile(r"^/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$")
 _RESERVED_ROUTES = frozenset({"/health"})
-_FORMATS = frozenset({"lit", "preact"})
+_FRONTEND_FORMAT = "preact"
 
 
 class AppDefinitionError(ValueError):
@@ -181,14 +181,14 @@ def _artifact(name: str, raw: object, path: Path) -> FrontendArtifact:
     item = _mapping(raw, path, label)
     _only_keys(item, frozenset({"format", "source", "output"}), path, label)
     format_name = _string(item.get("format"), path, f"{label}.format")
-    if format_name not in _FORMATS:
-        raise AppDefinitionError(f"{_display(path)} has unsupported frontend format: {format_name!r}")
-    source = _relative_path(item.get("source"), path, f"{label}.source")
-    expected_suffixes = {".tsx"} if format_name == "preact" else {".js", ".ts"}
-    if source.suffix not in expected_suffixes:
+    if format_name != _FRONTEND_FORMAT:
         raise AppDefinitionError(
-            f"{_display(path)} {format_name} frontend artifact source must end in "
-            f"{', '.join(sorted(expected_suffixes))}"
+            f"{_display(path)} frontend format must be {_FRONTEND_FORMAT!r}, got {format_name!r}"
+        )
+    source = _relative_path(item.get("source"), path, f"{label}.source")
+    if source.suffix != ".tsx":
+        raise AppDefinitionError(
+            f"{_display(path)} preact frontend artifact source must end in .tsx"
         )
     output = _relative_path(item.get("output"), path, f"{label}.output")
     if output.suffix != ".html":

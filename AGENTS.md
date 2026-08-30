@@ -36,11 +36,9 @@ it, and **Monotools** is the canonical orchestration library.
   Python file is `manage.py`, and it has a standalone-deployment README.
 - FastAPI is each app's only runtime service. App YAML maps server-owned URLs to
   self-contained compiled `dist/` HTML artifacts; HTML is never application
-  source. Frontend sources are JavaScript or TypeScript entries compiled by
+  source. Frontend entries are strict Preact TSX with external CSS, compiled by
   Monotools. Do not add separate frontend services, private Node projects, or
   build scripts.
-- Migrate frontends to typed Preact TSX and external CSS with visual and
-  behavioral parity, OpenAPI-derived HTTP types, and proved shared boundaries.
 - Persist durable domain facts through SQLAlchemy ORM, with SQLite as the local
   default and PostgreSQL-compatible models and transaction boundaries. Preserve
   identifiers, timestamps, provenance, transitions, relationships, constraints,
@@ -61,8 +59,7 @@ it, and **Monotools** is the canonical orchestration library.
 
 ## 3. Current tasks
 
-- Follow `PREACT_MIGRATION.md`: migrate all frontends to Preact in verified
-  checkpoints, then remove Lit and JavaScript frontend compatibility.
+- Keep the completed Preact-only architecture gates permanent.
 - Keep deterministic app-owned wide/narrow visual baselines; do not redesign.
 - Enforce the dependency direction `monoapp -> generic Monotools contract`,
   with no static monoapp identity or product policy in central code or tests.

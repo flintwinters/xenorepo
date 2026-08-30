@@ -18,9 +18,7 @@ function compilerOptions(configPath) {
 }
 
 export function checkPageEntries(entries) {
-  const configName = entries.every((entry) => entry.endsWith(".tsx"))
-    ? "tsconfig.preact.json" : "tsconfig.frontend.json";
-  const configPath = resolve(root, configName);
+  const configPath = resolve(root, "tsconfig.preact.json");
   const roots = [resolve(root, "types/css.d.ts"), ...entries.map((entry) => resolve(root, entry))];
   const diagnostics = ts.getPreEmitDiagnostics(ts.createProgram(roots, compilerOptions(configPath)));
   if (diagnostics.length)

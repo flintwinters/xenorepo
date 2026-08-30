@@ -37,8 +37,8 @@ module: apps.{name}.backend.server
 frontend:
   artifacts:
     index:
-      format: lit
-      source: frontend/index.ts
+      format: preact
+      source: frontend/index.tsx
       output: index.html
   routes:
     /: index
@@ -60,8 +60,8 @@ module: apps.{name}.backend.server
 frontend:
   artifacts:
     index:
-      format: lit
-      source: frontend/index.ts
+      format: preact
+      source: frontend/index.tsx
       output: index.html
   routes:
     /: index

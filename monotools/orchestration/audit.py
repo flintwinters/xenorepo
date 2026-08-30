@@ -23,7 +23,6 @@ EXCLUDED_PARTS = frozenset({".git", ".venv", "data", "dist", "historic", "node_m
 MAX_SOURCE_LINES = 600
 MAX_CYCLOMATIC_COMPLEXITY = 8
 _SCRIPT_IMPORT = re.compile(r"(?:from\s+|import\s*)[\"']([^\"']+)[\"']")
-_CUSTOM_ELEMENT = re.compile(r'customElements\.define\(["\'](x-[a-z0-9-]+)["\']')
 _TABLE_CELL = re.compile(r"<td\b[^>]*>(.*?)</td>", re.DOTALL | re.IGNORECASE)
 _STACKED_CELL_CONTENT = re.compile(r"<(?:article|br|div|footer|header|p|section|small)\b", re.IGNORECASE)
 
@@ -127,23 +126,6 @@ def _frontend_boundary_violations(workspace: Path,
     return violations
 
 
-def _custom_element_violations(workspace: Path,
-    definitions: tuple[AppDefinition, ...]) -> list[AuditViolation]:
-    barrel = workspace / "packages" / "lit-ui" / "src" / "index.ts"
-    if not barrel.is_file():
-        return []
-    registered = sorted(set(_CUSTOM_ELEMENT.findall(barrel.read_text(encoding="utf-8"))))
-    violations: list[AuditViolation] = []
-    for tag in registered:
-        consumers = sum(any(f"<{tag}" in path.read_text(encoding="utf-8")
-            for path in definition.source_directory.rglob("*") if path.suffix in SOURCE_SUFFIXES)
-            for definition in definitions)
-        if consumers < 2:
-            violations.append(AuditViolation("unproved-custom-element",
-                str(barrel.relative_to(workspace)), f"{tag}: {consumers} consumers"))
-    return violations
-
-
 def _app_source_html_violations(workspace: Path) -> list[AuditViolation]:
     """Reject authored HTML while permitting generated deployment artifacts."""
     apps_directory = workspace / "apps"
@@ -152,6 +134,17 @@ def _app_source_html_violations(workspace: Path) -> list[AuditViolation]:
     return [AuditViolation("app-source-html", str(path.relative_to(workspace)),
         "HTML is a compiled artifact; application source must be JavaScript or TypeScript")
         for path in sorted(apps_directory.rglob("*.html"))
+        if not EXCLUDED_PARTS.intersection(path.relative_to(workspace).parts)]
+
+
+def _legacy_frontend_source_violations(workspace: Path) -> list[AuditViolation]:
+    """Reject JavaScript source in production frontend trees after the TSX migration."""
+    apps_directory = workspace / "apps"
+    if not apps_directory.is_dir():
+        return []
+    return [AuditViolation("legacy-frontend-javascript", str(path.relative_to(workspace)),
+        "production frontend source must be typed TypeScript or TSX")
+        for path in sorted(apps_directory.glob("*/frontend/**/*.js"))
         if not EXCLUDED_PARTS.intersection(path.relative_to(workspace).parts)]
 
 
@@ -195,8 +188,8 @@ def audit_architecture(workspace: Path,
     violations = _central_identity_violations(workspace, definitions)
     violations.extend(_python_app_import_violations(workspace, definitions))
     violations.extend(_frontend_boundary_violations(workspace, definitions))
-    violations.extend(_custom_element_violations(workspace, definitions))
     violations.extend(_app_source_html_violations(workspace))
+    violations.extend(_legacy_frontend_source_violations(workspace))
     violations.extend(_monotools_documentation_violations(workspace))
     violations.extend(_stacked_table_cell_violations(workspace, definitions))
     return tuple(sorted(violations))

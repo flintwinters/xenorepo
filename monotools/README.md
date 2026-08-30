@@ -55,9 +55,8 @@ yielding an event. Tests must include cross-thread publish/wait delivery.
 ## Frontend composition
 
 Frontend artifacts export `mount(root)` and are bundled centrally with esbuild.
-The temporary `lit` format remains available during migration; the `preact`
-format requires a TSX entry, Preact's automatic JSX transform, and imported
-external CSS. Every artifact is a self-contained document with embedded CSS
+The required `preact` format accepts only TSX entries, uses Preact's automatic
+JSX transform, and imports external CSS. Every artifact is a self-contained document with embedded CSS
 and JavaScript and no external runtime assets or separate frontend service.
 Monotools validates the complete entry-rooted import graph before mutating
 `dist/`, watches app and relevant shared sources, and generates an API-only

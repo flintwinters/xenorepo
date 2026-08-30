@@ -40,12 +40,12 @@ and JavaScript frontend compatibility only after the final consumer migrates.
   flow, completion, restart, and the non-diagnostic product boundary.
 - [x] **Realtime arena — complete.** Split typed state, view, and transport while
   preserving the complete protocol and behavior.
-- [ ] **Compatibility removal — active.** Remove Lit and JavaScript frontend
-  support and activate permanent Preact-only architecture gates.
+- [x] **Compatibility removal — complete.** Lit builders, configuration, and
+  dependencies are removed. Metadata accepts only Preact TSX entries, and the
+  architecture audit rejects authored JavaScript in production frontend trees.
 
 ## Current checkpoint
 
-Remove Lit and JavaScript frontend compatibility as one verified logical
-checkpoint. Delete obsolete builders and dependencies, make Preact TSX the only
-accepted frontend format, activate permanent architecture gates, run
-`uv run manage.py verify`, update this file, and commit.
+The Preact migration is complete. Keep the Preact-only metadata and production
+source gates permanent; address future frontend work as independent product or
+shared-contract checkpoints.

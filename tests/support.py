@@ -16,7 +16,7 @@ Result = TypeVar("Result")
 def synthetic_app_definition(directory: Path, *, name: str = "orion",
     capabilities: frozenset[str] = frozenset()) -> AppDefinition:
     """Describe an invented app for platform tests without importing a monoapp."""
-    artifact = FrontendArtifact("index", "lit", Path("frontend/index.ts"), Path("index.html"))
+    artifact = FrontendArtifact("index", "preact", Path("frontend/index.tsx"), Path("index.html"))
     return AppDefinition(
         name=name,
         title=name.title(),

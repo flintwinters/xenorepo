@@ -6,7 +6,6 @@
     "packages/*"
   ],
   "scripts": {
-    "build:lit": "node monotools/node/build-lit.mjs",
     "build:preact": "node monotools/node/build-preact.mjs",
     "format:ts": "prettier --write \"apps/**/*.ts\" \"packages/**/*.ts\""
   },
@@ -20,7 +19,6 @@
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "lit": "3.3.1",
     "openapi-fetch": "0.17.0",
     "preact": "10.29.8"
   }

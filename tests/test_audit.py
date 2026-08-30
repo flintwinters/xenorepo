@@ -25,22 +25,17 @@ class AuditTests(unittest.TestCase):
             (first / "backend" / "server.py").write_text(
                 "from apps.nebula.backend import server\n", encoding="utf-8")
             (first / "frontend" / "index.ts").write_text(
-                'import "../../../packages/lit-ui/src/index.js";\n<x-proved><x-lonely>\n',
+                'import "../../../packages/ui/src/index.js";\n',
                 encoding="utf-8",
             )
             (first / "frontend" / "legacy.html").write_text("<p>authored HTML</p>\n",
                 encoding="utf-8")
+            (first / "frontend" / "legacy.js").write_text("export const legacy = true;\n",
+                encoding="utf-8")
             (first / "dist").mkdir()
             (first / "dist" / "index.html").write_text("<p>compiled HTML</p>\n",
                 encoding="utf-8")
-            (second / "frontend" / "index.ts").write_text("<x-proved>\n", encoding="utf-8")
-            barrel = workspace / "packages" / "lit-ui" / "src" / "index.ts"
-            barrel.parent.mkdir(parents=True)
-            barrel.write_text(
-                'customElements.define("x-proved", class extends HTMLElement {});\n'
-                'customElements.define("x-lonely", class extends HTMLElement {});\n',
-                encoding="utf-8",
-            )
+            (second / "frontend" / "index.ts").write_text("export {};\n", encoding="utf-8")
             definitions = (
                 synthetic_app_definition(first, name="orion"),
                 synthetic_app_definition(second, name="nebula"),
@@ -50,7 +45,7 @@ class AuditTests(unittest.TestCase):
 
         self.assertEqual({item.category for item in violations}, {
             "central-app-identity", "cross-app-import", "frontend-boundary-import",
-            "unproved-custom-element", "app-source-html",
+            "app-source-html", "legacy-frontend-javascript",
         })
         html_violations = [item for item in violations if item.category == "app-source-html"]
         self.assertEqual([item.path for item in html_violations], ["apps/orion/frontend/legacy.html"])

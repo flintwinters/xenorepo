@@ -1,6 +1,6 @@
 """Build and validate managed application artifacts.
 
-This module compiles declared Lit entries, checks source and artifact contracts,
+This module compiles declared Preact entries, checks source and artifact contracts,
 prepares databases, imports services, and coordinates repeatable app tests.
 """
 
@@ -87,22 +87,7 @@ def _validate_frontend(definition: AppDefinition, workspace: Path) -> None:
         raise LifecycleError(f"{definition.name} frontend type validation failed:\n{detail}")
 
 
-def _build_lit(definition: AppDefinition, artifact: FrontendArtifact, workspace: Path) -> None:
-    npm = shutil.which("npm")
-    if npm is None:
-        raise LifecycleError("npm not found; run python manage.py bootstrap before building Lit pages")
-    bundle = definition.dist_directory / f"{artifact.name}.bundle.js"
-    source = definition.directory / artifact.source
-    _run([npm, "run", "build:lit", "--", str(source.relative_to(workspace)),
-        str(bundle.relative_to(workspace))], workspace)
-    try:
-        script = bundle.read_text(encoding="utf-8")
-    finally:
-        bundle.unlink(missing_ok=True)
-    _write_document(definition, artifact, script, "")
-
-
-def _build_preact(definition: AppDefinition, artifact: FrontendArtifact, workspace: Path) -> None:
+def _build_frontend(definition: AppDefinition, artifact: FrontendArtifact, workspace: Path) -> None:
     npm = shutil.which("npm")
     if npm is None:
         raise LifecycleError("npm not found; run python manage.py bootstrap before building Preact pages")
@@ -142,8 +127,7 @@ def _write_document(definition: AppDefinition, artifact: FrontendArtifact,
 def build_app(definition: AppDefinition, workspace: Path) -> None:
     definition.dist_directory.mkdir(exist_ok=True)
     for artifact in definition.artifacts:
-        builder = _build_preact if artifact.format == "preact" else _build_lit
-        builder(definition, artifact, workspace)
+        _build_frontend(definition, artifact, workspace)
 
 
 _SHARED_PACKAGE_IMPORT = re.compile(

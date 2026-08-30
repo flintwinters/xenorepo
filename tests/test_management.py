@@ -1,20 +1,23 @@
 """Contracts for reusable Typer-native manager construction."""
 
-from pathlib import Path
-from tempfile import TemporaryDirectory
+from io import StringIO
 import os
+from pathlib import Path
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import ANY, patch
 
 import typer
+from rich.console import Console
 from typer.testing import CliRunner
 
 from monotools.orchestration import apps as app_registry
 from monotools.orchestration.apps import AppDefinitionError, ROOT
 from monotools.orchestration.audit import AuditReport, AuditViolation
 from monotools.orchestration.management import create_app_manager, create_cli, resolve_local_app
+from monotools.orchestration.output import print_error
 from monotools.orchestration.repositories import (
     AppRepositoryState,
     RepositoryError,
@@ -27,6 +30,15 @@ import manage as repository_manager
 
 
 class ManagementTests(unittest.TestCase):
+    def test_error_output_decodes_ansi_without_exposing_escape_fragments(self) -> None:
+        stream = StringIO()
+        console = Console(file=stream, force_terminal=False, color_system=None)
+
+        print_error(console, "\x1b[96mfrontend/model.ts\x1b[0m: \x1b[91merror\x1b[0m")
+
+        self.assertEqual(stream.getvalue(), "Error: frontend/model.ts: error\n")
+        self.assertNotRegex(stream.getvalue(), r"\[[0-9;]*m")
+
     def _definition(self, directory: Path, name: str) -> None:
         directory.mkdir(parents=True)
         (directory / "frontend").mkdir()

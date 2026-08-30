@@ -24,6 +24,7 @@ from monotools.orchestration.lifecycle import (
     validate_dist,
 )
 from monotools.orchestration.management import ApplicationManager, PythonSuite, create_cli
+from monotools.orchestration.output import print_error
 from monotools.orchestration.repositories import uninitialized_app_submodules
 from monotools.orchestration.scaffolding import ScaffoldError, scaffold_app
 from monotools.orchestration.ui import run_ui_check
@@ -109,7 +110,7 @@ def discover_managers(apps_directory: Path = APPS_DIRECTORY
 
 
 def _fail(error: Exception | str) -> None:
-    console.print(f"[bold red]Error:[/] {error}")
+    print_error(console, error)
     raise typer.Exit(1)
 
 

@@ -21,6 +21,7 @@ from monotools.orchestration.lifecycle import (
     validate_app,
     validate_dist,
 )
+from monotools.orchestration.output import print_error
 from monotools.orchestration.repositories import RepositoryError, inspect_app_repository, promote_to_submodule
 from monotools.orchestration.ui import run_ui_check
 
@@ -87,7 +88,7 @@ def _workspace_for(definition: AppDefinition) -> Path:
 
 
 def _fail(error: Exception) -> None:
-    console.print(f"[bold red]Error:[/] {error}")
+    print_error(console, error)
     raise typer.Exit(1)
 
 

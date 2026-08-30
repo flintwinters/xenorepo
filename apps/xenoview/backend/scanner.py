@@ -25,6 +25,9 @@ DEPENDENCY_PARTS = frozenset({".mypy_cache", ".pytest_cache", ".ruff_cache", ".u
 TREE_EXCLUDED_PARTS = EXCLUDED_PARTS | COMPILED_PARTS | DEPENDENCY_PARTS
 EXCLUDED_FILES = frozenset({"package-lock.json"})
 _SCRIPT_TEST = re.compile(r"\b(?:test|it)\s*\(")
+HISTORY_LIMIT = 250
+_COMMIT_MARKER = "\x1e"
+_FIELD_SEPARATOR = "\x1f"
 
 
 @dataclass(frozen=True)
@@ -158,8 +161,11 @@ def _module_dependencies(root: Path, path: Path) -> list[str]:
 
 def scan_modules(root: Path) -> list[dict[str, object]]:
     definitions = _definitions(root)
-    inbound = Counter(item.removeprefix("monotools.")
-        for definition in definitions for item in definition.imports if item.startswith("monotools."))
+    consumers: dict[str, list[str]] = {}
+    for definition in definitions:
+        for imported in definition.imports:
+            if imported.startswith("monotools."):
+                consumers.setdefault(imported.removeprefix("monotools."), []).append(definition.name)
     modules = []
     for path in _monotools_modules(root):
         content = path.read_text(encoding="utf-8")
@@ -170,10 +176,62 @@ def scan_modules(root: Path) -> list[dict[str, object]]:
         name = _module_name(root, path)
         modules.append({"name": name, "path": str(path.relative_to(root)),
             "lines": len(content.splitlines()), "bytes": path.stat().st_size,
-            "public_definitions": public, "inbound_apps": inbound[name],
+            "public_definitions": public, "inbound_apps": len(consumers.get(name, [])),
+            "used_by_apps": sorted(consumers.get(name, [])),
             "description": documentation[0], "explanation": documentation[1],
             "dependencies": _module_dependencies(root, path)})
     return modules
+
+
+def _change_group(changes: dict[str, list[int]]) -> list[dict[str, object]]:
+    return [{"name": name, "added": values[0], "deleted": values[1]}
+        for name, values in sorted(changes.items())]
+
+
+def _change_owner(path: str, definitions: tuple[AppDefinition, ...]) -> str:
+    parts = Path(path).parts
+    app_names = {item.name for item in definitions}
+    return parts[1] if len(parts) > 2 and parts[0] == "apps" and parts[1] in app_names else "platform"
+
+
+def scan_history(root: Path, limit: int = HISTORY_LIMIT) -> dict[str, object]:
+    """Project bounded Git numstats into app and language change timelines."""
+    definitions = _definitions(root)
+    command = ["git", "log", f"--max-count={limit + 1}", "--date=iso-strict",
+        f"--format={_COMMIT_MARKER}%H{_FIELD_SEPARATOR}%aI{_FIELD_SEPARATOR}%s", "--numstat", "--"]
+    result = subprocess.run(command, cwd=root, check=False, text=True, capture_output=True)
+    if result.returncode:
+        return {"available": False, "truncated": False, "limit": limit, "commits": []}
+    commits: list[dict[str, object]] = []
+    for block in result.stdout.split(_COMMIT_MARKER)[1:]:
+        header, *rows = block.splitlines()
+        revision, committed_at, subject = header.split(_FIELD_SEPARATOR, 2)
+        apps: dict[str, list[int]] = {}
+        languages: dict[str, list[int]] = {}
+        additions = deletions = 0
+        for row in rows:
+            columns = row.split("\t", 2)
+            if len(columns) != 3 or not columns[0].isdigit() or not columns[1].isdigit():
+                continue
+            added, deleted, path = int(columns[0]), int(columns[1]), columns[2]
+            if not _included(root / path, root):
+                continue
+            additions += added
+            deletions += deleted
+            app_change = apps.setdefault(_change_owner(path, definitions), [0, 0])
+            app_change[0] += added
+            app_change[1] += deleted
+            language = LANGUAGES.get(Path(path).suffix)
+            if language:
+                language_change = languages.setdefault(language, [0, 0])
+                language_change[0] += added
+                language_change[1] += deleted
+        commits.append({"revision": revision[:12], "committed_at": committed_at,
+            "subject": subject, "additions": additions, "deletions": deletions,
+            "apps": _change_group(apps), "languages": _change_group(languages)})
+    truncated = len(commits) > limit
+    return {"available": True, "truncated": truncated, "limit": limit,
+        "commits": commits[:limit]}
 
 
 def _tree_child_names(matching: tuple[FileFact, ...], path: Path) -> list[str]:

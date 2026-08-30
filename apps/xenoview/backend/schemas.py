@@ -52,9 +52,33 @@ class ModuleFact(Contract):
     bytes: int
     public_definitions: int
     inbound_apps: int
+    used_by_apps: list[str]
     description: str
     explanation: str
     dependencies: list[str]
+
+
+class ChangeFact(Contract):
+    name: str
+    added: int
+    deleted: int
+
+
+class CommitFact(Contract):
+    revision: str
+    committed_at: str
+    subject: str
+    additions: int
+    deletions: int
+    apps: list[ChangeFact]
+    languages: list[ChangeFact]
+
+
+class RepositoryHistory(Contract):
+    available: bool
+    truncated: bool
+    limit: int
+    commits: list[CommitFact]
 
 
 class TreeNode(Contract):

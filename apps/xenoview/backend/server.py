@@ -5,9 +5,11 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request, status
 
 from apps.xenoview.backend.database import Base, SnapshotRepository
-from apps.xenoview.backend.scanner import scan_architecture, scan_modules, scan_overview, scan_tree
+from apps.xenoview.backend.scanner import (
+    scan_architecture, scan_history, scan_modules, scan_overview, scan_tree,
+)
 from apps.xenoview.backend.schemas import (
-    Architecture, ModuleFact, Overview, SnapshotResult, SnapshotView, TreeNode,
+    Architecture, ModuleFact, Overview, RepositoryHistory, SnapshotResult, SnapshotView, TreeNode,
 )
 from monotools.runtime.appkit import create_app_context
 from monotools.runtime.http import enforce_same_origin
@@ -53,6 +55,10 @@ def create_app(database_url: str | None = None, repository: SnapshotRepository |
     @application.get("/api/history", response_model=list[SnapshotView])
     async def history() -> list[dict[str, object]]:
         return snapshots.list()
+
+    @application.get("/api/repository-history", response_model=RepositoryHistory)
+    async def repository_history() -> dict[str, object]:
+        return scan_history(root)
 
     @application.post("/api/snapshots", response_model=SnapshotResult,
         status_code=status.HTTP_201_CREATED)

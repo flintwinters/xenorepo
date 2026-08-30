@@ -8,7 +8,9 @@ import unittest
 import httpx
 
 from apps.xenoview.backend.database import Base, SnapshotRepository
-from apps.xenoview.backend.scanner import scan_architecture, scan_modules, scan_overview, scan_tree
+from apps.xenoview.backend.scanner import (
+    scan_architecture, scan_history, scan_modules, scan_overview, scan_tree,
+)
 from apps.xenoview.backend.server import ROOT, create_app
 from monotools.persistence.database import create_session_factory
 
@@ -61,10 +63,27 @@ class CockpitTests(unittest.TestCase):
         self.assertTrue({"integrations.mailer", "orchestration.apps",
             "persistence.database", "runtime.application"}.issubset(names))
         self.assertTrue(all(item["description"] and item["explanation"] for item in modules))
+        appkit = next(item for item in modules if item["name"] == "runtime.appkit")
+        self.assertIn("xenoview", appkit["used_by_apps"])
+        self.assertEqual(appkit["inbound_apps"], len(appkit["used_by_apps"]))
         edges = {(item["source"], item["target"]) for item in architecture["edges"]}
         self.assertNotIn("lit-ui", {item["id"] for item in architecture["nodes"]})
         self.assertIn(("app:xenoview", "monotools"), edges)
         self.assertIn(("app:xenoview", "storage"), edges)
+
+    def test_git_history_is_automatic_and_grouped_by_app_and_language(self) -> None:
+        history = scan_history(ROOT, limit=12)
+        self.assertTrue(history["available"])
+        self.assertLessEqual(len(history["commits"]), 12)
+        self.assertTrue(history["commits"])
+        for commit in history["commits"]:
+            self.assertEqual(commit["additions"], sum(item["added"] for item in commit["apps"]))
+            self.assertEqual(commit["deletions"], sum(item["deleted"] for item in commit["apps"]))
+            self.assertEqual([item["name"] for item in commit["apps"]],
+                sorted(item["name"] for item in commit["apps"]))
+        changed_languages = {item["name"] for commit in history["commits"]
+            for item in commit["languages"]}
+        self.assertTrue(changed_languages)
 
     def test_tree_is_complete_and_excludes_dependencies_and_artifacts(self) -> None:
         tree = scan_tree(ROOT)
@@ -102,7 +121,7 @@ class CockpitTests(unittest.TestCase):
     def test_openapi_describes_every_cockpit_response(self) -> None:
         schemas = create_app(repository=self.repository).openapi()["components"]["schemas"]
         self.assertTrue({"Overview", "ModuleFact", "TreeNode", "Architecture",
-            "SnapshotView", "SnapshotResult"}.issubset(schemas))
+            "SnapshotView", "SnapshotResult", "RepositoryHistory", "CommitFact"}.issubset(schemas))
         overview = schemas["Overview"]
         self.assertEqual(overview["additionalProperties"], False)
         self.assertIn("test_breakdown", overview["required"])

@@ -10,6 +10,13 @@ test("[acceptance] waveform, tempo, and two-bar polyphonic loop survive reload",
   await page.goto("/");
   await expect(page.getByText("SIGNAL READY")).toBeVisible();
   await expect(page.getByRole("gridcell")).toHaveCount(24 * 32);
+  const loopLayout = await page.getByLabel("Scrollable two bar piano roll").evaluate((element) => ({
+    clientHeight: element.clientHeight, scrollHeight: element.scrollHeight,
+    overflowY: getComputedStyle(element).overflowY,
+  }));
+  expect(loopLayout.scrollHeight).toBeLessThanOrEqual(loopLayout.clientHeight + 1);
+  expect(loopLayout.overflowY).toBe("hidden");
+  expect(await page.evaluate(() => document.documentElement.scrollHeight > innerHeight)).toBe(true);
 
   const first = page.getByRole("gridcell", { name: "C4, step 1", exact: true });
   const last = page.getByRole("gridcell", { name: "B5, step 32", exact: true });

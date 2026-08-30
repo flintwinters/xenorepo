@@ -80,7 +80,7 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
   }
   private renderSequencer() {
     const lab = this.state.lab;
-    return <ConsolePane class="sequence-pane" title="LOOP / 2 BARS / 4∕4" tone="purple">
+    return <ConsolePane class="sequence-pane" title="LOOP / 2 BARS / 4∕4" tone="purple" contentHeight>
       <div class="transport"><button class="play" aria-pressed={this.state.playing} onClick={this.togglePlayback}>
         {this.state.playing ? "■ STOP" : "▶ PLAY"}</button>
         <label>BPM <input aria-label="Tempo in BPM" type="number" min="40" max="240" value={lab.bpm}

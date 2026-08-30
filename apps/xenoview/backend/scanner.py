@@ -259,23 +259,3 @@ def scan_tree(root: Path) -> dict[str, object]:
     tree = _tree_directory(_facts(root), Path(), 0)
     tree["ls_colors"] = os.environ.get("LS_COLORS", "")
     return tree
-
-
-def scan_architecture(root: Path) -> dict[str, object]:
-    definitions = _definitions(root)
-    nodes = [{"id": "repository", "label": "Xenorepo", "kind": "repository"},
-        {"id": "monotools", "label": "Monotools", "kind": "platform"},
-        {"id": "runtime", "label": "FastAPI + dist", "kind": "runtime"},
-        {"id": "storage", "label": "SQLite / PostgreSQL", "kind": "storage"}]
-    nodes.extend({"id": f"app:{item.name}", "label": item.title, "kind": "app"}
-        for item in definitions)
-    edges = [{"source": "repository", "target": "monotools", "label": "orchestrates"},
-        {"source": "monotools", "target": "runtime", "label": "builds + serves"}]
-    for item in definitions:
-        app_id = f"app:{item.name}"
-        edges.append({"source": app_id, "target": "monotools", "label":
-            f"{sum(value.startswith('monotools.') for value in item.imports)} declared modules"})
-        edges.append({"source": "runtime", "target": app_id, "label": "hosts"})
-        if "database" in item.capabilities:
-            edges.append({"source": app_id, "target": "storage", "label": "persists"})
-    return {"nodes": nodes, "edges": edges}

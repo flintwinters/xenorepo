@@ -21,8 +21,10 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   await page.getByRole("button", { name: "explorer", exact: true }).click();
   await expect(page.locator("#app")).toContainText("Repository explorer");
   await expect(page.locator("#app")).toContainText("Files and semantic Monotools modules");
-  await expect(page.locator("#app")).toContainText("audit");
-  await expect(page.locator(".explorer-table")).toContainText("Measure architecture and structural invariants");
+  await expect(page.locator("#app")).toContainText("orchestration.apps");
+  await expect(page.locator(".explorer-table")).toContainText(
+    "Discover and validate typed YAML application definitions",
+  );
   await expect(page.locator(".explorer-table")).toContainText("Used by");
   await expect(page.locator(".explorer-table")).toBeVisible();
   await expect(page.locator(".page table")).toHaveCount(1);
@@ -60,10 +62,6 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   expect(await descendants.count()).toBeGreaterThan(0);
   await selectedEntry.getByRole("button").click();
   await expect(descendants).toHaveCount(0);
-
-  await page.getByRole("button", { name: "architecture", exact: true }).click();
-  await expect(page.locator("#app")).toContainText("High-level architecture");
-  await expect(page.locator("#app")).toContainText("FastAPI + dist");
 
   await page.getByRole("button", { name: "history", exact: true }).click();
   await expect(page.locator("#app")).toContainText("Automatic Git timeline");

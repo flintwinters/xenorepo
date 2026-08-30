@@ -91,23 +91,6 @@ class TreeNode(Contract):
     ls_colors: str | None = None
 
 
-class ArchitectureNode(Contract):
-    id: str
-    label: str
-    kind: str
-
-
-class ArchitectureEdge(Contract):
-    source: str
-    target: str
-    label: str
-
-
-class Architecture(Contract):
-    nodes: list[ArchitectureNode]
-    edges: list[ArchitectureEdge]
-
-
 class SnapshotView(Contract):
     id: int
     schema_version: int

@@ -9,7 +9,7 @@ import httpx
 
 from apps.xenoview.backend.database import Base, SnapshotRepository
 from apps.xenoview.backend.scanner import (
-    scan_architecture, scan_history, scan_modules, scan_overview, scan_tree,
+    scan_history, scan_modules, scan_overview, scan_tree,
 )
 from apps.xenoview.backend.server import ROOT, create_app
 from monotools.persistence.database import create_session_factory
@@ -54,19 +54,13 @@ class CockpitTests(unittest.TestCase):
         self.assertLessEqual(overview["specification"]["covered"],
             overview["metrics"]["monoapps"])
 
-    def test_modules_and_architecture_are_derived(self) -> None:
+    def test_modules_are_derived(self) -> None:
         modules = scan_modules(ROOT)
-        architecture = scan_architecture(ROOT)
         self.assertEqual([item["name"] for item in modules], sorted(item["name"] for item in modules))
         names = {item["name"] for item in modules}
-        self.assertIn("orchestration.audit", names)
         self.assertTrue({"integrations.mailer", "orchestration.apps",
             "persistence.database", "runtime.application"}.issubset(names))
         self.assertTrue(all(item["description"] and item["explanation"] for item in modules))
-        edges = {(item["source"], item["target"]) for item in architecture["edges"]}
-        self.assertNotIn("lit-ui", {item["id"] for item in architecture["nodes"]})
-        self.assertIn(("app:xenoview", "monotools"), edges)
-        self.assertIn(("app:xenoview", "storage"), edges)
 
     def test_modules_name_their_exact_app_consumers(self) -> None:
         appkit = next(item for item in scan_modules(ROOT) if item["name"] == "runtime.appkit")
@@ -123,7 +117,7 @@ class CockpitTests(unittest.TestCase):
 
     def test_openapi_describes_every_cockpit_response(self) -> None:
         schemas = create_app(repository=self.repository).openapi()["components"]["schemas"]
-        self.assertTrue({"Overview", "ModuleFact", "TreeNode", "Architecture",
+        self.assertTrue({"Overview", "ModuleFact", "TreeNode",
             "SnapshotView", "SnapshotResult", "RepositoryHistory", "CommitFact"}.issubset(schemas))
         overview = schemas["Overview"]
         self.assertEqual(overview["additionalProperties"], False)

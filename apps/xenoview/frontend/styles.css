@@ -59,25 +59,12 @@ tr.total td { color: #fbf1c7; font-weight: bold; border-top: 2px solid #665c54; 
 .tree-entry button:focus-visible { outline: 1px solid #83a598; outline-offset: -1px; }
 .tree-entry::after { content: "  " attr(data-lines) "  " attr(data-bytes); color: #928374;
   font-family: "Courier New", monospace; font-variant-numeric: tabular-nums; }
-.diagram { display: grid; grid-template-columns: .8fr 1fr .9fr 2fr 1fr; gap: 10px; margin-bottom: 10px; }
-.layer { min-width: 0; padding: 9px; border: 1px solid #3c3836; background: #202223bb; }
-.layer h2 { margin-bottom: 8px; color: #928374; text-transform: uppercase; letter-spacing: .08em; }
-.layer > div { display: grid; gap: 6px; }
-.node { min-width: 0; padding: 9px; border: 1px solid #665c54; background: #282828; box-shadow: 0 3px 8px #0005; }
-.node strong, .node small { display: block; overflow: hidden; text-overflow: ellipsis; }
-.node small { color: #928374; } .node.repository { border-top: 3px solid #fabd2f; }
-.node.platform { border-top: 3px solid #d3869b; } .node.runtime { border-top: 3px solid #83a598; }
-.node.app { border-left: 3px solid #b8bb26; } .node.storage { border-top: 3px solid #fe8019; }
-.edges { max-height: 250px; display: grid; grid-template-columns: repeat(2, 1fr); overflow: auto; }
-.edges div { display: grid; grid-template-columns: 1fr auto 1fr; gap: 7px;
-  padding: 5px 9px; border-bottom: 1px solid #3c3836; }
-.edges span { color: #928374; } .edges b:last-child { text-align: right; }
 .empty { padding: 40px; border: 1px dashed #665c54; color: #a89984;
   text-align: center; background: #202223; }
 .empty h2 { color: #fbf1c7; font-size: 18px; }
 @media (max-width: 1000px) { .metrics { grid-template-columns: repeat(3, 1fr); }
-  .diagram { grid-template-columns: 1fr 1fr; } .split, .evidence-grid { grid-template-columns: 1fr; } }
+  .split, .evidence-grid { grid-template-columns: 1fr; } }
 @media (max-width: 650px) { nav { overflow-x: auto; } .page { padding: 12px; }
-  .metrics { grid-template-columns: repeat(2, 1fr); } .diagram { grid-template-columns: 1fr; }
-  .edges { grid-template-columns: 1fr; } .page-heading { align-items: start; flex-direction: column; }
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .page-heading { align-items: start; flex-direction: column; }
 }

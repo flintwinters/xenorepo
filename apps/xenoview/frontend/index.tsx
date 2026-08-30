@@ -1,13 +1,13 @@
 /** Evidence-first command-and-control views for Xenorepo. */
 import { Component, render, type ComponentChildren } from "preact";
 import { CommandButton, ConsolePane, ConsoleShell, StatusRail, UtilityRail } from "@xenorepo/ui";
-import { captureSnapshot, loadCockpit, loadHistory, type Architecture,
-  type ModuleFact, type Overview, type RepositoryHistory, type Snapshot, type TreeNode } from "./client.js";
+import { captureSnapshot, loadCockpit, loadHistory, type ModuleFact, type Overview,
+  type RepositoryHistory, type Snapshot, type TreeNode } from "./client.js";
 import "./styles.css";
 
-type Page = "overview" | "explorer" | "architecture" | "history";
+type Page = "overview" | "explorer" | "history";
 interface State { page: Page; overview: Overview | null; modules: ModuleFact[];
-  tree: TreeNode | null; architecture: Architecture | null; repositoryHistory: RepositoryHistory | null;
+  tree: TreeNode | null; repositoryHistory: RepositoryHistory | null;
   snapshots: Snapshot[];
   collapsedPaths: string[]; message: string; failed: boolean; busy: boolean; }
 
@@ -38,7 +38,7 @@ const ansiColor = (code: string): string => {
 
 class XenorepoCockpit extends Component<Record<string, never>, State> {
   override state: State = { page: "overview", overview: null, modules: [], tree: null,
-    architecture: null, repositoryHistory: null, snapshots: [], collapsedPaths: [], message: "Scanning repository…",
+    repositoryHistory: null, snapshots: [], collapsedPaths: [], message: "Scanning repository…",
     failed: false, busy: false };
   override componentDidMount(): void { void this.load(); }
   private perform = async (action: () => Promise<void>): Promise<void> => {
@@ -49,9 +49,9 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
     finally { this.setState({ busy: false }); }
   };
   private load = async (): Promise<void> => this.perform(async () => {
-    const [overview, modules, tree, architecture, repositoryHistory, snapshots] = await loadCockpit();
+    const [overview, modules, tree, repositoryHistory, snapshots] = await loadCockpit();
     const state = overview.dirty ? " · working tree modified" : " · clean";
-    this.setState({ overview, modules, tree, architecture, repositoryHistory, snapshots,
+    this.setState({ overview, modules, tree, repositoryHistory, snapshots,
       collapsedPaths: initiallyCollapsed(tree),
       message: `Scan complete · ${overview.revision}${state}` });
   });
@@ -150,20 +150,6 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
         {this.state.tree && this.treeRows(this.state.tree, modules)}
       </tbody></table></div></section>;
   }
-  private architecturePage(): ComponentChildren {
-    const architecture = this.state.architecture;
-    if (!architecture) return null;
-    const groups = ["repository", "platform", "runtime", "app", "storage"];
-    const names = new Map(architecture.nodes.map((item) => [item.id, item.label]));
-    return <section class="page"><div class="page-heading"><div><p class="eyebrow">Declared relationships</p>
-      <h1>High-level architecture</h1></div><p>Derived from app metadata and capabilities</p></div>
-      <div class="diagram">{groups.map((kind) => <div class="layer"><h2>{kind}</h2><div>
-        {architecture.nodes.filter((node) => node.kind === kind).map((node) => <article class={`node ${kind}`}>
-          <strong>{node.label}</strong><small>{node.id}</small></article>)}</div></div>)}</div>
-      <ConsolePane title="Relationship ledger" tone="purple"><div class="edges">
-        {architecture.edges.map((edge) => <div><b>{names.get(edge.source)}</b>
-          <span>→ {edge.label} →</span><b>{names.get(edge.target)}</b></div>)}</div></ConsolePane></section>;
-  }
   private historyPage(): ComponentChildren {
     const history = this.state.repositoryHistory;
     const changes = (items: { name: string; added: number; deleted: number }[]) => items.length
@@ -188,7 +174,7 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
         baselines recorded.</p></section>;
   }
   override render(): ComponentChildren {
-    const pages: Page[] = ["overview", "explorer", "architecture", "history"];
+    const pages: Page[] = ["overview", "explorer", "history"];
     const header = <UtilityRail><span class="brand">XENO // COCKPIT</span><nav>{pages.map((page) =>
       <CommandButton aria-label={page} pressed={this.state.page === page}
         onClick={() => this.setState({ page })}>{page}</CommandButton>)}</nav><span class="push" />
@@ -200,8 +186,7 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
       {this.state.failed ? "FAULT" : "READY"}</span><span>{this.state.message}</span>
       <span class="push">{this.state.overview?.fingerprint.slice(0, 10) ?? "----------"}</span></StatusRail>;
     const content = this.state.page === "overview" ? this.overviewPage()
-      : this.state.page === "explorer" ? this.explorerPage()
-      : this.state.page === "architecture" ? this.architecturePage() : this.historyPage();
+      : this.state.page === "explorer" ? this.explorerPage() : this.historyPage();
     return <ConsoleShell header={header} footer={footer}>
       <div class="cockpit-main">{content}</div>
     </ConsoleShell>;

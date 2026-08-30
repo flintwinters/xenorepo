@@ -13,7 +13,7 @@ from apps.mailing_list.backend.database import (
     create_session_factory,
 )
 from apps.mailing_list.backend.providers import SandboxGateway
-from apps.mailing_list.backend.server import SANDBOX_SECRET, create_app
+from apps.mailing_list.backend.server import DEFAULT_DATABASE, SANDBOX_SECRET, create_app
 from monotools.integrations.commerce import PaymentNotification
 from monotools.integrations.mailer import Mail, SmtpMailer
 
@@ -30,6 +30,9 @@ class MailingListTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.sessions.kw["bind"].dispose()
         self.database.unlink(missing_ok=True)
+
+    def test_default_database_uses_the_app_owned_data_directory(self) -> None:
+        self.assertEqual(DEFAULT_DATABASE, Path("apps/mailing_list/data/mailing-list.db").resolve())
 
     def test_checkout_normalizes_identity_and_retains_commercial_facts(self) -> None:
         hosted = self.repository.begin_checkout("  Reader@Example.COM ", 500, "USD",
@@ -78,6 +81,10 @@ class MailingListTests(unittest.TestCase):
                 replay = client.post("/api/webhooks/payments/sandbox", content=payload,
                     headers={"x-payment-signature": signature})
                 self.assertEqual(replay.json()["repeated"], True)
+
+                invalid = client.post("/api/checkouts", json={"email": "not-an-email"})
+                self.assertEqual(invalid.status_code, 400)
+                self.assertEqual(invalid.json(), {"error": "Enter a valid email address."})
         finally:
             app_database.unlink(missing_ok=True)
 

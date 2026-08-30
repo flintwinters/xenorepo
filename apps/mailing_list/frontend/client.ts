@@ -8,8 +8,15 @@ export interface ErrorEnvelope {
 }
 
 export function errorMessage(value: unknown): string {
-  if (typeof value !== "object" || value === null || !("error" in value)) return "CHECKOUT FAILED";
-  return typeof value.error === "string" ? value.error : "CHECKOUT FAILED";
+  if (typeof value !== "object" || value === null) return "Unable to reach checkout. Please try again.";
+  if ("error" in value && typeof value.error === "string") return value.error;
+  if ("detail" in value && typeof value.detail === "string") return value.detail;
+  if ("detail" in value && Array.isArray(value.detail)) {
+    const message = value.detail.find((item) => typeof item === "object" && item !== null
+      && "msg" in item && typeof item.msg === "string");
+    if (message && "msg" in message) return message.msg as string;
+  }
+  return "Unable to start checkout. Please try again.";
 }
 
 export async function offering() {

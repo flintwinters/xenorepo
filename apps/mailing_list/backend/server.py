@@ -13,7 +13,7 @@ from monotools.runtime.http import domain_error_handler, enforce_same_origin
 from monotools.runtime.application import create_application
 
 
-DIRECTORY = Path(__file__).parent
+DIRECTORY = Path(__file__).parent.parent
 DEFAULT_DATABASE = DIRECTORY / "data" / "mailing-list.db"
 PRICE_MINOR = 500
 CURRENCY = "usd"

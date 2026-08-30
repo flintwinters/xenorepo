@@ -1,0 +1,19 @@
+# Waveform Lab
+
+[Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)
+
+Waveform Lab is a browser-based modular synthesizer centered on a precise single-cycle waveform
+editor and a two-bar piano roll. FastAPI serves its self-contained Preact interface; Web Audio and
+browser-local storage provide sound and patch persistence without a second runtime service.
+
+Use the Xenorepo cockpit for every lifecycle operation:
+
+```console
+uv run manage.py waveform_lab check
+uv run manage.py waveform_lab test
+uv run manage.py waveform_lab ui-check
+uv run manage.py waveform_lab serve
+```
+
+The app deliberately consumes the enclosing Xenorepo's Monotools version. A future explicit
+standalone-export contract may pin that dependency without changing the app's Git history.

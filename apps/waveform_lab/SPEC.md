@@ -19,9 +19,8 @@ FastAPI serves one self-contained Preact artifact containing two coordinated wor
   single-cycle waveform. An incomplete or disconnected valid graph remains editable and silent;
   malformed or invalid drafts never replace the live setup and can be corrected or reverted.
 - A piano-roll loop spans C4 through B5 over two bars of 4/4 time at sixteenth-note resolution: 24
-  pitches by 32 steps. Multiple notes may occupy a step, and a note can be held through subsequent
-  steps without being retriggered. The musician can toggle notes and holds, adjust BPM, start or
-  stop playback, and see the active step.
+  pitches by 32 steps. Multiple notes may occupy a step. The musician can toggle notes, adjust BPM,
+  control app-level master volume, start or stop playback, and see the active step.
 
 The browser stores one versioned YAML document with explicit `synth` and `loop` sections after
 every valid edit. CodeMirror replaces the patch-bay and waveform GUIs as the synth setup control
@@ -63,8 +62,8 @@ restart.
 - Modules contain only sonic identity, type, parameters, and optional bypass state; obsolete visual
   canvas coordinates are migrated away and are not part of current synth YAML.
 - BPM is finite and bounded from 40 through 240. The sequencer has exactly 32 steps and its note
-  pitches remain inside the declared two-octave range. Every held cell continues an onset or prior
-  held cell of the same pitch; removing an onset removes its contiguous holds.
+  pitches remain inside the declared two-octave range. App volume is finite and bounded from silence
+  through unity gain, remains independent of synth Output modules, and is applied at the destination.
 - Starting playback is repeatable, stopping releases scheduled voices, and graph edits rebuild the
   audio routing without accumulating browser audio nodes.
 - Synth YAML is validated through the domain boundary before it can replace

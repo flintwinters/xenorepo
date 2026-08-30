@@ -1,6 +1,6 @@
 export const SAMPLE_COUNT = 128;
 export const STEP_COUNT = 32;
-export const STATE_VERSION = 3 as const;
+export const STATE_VERSION = 4 as const;
 export const PITCHES = Array.from({ length: 24 }, (_, index) => 83 - index);
 
 export type ModuleKind = "waveform" | "gain" | "output" | "filter" | "adsr" | "saturation"
@@ -17,7 +17,7 @@ export interface Connection {
 }
 export interface LabState {
   version: typeof STATE_VERSION; modules: ModuleNode[]; connections: Connection[];
-  samples: number[]; notes: number[][]; holds: number[][]; bpm: number;
+  samples: number[]; notes: number[][]; holds: number[][]; bpm: number; volume: number;
 }
 
 type Bounds = Readonly<Record<string, readonly [number, number]>>;
@@ -75,7 +75,7 @@ export function initialState(): LabState {
       createModule("output-1", "output")],
     connections: [{ from: "waveform-1", to: "gain-1", type: "audio" },
       { from: "gain-1", to: "output-1", type: "audio" }],
-    samples: preset("sine"), notes: emptySequence(), holds: emptySequence(), bpm: 120,
+    samples: preset("sine"), notes: emptySequence(), holds: emptySequence(), bpm: 120, volume: 0.8,
   };
 }
 
@@ -93,12 +93,13 @@ function validParameters(kind: ModuleKind, value: unknown): value is ModuleParam
     return finite(value[name]) && value[name] >= range[0] && value[name] <= range[1];
   });
 }
-function validModule(value: unknown, version: 1 | 2 | typeof STATE_VERSION): value is ModuleNode {
+type StateVersion = 1 | 2 | 3 | typeof STATE_VERSION;
+function validModule(value: unknown, version: StateVersion): value is ModuleNode {
   if (!record(value) || typeof value.id !== "string" || !value.id || !kinds.has(value.kind as ModuleKind)) return false;
   const kind = value.kind as ModuleKind;
   if (version === 1) return finite(value.x) && finite(value.y) && ["waveform", "gain", "output"].includes(kind);
   if (version === 2 && (!finite(value.x) || !finite(value.y))) return false;
-  if (version === STATE_VERSION) {
+  if (version >= 3) {
     const expected = new Set(["id", "kind", "parameters", ...(bypassable.has(kind) ? ["bypass"] : [])]);
     if (Object.keys(value).some((name) => !expected.has(name))) return false;
   }
@@ -162,37 +163,26 @@ function pitchSequence(value: unknown): number[][] | null {
   }
   return result;
 }
-function validHolds(notes: number[][], holds: number[][]): boolean {
-  for (const pitch of PITCHES) {
-    if (holds.every((step) => step.includes(pitch))) return false;
-    for (let step = 0; step < STEP_COUNT; step += 1) {
-      if (!holds[step]?.includes(pitch)) continue;
-      if (notes[step]?.includes(pitch)) return false;
-      const previous = (step + STEP_COUNT - 1) % STEP_COUNT;
-      if (!notes[previous]?.includes(pitch) && !holds[previous]?.includes(pitch)) return false;
-    }
-  }
-  return true;
-}
-function sequence(saved: Record<string, unknown>, legacy: boolean):
-  Pick<LabState, "samples" | "notes" | "holds" | "bpm"> | null {
+function sequence(saved: Record<string, unknown>, version: StateVersion
+    ): Pick<LabState, "samples" | "notes" | "holds" | "bpm" | "volume"> | null {
   if (!Array.isArray(saved.samples) || !Array.isArray(saved.notes) || !finite(saved.bpm)) return null;
   if (saved.samples.length !== SAMPLE_COUNT || !saved.samples.every((sample) => finite(sample) && sample >= -1 && sample <= 1)
     || saved.notes.length !== STEP_COUNT) return null;
   const notes = pitchSequence(saved.notes);
-  const holds = legacy ? emptySequence() : pitchSequence(saved.holds);
-  if (!notes || !holds || !validHolds(notes, holds)) return null;
+  const holds = version < 3 ? emptySequence() : pitchSequence(saved.holds);
+  if (!notes || !holds) return null;
+  const volume = version < STATE_VERSION ? 0.8 : saved.volume;
+  if (!finite(volume) || volume < 0 || volume > 1) return null;
   return { samples: [...saved.samples] as number[], notes, holds,
-    bpm: Math.max(40, Math.min(240, saved.bpm)) };
+    bpm: Math.max(40, Math.min(240, saved.bpm)), volume };
 }
-
 export function noteLength(state: Pick<LabState, "notes" | "holds">, step: number, pitch: number): number {
   if (!state.notes[step]?.includes(pitch)) return 0;
   let length = 1;
   while (length < STEP_COUNT && state.holds[(step + length) % STEP_COUNT]?.includes(pitch)) length += 1;
   return length;
 }
-function modulesOf(values: unknown[], version: 1 | 2 | typeof STATE_VERSION): ModuleNode[] | null {
+function modulesOf(values: unknown[], version: StateVersion): ModuleNode[] | null {
   if (!values.length || !values.every((value) => validModule(value, version))) return null;
   const modules = values.map((value) => {
     const node = value as ModuleNode;
@@ -220,7 +210,7 @@ function connectionsOf(values: unknown[], modules: ModuleNode[], legacy: boolean
 
 function flattened(value: Record<string, unknown>): Record<string, unknown> | null {
   if (value.version === 1) return value;
-  if (value.version !== 2 && value.version !== STATE_VERSION) return null;
+  if (value.version !== 2 && value.version !== 3 && value.version !== STATE_VERSION) return null;
   if (!record(value.synth) || !record(value.loop)) return value;
   return { version: value.version, ...value.synth, ...value.loop };
 }
@@ -229,12 +219,13 @@ function flattened(value: Record<string, unknown>): Record<string, unknown> | nu
 export function validatedState(value: unknown): LabState | null {
   if (!record(value)) return null;
   const saved = flattened(value);
-  if (!saved || (saved.version !== 1 && saved.version !== 2 && saved.version !== STATE_VERSION)
+  if (!saved || (saved.version !== 1 && saved.version !== 2 && saved.version !== 3
+      && saved.version !== STATE_VERSION)
     || !Array.isArray(saved.modules) || !Array.isArray(saved.connections)) return null;
-  const version = saved.version as 1 | 2 | typeof STATE_VERSION;
+  const version = saved.version as StateVersion;
   const legacy = version === 1;
   const modules = modulesOf(saved.modules, version);
-  const sequencer = sequence(saved, version !== STATE_VERSION);
+  const sequencer = sequence(saved, version);
   if (!modules || !sequencer) return null;
   const connections = connectionsOf(saved.connections, modules, legacy);
   return connections ? { version: STATE_VERSION, modules, connections, ...sequencer } : null;

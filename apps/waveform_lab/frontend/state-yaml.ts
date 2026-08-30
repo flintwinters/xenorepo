@@ -11,7 +11,7 @@ function documentOf(state: LabState): object {
   return {
     version: STATE_VERSION,
     synth: synthOf(state),
-    loop: { bpm: state.bpm, notes: state.notes, holds: state.holds },
+    loop: { bpm: state.bpm, volume: state.volume, notes: state.notes, holds: state.holds },
   };
 }
 
@@ -35,7 +35,7 @@ export function applySynth(source: string, current: LabState): LabState {
   const candidate = validatedState({
     version: STATE_VERSION,
     synth: (parsed as { synth: unknown }).synth,
-    loop: { bpm: current.bpm, notes: current.notes, holds: current.holds },
+    loop: { bpm: current.bpm, volume: current.volume, notes: current.notes, holds: current.holds },
   });
   if (!candidate) throw new Error("Synth YAML violates the module, connection, or waveform contract.");
   return candidate;

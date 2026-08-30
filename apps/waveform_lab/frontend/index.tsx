@@ -25,7 +25,7 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
 
   override componentWillUnmount(): void { this.engine.stop(); }
   private commit = (lab: LabState): void => {
-    this.setState({ lab }); localStorage.setItem(storageKey, encodeState(lab));
+    this.engine.setVolume(lab.volume); this.setState({ lab }); localStorage.setItem(storageKey, encodeState(lab));
   };
   private togglePlayback = async (): Promise<void> => {
     if (this.state.playing) {
@@ -66,6 +66,9 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
           onChange={(event) => this.commit({ ...lab,
             bpm: Math.max(40, Math.min(240, Number(event.currentTarget.value) || 120)),
           })} /></label>
+        <label>VOLUME <input aria-label="App volume" type="range" min="0" max="1" step="0.01" value={lab.volume}
+          onInput={(event) => this.commit({ ...lab, volume: Number(event.currentTarget.value) })} />
+          <output>{Math.round(lab.volume * 100)}%</output></label>
         <span role="status">{hasPlayablePath(lab) ? "SIGNAL READY" : "PATCH INCOMPLETE — SILENT"}</span></div>
       <div class="piano-scroll" tabIndex={0} aria-label="Scrollable two bar piano roll">
         <div class="piano-roll" role="grid" aria-label="Two bar piano roll" aria-rowcount={24} aria-colcount={32}>

@@ -21,9 +21,12 @@ test("[acceptance] the GUI loop survives reload and controls playback", async ({
   await first.click(); await last.click();
   await page.getByLabel("Tempo in BPM").fill("146");
   await page.getByLabel("Tempo in BPM").press("Tab");
+  await page.getByLabel("App volume").fill("0.35");
   await page.reload();
 
   await expect(page.getByLabel("Tempo in BPM")).toHaveValue("146");
+  await expect(page.getByLabel("App volume")).toHaveValue("0.35");
+  await expect(page.getByText("35%", { exact: true })).toBeVisible();
   await expect(first).toHaveAttribute("aria-pressed", "true");
   await expect(last).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "PLAY", exact: false }).click();
@@ -38,6 +41,7 @@ test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) =
   await expect(editor).toContainText("modules:");
   await expect(editor).toContainText("samples:");
   await expect(editor).not.toContainText("notes:");
+  await expect(editor).not.toContainText("volume:");
   await expect(editor).not.toContainText(/\b[xy]:/);
   const theme = await editor.evaluate((element) => ({
     editor: getComputedStyle(element.querySelector(".cm-editor")!).backgroundColor,
@@ -89,8 +93,9 @@ test("[acceptance] coordinate-bearing state migrates and malformed storage recov
   await page.getByLabel("Tempo in BPM").fill("134");
   await page.getByLabel("Tempo in BPM").press("Tab");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1")))
-    .toContain("version: 3\nsynth:");
+    .toContain("version: 4\nsynth:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toMatch(/\b[xy]:/);
+  await expect(page.getByLabel("App volume")).toHaveValue("0.8");
 
   await page.evaluate(() => localStorage.setItem("waveform-lab-state-v1", "{malformed"));
   await page.reload();

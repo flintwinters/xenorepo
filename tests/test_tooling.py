@@ -347,6 +347,19 @@ frontend:
         self.assertIn(".x-ui-pane-body { min-height: 0; overflow: auto; }", compact_styles)
         self.assertIn('class="x-ui-title-end"', components)
 
+    def test_content_height_panes_never_create_vertical_scrollports(self) -> None:
+        styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
+            encoding="utf-8")
+        components = (ROOT / "packages" / "ui" / "src" / "index.tsx").read_text(
+            encoding="utf-8")
+        compact_styles = " ".join(styles.split())
+
+        self.assertIn('contentHeight ? "x-ui-pane-content-height"', components)
+        self.assertIn(".x-ui-pane-content-height { grid-template-rows: auto auto; }",
+            compact_styles)
+        self.assertIn((".x-ui-pane-content-height > .x-ui-pane-body { "
+            "overflow: visible; }"), compact_styles)
+
     def test_console_command_buttons_reverse_their_shadow_when_pressed(self) -> None:
         styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
             encoding="utf-8")

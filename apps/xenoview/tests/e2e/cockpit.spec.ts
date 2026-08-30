@@ -9,6 +9,13 @@ test("[acceptance] operator navigates repository evidence and records a baseline
   await expect(page.locator("#app")).toContainText("source lines");
   await expect(page.locator("#app")).toContainText("Lines by language");
   await expect(page.locator("nav .x-ui-command").first()).toContainText("overview");
+  const tablePanes = page.locator(".overview .x-ui-pane-content-height");
+  await expect(tablePanes).toHaveCount(3);
+  const tableOverflow = await tablePanes.locator(".x-ui-pane-body").evaluateAll((bodies) =>
+    bodies.map((body) => ({ overflowY: getComputedStyle(body).overflowY,
+      clientHeight: body.clientHeight, scrollHeight: body.scrollHeight })));
+  expect(tableOverflow.every((body) => body.overflowY === "visible" &&
+    body.clientHeight === body.scrollHeight)).toBe(true);
 
   await expect(page.getByRole("button", { name: "modules", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "explorer", exact: true }).click();

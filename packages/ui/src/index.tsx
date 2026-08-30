@@ -29,10 +29,13 @@ interface PaneProps extends Omit<JSX.HTMLAttributes<HTMLElement>, "title"> {
   title: ComponentChildren;
   titleEnd?: ComponentChildren;
   tone?: Tone;
+  contentHeight?: boolean;
 }
 
-export function ConsolePane({ title, titleEnd, tone = "blue", children, class: className, ...props }: PaneProps) {
-  return <section class={classes("x-ui-pane", `x-ui-tone-${tone}`, className as string | undefined)} {...props}>
+export function ConsolePane({ title, titleEnd, tone = "blue", contentHeight = false, children,
+  class: className, ...props }: PaneProps) {
+  return <section class={classes("x-ui-pane", contentHeight ? "x-ui-pane-content-height" : undefined,
+    `x-ui-tone-${tone}`, className as string | undefined)} {...props}>
     <div class="x-ui-chrome"><span>{title}</span><span class="x-ui-title-end">{titleEnd}</span></div>
     <div class="x-ui-pane-body">{children}</div>
   </section>;

@@ -73,6 +73,12 @@
   min-height: 0;
   overflow: auto;
 }
+.x-ui-pane-content-height {
+  grid-template-rows: auto auto;
+}
+.x-ui-pane-content-height > .x-ui-pane-body {
+  overflow: visible;
+}
 .x-ui-command {
   display: inline-block;
 }

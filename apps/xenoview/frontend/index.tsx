@@ -80,20 +80,20 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
       <p class="eyebrow">Repository scorecard</p><h1>Broad strokes, concrete units.</h1></div>
       <p>{overview.specification.covered}/{overview.specification.total} active apps specified</p></div>
       <div class="metrics">{primary.map((key) => this.metric(key, overview.metrics[key] ?? 0))}</div>
-      <div class="evidence-grid"><ConsolePane title="Lines by language" tone="purple">
+      <div class="evidence-grid"><ConsolePane title="Lines by language" tone="purple" contentHeight>
         <table class="console-table"><thead><tr><th class="identity">Language</th>
           <th class="numeric">Files</th><th class="numeric">Lines</th></tr></thead><tbody>
           {overview.language_lines.map((item) => <tr><td>{item.language}</td>
             <td class="numeric">{number.format(item.files)}</td>
             <td class="numeric">{number.format(item.lines)}</td></tr>)}</tbody></table>
-      </ConsolePane><ConsolePane title="Test cases" tone="green">
+      </ConsolePane><ConsolePane title="Test cases" tone="green" contentHeight>
         <table class="console-table"><thead><tr><th>Scope</th><th class="numeric">Cases</th></tr></thead>
           <tbody><tr><td>Monorepo</td><td class="numeric">{number.format(overview.test_breakdown.monorepo)}</td></tr>
           {Object.entries(overview.test_breakdown.monoapps).map(([name, count]) => <tr>
             <td>apps/{name}</td><td class="numeric">{number.format(count)}</td></tr>)}
           <tr class="total"><td>Total</td><td class="numeric">{number.format(overview.test_breakdown.total)}</td></tr>
           </tbody></table></ConsolePane></div>
-      <div class="split"><ConsolePane title="Largest maintained files" tone="orange">
+      <div class="split"><ConsolePane title="Largest maintained files" tone="orange" contentHeight>
         <table class="console-table"><thead><tr><th>Path</th><th class="numeric">Lines</th>
           <th class="numeric">Size</th></tr></thead><tbody>{overview.largest_files.map((item) => <tr>
           <td>{item.path}</td><td class="numeric">{number.format(item.lines)}</td>

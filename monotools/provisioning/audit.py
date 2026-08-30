@@ -27,6 +27,10 @@ MAX_CYCLOMATIC_COMPLEXITY = 8
 _SCRIPT_IMPORT = re.compile(r"(?:from\s+|import\s*)[\"']([^\"']+)[\"']")
 _TABLE_CELL = re.compile(r"<td\b[^>]*>(.*?)</td>", re.DOTALL | re.IGNORECASE)
 _STACKED_CELL_CONTENT = re.compile(r"<(?:article|br|div|footer|header|p|section|small)\b", re.IGNORECASE)
+_CSS_RULE = re.compile(r"(?P<prelude>(?:/\*.*?\*/\s*)?[^{}]+)\{", re.DOTALL)
+_CSS_COMMENT = re.compile(r"/\*.*?\*/", re.DOTALL)
+_NATIVE_BUTTON = re.compile(r"(?:^|[\s>+~,(])button(?=$|[.#:\[\s>+~,)])", re.IGNORECASE)
+_NATIVE_CONTROL_WAIVER = re.compile(r"monotools-allow-native-button\s*:\s*([^*]+)")
 
 
 @dataclass(frozen=True, order=True)
@@ -200,6 +204,37 @@ def _stacked_table_cell_violations(workspace: Path,
     return violations
 
 
+def _native_button_selector_violations(workspace: Path,
+    definitions: tuple[AppDefinition, ...]) -> list[AuditViolation]:
+    """Require ordinary app commands to use the shared typed UI control."""
+    violations = []
+    for definition in definitions:
+        for path in sorted(definition.source_directory.rglob("*.css")):
+            if EXCLUDED_PARTS.intersection(path.relative_to(workspace).parts):
+                continue
+            content = path.read_text(encoding="utf-8")
+            for match in _CSS_RULE.finditer(content):
+                detail = _native_button_rule_violation(match.group("prelude"))
+                if detail:
+                    line = content.count("\n", 0, match.start("prelude")) + 1
+                    violations.append(AuditViolation("app-native-button-selector",
+                        f"{path.relative_to(workspace)}:{line}", detail))
+    return violations
+
+
+def _native_button_rule_violation(prelude: str) -> str | None:
+    selector = _CSS_COMMENT.sub("", prelude).strip()
+    directives = _NATIVE_CONTROL_WAIVER.findall(prelude)
+    targets_button = bool(_NATIVE_BUTTON.search(selector))
+    if not directives:
+        return selector if targets_button else None
+    if not all(reason.strip() for reason in directives):
+        return "native button waiver requires a non-empty reason"
+    if not targets_button:
+        return "waiver must immediately precede a native button rule"
+    return None
+
+
 def audit_architecture(workspace: Path,
     definitions: tuple[AppDefinition, ...]) -> tuple[AuditViolation, ...]:
     """Return deterministic dependency and shared-boundary violations."""
@@ -211,6 +246,7 @@ def audit_architecture(workspace: Path,
     violations.extend(_legacy_frontend_source_violations(workspace))
     violations.extend(_monotools_documentation_violations(workspace))
     violations.extend(_stacked_table_cell_violations(workspace, definitions))
+    violations.extend(_native_button_selector_violations(workspace, definitions))
     return tuple(sorted(violations))
 
 

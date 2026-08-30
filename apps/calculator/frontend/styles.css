@@ -44,6 +44,7 @@ output {
 output.error { color: #fb4934; letter-spacing: 0; }
 .keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; }
 .tabs { display: flex; gap: 2px; padding: 5px; background: #181a1b; }
+/* monotools-allow-native-button: tabs use a distinct flat segmented treatment */
 .tabs button {
   flex: 1;
   padding: 5px;
@@ -52,6 +53,7 @@ output.error { color: #fb4934; letter-spacing: 0; }
   background: #35312f;
   border: 1px solid #928374;
 }
+/* monotools-allow-native-button: selected tabs remain flat rather than command-like */
 .tabs button[aria-selected="true"] { color: #fabd2f; background: #1f1e1d; border-color: #fabd2f; }
 .scientific-keys { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; padding: 7px; }
 .history { margin: 0; padding: 0; list-style: none; }

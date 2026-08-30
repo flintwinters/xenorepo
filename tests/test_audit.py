@@ -113,6 +113,32 @@ class AuditTests(unittest.TestCase):
             ("stacked-table-cell", "table cells must contain one logical value without stacked markup"),
         ])
 
+    def test_architecture_audit_requires_shared_ordinary_buttons_or_reasoned_exceptions(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="audit-") as temporary:
+            workspace = Path(temporary)
+            frontend = workspace / "apps" / "fixture" / "frontend"
+            frontend.mkdir(parents=True)
+            (frontend / "styles.css").write_text(
+                "button, .toolbar button:hover { color: red; }\n"
+                ".button { color: green; }\n"
+                "/* monotools-allow-native-button: tabs are not ordinary commands */\n"
+                ".tabs button[role=tab] { color: blue; }\n"
+                "@media (max-width: 600px) { .grid button { width: 1px; } }\n"
+                "/* monotools-allow-native-button: retained without a target */\n"
+                ".panel { display: grid; }\n",
+                encoding="utf-8",
+            )
+            definition = synthetic_app_definition(frontend.parent, name="fixture")
+
+            violations = audit_architecture(workspace, (definition,))
+
+        controls = [item for item in violations if item.category == "app-native-button-selector"]
+        self.assertEqual(len(controls), 3)
+        self.assertIn("button, .toolbar button:hover", controls[0].detail)
+        self.assertIn(".grid button", controls[1].detail)
+        self.assertEqual(controls[2].detail,
+            "waiver must immediately precede a native button rule")
+
     def test_repository_baseline_has_zero_structural_violations(self) -> None:
         import manage
 

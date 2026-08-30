@@ -7,7 +7,7 @@ import {
   StatusRail,
   UtilityRail,
 } from "@xenorepo/ui";
-import { checkout, offering } from "./client.js";
+import { checkout, offering, settleSandbox } from "./client.js";
 import "./styles.css";
 
 type Offering = Awaited<ReturnType<typeof offering>>;
@@ -15,6 +15,7 @@ type Offering = Awaited<ReturnType<typeof offering>>;
 function Enrollment() {
   const [details, setDetails] = useState<Offering>();
   const [message, setMessage] = useState("");
+  const [sandboxCheckout, setSandboxCheckout] = useState<string>();
 
   useEffect(() => { void offering().then(setDetails); }, []);
 
@@ -28,8 +29,21 @@ function Enrollment() {
       const result = await checkout(email);
       setMessage(`CHECKOUT ${result.checkout_id} READY VIA ${result.provider.toUpperCase()}`);
       if (result.checkout_url.startsWith("http")) location.assign(result.checkout_url);
+      else setSandboxCheckout(result.checkout_id);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "CHECKOUT FAILED");
+    }
+  }
+
+  async function settle(state: "paid" | "cancelled") {
+    if (!sandboxCheckout) return;
+    setMessage(state === "paid" ? "CONFIRMING PAYMENT…" : "CANCELLING CHECKOUT…");
+    try {
+      const result = await settleSandbox(sandboxCheckout, state);
+      setMessage(result.state === "paid" ? "SUBSCRIPTION ACTIVE" : "CHECKOUT CANCELLED");
+      setSandboxCheckout(undefined);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "CHECKOUT UPDATE FAILED");
     }
   }
 
@@ -50,6 +64,10 @@ function Enrollment() {
           <label>Email address<input name="email" type="email" required autoComplete="email" maxLength={320} /></label>
           <CommandButton id="submit" type="submit">CONTINUE TO PAYMENT</CommandButton>
         </form>
+        {sandboxCheckout && <div class="mailing-actions">
+          <CommandButton type="button" onClick={() => void settle("paid")}>COMPLETE SANDBOX PAYMENT</CommandButton>
+          <CommandButton type="button" onClick={() => void settle("cancelled")}>CANCEL</CommandButton>
+        </div>}
         <div id="message" class="mailing-message" role="status" aria-live="polite">{message}</div>
       </div></ConsolePane>
     </section>

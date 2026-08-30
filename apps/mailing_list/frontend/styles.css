@@ -37,6 +37,12 @@
   min-height: 20px;
   color: #fabd2f;
 }
+
+.mailing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
 .mailing-indicator {
   display: inline-flex;
   align-items: center;

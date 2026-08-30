@@ -1,6 +1,7 @@
 """Durable paid-subscriber facts and idempotent payment transitions."""
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import datetime
 import re
 from uuid import uuid4
@@ -64,6 +65,12 @@ class PaymentEvent(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+@dataclass(frozen=True)
+class CheckoutStatus:
+    checkout_id: str
+    state: str
+
+
 def create_session_factory(database_url: str) -> sessionmaker[Session]:
     return _create_session_factory(database_url, Base.metadata)
 
@@ -120,3 +127,11 @@ class MailingListRepository:
             return True
         except IntegrityError:
             return False
+
+    def checkout_status(self, provider: str, external_id: str) -> CheckoutStatus:
+        with self.sessions() as session:
+            checkout = session.scalar(select(Checkout).where(
+                Checkout.provider == provider, Checkout.external_id == external_id))
+            if checkout is None:
+                raise DomainError("Checkout not found.", "missing")
+            return CheckoutStatus(checkout.external_id, checkout.state)

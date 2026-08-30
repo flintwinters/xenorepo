@@ -5,6 +5,7 @@ from pathlib import Path
 import unittest
 from unittest.mock import MagicMock, patch
 
+from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
 from apps.mailing_list.backend.database import (
@@ -12,6 +13,7 @@ from apps.mailing_list.backend.database import (
     create_session_factory,
 )
 from apps.mailing_list.backend.providers import SandboxGateway
+from apps.mailing_list.backend.server import SANDBOX_SECRET, create_app
 from monotools.integrations.commerce import PaymentNotification
 from monotools.integrations.mailer import Mail, SmtpMailer
 
@@ -22,7 +24,7 @@ class MailingListTests(unittest.TestCase):
     def setUp(self) -> None:
         self.database.unlink(missing_ok=True)
         self.sessions = create_session_factory(f"sqlite:///{self.database}")
-        self.repository = MailingListRepository(self.sessions, SandboxGateway(),
+        self.repository = MailingListRepository(self.sessions, SandboxGateway(SANDBOX_SECRET),
             lambda: datetime(2026, 8, 22, tzinfo=timezone.utc))
 
     def tearDown(self) -> None:
@@ -54,6 +56,30 @@ class MailingListTests(unittest.TestCase):
             self.repository.begin_checkout("not-an-email", 500, "usd", "ok", "cancel")
         with self.assertRaisesRegex(DomainError, "Checkout not found"):
             self.repository.apply_notification(PaymentNotification("sandbox", "event", "missing", "paid"))
+
+    def test_public_sandbox_lifecycle_authenticates_and_replays_safely(self) -> None:
+        app_database = Path("apps/mailing_list/data/test-mailing-list-api.db")
+        app_database.unlink(missing_ok=True)
+        try:
+            with TestClient(create_app(f"sqlite:///{app_database}")) as client:
+                created = client.post("/api/checkouts", json={"email": "reader@example.test"})
+                self.assertEqual(created.status_code, 201)
+                checkout_id = created.json()["checkout_id"]
+                pending = client.get(f"/api/checkouts/{checkout_id}")
+                self.assertEqual(pending.json()["state"], "pending")
+
+                rejected = client.post("/api/webhooks/payments/sandbox", content=b"{}",
+                    headers={"x-payment-signature": "incorrect"})
+                self.assertEqual(rejected.status_code, 403)
+                payload, signature = SandboxGateway(SANDBOX_SECRET).notification(checkout_id, "paid")
+                paid = client.post("/api/webhooks/payments/sandbox", content=payload,
+                    headers={"x-payment-signature": signature})
+                self.assertEqual(paid.json()["state"], "paid")
+                replay = client.post("/api/webhooks/payments/sandbox", content=payload,
+                    headers={"x-payment-signature": signature})
+                self.assertEqual(replay.json()["repeated"], True)
+        finally:
+            app_database.unlink(missing_ok=True)
 
     @patch("monotools.integrations.mailer.smtplib.SMTP")
     def test_smtp_adapter_owns_tls_authentication_and_message_transport(self, smtp: MagicMock) -> None:

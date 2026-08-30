@@ -5,7 +5,9 @@ test("[acceptance] enrollment reaches the sandbox checkout", async ({ page }) =>
   await expect(page.getByText("$5.00 / month")).toBeVisible();
   await page.getByLabel("Email address").fill("reader@example.test");
   await page.getByText("CONTINUE TO PAYMENT").click();
-  await expect(page.locator("#message")).toContainText("CHECKOUT");
+  await expect(page.getByText("COMPLETE SANDBOX PAYMENT")).toBeVisible();
+  await page.getByText("COMPLETE SANDBOX PAYMENT").click();
+  await expect(page.locator("#message")).toHaveText("SUBSCRIPTION ACTIVE");
 });
 
 test("[visual] initial enrollment ledger", async ({ page }) => {

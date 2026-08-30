@@ -23,3 +23,11 @@ export async function checkout(email: string) {
   if (!result.data) throw new Error(errorMessage(result.error));
   return result.data;
 }
+
+export async function settleSandbox(checkoutId: string, state: "paid" | "cancelled") {
+  const result = await client.POST("/api/sandbox/checkouts/{checkout_id}/{state}", {
+    params: { path: { checkout_id: checkoutId, state } },
+  });
+  if (!result.data) throw new Error(errorMessage(result.error));
+  return result.data;
+}

@@ -156,7 +156,8 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
           onChange={(event) => { const octave = Number(event.currentTarget.value);
             if (isSafeTopOctave(octave)) this.setState({ topOctave: octave, selection: new Set(), anchor: null });
           }} /></label>
-        <div class="selection-tools" aria-label="Note selection controls" title="Ctrl/Cmd+A select all · Ctrl/Cmd+X/C/V cut/copy/paste · Backspace/Delete remove · Esc clear · Space play">
+        <div class="selection-tools" aria-label="Note selection controls"
+          title="Ctrl/Cmd+A select all · Ctrl/Cmd+X/C/V cut/copy/paste · Backspace/Delete remove · Esc clear · Space play">
           <CommandButton onClick={this.cut}
           disabled={!this.state.selection.size}>CUT</CommandButton><CommandButton onClick={this.copy}
             disabled={!this.state.selection.size}>COPY</CommandButton>

@@ -62,6 +62,30 @@ test("[acceptance] the GUI loop survives reload and controls playback", async ({
   await expect(page.getByText("READY", { exact: true })).toBeVisible();
 });
 
+test("[acceptance] one complete loop exports as a stereo PCM WAV without starting playback", async ({ page }) => {
+  await page.goto("/");
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "EXPORT WAV" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("waveform-lab-loop.wav");
+  const stream = await download.createReadStream(); const chunks: Buffer[] = [];
+  for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+  const wav = Buffer.concat(chunks);
+  expect(wav.toString("ascii", 0, 4)).toBe("RIFF");
+  expect(wav.readUInt32LE(4)).toBe(wav.length - 8);
+  expect(wav.toString("ascii", 8, 12)).toBe("WAVE");
+  expect(wav.toString("ascii", 12, 16)).toBe("fmt ");
+  expect(wav.readUInt16LE(20)).toBe(1);
+  expect(wav.readUInt16LE(22)).toBe(2);
+  expect(wav.readUInt32LE(24)).toBe(44_100);
+  expect(wav.readUInt32LE(28)).toBe(44_100 * 2 * 2);
+  expect(wav.readUInt16LE(34)).toBe(16);
+  expect(wav.toString("ascii", 36, 40)).toBe("data");
+  expect(wav.readUInt32LE(40)).toBe(wav.length - 44);
+  expect(wav.length).toBeGreaterThan(44);
+  await expect(page.getByText("READY", { exact: true })).toBeVisible();
+});
+
 test("[acceptance] the piano roll reaches arbitrary positive and negative octaves", async ({ page }) => {
   await page.goto("/");
   const octave = page.getByLabel("Highest visible octave");

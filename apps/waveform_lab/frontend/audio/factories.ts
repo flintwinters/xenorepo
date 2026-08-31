@@ -7,7 +7,7 @@ export interface RuntimeModule {
   tail: number;
 }
 interface BuildContext {
-  audio: AudioContext; module: ModuleNode; midi: number;
+  audio: BaseAudioContext; module: ModuleNode; midi: number;
   now: number; gate: number; chordSize: number; caches: AudioCaches;
 }
 
@@ -21,10 +21,10 @@ function runtime(input?: AudioNode, output?: AudioNode): RuntimeModule {
   return { ...(input ? { input } : {}), ...(output ? { output } : {}), targets: {}, sources: [],
     nodes: [input, output].filter((node): node is AudioNode => Boolean(node)), tail: 0 };
 }
-function passthrough(audio: AudioContext): RuntimeModule {
+function passthrough(audio: BaseAudioContext): RuntimeModule {
   const node = audio.createGain(); return runtime(node, node);
 }
-function wetDry(audio: AudioContext, effect: AudioNode, mix: number): RuntimeModule {
+function wetDry(audio: BaseAudioContext, effect: AudioNode, mix: number): RuntimeModule {
   const input = audio.createGain(); const output = audio.createGain();
   const dry = audio.createGain(); const wet = audio.createGain();
   dry.gain.value = 1 - mix; wet.gain.value = mix;
@@ -48,7 +48,7 @@ function oscillator(context: BuildContext): RuntimeModule {
   return { ...runtime(undefined, gain), targets: { detune: source.detune }, sources: [source],
     nodes: [source, gain], tail: 0 };
 }
-function seededNoise(audio: AudioContext, color: string, cache: AudioCaches): AudioBuffer {
+function seededNoise(audio: BaseAudioContext, color: string, cache: AudioCaches): AudioBuffer {
   const key = `${audio.sampleRate}:${color}`; const found = cache.noise.get(key); if (found) return found;
   const buffer = audio.createBuffer(1, audio.sampleRate, audio.sampleRate); const data = buffer.getChannelData(0);
   let seed = 0x12345678; let pink = 0; let brown = 0;

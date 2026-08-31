@@ -5,6 +5,7 @@ import {
 import { SynthEngine } from "./audio.js";
 import { decodeState, encodeState } from "./state-yaml.js";
 import { SynthYamlEditor } from "./yaml-editor.js";
+import { encodePcm16Wav } from "./wav.js";
 import {
   initialState, isNaturalPitch, isSafeTopOctave, midiLabel, pitchesForTopOctave, type LabState,
 } from "./model.js";
@@ -17,7 +18,8 @@ import "./styles.css";
 const storageKey = "waveform-lab-state-v1";
 type LoopCommand = "selectAll" | "copy" | "cut" | "paste" | "delete" | "clear" | "play";
 interface ViewState { lab: LabState; playing: boolean; activeStep: number; selectedInstrument: string;
-  topOctave: number; selection: Set<string>; clipboard: NoteOffset[]; anchor: Cell | null; }
+  topOctave: number; selection: Set<string>; clipboard: NoteOffset[]; anchor: Cell | null;
+  exporting: boolean; exportError: string; }
 
 function loopCommand(event: KeyboardEvent): LoopCommand | undefined {
   const modified: Record<string, LoopCommand> = { a: "selectAll", c: "copy", x: "cut", v: "paste" };
@@ -39,7 +41,7 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
   private initial = loadState();
   override state: ViewState = { lab: this.initial, playing: false, activeStep: -1,
     selectedInstrument: this.initial.instruments[0]?.name ?? "", topOctave: 6,
-    selection: new Set(), clipboard: [], anchor: null };
+    selection: new Set(), clipboard: [], anchor: null, exporting: false, exportError: "" };
   private engine = new SynthEngine();
   private gesture: { start: Cell; mode: "box" | "move"; notes: Cell[] } | null = null;
   private dragged = false;
@@ -58,6 +60,18 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
     }
     await this.engine.start(() => this.state.lab, (activeStep) => this.setState({ activeStep }));
     this.setState({ playing: true });
+  };
+  private exportWav = async (): Promise<void> => {
+    this.setState({ exporting: true, exportError: "" });
+    try {
+      const snapshot = structuredClone(this.state.lab); const audio = await this.engine.renderLoop(snapshot);
+      const url = URL.createObjectURL(encodePcm16Wav(audio)); const link = document.createElement("a");
+      link.href = url; link.download = "waveform-lab-loop.wav"; link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 0); this.setState({ exporting: false });
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : "unknown browser audio error";
+      this.setState({ exporting: false, exportError: `WAV export failed: ${detail}` });
+    }
   };
   private toggleNote(step: number, pitch: number): void {
     const notes = this.state.lab.notes.map((values) => [...values]); const current = notes[step] ?? [];
@@ -152,6 +166,8 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
     return <ConsolePane class="sequence-pane" title="LOOP / 2 BARS / 4∕4" tone="purple">
       <div class="transport"><CommandButton class="play" pressed={this.state.playing}
         onClick={this.togglePlayback}>{this.state.playing ? "■ STOP" : "▶ PLAY"}</CommandButton>
+        <CommandButton onClick={this.exportWav} disabled={this.state.exporting}>
+          {this.state.exporting ? "EXPORTING…" : "EXPORT WAV"}</CommandButton>
         <label>BPM <input aria-label="Tempo in BPM" type="number" min="40" max="240" value={lab.bpm}
           onChange={(event) => this.commit({ ...lab,
             bpm: Math.max(40, Math.min(240, Number(event.currentTarget.value) || 120)),
@@ -181,7 +197,8 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
             disabled={!this.state.selection.size}>DELETE</CommandButton>
           <CommandButton onClick={this.clearLoop}
             disabled={!lab.notes.some((notes) => notes.length)}>CLEAR LOOP</CommandButton>
-          <output>{this.state.selection.size} SELECTED</output></div></div>
+          <output>{this.state.selection.size} SELECTED</output></div>
+        {this.state.exportError && <span role="alert" class="export-alert">{this.state.exportError}</span>}</div>
       <div class="piano-scroll" tabIndex={0} aria-label="Two bar piano roll editor">
         <div class="piano-roll" role="grid" aria-label="Two bar piano roll"
           aria-rowcount={pitches.length} aria-colcount={32}>

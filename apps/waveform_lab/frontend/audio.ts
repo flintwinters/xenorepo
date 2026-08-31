@@ -18,7 +18,8 @@ export class SynthEngine {
   async start(state: () => LabState, onStep: (step: number) => void): Promise<void> {
     this.stop(); this.context ??= new AudioContext(); await this.context.resume();
     this.master ??= this.createMaster(this.context); this.setVolume(state().volume);
-    this.step = 0; this.nextStepTime = this.context.currentTime + 0.03;
+    const context = this.context; const master = this.master;
+    this.step = 0; this.nextStepTime = context.currentTime + 0.03;
     const schedule = (): void => {
       if (!this.context) return;
       while (this.nextStepTime < this.context.currentTime + 0.1) {
@@ -30,7 +31,8 @@ export class SynthEngine {
           const instrument = current.instruments.find((item) => item.name === note.instrument);
           const chordSize = notes.filter((item) => item.instrument === note.instrument).length;
           if (instrument && hasPlayablePath(instrument))
-            this.play(note.pitch, instrument, current.bpm, chordSize, this.nextStepTime);
+            this.play(context, master, note.pitch, instrument, current.bpm, chordSize,
+              this.nextStepTime, true);
         }
         this.step = (this.step + 1) % current.notes.length;
         this.nextStepTime += 60 / current.bpm / 4;
@@ -50,19 +52,41 @@ export class SynthEngine {
     this.volume.gain.setValueAtTime(Math.max(0, Math.min(1, volume)), this.context.currentTime);
   }
 
-  private createMaster(audio: AudioContext): DynamicsCompressorNode {
-    const node = audio.createDynamicsCompressor(); node.threshold.value = -6; node.knee.value = 6;
-    node.ratio.value = 12; node.attack.value = 0.003; node.release.value = 0.12;
-    this.volume = audio.createGain(); node.connect(this.volume).connect(audio.destination); return node;
+  async renderLoop(state: LabState): Promise<AudioBuffer> {
+    const sampleRate = 44_100; const stepDuration = 60 / state.bpm / 4;
+    const duration = state.notes.length * stepDuration + 6.5;
+    const audio = new OfflineAudioContext(2, Math.ceil(duration * sampleRate), sampleRate);
+    const master = this.createCompressor(audio); const volume = audio.createGain();
+    volume.gain.value = state.volume; master.connect(volume).connect(audio.destination);
+    const caches: AudioCaches = { noise: new Map(), impulses: new Map() };
+    state.notes.forEach((notes, step) => notes.forEach((note) => {
+      const instrument = state.instruments.find((item) => item.name === note.instrument);
+      const chordSize = notes.filter((item) => item.instrument === note.instrument).length;
+      if (instrument && hasPlayablePath(instrument)) this.play(audio, master, note.pitch, instrument,
+        state.bpm, chordSize, step * stepDuration, false, caches);
+    }));
+    return audio.startRendering();
   }
 
-  private play(midi: number, instrument: Instrument, bpm: number, chordSize: number, now: number): void {
-    if (!this.context || !this.master) return;
+  private createMaster(audio: AudioContext): DynamicsCompressorNode {
+    const node = this.createCompressor(audio);
+    this.volume = audio.createGain(); node.connect(this.volume).connect(audio.destination);
+    return node;
+  }
+
+  private createCompressor(audio: BaseAudioContext): DynamicsCompressorNode {
+    const node = audio.createDynamicsCompressor(); node.threshold.value = -6; node.knee.value = 6;
+    node.ratio.value = 12; node.attack.value = 0.003; node.release.value = 0.12;
+    return node;
+  }
+
+  private play(context: BaseAudioContext, master: AudioNode, midi: number, instrument: Instrument,
+    bpm: number, chordSize: number, now: number, dispose: boolean, caches = this.caches): void {
     const gate = Math.max(0.025, Math.min(0.18, 60 / bpm / 4 * 0.68));
     const modules = new Map(instrument.modules.map((module) => [module.id, module]));
     const runtimes = new Map<string, RuntimeModule>();
-    for (const module of instrument.modules) runtimes.set(module.id, buildModule({ audio: this.context,
-      module, midi, now, gate, chordSize, caches: this.caches }));
+    for (const module of instrument.modules) runtimes.set(module.id, buildModule({ audio: context,
+      module, midi, now, gate, chordSize, caches }));
 
     const envelopes = instrument.modules.filter((module) => module.kind === "envelope" && !module.bypass);
     const release = Math.max(0.02, ...envelopes.map((module) => Number(module.parameters.release)));
@@ -72,7 +96,7 @@ export class SynthEngine {
       if (module.kind !== "oscillator" && module.kind !== "noise") {
         effectiveOutputs.set(module.id, output); continue;
       }
-      const voiceGate = this.context.createGain(); voiceGate.gain.setValueAtTime(0, now);
+      const voiceGate = context.createGain(); voiceGate.gain.setValueAtTime(0, now);
       voiceGate.gain.linearRampToValueAtTime(1, now + 0.003);
       voiceGate.gain.setValueAtTime(1, now + gate + release);
       voiceGate.gain.linearRampToValueAtTime(0, now + gate + release + 0.003);
@@ -88,12 +112,12 @@ export class SynthEngine {
       const parameter = targetModule && edge.target
         ? moduleDefinition(targetModule.kind).parameters[edge.target] : undefined;
       if (!source || !target || !parameter?.range) continue;
-      const depth = this.context.createGain();
+      const depth = context.createGain();
       depth.gain.value = edge.amount ?? (parameter.range[1] - parameter.range[0]) * 0.2;
       source.connect(depth).connect(target); extraNodes.push(depth);
     }
     for (const module of instrument.modules.filter((item) => item.kind === "output"))
-      runtimes.get(module.id)?.output?.connect(this.master);
+      runtimes.get(module.id)?.output?.connect(master);
 
     const all = [...runtimes.values()]; const sources = all.flatMap((item) => item.sources);
     const nodes = [...all.flatMap((item) => item.nodes), ...extraNodes]; const signalEnd = now + gate + release;
@@ -101,10 +125,11 @@ export class SynthEngine {
     for (const source of sources) {
       try { source.start(now); source.stop(cleanupAt); } catch { /* Invalid source is silent. */ }
     }
+    if (!dispose) return;
     const cleanupTimer = window.setTimeout(() => {
       const voice = [...this.voices].find((candidate) => candidate.cleanupTimer === cleanupTimer);
       if (voice) { this.disposeVoice(voice); this.voices.delete(voice); }
-    }, Math.max(0, (cleanupAt - this.context.currentTime) * 1000));
+    }, Math.max(0, (cleanupAt - context.currentTime) * 1000));
     this.voices.add({ sources, nodes, cleanupTimer });
   }
 

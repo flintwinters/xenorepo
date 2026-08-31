@@ -23,6 +23,14 @@ async function visualDefects(page) {
       const style = getComputedStyle(element);
       return style.display !== "none" && style.visibility !== "hidden";
     }
+    function insideHorizontalScroller(element) {
+      for (let ancestor = element.parentElement; ancestor; ancestor = ancestor.parentElement) {
+        const overflow = getComputedStyle(ancestor).overflowX;
+        if ((overflow === "auto" || overflow === "scroll")
+          && ancestor.scrollWidth > ancestor.clientWidth + 1) return true;
+      }
+      return false;
+    }
     function interactiveDefects() {
       const defects = [];
       const interactive = [...document.querySelectorAll(
@@ -34,7 +42,8 @@ async function visualDefects(page) {
         const label = elementLabel(element);
         if (box.width < 1 || box.height < 1) defects.push(`zero-size interactive control: ${label}`);
         const visibleWidth = Math.min(box.right, innerWidth) - Math.max(box.left, 0);
-        if (visibleWidth < Math.min(box.width, 8)) defects.push(`horizontally clipped control: ${label}`);
+        if (visibleWidth < Math.min(box.width, 8) && !insideHorizontalScroller(element))
+          defects.push(`horizontally clipped control: ${label}`);
       }
       return defects;
     }

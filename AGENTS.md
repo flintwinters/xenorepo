@@ -41,8 +41,6 @@ it, and **Monotools** is the canonical orchestration library.
 - Keep framework code modular and DRY, but extract abstractions only after an
   app proves the shared boundary. Apps may share Monotools and contracts, not
   application source or build artifacts.
-- Reintegrate proven findings, tools, and protections into the Xenorepo and
-  Monotools core; consolidate duplicates so every app improves shared foundations.
 - Operations must be deterministic, composable, and reversible where practical.
   Validate preconditions before mutation, report partial failures and recovery
   steps, and never claim success before readiness is stable.
@@ -70,8 +68,6 @@ it, and **Monotools** is the canonical orchestration library.
   with no static monoapp identity or product policy in central code or tests.
 - Admit shared code only after independent consumers prove a generic boundary;
   keep `LIBRARIES.md` authoritative for contracts and extraction policy.
-- Keep the active checkpoint and next action concise in `PREACT_MIGRATION.md`
-  so work can resume safely after context clearing.
 - Create monoapps from the Monotools template and promote mature apps to
   independently versioned GitHub submodules without weakening their verified
   dependency on the enclosing Xenorepo platform.

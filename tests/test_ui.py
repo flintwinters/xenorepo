@@ -127,12 +127,16 @@ class BrowserLifecycleTests(unittest.TestCase):
                 (screenshots / f"root--{label}--{resolution}.png").write_bytes(b"png")
             definition = synthetic_app_definition(directory)
             report_path = directory / "review.json"
+            hygiene = {"schemaVersion": 1, "app": definition.name, "hardViolationCount": 0,
+                "violations": [], "metrics": {"borders": 2, "gaps": 1}}
+            (directory / "ui-hygiene.json").write_text(json.dumps(hygiene), encoding="utf-8")
             with patch.dict("os.environ", {"OPENROUTER_API_KEY": "secret"}), \
                  patch("monotools.orchestration.aesthetics.urllib.request.urlopen",
                     return_value=opened) as urlopen:
                 report = review_aesthetics(definition, screenshots, report_path)
             request_body = json.loads(urlopen.call_args.args[0].data)
             image_inputs = request_body["messages"][0]["content"][1:]
+            prompt = request_body["messages"][0]["content"][0]["text"]
             self.assertEqual(len(image_inputs), 3)
             self.assertTrue(all(item["image_url"]["url"].startswith("data:image/png;base64,")
                 for item in image_inputs))
@@ -146,7 +150,13 @@ class BrowserLifecycleTests(unittest.TestCase):
             self.assertEqual(request_body["model"], DEFAULT_MODEL)
             self.assertEqual(request_body["reasoning"], {"effort": "low"})
             self.assertEqual(request_body["max_tokens"], 4096)
+            self.assertIn("gratuitous box nesting", prompt)
+            self.assertIn("responsive layouts", prompt)
+            self.assertIn('"hardViolationCount": 0', prompt)
+            self.assertNotIn("App-owned visual brief", prompt)
             self.assertEqual(report["verdict"], "pass")
+            self.assertEqual(report["schemaVersion"], 4)
+            self.assertEqual(report["uiHygiene"], hygiene)
             self.assertEqual(report["gateway"], "openrouter")
             self.assertEqual(report["usage"]["cost"], 0.01)
             self.assertEqual(json.loads(report_path.read_text())["responseId"], "resp_test")

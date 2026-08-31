@@ -82,12 +82,8 @@ def screenshot_inventory(directory: Path) -> list[Path]:
     return screenshots
 
 
-def _prompt(definition: AppDefinition, screenshots: list[Path]) -> str:
-    brief_path = definition.directory / "UI.md"
-    brief = brief_path.read_text(encoding="utf-8") if brief_path.is_file() else (
-        "No app-specific visual brief exists. Judge this as polished production software "
-        "whose design should be coherent with its visible purpose."
-    )
+def _prompt(definition: AppDefinition, screenshots: list[Path],
+    hygiene: dict[str, Any]) -> str:
     inventory = "\n".join(f"- {path.name}" for path in screenshots)
     return f"""Act as a demanding senior product-design reviewer. Decide whether this UI looks
 intentional, coherent, attractive, and ready to ship across every supplied resolution. Evaluate
@@ -97,17 +93,27 @@ set, not independently. A technically functional but generic, awkward, cramped, 
 visually incoherent UI fails. Minor preferences may be reported without failing; any major finding
 requires verdict=fail. Do not infer source-code defects or missing interactions from screenshots.
 
+Explicitly conduct an AI-artifact critique. Reject gratuitous box nesting, unexplained borders or
+gaps, control clutter, local imitation of shared toolkit commands, arbitrary spacing/radius/shadow
+vocabularies, ornamental labels, slogans, serial numbers, eyebrow copy, fake status, empty-state
+sprawl, and responsive layouts that preserve containment while destroying product structure.
+Treat the supplied metrics as contextual evidence, not numeric style limits. Domain controls are
+direct-manipulation surfaces; command controls are ordinary actions. A zero hard-violation count
+does not imply aesthetic quality.
+
 Application: {definition.title}
 Screenshot inventory:
 {inventory}
 
-App-owned visual brief:
-{brief}
+Deterministic UI hygiene evidence:
+{json.dumps(hygiene, indent=2, sort_keys=True)}
 """
 
 
-def _request_payload(definition: AppDefinition, screenshots: list[Path], model: str) -> dict[str, Any]:
-    content: list[dict[str, Any]] = [{"type": "text", "text": _prompt(definition, screenshots)}]
+def _request_payload(definition: AppDefinition, screenshots: list[Path], model: str,
+    hygiene: dict[str, Any]) -> dict[str, Any]:
+    content: list[dict[str, Any]] = [{"type": "text",
+        "text": _prompt(definition, screenshots, hygiene)}]
     for path in screenshots:
         encoded = base64.b64encode(path.read_bytes()).decode("ascii")
         content.append({"type": "image_url", "image_url": {
@@ -134,13 +140,18 @@ def review_aesthetics(definition: AppDefinition, screenshot_directory: Path,
     report_path: Path) -> dict[str, Any]:
     """Submit captured UI evidence to a vision model and enforce its verdict."""
     screenshots = screenshot_inventory(screenshot_directory)
+    hygiene_path = report_path.parent / "ui-hygiene.json"
+    try:
+        hygiene = json.loads(hygiene_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as error:
+        raise LifecycleError(f"AESTHETIC_HYGIENE_EVIDENCE: invalid or missing {hygiene_path}") from error
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
         raise LifecycleError("AESTHETIC_REVIEW_AUTH: OPENROUTER_API_KEY is required")
     model = os.environ.get("MONOTOOLS_AESTHETIC_MODEL", DEFAULT_MODEL)
     request = urllib.request.Request(
         OPENROUTER_ENDPOINT,
-        data=json.dumps(_request_payload(definition, screenshots, model)).encode("utf-8"),
+        data=json.dumps(_request_payload(definition, screenshots, model, hygiene)).encode("utf-8"),
         headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
             "X-OpenRouter-Title": "Monotools"},
         method="POST",
@@ -154,10 +165,10 @@ def review_aesthetics(definition: AppDefinition, screenshot_directory: Path,
         review = json.loads(_output_text(response))
     except json.JSONDecodeError as error:
         raise LifecycleError("AESTHETIC_REVIEW_RESPONSE: invalid JSON") from error
-    report = {"schemaVersion": 3, "app": definition.name, "gateway": "openrouter",
+    report = {"schemaVersion": 4, "app": definition.name, "gateway": "openrouter",
         "provider": response.get("provider"), "model": response.get("model", model),
         "responseId": response.get("id"), "usage": response.get("usage"),
-        "screenshots": [path.name for path in screenshots], **review}
+        "screenshots": [path.name for path in screenshots], "uiHygiene": hygiene, **review}
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if review.get("verdict") != "pass":
         raise LifecycleError(

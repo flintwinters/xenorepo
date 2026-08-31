@@ -184,7 +184,9 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
               })}
             />
           </label>
-          <span role="status">{hasPlayablePath(lab) ? "SIGNAL READY" : "PATCH INCOMPLETE — SILENT"}</span>
+            <span role="status">
+              {hasPlayablePath(lab) ? "SIGNAL READY" : "PATCH INCOMPLETE — SILENT"}
+            </span>
         </div>
         <div class="piano-scroll" tabIndex={0} aria-label="Scrollable two bar piano roll">
           <div class="piano-roll" role="grid" aria-label="Two bar piano roll" aria-rowcount={24} aria-colcount={32}>

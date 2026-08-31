@@ -336,10 +336,10 @@ export class CircuitPanel extends Component<CircuitProps, CircuitState> {
           {lab.connections.map((edge) => {
             const from = lab.modules.find((node) => node.id === edge.from);
             const to = lab.modules.find((node) => node.id === edge.to);
-            const text =
-              from && to
-                ? `${label(from, lab.modules)} ${edgeType(edge)} → ${label(to, lab.modules)}${edge.target ? ` ${edge.target}` : ""}`
-                : "Unknown cable";
+            const suffix = edge.target ? ` ${edge.target}` : "";
+            const text = from && to
+              ? `${label(from, lab.modules)} ${edgeType(edge)} → ${label(to, lab.modules)}${suffix}`
+              : "Unknown cable";
             return (
               <li>
                 {text}

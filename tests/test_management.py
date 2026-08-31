@@ -110,7 +110,8 @@ frontend:
         self.assertEqual(result.exit_code, 0)
         command_names = {command.name or command.callback.__name__.replace("_", "-")
             for command in app.registered_commands}
-        self.assertEqual(command_names, {"build", "check", "test", "ui-check", "verify"})
+        self.assertEqual(command_names,
+            {"build", "check", "test", "ui-check", "aesthetic-check", "verify"})
         self.assertEqual(app.registered_groups, [])
 
     def test_standard_serve_delegates_to_shared_lifecycle(self) -> None:
@@ -172,13 +173,14 @@ frontend:
         root_commands = {command.name or command.callback.__name__.replace("_", "-")
             for command in repository_manager.app.registered_commands}
         self.assertEqual(root_commands,
-            {"audit", "bootstrap", "list", "status", "check", "test", "ui-check", "verify"})
+            {"audit", "bootstrap", "list", "status", "check", "test", "ui-check",
+                "aesthetic-check", "verify"})
         self.assertIn("monoapp", {group.name for group in repository_manager.app.registered_groups})
 
         mounted_name = repository_manager.MANAGERS[0][0].name
         result = CliRunner().invoke(repository_manager.app, [mounted_name, "--help"])
         self.assertEqual(result.exit_code, 0)
-        for command in ("build", "check", "test", "serve", "ui-check", "verify"):
+        for command in ("build", "check", "test", "serve", "ui-check", "aesthetic-check", "verify"):
             self.assertIn(command, result.output)
         self.assertIn("git", result.output)
         self.assertNotIn("bootstrap", result.output)
@@ -257,12 +259,12 @@ frontend:
 
     def test_verify_composes_checks_tests_and_complete_browser_inventory(self) -> None:
         with patch("manage.check") as check, patch("manage.test") as test, \
-             patch("manage.ui_check") as browser:
+             patch("manage.aesthetic_check") as aesthetic:
             result = CliRunner().invoke(repository_manager.app, ["verify"])
         self.assertEqual(result.exit_code, 0)
         check.assert_called_once_with()
         test.assert_called_once_with()
-        browser.assert_called_once_with(app_name=None, evidence=False)
+        aesthetic.assert_called_once_with(app_name=None)
 
     def test_discovery_rejects_unmanaged_and_invalid_manager_directories(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="inventory-") as temporary:

@@ -13,6 +13,7 @@ from pathlib import Path
 import socket
 import subprocess
 import signal
+import shutil
 import sys
 import time
 
@@ -121,6 +122,7 @@ def _browser_environment(definition: AppDefinition, artifacts: Path, port: int,
             for route, name in definition.routes
         ]),
         "PLAYWRIGHT_RETAIN_EVIDENCE": "1" if evidence else "0",
+        "XENOREPO_AESTHETIC_SCREENSHOTS": str(artifacts / "aesthetic-screenshots"),
     }
     database = artifacts / "browser.db" if "database" in definition.capabilities else None
     if database:
@@ -188,6 +190,10 @@ def run_ui_check(definition: AppDefinition, workspace: Path, suite: object = Non
         raise LifecycleError("Playwright is not installed; run python manage.py bootstrap first")
     artifacts = ui_artifact_directory(definition)
     artifacts.mkdir(parents=True, exist_ok=True)
+    screenshots = artifacts / "aesthetic-screenshots"
+    if screenshots.is_dir():
+        shutil.rmtree(screenshots)
+    screenshots.mkdir()
     service_log = artifacts / "service.log"
     playwright_log = artifacts / "playwright.log"
     summary_path = artifacts / "summary.json"

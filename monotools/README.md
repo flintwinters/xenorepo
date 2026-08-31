@@ -132,3 +132,14 @@ browser-lifecycle mutation. Each run retains `summary.json`, `playwright.log`,
 screenshots/traces under `apps/<app>/data/ui-check/`. Pass `--evidence` to retain
 trace, video, and HAR output for successful runs. Chromium automation is a
 browser-input claim, not evidence about Safari or physical mobile hardware.
+
+The final `aesthetic-check` gate deliberately spends multimodal-model inference
+on perceptual quality. Before that call, the universal visual proof renders every
+declared route at 1440×1000, 768×1024, and 390×844; rejects horizontal overflow,
+clipped or zero-size controls, and text below 9 px; and writes the actual viewport
+screenshots to `data/ui-check/aesthetic-screenshots/`. The gate sends the complete
+matrix plus optional app-owned `UI.md` direction to the OpenAI Responses API and
+retains its structured verdict in `aesthetic-review.json`. `OPENAI_API_KEY` is
+mandatory; `MONOTOOLS_AESTHETIC_MODEL` may override the default `gpt-5.5`
+reviewer. `verify` runs this AI review last, so a model outage, incomplete matrix,
+or major aesthetic finding fails the checkpoint.

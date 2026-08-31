@@ -2,6 +2,62 @@ const { expect, test } = require("@xenorepo/browser-testing");
 
 const routes = JSON.parse(process.env.XENOREPO_FRONTEND_ROUTES
   || '[{"path":"/","artifact":"index.html"}]');
+const aestheticDirectory = process.env.XENOREPO_AESTHETIC_SCREENSHOTS;
+const aestheticViewports = [
+  { name: "desktop", width: 1440, height: 1000 },
+  { name: "tablet", width: 768, height: 1024 },
+  { name: "phone", width: 390, height: 844 },
+];
+
+function routeName(route) {
+  return route === "/" ? "root" : route.replace(/^\/+|\/+$/g, "").replace(/[^a-z0-9]+/gi, "-");
+}
+
+async function visualDefects(page) {
+  return page.evaluate(() => {
+    function elementLabel(element) {
+      return (element.getAttribute("aria-label") || element.textContent
+        || element.getAttribute("name") || element.tagName).trim().slice(0, 50);
+    }
+    function rendered(element) {
+      const style = getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden";
+    }
+    function interactiveDefects() {
+      const defects = [];
+      const interactive = [...document.querySelectorAll(
+        'a[href], button, input, select, textarea, [role="button"], [tabindex]:not([tabindex="-1"])',
+      )];
+      for (const element of interactive) {
+        if (!rendered(element)) continue;
+        const box = element.getBoundingClientRect();
+        const label = elementLabel(element);
+        if (box.width < 1 || box.height < 1) defects.push(`zero-size interactive control: ${label}`);
+        const visibleWidth = Math.min(box.right, innerWidth) - Math.max(box.left, 0);
+        if (visibleWidth < Math.min(box.width, 8)) defects.push(`horizontally clipped control: ${label}`);
+      }
+      return defects;
+    }
+    function tinyTextDefects() {
+      const defects = [];
+      for (const element of document.querySelectorAll("body *")) {
+        const style = getComputedStyle(element);
+        const visible = rendered(element);
+        const leafText = element.childElementCount === 0 && element.textContent?.trim();
+        if (visible && leafText && Number.parseFloat(style.fontSize) < 9) {
+          defects.push(`text below 9px: ${element.textContent.trim().slice(0, 50)}`);
+        }
+      }
+      return defects;
+    }
+    const root = document.documentElement;
+    const defects = [...interactiveDefects(), ...tinyTextDefects()];
+    if (root.scrollWidth > root.clientWidth + 1) {
+      defects.push(`horizontal overflow: document is ${root.scrollWidth}px wide in a ${root.clientWidth}px viewport`);
+    }
+    return [...new Set(defects)].slice(0, 20);
+  });
+}
 
 for (const route of routes) {
   test(`[browser-integration] declared route ${route.path} renders its self-contained artifact`,
@@ -49,5 +105,26 @@ for (const route of routes) {
         const active = document.activeElement;
         return Boolean(active && active !== document.body && active !== document.documentElement);
       })).toBe(true);
+    });
+
+  test(`[visual] declared route ${route.path} has sound geometry at review resolutions`,
+    async ({ auditedPage: page }, testInfo) => {
+      test.skip(testInfo.project.name !== "wide-viewport-chromium",
+        "one deterministic browser captures the resolution matrix");
+      expect(aestheticDirectory, "Monotools must provide an aesthetic screenshot directory").toBeTruthy();
+      for (const viewport of aestheticViewports) {
+        await page.setViewportSize({ width: viewport.width, height: viewport.height });
+        await page.goto(route.path);
+        await page.evaluate(async () => {
+          await document.fonts.ready;
+          await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        });
+        expect(await visualDefects(page), `${route.path} at ${viewport.name}`).toEqual([]);
+        await page.screenshot({
+          path: `${aestheticDirectory}/${routeName(route.path)}--${viewport.name}--${viewport.width}x${viewport.height}.png`,
+          fullPage: false,
+          animations: "disabled",
+        });
+      }
     });
 }

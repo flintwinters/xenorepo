@@ -26,6 +26,7 @@ class BrowserProofContractTests(unittest.TestCase):
         self.assertEqual(report["counts"]["acceptance"], 0)
         self.assertGreater(report["counts"]["browser-integration"], 0)
         self.assertGreater(report["counts"]["accessibility"], 0)
+        self.assertGreater(report["counts"]["visual"], 0)
 
     def test_owned_suite_contract_parses_and_enumerates_required_proofs(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="browser-suite-") as temporary:

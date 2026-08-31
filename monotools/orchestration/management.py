@@ -24,6 +24,7 @@ from monotools.orchestration.lifecycle import (
 )
 from monotools.orchestration.output import print_error
 from monotools.orchestration.ui import run_ui_check
+from monotools.orchestration.aesthetics import review_aesthetics
 
 
 console = Console()
@@ -165,12 +166,27 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
             matrix += "; trusted " + "/".join(sorted(declared.input_modalities))
         console.print(f"[bold green]{matrix}[/] {definition.name} ({artifacts})")
 
+    @app.command("aesthetic-check")
+    def aesthetic_check() -> None:
+        """Have a multimodal AI judge the latest resolution-matrix screenshots."""
+        try:
+            with activated_environment(workspace, definition.directory):
+                artifacts = run_ui_check(definition, workspace,
+                    BrowserSuite(browser_path, proof_kinds, viewports, input_modalities)
+                    if browser_path is not None else None)
+                report = review_aesthetics(definition, artifacts / "aesthetic-screenshots",
+                    artifacts / "aesthetic-review.json")
+        except (EnvironmentConfigurationError, LifecycleError) as error:
+            _fail(error)
+        console.print(f"[bold green]AI aesthetic review passed[/] {definition.name} "
+            f"({report['model']}; {artifacts / 'aesthetic-review.json'})")
+
     @app.command()
     def verify() -> None:
         """Run this app's checks, Python suite, and complete browser proof matrix."""
         check()
         test()
-        ui_check(evidence=False, update_snapshots=False)
+        aesthetic_check()
 
     if include_serve:
         @app.command()

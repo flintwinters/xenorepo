@@ -1,5 +1,6 @@
 """Tests for the centralized browser-check lifecycle."""
 
+import json
 from pathlib import Path
 import subprocess
 from tempfile import TemporaryDirectory
@@ -7,6 +8,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from monotools.orchestration.apps import ROOT
+from monotools.orchestration.aesthetics import review_aesthetics, screenshot_inventory
 from monotools.orchestration.ui import available_local_port, run_ui_check, ui_artifact_directory
 from tests.support import synthetic_app_definition
 
@@ -94,6 +96,48 @@ class BrowserLifecycleTests(unittest.TestCase):
             run_ui_check(definition, ROOT)
         self.assertEqual(run.call_args.args[0][-1], "tests/browser-framework/universal.spec.js")
         self.assertNotIn("--update-snapshots", run.call_args.args[0])
+
+    def test_screenshot_inventory_requires_every_resolution_for_each_route(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="aesthetic-evidence-") as temporary:
+            directory = Path(temporary)
+            for route in ("root", "settings"):
+                for label, resolution in (("desktop", "1440x1000"),
+                        ("tablet", "768x1024"), ("phone", "390x844")):
+                    (directory / f"{route}--{label}--{resolution}.png").write_bytes(b"png")
+            self.assertEqual(len(screenshot_inventory(directory)), 6)
+            (directory / "settings--phone--390x844.png").unlink()
+            with self.assertRaisesRegex(Exception, "settings missing 390x844"):
+                screenshot_inventory(directory)
+
+    def test_ai_review_uses_images_and_persists_structured_verdict(self) -> None:
+        response = {"id": "resp_test", "model": "vision-test", "output": [{"content": [{
+            "type": "output_text", "text": json.dumps({
+                "verdict": "pass", "summary": "Cohesive.", "findings": [],
+            })}]}]}
+        opened = Mock()
+        opened.__enter__ = Mock(return_value=opened)
+        opened.__exit__ = Mock(return_value=False)
+        opened.read.side_effect = [json.dumps(response).encode("utf-8"), b""]
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="aesthetic-review-") as temporary:
+            directory = Path(temporary)
+            screenshots = directory / "screenshots"
+            screenshots.mkdir()
+            for label, resolution in (("desktop", "1440x1000"),
+                    ("tablet", "768x1024"), ("phone", "390x844")):
+                (screenshots / f"root--{label}--{resolution}.png").write_bytes(b"png")
+            definition = synthetic_app_definition(directory)
+            report_path = directory / "review.json"
+            with patch.dict("os.environ", {"OPENAI_API_KEY": "secret"}), \
+                 patch("monotools.orchestration.aesthetics.urllib.request.urlopen",
+                    return_value=opened) as urlopen:
+                report = review_aesthetics(definition, screenshots, report_path)
+            request_body = json.loads(urlopen.call_args.args[0].data)
+            image_inputs = request_body["input"][0]["content"][1:]
+            self.assertEqual(len(image_inputs), 3)
+            self.assertTrue(all(item["image_url"].startswith("data:image/png;base64,")
+                for item in image_inputs))
+            self.assertEqual(report["verdict"], "pass")
+            self.assertEqual(json.loads(report_path.read_text())["responseId"], "resp_test")
 
 
 if __name__ == "__main__":

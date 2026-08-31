@@ -28,6 +28,7 @@ from monotools.orchestration.lifecycle import (
 from monotools.orchestration.management import ApplicationManager, PythonSuite, create_cli
 from monotools.orchestration.output import print_error
 from monotools.orchestration.ui import run_ui_check
+from monotools.orchestration.aesthetics import review_aesthetics
 from monotools.provisioning.audit import AuditReport, audit_workspace
 from monotools.provisioning.management import attach_repository_commands
 from monotools.provisioning.repositories import uninitialized_app_submodules
@@ -324,12 +325,30 @@ def ui_check(app_name: str | None = typer.Argument(None),
     console.print(f"[bold green]browser proofs passed[/] ({len(selected)} app(s))")
 
 
+@app.command("aesthetic-check")
+def aesthetic_check(app_name: str | None = typer.Argument(None)) -> None:
+    """Capture every review resolution and have a multimodal AI judge the result."""
+    selected = [(definition, manager) for definition, manager in MANAGERS
+        if app_name is None or definition.name == app_name]
+    if not selected:
+        _fail(f"unknown app '{app_name}'; available: {', '.join(d.name for d, _ in MANAGERS)}")
+    try:
+        for definition, manager in selected:
+            with activated_environment(ROOT, definition.directory):
+                artifacts = run_ui_check(definition, ROOT, manager.browser_suite)
+                review_aesthetics(definition, artifacts / "aesthetic-screenshots",
+                    artifacts / "aesthetic-review.json")
+    except (EnvironmentConfigurationError, LifecycleError) as error:
+        _fail(error)
+    console.print(f"[bold green]AI aesthetic reviews passed[/] ({len(selected)} app(s))")
+
+
 @app.command()
 def verify() -> None:
     """Run checks, all Python/framework tests, and the complete browser matrix."""
     check()
     test()
-    ui_check(app_name=None, evidence=False)
+    aesthetic_check(app_name=None)
 
 
 if __name__ == "__main__":

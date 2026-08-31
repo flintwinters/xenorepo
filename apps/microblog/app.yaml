@@ -4,6 +4,7 @@ module: apps.microblog.backend.server
 capabilities:
   - database
 imports:
+  - "@xenorepo/ui"
   - monotools.orchestration.management
   - monotools.persistence.auth
   - monotools.persistence.database

@@ -19,7 +19,7 @@ contracts; `monotools.orchestration` must not depend on provisioning policy.
 ## Console Preact UI contract
 
 The typed `ConsoleShell`, `UtilityRail`, `StatusRail`, `ConsolePane`, and
-`CommandButton` components each have five independent consumers. `EmptyState`
+`CommandButton` components each have nine independent consumers. `EmptyState`
 has three and owns only centered empty-result geometry around an app-owned heading
 and optional detail. Component props extend the corresponding Preact native
 HTML attributes, named props replace slots, and stable `x-ui-*` classes are the

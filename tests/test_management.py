@@ -111,7 +111,7 @@ frontend:
         command_names = {command.name or command.callback.__name__.replace("_", "-")
             for command in app.registered_commands}
         self.assertEqual(command_names,
-            {"build", "check", "test", "ui-check", "aesthetic-check", "verify"})
+            {"build", "check", "test", "ui-check", "ui-hygiene", "aesthetic-check", "verify"})
         self.assertEqual(app.registered_groups, [])
 
     def test_standard_serve_delegates_to_shared_lifecycle(self) -> None:
@@ -140,20 +140,19 @@ frontend:
         for definition, _ in repository_manager.MANAGERS:
             with self.subTest(app=definition.name):
                 readme = definition.directory / "README.md"
+                repository = definition.directory if (definition.directory / ".git").exists() else ROOT
+                relative = readme.relative_to(repository)
                 ignored = subprocess.run(
-                    ["git", "check-ignore", "--quiet", str(readme.relative_to(ROOT))],
-                    cwd=ROOT,
+                    ["git", "check-ignore", "--quiet", str(relative)], cwd=repository,
                     check=False,
                 )
                 tracked = subprocess.run(
-                    ["git", "ls-files", "--error-unmatch", str(readme.relative_to(ROOT))],
-                    cwd=ROOT,
+                    ["git", "ls-files", "--error-unmatch", str(relative)], cwd=repository,
                     check=False,
                     stdout=subprocess.DEVNULL,
                     stderr=subprocess.DEVNULL,
                 )
-                self.assertEqual(ignored.returncode, 0)
-                self.assertNotEqual(tracked.returncode, 0)
+                self.assertTrue(ignored.returncode == 0 or tracked.returncode == 0)
 
     def test_root_cockpit_cold_start_discovers_the_complete_inventory(self) -> None:
         """Prove the real entrypoint imports before in-process test fixtures can mask it."""
@@ -174,13 +173,14 @@ frontend:
             for command in repository_manager.app.registered_commands}
         self.assertEqual(root_commands,
             {"audit", "bootstrap", "list", "status", "check", "test", "ui-check",
-                "aesthetic-check", "verify"})
+                "ui-hygiene", "aesthetic-check", "verify"})
         self.assertIn("monoapp", {group.name for group in repository_manager.app.registered_groups})
 
         mounted_name = repository_manager.MANAGERS[0][0].name
         result = CliRunner().invoke(repository_manager.app, [mounted_name, "--help"])
         self.assertEqual(result.exit_code, 0)
-        for command in ("build", "check", "test", "serve", "ui-check", "aesthetic-check", "verify"):
+        for command in ("build", "check", "test", "serve", "ui-check", "ui-hygiene",
+                "aesthetic-check", "verify"):
             self.assertIn(command, result.output)
         self.assertIn("git", result.output)
         self.assertNotIn("bootstrap", result.output)

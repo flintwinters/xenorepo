@@ -11,7 +11,8 @@ test("[acceptance] waveform, tempo, and two-bar polyphonic loop survive reload",
   await expect(page.getByText("SIGNAL READY")).toBeVisible();
   await expect(page.getByRole("gridcell")).toHaveCount(24 * 32);
   const loopLayout = await page.getByLabel("Scrollable two bar piano roll").evaluate((element) => ({
-    clientHeight: element.clientHeight, scrollHeight: element.scrollHeight,
+    clientHeight: element.clientHeight,
+    scrollHeight: element.scrollHeight,
     overflowY: getComputedStyle(element).overflowY,
   }));
   expect(loopLayout.scrollHeight).toBeLessThanOrEqual(loopLayout.clientHeight + 1);
@@ -21,7 +22,9 @@ test("[acceptance] waveform, tempo, and two-bar polyphonic loop survive reload",
   const first = page.getByRole("gridcell", { name: "C4, step 1", exact: true });
   const last = page.getByRole("gridcell", { name: "B5, step 32", exact: true });
   const chord = page.getByRole("gridcell", { name: "E4, step 1", exact: true });
-  await first.click(); await chord.click(); await last.click();
+  await first.click();
+  await chord.click();
+  await last.click();
   await page.getByLabel("Tempo in BPM").fill("146");
   await page.getByRole("button", { name: "square", exact: true }).click();
   await page.reload();
@@ -90,17 +93,47 @@ test("[acceptance] typed patch editing becomes silent and recovers", async ({ pa
 
 test("[acceptance] the complete analog module palette exposes direct persistent controls", async ({ page }) => {
   await page.goto("/");
-  for (const kind of ["noise", "adsr", "filter", "saturation", "delay", "chorus", "reverb",
-    "compressor", "mixer", "lfo"])
+  for (const kind of [
+    "noise",
+    "adsr",
+    "filter",
+    "saturation",
+    "delay",
+    "chorus",
+    "reverb",
+    "compressor",
+    "mixer",
+    "lfo",
+  ])
     await page.getByRole("button", { name: `Add ${kind} module` }).click();
 
-  for (const name of ["Noise", "Adsr", "Filter", "Saturation", "Delay", "Chorus", "Reverb",
-    "Compressor", "Mixer", "Lfo"])
+  for (const name of [
+    "Noise",
+    "Adsr",
+    "Filter",
+    "Saturation",
+    "Delay",
+    "Chorus",
+    "Reverb",
+    "Compressor",
+    "Mixer",
+    "Lfo",
+  ])
     await expect(page.getByRole("region", { name: `${name} 1 module` })).toBeAttached();
   await page.getByRole("button", { name: "Disconnect Waveform 1 audio → Gain 1" }).click();
   await page.getByRole("button", { name: "Disconnect Gain 1 audio → Output 1" }).click();
-  const chain = ["Waveform 1", "Adsr 1", "Filter 1", "Saturation 1", "Delay 1", "Chorus 1",
-    "Reverb 1", "Compressor 1", "Mixer 1", "Output 1"];
+  const chain = [
+    "Waveform 1",
+    "Adsr 1",
+    "Filter 1",
+    "Saturation 1",
+    "Delay 1",
+    "Chorus 1",
+    "Reverb 1",
+    "Compressor 1",
+    "Mixer 1",
+    "Output 1",
+  ];
   for (let index = 0; index < chain.length - 1; index += 1)
     await connectAudio(page, chain[index] ?? "", chain[index + 1] ?? "");
   await connectAudio(page, "Noise 1", "Gain 1");
@@ -155,20 +188,35 @@ test("[acceptance] legacy patches migrate and malformed state recovers", async (
   await page.addInitScript(() => {
     if (sessionStorage.getItem("waveform-lab-fixture-seeded")) return;
     sessionStorage.setItem("waveform-lab-fixture-seeded", "true");
-    const notes = Array.from({ length: 32 }, () => [] as number[]); notes[0]?.push(60);
-    localStorage.setItem("waveform-lab-state-v1", JSON.stringify({ version: 1,
-      modules: [{ id: "waveform-1", kind: "waveform", x: 28, y: 46 },
-        { id: "gain-1", kind: "gain", x: 280, y: 112 },
-        { id: "output-1", kind: "output", x: 520, y: 62 }],
-      connections: [{ from: "waveform-1", to: "gain-1" }, { from: "gain-1", to: "output-1" }],
-      samples: Array.from({ length: 128 }, (_, index) => Math.sin(index / 128 * Math.PI * 2)), notes, bpm: 133 }));
+    const notes = Array.from({ length: 32 }, () => [] as number[]);
+    notes[0]?.push(60);
+    localStorage.setItem(
+      "waveform-lab-state-v1",
+      JSON.stringify({
+        version: 1,
+        modules: [
+          { id: "waveform-1", kind: "waveform", x: 28, y: 46 },
+          { id: "gain-1", kind: "gain", x: 280, y: 112 },
+          { id: "output-1", kind: "output", x: 520, y: 62 },
+        ],
+        connections: [
+          { from: "waveform-1", to: "gain-1" },
+          { from: "gain-1", to: "output-1" },
+        ],
+        samples: Array.from({ length: 128 }, (_, index) => Math.sin((index / 128) * Math.PI * 2)),
+        notes,
+        bpm: 133,
+      }),
+    );
   });
   await page.goto("/");
   await expect(page.getByLabel("Tempo in BPM")).toHaveValue("133");
   await expect(page.getByRole("gridcell", { name: "C4, step 1", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("slider", { name: "Gain 1 gain" })).toHaveValue("0.8");
   await page.getByRole("slider", { name: "Gain 1 gain" }).fill("1.1");
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("waveform-lab-state-v1") ?? "null").version)).toBe(3);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("waveform-lab-state-v1") ?? "null").version)).toBe(
+    3,
+  );
 
   await page.evaluate(() => localStorage.setItem("waveform-lab-state-v1", "{malformed"));
   await page.reload();

@@ -53,11 +53,11 @@
 .mailing-manifest b { color: var(--ink); font: 700 13px/1.2 Georgia, serif; }
 .mailing-membership { align-self: stretch; border-left: 1px solid #101212; }
 .mailing-membership .x-ui-pane-body { display: grid; align-items: center; }
-.mailing-membership .x-ui-title-end { font-size: 9px; letter-spacing: 0.1em; }
+.mailing-membership .x-ui-title-end { font-size: 10px; letter-spacing: 0.1em; }
 .mailing-card {
   display: grid; gap: 18px; width: min(360px, 100%); margin: auto; padding: 38px 32px;
 }
-.mailing-eyebrow { margin-bottom: 7px; color: #a89984; font-size: 9px; }
+.mailing-eyebrow { margin-bottom: 7px; color: #a89984; font-size: 10px; }
 .mailing-offer { color: #f2e7c6; font: 700 20px/1.1 Georgia, serif; }
 .mailing-price {
   display: flex; align-items: baseline; color: var(--acid);
@@ -89,7 +89,7 @@
 .mailing-confirmation dl div {
   display: grid; grid-template-columns: 84px 1fr; gap: 10px; padding: 7px 9px; background: #181a1b;
 }
-.mailing-confirmation dt { color: #8e887d; font-size: 9px; letter-spacing: 0.08em; }
+.mailing-confirmation dt { color: #8e887d; font-size: 10px; letter-spacing: 0.08em; }
 .mailing-confirmation dd { margin: 0; color: #e8dfc5; text-align: right; }
 .mailing-confirmation > p:last-child {
   grid-column: 1 / -1; margin: 2px 0 0; color: #bdae93; line-height: 1.4;
@@ -103,12 +103,12 @@
 .mailing-message.active i { background: var(--acid); box-shadow: 0 0 5px var(--acid); }
 .mailing-message.warning { border-left-color: #fe8019; }
 .mailing-message.warning i { background: #fe8019; box-shadow: 0 0 5px #fe8019; }
-.mailing-assurance { margin: -8px 0 0; color: #7f786e; font-size: 9px; text-align: center; letter-spacing: 0.06em; }
+.mailing-assurance { margin: -8px 0 0; color: #7f786e; font-size: 10px; text-align: center; letter-spacing: 0.06em; }
 
 .mailing-actions {
   display: grid; grid-template-columns: 1fr auto; gap: 6px;
 }
-.mailing-actions p { grid-column: 1 / -1; margin: 0; color: #fabd2f; font-size: 9px; letter-spacing: 0.12em; }
+.mailing-actions p { grid-column: 1 / -1; margin: 0; color: #fabd2f; font-size: 10px; letter-spacing: 0.12em; }
 .mailing-indicator {
   display: inline-flex; align-items: center; gap: 5px;
 }
@@ -126,10 +126,10 @@
   .mailing-header span:not(.mailing-header-end) { display: none; }
   .mailing-body { grid-template-columns: 1fr; width: 100%; margin: 0; border: 0; box-shadow: none; }
   .mailing-editorial { padding: 20px 18px 18px; }
-  .mailing-kicker { margin-bottom: 9px; font-size: 9px; }
+  .mailing-kicker { margin-bottom: 9px; font-size: 10px; }
   .mailing-editorial h1 { font-size: clamp(27px, 8vw, 36px); }
   .mailing-deck { margin-block: 12px 14px; font-size: 13px; line-height: 1.35; }
-  .mailing-rule { font-size: 8px; }
+  .mailing-rule { font-size: 10px; }
   .mailing-manifest { grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
   .mailing-manifest li { display: block; }
   .mailing-manifest li > strong { display: block; margin-bottom: 2px; }

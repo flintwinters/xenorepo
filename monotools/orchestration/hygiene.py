@@ -1,4 +1,8 @@
-"""Measure UI vocabulary and enforce objective toolkit and CSS boundaries."""
+"""Measure UI vocabulary and enforce objective toolkit and CSS boundaries.
+
+The analyzer keeps contextual aesthetic evidence separate from the two hard,
+deterministic contracts that ordinary lifecycle validation can judge.
+"""
 
 from __future__ import annotations
 

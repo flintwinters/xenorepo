@@ -1,4 +1,5 @@
 import type { ComponentChildren } from "preact";
+import { CommandButton } from "@xenorepo/ui";
 import type { LedgerEntry, MatchListing, RecentResult, Throw } from "./types.js";
 
 export interface ArenaViewModel {
@@ -66,9 +67,9 @@ function MatchList({ matches, watch }: { matches: MatchListing[]; watch(id: stri
               {match.ranked ? "RANKED" : "UNRANKED"} · {match.spectator_count} VIEWING
             </div>
           </div>
-          <button class="key" data-watch={match.match_id} onClick={() => watch(match.match_id)}>
+          <CommandButton class="key" data-watch={match.match_id} onClick={() => watch(match.match_id)}>
             WATCH
-          </button>
+          </CommandButton>
         </li>
       ))}
     </>
@@ -126,9 +127,9 @@ export function ArenaView({ model, actions }: { model: ArenaViewModel; actions: 
                     onInput={(event) => actions.nickname(event.currentTarget.value)}
                   />
                 </label>
-                <button class="key play" id="play" disabled={!model.playEnabled}>
+                <CommandButton class="key play" id="play" disabled={!model.playEnabled}>
                   PLAY
-                </button>
+                </CommandButton>
               </form>
             </div>
           </Pane>
@@ -152,7 +153,7 @@ export function ArenaView({ model, actions }: { model: ArenaViewModel; actions: 
     <main class={`frame signal-${model.signal}`} id="arena-view">
       <header class="utility">
         <span class="brand">Rock Paper Scissors</span>
-        <button
+        <CommandButton
           class="key"
           id="rematch"
           hidden={!model.rematchVisible}
@@ -160,10 +161,10 @@ export function ArenaView({ model, actions }: { model: ArenaViewModel; actions: 
           onClick={actions.rematch}
         >
           REMATCH
-        </button>
-        <button class="key" id="queue" disabled={model.queueDisabled} onClick={actions.queue}>
+        </CommandButton>
+        <CommandButton class="key" id="queue" disabled={model.queueDisabled} onClick={actions.queue}>
           {model.queueLabel}
-        </button>
+        </CommandButton>
         <span class={`link ${model.online ? "" : "offline"}`} id="link">
           ● {model.online ? "ONLINE" : "RECONNECTING"}
         </span>
@@ -268,6 +269,7 @@ export function ArenaView({ model, actions }: { model: ArenaViewModel; actions: 
             <div class="throws">
               {(["rock", "paper", "scissors"] as Throw[]).map((selection, index) => (
                 <button
+                  data-ui-control="domain"
                   class={`key throw ${model.selected === selection ? "selected" : ""}`}
                   data-throw={selection}
                   disabled={!model.throwEnabled}

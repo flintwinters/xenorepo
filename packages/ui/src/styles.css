@@ -124,3 +124,9 @@
 .x-ui-empty-state p {
   margin: 0;
 }
+@media (max-width: 390px) {
+  .x-ui-command-control {
+    min-width: 28px;
+    min-height: 28px;
+  }
+}

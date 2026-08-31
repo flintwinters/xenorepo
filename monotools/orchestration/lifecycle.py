@@ -77,6 +77,9 @@ def _validate_frontend(definition: AppDefinition, workspace: Path) -> None:
     entries = [definition.directory / artifact.source for artifact in definition.artifacts]
     if not entries:
         return
+    from monotools.orchestration.hygiene import analyze_ui_hygiene
+
+    analyze_ui_hygiene(definition, workspace)
     node = shutil.which("node")
     if node is None:
         raise LifecycleError("node not found; run python manage.py bootstrap before checking frontends")

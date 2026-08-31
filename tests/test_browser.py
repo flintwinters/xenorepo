@@ -15,6 +15,15 @@ from tests.support import synthetic_app_definition
 
 
 class BrowserProofContractTests(unittest.TestCase):
+    def test_universal_geometry_distinguishes_generic_and_domain_controls(self) -> None:
+        source = (ROOT / "tests/browser-framework/universal.spec.js").read_text(encoding="utf-8")
+        self.assertIn('element.getAttribute("data-ui-control") === "domain"', source)
+        self.assertIn("innerWidth <= 390 ? 28 : 18", source)
+        self.assertIn("generic control below ${minimum}px target", source)
+        self.assertIn("text below 10px", source)
+        self.assertIn("zero-size interactive control", source)
+        self.assertIn("horizontally clipped control", source)
+
     def test_universal_route_check_is_not_mislabeled_product_acceptance(self) -> None:
         suite = BrowserSuite(
             ROOT / "tests/browser-framework/universal.spec.js",

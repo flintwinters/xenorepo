@@ -30,13 +30,13 @@
       body {
         overflow: hidden;
       }
-      button,
-      input,
-      textarea {
+      .frame button,
+      .frame input,
+      .frame textarea {
         font: inherit;
         color: inherit;
       }
-      button {
+      .frame button {
         background: linear-gradient(#45413f, #302d2b);
         border: 1px solid #a89984;
         border-radius: 0;
@@ -46,18 +46,18 @@
         padding: 3px 8px;
         cursor: pointer;
       }
-      button:active {
+      .frame button:active {
         transform: translate(1px, 1px);
         background: linear-gradient(#242220, #181716);
         box-shadow: inset 1px 1px #080909;
       }
-      button:disabled {
+      .frame button:disabled {
         color: #665c54;
         cursor: not-allowed;
       }
-      button:focus-visible,
-      input:focus-visible,
-      textarea:focus-visible {
+      .frame button:focus-visible,
+      .frame input:focus-visible,
+      .frame textarea:focus-visible {
         outline: 2px solid var(--yellow);
         outline-offset: 1px;
       }
@@ -151,8 +151,8 @@
         margin: 0 0 8px;
         color: var(--muted);
       }
-      input,
-      textarea {
+      .frame input,
+      .frame textarea {
         width: 100%;
         margin-top: 3px;
         background: var(--well);
@@ -163,7 +163,7 @@
         border-bottom-color: #665c54;
         padding: 5px;
       }
-      form button {
+      .frame form button {
         margin-right: 5px;
       }
       .signed {
@@ -186,7 +186,7 @@
         padding: 8px;
         border-bottom: 1px solid var(--dark);
       }
-      textarea {
+      .frame textarea {
         height: 62px;
         resize: none;
       }

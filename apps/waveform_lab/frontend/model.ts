@@ -3,57 +3,99 @@ export const STEP_COUNT = 32;
 export const STATE_VERSION = 3 as const;
 export const PITCHES = Array.from({ length: 24 }, (_, index) => 83 - index);
 
-export type ModuleKind = "waveform" | "gain" | "output" | "filter" | "adsr" | "saturation"
-  | "delay" | "reverb" | "mixer" | "chorus" | "compressor" | "noise" | "lfo";
+export type ModuleKind =
+  | "waveform"
+  | "gain"
+  | "output"
+  | "filter"
+  | "adsr"
+  | "saturation"
+  | "delay"
+  | "reverb"
+  | "mixer"
+  | "chorus"
+  | "compressor"
+  | "noise"
+  | "lfo";
 export type ConnectionType = "audio" | "modulation";
 export type ModuleParameters = Record<string, number>;
 export interface ModuleNode {
-  id: string; kind: ModuleKind; x: number; y: number;
-  parameters?: ModuleParameters; bypass?: boolean;
+  id: string;
+  kind: ModuleKind;
+  x: number;
+  y: number;
+  parameters?: ModuleParameters;
+  bypass?: boolean;
 }
 /** Optional for source compatibility with the v1 UI; absent means audio. */
 export interface Connection {
-  from: string; to: string; type?: ConnectionType; target?: string;
+  from: string;
+  to: string;
+  type?: ConnectionType;
+  target?: string;
 }
 export interface LabState {
-  version: typeof STATE_VERSION; modules: ModuleNode[]; connections: Connection[];
-  samples: number[]; notes: number[][]; holds: number[][]; bpm: number;
+  version: typeof STATE_VERSION;
+  modules: ModuleNode[];
+  connections: Connection[];
+  samples: number[];
+  notes: number[][];
+  holds: number[][];
+  bpm: number;
 }
 
 type Bounds = Readonly<Record<string, readonly [number, number]>>;
 export const PARAMETER_BOUNDS: Readonly<Record<ModuleKind, Bounds>> = {
-  waveform: { detune: [-1200, 1200] }, gain: { gain: [0, 2] }, output: { level: [0, 1] },
+  waveform: { detune: [-1200, 1200] },
+  gain: { gain: [0, 2] },
+  output: { level: [0, 1] },
   filter: { mode: [0, 3], frequency: [20, 20000], resonance: [0.1, 30] },
   adsr: { attack: [0.001, 10], decay: [0.001, 10], sustain: [0, 1], release: [0.001, 20] },
   saturation: { drive: [1, 20], mix: [0, 1] },
   delay: { time: [0, 2], feedback: [0, 0.95], mix: [0, 1] },
-  reverb: { decay: [0.1, 20], mix: [0, 1] }, mixer: { level: [0, 2] },
+  reverb: { decay: [0.1, 20], mix: [0, 1] },
+  mixer: { level: [0, 2] },
   chorus: { rate: [0.05, 10], depth: [0, 1], mix: [0, 1] },
   compressor: { threshold: [-100, 0], ratio: [1, 20], attack: [0, 1], release: [0, 1] },
-  noise: { color: [0, 2], level: [0, 1] }, lfo: { shape: [0, 3], rate: [0.01, 30], depth: [0, 1] },
+  noise: { color: [0, 2], level: [0, 1] },
+  lfo: { shape: [0, 3], rate: [0.01, 30], depth: [0, 1] },
 };
 export const MODULATION_TARGETS: Readonly<Partial<Record<ModuleKind, readonly string[]>>> = {
-  waveform: ["detune"], gain: ["gain"], output: ["level"], filter: ["frequency", "resonance"],
-  saturation: ["drive", "mix"], delay: ["time", "feedback", "mix"], reverb: ["mix"],
-  mixer: ["level"], chorus: ["rate", "depth", "mix"],
-  compressor: ["threshold", "ratio", "attack", "release"], noise: ["level"],
+  waveform: ["detune"],
+  gain: ["gain"],
+  output: ["level"],
+  filter: ["frequency", "resonance"],
+  saturation: ["drive", "mix"],
+  delay: ["time", "feedback", "mix"],
+  reverb: ["mix"],
+  mixer: ["level"],
+  chorus: ["rate", "depth", "mix"],
+  compressor: ["threshold", "ratio", "attack", "release"],
+  noise: ["level"],
 };
 const defaults: Readonly<Record<ModuleKind, ModuleParameters>> = {
-  waveform: { detune: 0 }, gain: { gain: 0.8 }, output: { level: 0.8 },
+  waveform: { detune: 0 },
+  gain: { gain: 0.8 },
+  output: { level: 0.8 },
   filter: { mode: 0, frequency: 1200, resonance: 1 },
   adsr: { attack: 0.01, decay: 0.15, sustain: 0.7, release: 0.3 },
-  saturation: { drive: 2, mix: 0.5 }, delay: { time: 0.25, feedback: 0.3, mix: 0.25 },
-  reverb: { decay: 2, mix: 0.25 }, mixer: { level: 1 },
+  saturation: { drive: 2, mix: 0.5 },
+  delay: { time: 0.25, feedback: 0.3, mix: 0.25 },
+  reverb: { decay: 2, mix: 0.25 },
+  mixer: { level: 1 },
   chorus: { rate: 1.5, depth: 0.35, mix: 0.3 },
   compressor: { threshold: -24, ratio: 4, attack: 0.01, release: 0.25 },
-  noise: { color: 0, level: 0.25 }, lfo: { shape: 0, rate: 2, depth: 0.5 },
+  noise: { color: 0, level: 0.25 },
+  lfo: { shape: 0, rate: 2, depth: 0.5 },
 };
 const kinds = new Set<ModuleKind>(Object.keys(PARAMETER_BOUNDS) as ModuleKind[]);
 const sources = new Set<ModuleKind>(["waveform", "noise"]);
 const controls = new Set<ModuleKind>(["adsr", "lfo"]);
 const bypassable = new Set<ModuleKind>(["filter", "adsr", "saturation", "delay", "reverb", "chorus", "compressor"]);
 
-export function defaultParameters(kind: ModuleKind): ModuleParameters { return { ...defaults[kind] }; }
+export function defaultParameters(kind: ModuleKind): ModuleParameters {
+  return { ...defaults[kind] };
+}
 export function createModule(id: string, kind: ModuleKind, x: number, y: number): ModuleNode {
   return { id, kind, x, y, parameters: defaultParameters(kind), ...(bypassable.has(kind) ? { bypass: false } : {}) };
 }
@@ -71,15 +113,25 @@ export function preset(kind: "sine" | "square" | "saw" | "triangle"): number[] {
 export function initialState(): LabState {
   return {
     version: STATE_VERSION,
-    modules: [createModule("waveform-1", "waveform", 28, 46), createModule("gain-1", "gain", 280, 112),
-      createModule("output-1", "output", 520, 62)],
-    connections: [{ from: "waveform-1", to: "gain-1", type: "audio" },
-      { from: "gain-1", to: "output-1", type: "audio" }],
-    samples: preset("sine"), notes: emptySequence(), holds: emptySequence(), bpm: 120,
+    modules: [
+      createModule("waveform-1", "waveform", 28, 46),
+      createModule("gain-1", "gain", 280, 112),
+      createModule("output-1", "output", 520, 62),
+    ],
+    connections: [
+      { from: "waveform-1", to: "gain-1", type: "audio" },
+      { from: "gain-1", to: "output-1", type: "audio" },
+    ],
+    samples: preset("sine"),
+    notes: emptySequence(),
+    holds: emptySequence(),
+    bpm: 120,
   };
 }
 
-function finite(value: unknown): value is number { return typeof value === "number" && Number.isFinite(value); }
+function finite(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value);
+}
 function record(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
@@ -87,35 +139,58 @@ function validParameters(kind: ModuleKind, value: unknown): value is ModuleParam
   if (!record(value)) return false;
   const bounds = PARAMETER_BOUNDS[kind];
   const names = Object.keys(bounds);
-  return Object.keys(value).length === names.length && names.every((name) => {
-    const range = bounds[name];
-    if (!range) return false;
-    return finite(value[name]) && value[name] >= range[0] && value[name] <= range[1];
-  });
+  return (
+    Object.keys(value).length === names.length &&
+    names.every((name) => {
+      const range = bounds[name];
+      if (!range) return false;
+      return finite(value[name]) && value[name] >= range[0] && value[name] <= range[1];
+    })
+  );
 }
 function validModule(value: unknown, legacy: boolean): value is ModuleNode {
-  if (!record(value) || typeof value.id !== "string" || !value.id || !kinds.has(value.kind as ModuleKind)
-    || !finite(value.x) || !finite(value.y)) return false;
+  if (
+    !record(value) ||
+    typeof value.id !== "string" ||
+    !value.id ||
+    !kinds.has(value.kind as ModuleKind) ||
+    !finite(value.x) ||
+    !finite(value.y)
+  )
+    return false;
   const kind = value.kind as ModuleKind;
   if (legacy) return ["waveform", "gain", "output"].includes(kind);
   if (!validParameters(kind, value.parameters)) return false;
   return bypassable.has(kind) ? typeof value.bypass === "boolean" : value.bypass === undefined;
 }
-function edgeType(edge: Connection): ConnectionType { return edge.type ?? "audio"; }
-export function acceptsAudio(kind: ModuleKind): boolean { return !sources.has(kind) && kind !== "lfo"; }
-export function emitsAudio(kind: ModuleKind): boolean { return kind !== "output" && kind !== "lfo"; }
-export function emitsControl(kind: ModuleKind): boolean { return controls.has(kind); }
+function edgeType(edge: Connection): ConnectionType {
+  return edge.type ?? "audio";
+}
+export function acceptsAudio(kind: ModuleKind): boolean {
+  return !sources.has(kind) && kind !== "lfo";
+}
+export function emitsAudio(kind: ModuleKind): boolean {
+  return kind !== "output" && kind !== "lfo";
+}
+export function emitsControl(kind: ModuleKind): boolean {
+  return controls.has(kind);
+}
 function createsCycle(connections: Connection[], candidate: Connection): boolean {
   const adjacency = new Map<string, string[]>();
   for (const edge of [...connections, candidate]) {
-    const next = adjacency.get(edge.from) ?? []; next.push(edge.to); adjacency.set(edge.from, next);
+    const next = adjacency.get(edge.from) ?? [];
+    next.push(edge.to);
+    adjacency.set(edge.from, next);
   }
   const pending = [candidate.to];
   const visited = new Set<string>();
   while (pending.length) {
     const id = pending.pop() as string;
     if (id === candidate.from) return true;
-    if (!visited.has(id)) { visited.add(id); pending.push(...(adjacency.get(id) ?? [])); }
+    if (!visited.has(id)) {
+      visited.add(id);
+      pending.push(...(adjacency.get(id) ?? []));
+    }
   }
   return false;
 }
@@ -125,10 +200,15 @@ export function validConnection(modules: ModuleNode[], edge: Connection, existin
   const to = modules.find((node) => node.id === edge.to);
   if (!from || !to || from.id === to.id || createsCycle(existing, edge)) return false;
   if (edgeType(edge) === "audio") return edge.target === undefined && emitsAudio(from.kind) && acceptsAudio(to.kind);
-  const occupied = existing.some((item) => edgeType(item) === "modulation"
-    && item.to === edge.to && item.target === edge.target);
-  return !occupied && controls.has(from.kind) && typeof edge.target === "string"
-    && (MODULATION_TARGETS[to.kind]?.includes(edge.target) ?? false);
+  const occupied = existing.some(
+    (item) => edgeType(item) === "modulation" && item.to === edge.to && item.target === edge.target,
+  );
+  return (
+    !occupied &&
+    controls.has(from.kind) &&
+    typeof edge.target === "string" &&
+    (MODULATION_TARGETS[to.kind]?.includes(edge.target) ?? false)
+  );
 }
 
 export function hasPlayablePath(state: LabState): boolean {
@@ -140,20 +220,27 @@ export function hasPlayablePath(state: LabState): boolean {
     if (outputs.has(id)) return true;
     if (!visited.has(id)) {
       visited.add(id);
-      pending.push(...state.connections.filter((edge) => edgeType(edge) === "audio" && edge.from === id)
-        .map((edge) => edge.to));
+      pending.push(
+        ...state.connections.filter((edge) => edgeType(edge) === "audio" && edge.from === id).map((edge) => edge.to),
+      );
     }
   }
   return false;
 }
 
-function emptySequence(): number[][] { return Array.from({ length: STEP_COUNT }, () => []); }
+function emptySequence(): number[][] {
+  return Array.from({ length: STEP_COUNT }, () => []);
+}
 function pitchSequence(value: unknown): number[][] | null {
   if (!Array.isArray(value) || value.length !== STEP_COUNT) return null;
   const result: number[][] = [];
   for (const step of value) {
-    if (!Array.isArray(step) || !step.every((pitch) => Number.isInteger(pitch) && PITCHES.includes(pitch))
-      || new Set(step).size !== step.length) return null;
+    if (
+      !Array.isArray(step) ||
+      !step.every((pitch) => Number.isInteger(pitch) && PITCHES.includes(pitch)) ||
+      new Set(step).size !== step.length
+    )
+      return null;
     result.push([...step].sort((a, b) => a - b));
   }
   return result;
@@ -170,10 +257,16 @@ function validHolds(notes: number[][], holds: number[][]): boolean {
   }
   return true;
 }
-function sequence(saved: Record<string, unknown>, legacy: boolean): Pick<LabState, "samples" | "notes" | "holds" | "bpm"> | null {
+function sequence(
+  saved: Record<string, unknown>,
+  legacy: boolean,
+): Pick<LabState, "samples" | "notes" | "holds" | "bpm"> | null {
   if (!Array.isArray(saved.samples) || !Array.isArray(saved.notes) || !finite(saved.bpm)) return null;
-  if (saved.samples.length !== SAMPLE_COUNT || !saved.samples.every((sample) => finite(sample) && sample >= -1 && sample <= 1)
-    ) return null;
+  if (
+    saved.samples.length !== SAMPLE_COUNT ||
+    !saved.samples.every((sample) => finite(sample) && sample >= -1 && sample <= 1)
+  )
+    return null;
   const notes = pitchSequence(saved.notes);
   const holds = legacy ? emptySequence() : pitchSequence(saved.holds);
   if (!notes || !holds || !validHolds(notes, holds)) return null;
@@ -198,13 +291,27 @@ function connectionsOf(values: unknown[], modules: ModuleNode[], legacy: boolean
   const result: Connection[] = [];
   for (const value of values) {
     if (!record(value) || typeof value.from !== "string" || typeof value.to !== "string") return null;
-    const edge: Connection = legacy ? { from: value.from, to: value.to, type: "audio" }
-      : { from: value.from, to: value.to, type: value.type as ConnectionType,
-        ...(value.target === undefined ? {} : { target: value.target as string }) };
-    const duplicate = result.some((item) => edgeType(item) === edgeType(edge) && item.from === edge.from
-      && item.to === edge.to && item.target === edge.target);
-    if ((!legacy && edge.type !== "audio" && edge.type !== "modulation") || duplicate
-      || !validConnection(modules, edge, result)) return null;
+    const edge: Connection = legacy
+      ? { from: value.from, to: value.to, type: "audio" }
+      : {
+          from: value.from,
+          to: value.to,
+          type: value.type as ConnectionType,
+          ...(value.target === undefined ? {} : { target: value.target as string }),
+        };
+    const duplicate = result.some(
+      (item) =>
+        edgeType(item) === edgeType(edge) &&
+        item.from === edge.from &&
+        item.to === edge.to &&
+        item.target === edge.target,
+    );
+    if (
+      (!legacy && edge.type !== "audio" && edge.type !== "modulation") ||
+      duplicate ||
+      !validConnection(modules, edge, result)
+    )
+      return null;
     result.push(edge);
   }
   return result;
@@ -213,8 +320,13 @@ function connectionsOf(values: unknown[], modules: ModuleNode[], legacy: boolean
 /** Restores v3 or atomically migrates a valid v1/v2 patch; every defect returns a fresh patch. */
 export function restoreState(value: unknown): LabState {
   const fallback = initialState();
-  if (!record(value) || (value.version !== 1 && value.version !== 2 && value.version !== STATE_VERSION)
-    || !Array.isArray(value.modules) || !Array.isArray(value.connections)) return fallback;
+  if (
+    !record(value) ||
+    (value.version !== 1 && value.version !== 2 && value.version !== STATE_VERSION) ||
+    !Array.isArray(value.modules) ||
+    !Array.isArray(value.connections)
+  )
+    return fallback;
   const legacyModules = value.version === 1;
   const legacySequence = value.version !== STATE_VERSION;
   const modules = modulesOf(value.modules, legacyModules);

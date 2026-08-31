@@ -5,15 +5,15 @@ html,
       .inventory {
         height: 100vh;
         display: grid;
-        grid-template-rows: 22px minmax(0, 1fr) 20px;
+        grid-template-rows: auto minmax(0, 1fr) auto;
       }
       .utility {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 22px;
         border-top: 1px solid var(--hi);
         padding-block: 1px;
-      }
-      .utility button {
-        min-height: 18px;
-        padding: 1px 6px;
       }
       .context,
       .muted {
@@ -48,6 +48,10 @@ html,
         grid-column: 2/4;
       }
       .pane-title {
+        margin: 0;
+        padding: 2px 6px;
+        font-size: 12px;
+        line-height: 14px;
         background: linear-gradient(#83a598, #5f7f75);
       }
       .arena .pane-title {
@@ -168,6 +172,10 @@ html,
         color: var(--aqua);
       }
       .status {
+        display: flex;
+        gap: 6px;
+        overflow: hidden;
+        white-space: nowrap;
         justify-content: space-between;
         color: var(--muted);
       }

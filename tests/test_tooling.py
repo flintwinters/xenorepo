@@ -370,7 +370,8 @@ frontend:
             failed = Mock(returncode=1,
                 stdout="tests/frontend/nested/broken.ts:3:7 - error TS2322")
 
-            with patch("monotools.orchestration.lifecycle.subprocess.run", return_value=failed):
+            with patch("monotools.orchestration.hygiene.analyze_ui_hygiene"), \
+                 patch("monotools.orchestration.lifecycle.subprocess.run", return_value=failed):
                 with self.assertRaisesRegex(LifecycleError, "nested/broken.ts.*TS2322"):
                     from monotools.orchestration.lifecycle import _validate_frontend
                     _validate_frontend(definition, ROOT)

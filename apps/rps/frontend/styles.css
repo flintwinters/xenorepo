@@ -28,10 +28,15 @@
         background: var(--bg);
         color: var(--fg);
       }
-      button,
-      input {
+      :is(.landing, .arena) button,
+      :is(.landing, .arena) input {
         font: inherit;
         color: inherit;
+      }
+      @media (max-width: 390px) {
+        :is(.landing, .arena) input {
+          min-height: 28px;
+        }
       }
       .key {
         min-height: 20px;
@@ -59,7 +64,7 @@
         cursor: not-allowed;
       }
       .key:focus-visible,
-      input:focus-visible {
+      :is(.landing, .arena) input:focus-visible {
         outline: 2px solid var(--yellow);
         outline-offset: 1px;
       }
@@ -120,7 +125,7 @@
         gap: 3px;
         color: var(--muted);
       }
-      input {
+      :is(.landing, .arena) input {
         width: 100%;
         height: 22px;
         padding: 2px 6px;

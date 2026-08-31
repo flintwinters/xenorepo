@@ -32,6 +32,13 @@ function loadState(): LabState {
   }
 }
 
+function cellClass(lab: LabState, pitch: number, step: number, activeStep: number): string {
+  const classes = [lab.notes[step]?.includes(pitch) ? "active" : "",
+    lab.holds[step]?.includes(pitch) ? "held" : "", activeStep === step ? "playing" : "",
+    step % 16 === 0 ? "bar" : step % 4 === 0 ? "beat" : ""];
+  return classes.filter(Boolean).join(" ");
+}
+
 class WaveformLab extends Component<Record<string, never>, ViewState> {
   override state: ViewState = { lab: loadState(), playing: false, activeStep: -1, history: [] };
   private engine = new SynthEngine();
@@ -197,9 +204,7 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
                   <button
                     data-ui-control="domain"
                     role="gridcell"
-                    class={`${values.includes(pitch) ? "active" : ""}
-            ${lab.holds[step]?.includes(pitch) ? "held" : ""}
-            ${this.state.activeStep === step ? "playing" : ""} ${step % 16 === 0 ? "bar" : step % 4 === 0 ? "beat" : ""}`}
+                    class={cellClass(lab, pitch, step, this.state.activeStep)}
                     aria-label={`${midiLabel(pitch)}, step ${step + 1}`}
                     aria-pressed={values.includes(pitch)}
                     data-held={lab.holds[step]?.includes(pitch) ? "true" : undefined}

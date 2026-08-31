@@ -30,7 +30,8 @@ button:disabled { opacity: .3; cursor: default; }
   min-height: 0; flex: 1; padding: 12px; overflow: auto; }
 .column { min-height: 300px; max-height: 100%; display: flex; flex-direction: column; border: 1px solid var(--line);
   background: var(--panel); }
-.column-header { display: flex; justify-content: space-between; gap: 8px; padding: 11px; border-bottom: 1px solid var(--line); }
+.column-header { display: flex; justify-content: space-between; gap: 8px; padding: 11px;
+  border-bottom: 1px solid var(--line); }
 .column-header > div:first-child { display: flex; align-items: baseline; min-width: 0; gap: 8px; }
 .column-index { color: #fabd2f; font-size: 10px; }
 .column h2 { overflow: hidden; margin: 0; color: var(--ink); font-size: 15px; font-weight: 600;

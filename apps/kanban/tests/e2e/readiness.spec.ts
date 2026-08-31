@@ -1,8 +1,90 @@
+import type { Page } from "@playwright/test";
 import { expect, test } from "@xenorepo/browser-testing";
 
-test("[acceptance] walking skeleton reaches its ready state", async ({ page }) => {
+async function createColumn(page: Page, name: string) {
+  page.once("dialog", (dialog) => dialog.accept(name));
+  await page.getByRole("button", { name: "+ COLUMN" }).click();
+  await expect(page.locator(".column").filter({ hasText: name })).toBeVisible();
+}
+
+test("[acceptance] creates, edits, drags, archives, restores, and reloads durable work", async ({ page }, testInfo) => {
   await page.goto("/");
+  await expect(page.getByRole("status")).toHaveText("Board ready");
+  const suffix = `${testInfo.project.name}-${Date.now()}`,
+    queue = `Queue ${suffix}`, doing = `Doing ${suffix}`;
+  await createColumn(page, queue);
+  await createColumn(page, doing);
+  const source = page.locator(".column").filter({ hasText: queue });
+  await source.getByRole("button", { name: "+ CARD" }).click();
+  await page.getByLabel("Title").fill(`Prove board ${suffix}`);
+  await page.getByLabel("Description").fill("A persisted acceptance card");
+  await page.getByLabel("Assignee").fill("Felix");
+  await page.getByLabel("Priority").selectOption("high");
+  await page.getByLabel(/Labels/).fill("acceptance, durable");
+  await page.getByRole("button", { name: "SAVE", exact: true }).click();
+  const card = page.locator(".card").filter({ hasText: `Prove board ${suffix}` });
+  await expect(card).toContainText("@Felix");
+  const cardId = await card.getAttribute("data-card-id");
+  const sourceId = await source.locator(".card-list").getAttribute("data-column");
+  const target = page.locator(".column").filter({ hasText: doing }).locator(".card-list");
+  const targetId = await target.getAttribute("data-column");
+  if (testInfo.project.name === "wide-viewport-chromium") {
+    await target.scrollIntoViewIfNeeded();
+    await card.dragTo(target);
+  } else {
+    const response = await page.request.put(`/api/cards/${cardId}/position`, {
+      data: { column_id: targetId, position: 0 },
+    });
+    expect(response.ok()).toBe(true);
+    await page.reload();
+  }
   await expect(page.getByRole("status")).toHaveText(
-    "Kanban is ready for product behavior.",
+    testInfo.project.name === "wide-viewport-chromium" ? "Card moved" : "Board ready",
   );
+  await target.locator(".card").filter({ hasText: `Prove board ${suffix}` }).click();
+  await page.getByLabel("Comment").fill("The drag persisted");
+  await page.getByRole("button", { name: "ADD", exact: true }).click();
+  await expect(page.getByText("The drag persisted")).toBeVisible();
+  await page.getByLabel("Link title").fill("Reference");
+  await page.getByLabel("Web address").fill("https://example.com/kanban");
+  await page.getByRole("button", { name: "ADD LINK" }).click();
+  await expect(page.getByRole("link", { name: "Reference" })).toBeVisible();
+  await page.getByRole("button", { name: "CLOSE" }).click();
+  await page.reload();
+  await expect(target.locator(".card").filter({ hasText: `Prove board ${suffix}` })).toBeVisible();
+  await target.locator(".card").filter({ hasText: `Prove board ${suffix}` }).click();
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.locator(".card-dialog .danger button").click();
+  await page.getByRole("banner").getByRole("button", { name: "ARCHIVE", exact: true }).click();
+  const archived = page.locator(".archive-row").filter({ hasText: `Prove board ${suffix}` });
+  await expect(archived).toBeVisible();
+  await archived.getByRole("button", { name: "RESTORE" }).click();
+  await page.getByRole("button", { name: "BOARD", exact: true }).click();
+  await expect(target.locator(".card").filter({ hasText: `Prove board ${suffix}` })).toBeVisible();
+  await page.getByRole("button", { name: "ACTIVITY" }).click();
+  await expect(page.locator(".activity-list")).toContainText(`Prove board ${suffix}`);
+  expect(cardId && sourceId && targetId).toBeTruthy();
+  expect((await page.request.delete(`/api/archive/card/${cardId}`)).ok()).toBe(true);
+  expect((await page.request.delete(`/api/archive/column/${sourceId}`)).ok()).toBe(true);
+  expect((await page.request.delete(`/api/archive/column/${targetId}`)).ok()).toBe(true);
+});
+
+test("[visual] populated single-board workflow", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.locator(".column").filter({ hasText: /^Queue / })).toHaveCount(0);
+  if (await page.locator(".column").count() === 0) {
+    await createColumn(page, "Ideas");
+    await createColumn(page, "In progress");
+    await createColumn(page, "Complete");
+    await page.locator(".column").filter({ hasText: "Ideas" }).getByRole("button", { name: "+ CARD" }).click();
+    await page.getByLabel("Title").fill("Outline launch");
+    await page.getByLabel("Description").fill("Turn the release goal into a concrete plan");
+    await page.getByLabel("Assignee").fill("Felix");
+    await page.getByLabel("Priority").selectOption("high");
+    await page.getByLabel(/Labels/).fill("planning, release");
+    await page.getByRole("button", { name: "SAVE", exact: true }).click();
+  }
+  await expect(page.locator(".card").filter({ hasText: "Outline launch" })).toBeVisible();
+  await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}" });
+  await expect(page.locator("#app")).toHaveScreenshot("kanban-board.png", { maxDiffPixels: 500 });
 });

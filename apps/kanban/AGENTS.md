@@ -17,6 +17,7 @@ status, box-within-box composition, and other decorative AI conventions.
 
 ## Current tasks
 
-- Implement and prove the decision-complete walking skeleton in `SPEC.md`.
-- Inspect populated wide and narrow screenshots and explicitly critique AI artifacts, control
-  clutter, hierarchy loss, and responsive structure before declaring the UI complete.
+- Keep the shipped single-board walking skeleton and its recoverable archive semantics aligned with
+  `SPEC.md`.
+- Preserve the deterministic populated wide/narrow baselines and the horizontal workflow structure
+  on small screens.

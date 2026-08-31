@@ -1,10 +1,14 @@
 name: kanban
 title: Kanban
 module: apps.kanban.backend.server
+capabilities:
+  - database
 imports:
   - "@xenorepo/ui"
   - monotools.orchestration.management
+  - monotools.runtime.appkit
   - monotools.runtime.application
+  - monotools.runtime.http
 frontend:
   artifacts:
     index:

@@ -1,0 +1,14 @@
+"""Kanban lifecycle manager."""
+
+from monotools.orchestration.management import create_app_manager
+
+
+manager = create_app_manager(
+    __file__, tests="tests", ui_suite="tests/e2e/readiness.spec.ts",
+    proof_kinds=frozenset({"acceptance"}),
+)
+app = manager.app
+
+
+if __name__ == "__main__":
+    app()

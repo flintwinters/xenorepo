@@ -15,8 +15,17 @@ import {
 import "./styles.css";
 
 const storageKey = "waveform-lab-state-v1";
+type LoopCommand = "selectAll" | "copy" | "cut" | "paste" | "delete" | "clear" | "play";
 interface ViewState { lab: LabState; playing: boolean; activeStep: number; selectedInstrument: string;
   topOctave: number; selection: Set<string>; clipboard: NoteOffset[]; anchor: Cell | null; }
+
+function loopCommand(event: KeyboardEvent): LoopCommand | undefined {
+  const modified: Record<string, LoopCommand> = { a: "selectAll", c: "copy", x: "cut", v: "paste" };
+  const plain: Record<string, LoopCommand> = {
+    backspace: "delete", delete: "delete", escape: "clear", " ": "play",
+  };
+  return (event.ctrlKey || event.metaKey ? modified : plain)[event.key.toLowerCase()];
+}
 
 function loadState(): LabState {
   const saved = localStorage.getItem(storageKey);
@@ -88,16 +97,15 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
   private keyDown = (event: KeyboardEvent): void => {
     const target = event.target as HTMLElement | null;
     if (target?.closest("input, select, textarea, [contenteditable=true], .cm-editor")) return;
-    const modifier = event.ctrlKey || event.metaKey;
-    const key = event.key.toLowerCase();
-    if (modifier && key === "a") this.selectAll();
-    else if (modifier && key === "c") this.copy();
-    else if (modifier && key === "x") this.cut();
-    else if (modifier && key === "v") this.paste();
-    else if (!modifier && (event.key === "Delete" || event.key === "Backspace")) this.deleteSelection();
-    else if (!modifier && event.key === "Escape") this.setState({ selection: new Set(), anchor: null });
-    else if (!modifier && event.code === "Space") void this.togglePlayback();
-    else return;
+    const command = loopCommand(event);
+    if (!command) return;
+    const commands: Record<LoopCommand, () => void> = {
+      selectAll: this.selectAll, copy: this.copy, cut: this.cut, paste: this.paste,
+      delete: this.deleteSelection,
+      clear: () => this.setState({ selection: new Set(), anchor: null }),
+      play: () => { void this.togglePlayback(); },
+    };
+    commands[command]();
     event.preventDefault();
   };
   private pointerDown = (event: PointerEvent, cell: Cell): void => {
@@ -157,7 +165,8 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
             if (isSafeTopOctave(octave)) this.setState({ topOctave: octave, selection: new Set(), anchor: null });
           }} /></label>
         <div class="selection-tools" aria-label="Note selection controls"
-          title="Ctrl/Cmd+A select all · Ctrl/Cmd+X/C/V cut/copy/paste · Backspace/Delete remove · Esc clear · Space play">
+          title={"Ctrl/Cmd+A select all · Ctrl/Cmd+X/C/V cut/copy/paste · "
+            + "Backspace/Delete remove · Esc clear · Space play"}>
           <CommandButton onClick={this.cut}
           disabled={!this.state.selection.size}>CUT</CommandButton><CommandButton onClick={this.copy}
             disabled={!this.state.selection.size}>COPY</CommandButton>

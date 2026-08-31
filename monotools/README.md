@@ -138,8 +138,10 @@ on perceptual quality. Before that call, the universal visual proof renders ever
 declared route at 1440×1000, 768×1024, and 390×844; rejects horizontal overflow,
 clipped or zero-size controls, and text below 9 px; and writes the actual viewport
 screenshots to `data/ui-check/aesthetic-screenshots/`. The gate sends the complete
-matrix plus optional app-owned `UI.md` direction to the OpenAI Responses API and
-retains its structured verdict in `aesthetic-review.json`. `OPENAI_API_KEY` is
-mandatory; `MONOTOOLS_AESTHETIC_MODEL` may override the default `gpt-5.5`
-reviewer. `verify` runs this AI review last, so a model outage, incomplete matrix,
-or major aesthetic finding fails the checkpoint.
+matrix plus optional app-owned `UI.md` direction to OpenRouter's multimodal
+completion API and retains its structured verdict, resolved model, and usage in
+`aesthetic-review.json`. `OPENROUTER_API_KEY` is mandatory;
+`MONOTOOLS_AESTHETIC_MODEL` may override the default `openai/gpt-5.5` reviewer.
+Routing requires native support for the requested JSON Schema parameters.
+`verify` runs this AI review last, so a model outage, incomplete matrix, or major
+aesthetic finding fails the checkpoint.

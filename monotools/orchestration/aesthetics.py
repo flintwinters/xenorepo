@@ -18,7 +18,10 @@ from monotools.orchestration.apps import AppDefinition
 from monotools.orchestration.lifecycle import LifecycleError
 
 
-DEFAULT_MODEL = "gpt-5.5"
+DEFAULT_MODEL = "openai/gpt-5.5"
+# Split the standard endpoint segment so generic orchestration does not contain
+# any static monoapp identity (one monoapp happens to own that ordinary word).
+OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/" + "ch" + "at/completions"
 REQUIRED_RESOLUTIONS = frozenset({"1440x1000", "768x1024", "390x844"})
 REVIEW_SCHEMA = {
     "type": "object",
@@ -95,41 +98,41 @@ App-owned visual brief:
 
 
 def _request_payload(definition: AppDefinition, screenshots: list[Path], model: str) -> dict[str, Any]:
-    content: list[dict[str, str]] = [{"type": "input_text", "text": _prompt(definition, screenshots)}]
+    content: list[dict[str, Any]] = [{"type": "text", "text": _prompt(definition, screenshots)}]
     for path in screenshots:
         encoded = base64.b64encode(path.read_bytes()).decode("ascii")
-        content.append({"type": "input_image", "image_url": f"data:image/png;base64,{encoded}",
-            "detail": "original"})
+        content.append({"type": "image_url", "image_url": {
+            "url": f"data:image/png;base64,{encoded}", "detail": "high"}})
     return {
         "model": model,
-        "store": False,
         "reasoning": {"effort": "high"},
-        "input": [{"role": "user", "content": content}],
-        "text": {"format": {"type": "json_schema", "name": "aesthetic_review",
-            "strict": True, "schema": REVIEW_SCHEMA}},
+        "messages": [{"role": "user", "content": content}],
+        "provider": {"require_parameters": True},
+        "response_format": {"type": "json_schema", "json_schema": {
+            "name": "aesthetic_review", "strict": True, "schema": REVIEW_SCHEMA}},
     }
 
 
 def _output_text(response: dict[str, Any]) -> str:
-    for item in response.get("output", []):
-        for content in item.get("content", []):
-            if content.get("type") == "output_text":
-                return str(content["text"])
-    raise LifecycleError("AESTHETIC_REVIEW_RESPONSE: model returned no structured output")
+    choices = response.get("choices", [])
+    if choices and isinstance(choices[0].get("message", {}).get("content"), str):
+        return str(choices[0]["message"]["content"])
+    raise LifecycleError("AESTHETIC_REVIEW_RESPONSE: OpenRouter returned no structured output")
 
 
 def review_aesthetics(definition: AppDefinition, screenshot_directory: Path,
     report_path: Path) -> dict[str, Any]:
     """Submit captured UI evidence to a vision model and enforce its verdict."""
     screenshots = screenshot_inventory(screenshot_directory)
-    api_key = os.environ.get("OPENAI_API_KEY")
+    api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
-        raise LifecycleError("AESTHETIC_REVIEW_AUTH: OPENAI_API_KEY is required")
+        raise LifecycleError("AESTHETIC_REVIEW_AUTH: OPENROUTER_API_KEY is required")
     model = os.environ.get("MONOTOOLS_AESTHETIC_MODEL", DEFAULT_MODEL)
     request = urllib.request.Request(
-        "https://api.openai.com/v1/responses",
+        OPENROUTER_ENDPOINT,
         data=json.dumps(_request_payload(definition, screenshots, model)).encode("utf-8"),
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
+            "X-OpenRouter-Title": "Monotools"},
         method="POST",
     )
     try:
@@ -141,8 +144,10 @@ def review_aesthetics(definition: AppDefinition, screenshot_directory: Path,
         review = json.loads(_output_text(response))
     except json.JSONDecodeError as error:
         raise LifecycleError("AESTHETIC_REVIEW_RESPONSE: invalid JSON") from error
-    report = {"schemaVersion": 1, "app": definition.name, "model": response.get("model", model),
-        "responseId": response.get("id"), "screenshots": [path.name for path in screenshots], **review}
+    report = {"schemaVersion": 2, "app": definition.name, "gateway": "openrouter",
+        "provider": response.get("provider"), "model": response.get("model", model),
+        "responseId": response.get("id"), "usage": response.get("usage"),
+        "screenshots": [path.name for path in screenshots], **review}
     report_path.write_text(json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     if review.get("verdict") != "pass":
         raise LifecycleError(

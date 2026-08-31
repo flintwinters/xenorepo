@@ -110,10 +110,10 @@ class BrowserLifecycleTests(unittest.TestCase):
                 screenshot_inventory(directory)
 
     def test_ai_review_uses_images_and_persists_structured_verdict(self) -> None:
-        response = {"id": "resp_test", "model": "vision-test", "output": [{"content": [{
-            "type": "output_text", "text": json.dumps({
+        response = {"id": "resp_test", "model": "vision-test", "choices": [{"message": {
+            "content": json.dumps({
                 "verdict": "pass", "summary": "Cohesive.", "findings": [],
-            })}]}]}
+            })}}], "usage": {"total_tokens": 42, "cost": 0.01}}
         opened = Mock()
         opened.__enter__ = Mock(return_value=opened)
         opened.__exit__ = Mock(return_value=False)
@@ -127,16 +127,20 @@ class BrowserLifecycleTests(unittest.TestCase):
                 (screenshots / f"root--{label}--{resolution}.png").write_bytes(b"png")
             definition = synthetic_app_definition(directory)
             report_path = directory / "review.json"
-            with patch.dict("os.environ", {"OPENAI_API_KEY": "secret"}), \
+            with patch.dict("os.environ", {"OPENROUTER_API_KEY": "secret"}), \
                  patch("monotools.orchestration.aesthetics.urllib.request.urlopen",
                     return_value=opened) as urlopen:
                 report = review_aesthetics(definition, screenshots, report_path)
             request_body = json.loads(urlopen.call_args.args[0].data)
-            image_inputs = request_body["input"][0]["content"][1:]
+            image_inputs = request_body["messages"][0]["content"][1:]
             self.assertEqual(len(image_inputs), 3)
-            self.assertTrue(all(item["image_url"].startswith("data:image/png;base64,")
+            self.assertTrue(all(item["image_url"]["url"].startswith("data:image/png;base64,")
                 for item in image_inputs))
+            self.assertTrue(request_body["provider"]["require_parameters"])
+            self.assertEqual(request_body["response_format"]["type"], "json_schema")
             self.assertEqual(report["verdict"], "pass")
+            self.assertEqual(report["gateway"], "openrouter")
+            self.assertEqual(report["usage"]["cost"], 0.01)
             self.assertEqual(json.loads(report_path.read_text())["responseId"], "resp_test")
 
 

@@ -32,8 +32,9 @@ function periodicBuffer(context: BuildContext): AudioBuffer {
 function waveform(context: BuildContext): RuntimeModule {
   const source = context.audio.createBufferSource(); const gain = context.audio.createGain();
   source.buffer = periodicBuffer(context); source.loop = true;
-  source.playbackRate.value = (440 * 2 ** ((context.midi - 69) / 12))
-    * source.buffer.length / context.audio.sampleRate;
+  const frequency = Math.max(0.001, Math.min(context.audio.sampleRate / 2,
+    440 * 2 ** ((context.midi - 69) / 12)));
+  source.playbackRate.value = frequency * source.buffer.length / context.audio.sampleRate;
   source.detune.value = value(context.module, "detune");
   gain.gain.value = 0.16 / Math.sqrt(Math.max(1, context.chordSize)); source.connect(gain);
   return { ...runtime(undefined, gain), targets: { detune: source.detune }, sources: [source], nodes: [source, gain], tail: 0 };

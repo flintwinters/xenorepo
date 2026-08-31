@@ -62,6 +62,28 @@ test("[acceptance] the GUI loop survives reload and controls playback", async ({
   await expect(page.getByText("READY", { exact: true })).toBeVisible();
 });
 
+test("[acceptance] the piano roll reaches arbitrary positive and negative octaves", async ({ page }) => {
+  await page.goto("/");
+  const octave = page.getByLabel("Highest visible octave");
+  await octave.fill("20");
+  await octave.press("Tab");
+  const high = page.getByRole("gridcell", { name: "C20, step 1", exact: true });
+  await high.click();
+
+  await octave.fill("-5");
+  await octave.press("Tab");
+  const low = page.getByRole("gridcell", { name: "C-5, step 2", exact: true });
+  await low.click();
+
+  await page.reload();
+  await octave.fill("20");
+  await octave.press("Tab");
+  await expect(high).toHaveAttribute("aria-pressed", "true");
+  await octave.fill("-5");
+  await octave.press("Tab");
+  await expect(low).toHaveAttribute("aria-pressed", "true");
+});
+
 test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) => {
   await page.goto("/");
   const editor = page.getByLabel("Synth setup YAML editor");
@@ -125,8 +147,9 @@ test("[acceptance] YAML typing suggests module kinds and their parameters", asyn
   const completions = page.locator(".cm-tooltip-autocomplete");
   await expect(completions).toBeVisible();
   await expect(completions).toContainText("filter");
-  await page.keyboard.press("Enter");
+  await completions.getByText("filter", { exact: true }).click();
   await page.keyboard.type("\n      freq");
+  await page.keyboard.press("Control+Space");
   await expect(completions).toBeVisible();
   await expect(completions).toContainText("frequency");
 });

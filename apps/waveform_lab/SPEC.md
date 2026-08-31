@@ -20,8 +20,10 @@ FastAPI serves one self-contained Preact artifact containing two coordinated wor
   The audio layer derives its private single-cycle buffer; raw samples are never persisted or
   exposed. An incomplete or disconnected valid graph remains editable and silent;
   malformed or invalid drafts never replace the live setup and can be corrected or reverted.
-- A piano-roll loop spans C3 through B6 over two bars of 4/4 time at sixteenth-note resolution: 48
-  pitches by 32 steps. Multiple notes may occupy a step. The musician can toggle notes, adjust BPM,
+- A piano-roll loop shows a movable four-octave window over two bars of 4/4 time at sixteenth-note
+  resolution: 48 pitches by 32 steps. Its top-octave control accepts any integer whose derived pitches
+  are exactly representable, so notes are not restricted to MIDI's conventional range. Multiple notes
+  may occupy a step. The musician can toggle notes, adjust BPM,
   control app-level master volume, start or stop playback, and see the active step.
 
 The browser stores one versioned YAML document with explicit `synth` and `loop` sections after
@@ -74,8 +76,9 @@ restart.
   direct module field rather than being hidden under a `parameters` wrapper.
 - Omitted module parameters use their module-kind defaults, omitted bypass means enabled, and an
   omitted instrument waveform means sine. Canonical YAML suppresses these default values.
-- BPM is finite and bounded from 40 through 240. The sequencer has exactly 32 steps and its note
-  pitches remain inside the declared four-octave range. App volume is finite and bounded from silence
+- BPM is finite and bounded from 40 through 240. The sequencer has exactly 32 steps and note pitches
+  may be any safely represented integer; the four-octave grid is a movable view, not a domain bound.
+  App volume is finite and bounded from silence
   through unity gain, remains independent of synth Output modules, and is applied at the destination.
 - Starting playback is repeatable, stopping releases scheduled voices, and graph edits rebuild the
   audio routing without accumulating browser audio nodes.

@@ -6,7 +6,7 @@ import { SynthEngine } from "./audio.js";
 import { decodeState, encodeState } from "./state-yaml.js";
 import { SynthYamlEditor } from "./yaml-editor.js";
 import {
-  PITCHES, initialState, isNaturalPitch, midiLabel, type LabState,
+  initialState, isNaturalPitch, isSafeTopOctave, midiLabel, pitchesForTopOctave, type LabState,
 } from "./model.js";
 import {
   boxCells, cellKey, moveSelected, pasteNotes, relativeOffsets, removeSelected, selectedNotes, selectionClass,
@@ -16,7 +16,7 @@ import "./styles.css";
 
 const storageKey = "waveform-lab-state-v1";
 interface ViewState { lab: LabState; playing: boolean; activeStep: number; selectedInstrument: string;
-  selection: Set<string>; clipboard: NoteOffset[]; anchor: Cell | null; }
+  topOctave: number; selection: Set<string>; clipboard: NoteOffset[]; anchor: Cell | null; }
 
 function loadState(): LabState {
   const saved = localStorage.getItem(storageKey);
@@ -29,7 +29,8 @@ function loadState(): LabState {
 class WaveformLab extends Component<Record<string, never>, ViewState> {
   private initial = loadState();
   override state: ViewState = { lab: this.initial, playing: false, activeStep: -1,
-    selectedInstrument: this.initial.instruments[0]?.name ?? "", selection: new Set(), clipboard: [], anchor: null };
+    selectedInstrument: this.initial.instruments[0]?.name ?? "", topOctave: 6,
+    selection: new Set(), clipboard: [], anchor: null };
   private engine = new SynthEngine();
   private gesture: { start: Cell; mode: "box" | "move"; notes: Cell[] } | null = null;
   private dragged = false;
@@ -75,7 +76,7 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
     if (!this.state.anchor || !this.state.clipboard.length) return;
     const lab = pasteNotes(this.state.lab, this.state.clipboard, this.state.anchor, this.state.selectedInstrument);
     const selection = new Set(this.state.clipboard.map((note) => cellKey({ step: this.state.anchor!.step + note.step,
-      pitch: PITCHES[PITCHES.indexOf(this.state.anchor!.pitch) + note.pitch] ?? -1 })));
+      pitch: this.state.anchor!.pitch - note.pitch })));
     this.commit(lab); this.setState({ selection });
   };
   private keyDown = (event: KeyboardEvent): void => {
@@ -117,13 +118,14 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
         this.state.lab, gesture.notes, gesture.start, cell, this.state.selectedInstrument,
       );
       const moved = relativeOffsets(gesture.notes, gesture.start).map((note) => ({ step: cell.step + note.step,
-        pitch: PITCHES[PITCHES.indexOf(cell.pitch) + note.pitch] })).filter((note): note is Cell =>
-        note.step >= 0 && note.step < 32 && typeof note.pitch === "number");
+        pitch: cell.pitch - note.pitch })).filter((note) =>
+        note.step >= 0 && note.step < 32 && Number.isSafeInteger(note.pitch));
       this.commit(lab); this.setState({ selection: new Set(moved.map(cellKey)), anchor: cell });
     } else if (!this.dragged) { this.toggleNote(cell.step, cell.pitch); this.select(cell); }
   };
   private renderSequencer() {
     const lab = this.state.lab;
+    const pitches = pitchesForTopOctave(this.state.topOctave);
     return <ConsolePane class="sequence-pane" title="LOOP / 2 BARS / 4∕4" tone="purple">
       <div class="transport"><CommandButton class="play" pressed={this.state.playing}
         onClick={this.togglePlayback}>{this.state.playing ? "■ STOP" : "▶ PLAY"}</CommandButton>
@@ -140,6 +142,10 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
           onChange={(event) => this.setState({ selectedInstrument: event.currentTarget.value })}>
           {lab.instruments.map((instrument) => <option value={instrument.name}>
             {instrument.name}</option>)}</select></label>
+        <label>TOP OCTAVE <input aria-label="Highest visible octave" type="number" value={this.state.topOctave}
+          onChange={(event) => { const octave = Number(event.currentTarget.value);
+            if (isSafeTopOctave(octave)) this.setState({ topOctave: octave, selection: new Set(), anchor: null });
+          }} /></label>
         <div class="selection-tools" aria-label="Note selection controls"><CommandButton onClick={this.cut}
           disabled={!this.state.selection.size}>CUT</CommandButton><CommandButton onClick={this.copy}
             disabled={!this.state.selection.size}>COPY</CommandButton>
@@ -150,8 +156,8 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
           <output>{this.state.selection.size} SELECTED</output></div></div>
       <div class="piano-scroll" tabIndex={0} aria-label="Two bar piano roll editor">
         <div class="piano-roll" role="grid" aria-label="Two bar piano roll"
-          aria-rowcount={PITCHES.length} aria-colcount={32}>
-        {PITCHES.map((pitch) => <div class={`pitch-row ${isNaturalPitch(pitch) ? "natural" : "sharp"}`} role="row">
+          aria-rowcount={pitches.length} aria-colcount={32}>
+        {pitches.map((pitch) => <div class={`pitch-row ${isNaturalPitch(pitch) ? "natural" : "sharp"}`} role="row">
           <span class="pitch-label">{midiLabel(pitch)}</span>
           {lab.notes.map((values, step) => {
             const assignments = values.filter((note) => note.pitch === pitch);

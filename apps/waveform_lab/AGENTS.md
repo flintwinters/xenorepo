@@ -15,6 +15,7 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
+- The four-octave grid navigates an unbounded integer pitch domain without constraining stored notes.
 - YAML completion derives module and parameter suggestions from the domain inventory.
 - Fresh and prior-default recovery provides a five-voice percussion, bass, and lead starter kit.
 - Shared command controls and semantic piano-grid styling pass wide/narrow acceptance.

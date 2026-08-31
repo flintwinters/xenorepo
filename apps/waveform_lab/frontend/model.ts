@@ -1,7 +1,13 @@
 const SAMPLE_COUNT = 128;
 export const STEP_COUNT = 32;
 export const STATE_VERSION = 13 as const;
-export const PITCHES = Array.from({ length: 48 }, (_, index) => 95 - index);
+export function pitchesForTopOctave(octave: number): number[] {
+  const top = (octave + 1) * 12 + 11;
+  return Array.from({ length: 48 }, (_, index) => top - index);
+}
+export function isSafeTopOctave(octave: number): boolean {
+  return Number.isSafeInteger(octave) && pitchesForTopOctave(octave).every(Number.isSafeInteger);
+}
 export type WaveformShape = "sine" | "square" | "saw" | "triangle";
 
 export type ModuleKind = "waveform" | "gain" | "output" | "filter" | "adsr" | "saturation"
@@ -259,7 +265,7 @@ function sequence(saved: Record<string, unknown>, version: StateVersion, instrum
   for (const step of saved.notes) {
     if (!Array.isArray(step)) return null;
     const values = version < 8 ? step.map((pitch) => ({ pitch, instrument: "main" })) : step;
-    if (!values.every((note) => record(note) && Number.isInteger(note.pitch) && PITCHES.includes(note.pitch as number)
+    if (!values.every((note) => record(note) && Number.isSafeInteger(note.pitch)
       && typeof note.instrument === "string" && instruments.has(note.instrument))) return null;
     const keys = values.map((note) => `${(note as SequencedNote).instrument}:${(note as SequencedNote).pitch}`);
     if (new Set(keys).size !== keys.length) return null;
@@ -429,8 +435,8 @@ export function restoreState(value: unknown): LabState { return validatedState(v
 
 export function midiLabel(midi: number): string {
   const names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
-  return `${names[midi % 12]}${Math.floor(midi / 12) - 1}`;
+  return `${names[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
 }
 export function isNaturalPitch(midi: number): boolean {
-  return [0, 2, 4, 5, 7, 9, 11].includes(midi % 12);
+  return [0, 2, 4, 5, 7, 9, 11].includes(((midi % 12) + 12) % 12);
 }

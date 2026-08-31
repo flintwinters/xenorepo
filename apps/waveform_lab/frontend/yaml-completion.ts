@@ -1,4 +1,6 @@
-import { autocompletion, type Completion, type CompletionContext, type CompletionResult } from "@codemirror/autocomplete";
+import {
+  autocompletion, type Completion, type CompletionContext, type CompletionResult,
+} from "@codemirror/autocomplete";
 import { stringify } from "yaml";
 import { MODULE_REGISTRY, moduleDefinition, modulationTargets, type ModuleKind } from "./module-registry.js";
 import { PRESET_CATALOG, presetInstrument } from "./presets.js";
@@ -31,12 +33,14 @@ function presetOptions(context: CompletionContext): Completion[] {
   const source = context.state.doc.toString();
   return PRESET_CATALOG.map((preset) => ({ label: preset.name, type: "snippet", detail: preset.description,
     apply: (view, _completion, from, to) => { const base = preset.name; let name = base; let suffix = 2;
-      while (new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:`, "m").test(source)) name = `${base}-${suffix++}`;
+      while (new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:`, "m").test(source))
+        name = `${base}-${suffix++}`;
       const yaml = stringify(instrumentMapOf([presetInstrument(base, name)]), { lineWidth: 0 }).trimEnd();
       view.dispatch({ changes: { from, to, insert: yaml } }); } }));
 }
 function valueOptions(field: string, kind: ModuleKind | null, context: CompletionContext): Completion[] {
-  if (field === "kind") return kinds.map((label) => ({ label, type: "type", detail: MODULE_REGISTRY[label].description }));
+  if (field === "kind") return kinds.map((label) =>
+    ({ label, type: "type", detail: MODULE_REGISTRY[label].description }));
   if (field === "type") return ["audio", "modulation"].map((label) => ({ label, type: "enum" }));
   if (field === "from" || field === "to") return identifiers(context);
   if (field === "target") return [...new Set(kinds.flatMap(modulationTargets))].sort()

@@ -1,5 +1,6 @@
 import { MODULE_REGISTRY, acceptsAudio, emitsAudio, emitsControl, isModuleKind, isSource,
-  modulationTargets, moduleDefinition, registryDefaults, type ModuleKind, type ParameterValue } from "./module-registry.js";
+  modulationTargets, moduleDefinition, registryDefaults, type ModuleKind, type ParameterValue,
+} from "./module-registry.js";
 import { freshInstruments } from "./presets.js";
 
 export const STEP_COUNT = 32;
@@ -12,7 +13,9 @@ export interface ModuleNode { id: string; kind: ModuleKind; parameters: ModulePa
 export interface Connection { from: string; to: string; type?: ConnectionType; target?: string; amount?: number; }
 export interface Instrument { name: string; color: string; modules: ModuleNode[]; connections: Connection[]; }
 export interface SequencedNote { pitch: number; instrument: string; }
-export interface LabState { version: 14; instruments: Instrument[]; notes: SequencedNote[][]; bpm: number; volume: number; }
+export interface LabState {
+  version: 14; instruments: Instrument[]; notes: SequencedNote[][]; bpm: number; volume: number;
+}
 
 const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
 const record = (value: unknown): value is Record<string, unknown> =>
@@ -61,7 +64,8 @@ function parseModule(value: unknown): ModuleNode | null {
 }
 function createsCycle(connections: Connection[], candidate: Connection): boolean {
   const adjacency = new Map<string, string[]>();
-  for (const edge of [...connections, candidate]) adjacency.set(edge.from, [...(adjacency.get(edge.from) ?? []), edge.to]);
+  for (const edge of [...connections, candidate])
+    adjacency.set(edge.from, [...(adjacency.get(edge.from) ?? []), edge.to]);
   const pending = [candidate.to]; const visited = new Set<string>();
   while (pending.length) { const id = pending.pop() as string; if (id === candidate.from) return true;
     if (!visited.has(id)) { visited.add(id); pending.push(...(adjacency.get(id) ?? [])); } }
@@ -113,7 +117,8 @@ function parseInstrument(name: string, value: unknown): Instrument | null {
   return { name, color: value.color as string, modules: complete, connections };
 }
 function parseSequence(value: unknown, names: Set<string>): Pick<LabState, "notes" | "bpm" | "volume"> | null {
-  if (!record(value) || !Array.isArray(value.notes) || value.notes.length !== STEP_COUNT || !finite(value.bpm)) return null;
+  if (!record(value) || !Array.isArray(value.notes)
+    || value.notes.length !== STEP_COUNT || !finite(value.bpm)) return null;
   const notes: SequencedNote[][] = [];
   for (const step of value.notes) { if (!Array.isArray(step)) return null;
     if (!step.every((note) => record(note) && Number.isSafeInteger(note.pitch)
@@ -155,8 +160,11 @@ function migrateInstrument(raw: unknown, external?: unknown[]): Record<string, u
   if (!record(raw) || !Array.isArray(raw.modules)) return null;
   const modules: Record<string, unknown>[] = []; let outputId = "output"; let output: object | undefined;
   for (const item of raw.modules) { const module = migrateModule(item, raw.waveform); if (!module) return null;
-    if (module.kind === "output") { outputId = module.id as string; output = { level: module.level }; } else modules.push(module); }
-  for (const module of modules) if (Array.isArray(module.connections)) module.connections = module.connections.map((edge) =>
+    if (module.kind === "output") {
+      outputId = module.id as string; output = { level: module.level };
+    } else modules.push(module); }
+  for (const module of modules) if (Array.isArray(module.connections))
+    module.connections = module.connections.map((edge) =>
     record(edge) && edge.to === outputId ? { ...edge, to: "output" } : edge);
   for (const edge of external ?? (Array.isArray(raw.connections) ? raw.connections : [])) {
     if (!record(edge) || typeof edge.from !== "string") return null;
@@ -179,7 +187,8 @@ function migrate(value: Record<string, unknown>): Record<string, unknown> | null
       : { bpm: flat.bpm, volume: flat.volume ?? 0.8, notes: flat.notes };
   } else { const instrument = migrateInstrument(flat, Array.isArray(flat.connections) ? flat.connections : undefined);
     if (!instrument) return null; result.main = instrument; const notes = Array.isArray(flat.notes)
-      ? flat.notes.map((step) => Array.isArray(step) ? step.map((pitch) => ({ pitch, instrument: "main" })) : step) : flat.notes;
+      ? flat.notes.map((step) => Array.isArray(step)
+        ? step.map((pitch) => ({ pitch, instrument: "main" })) : step) : flat.notes;
     loop = { bpm: flat.bpm, volume: flat.volume ?? 0.8, notes }; }
   result.loop = loop; return result;
 }
@@ -198,11 +207,13 @@ export function validatedState(value: unknown): LabState | null {
 export function restoreState(value: unknown): LabState { return validatedState(value) ?? initialState(); }
 export function hasPlayablePath(instrument: Instrument): boolean { const outputs = new Set(instrument.modules
     .filter((node) => node.kind === "output").map((node) => node.id));
-  const pending = instrument.modules.filter((node) => isSource(node.kind)).map((node) => node.id); const seen = new Set<string>();
+  const pending = instrument.modules.filter((node) => isSource(node.kind)).map((node) => node.id);
+  const seen = new Set<string>();
   while (pending.length) { const id = pending.shift() as string; if (outputs.has(id)) return true;
     if (!seen.has(id)) { seen.add(id); pending.push(...instrument.connections.filter((edge) =>
       (edge.type ?? "audio") === "audio" && edge.from === id).map((edge) => edge.to)); } } return false; }
-export function midiLabel(midi: number): string { const names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+export function midiLabel(midi: number): string {
+  const names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
   return `${names[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`; }
 export function isNaturalPitch(midi: number): boolean {
   return [0, 2, 4, 5, 7, 9, 11].includes(((midi % 12) + 12) % 12); }

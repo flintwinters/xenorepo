@@ -69,7 +69,9 @@ export class SynthEngine {
     const effectiveOutputs = new Map<string, AudioNode>(); const extraNodes: AudioNode[] = [];
     for (const module of instrument.modules) {
       const output = runtimes.get(module.id)?.output; if (!output) continue;
-      if (module.kind !== "oscillator" && module.kind !== "noise") { effectiveOutputs.set(module.id, output); continue; }
+      if (module.kind !== "oscillator" && module.kind !== "noise") {
+        effectiveOutputs.set(module.id, output); continue;
+      }
       const voiceGate = this.context.createGain(); voiceGate.gain.setValueAtTime(0, now);
       voiceGate.gain.linearRampToValueAtTime(1, now + 0.003);
       voiceGate.gain.setValueAtTime(1, now + gate + release);
@@ -83,9 +85,11 @@ export class SynthEngine {
     for (const edge of instrument.connections.filter((item) => item.type === "modulation")) {
       const source = runtimes.get(edge.from)?.control; const target = edge.target
         ? runtimes.get(edge.to)?.targets[edge.target] : undefined; const targetModule = modules.get(edge.to);
-      const parameter = targetModule && edge.target ? moduleDefinition(targetModule.kind).parameters[edge.target] : undefined;
+      const parameter = targetModule && edge.target
+        ? moduleDefinition(targetModule.kind).parameters[edge.target] : undefined;
       if (!source || !target || !parameter?.range) continue;
-      const depth = this.context.createGain(); depth.gain.value = edge.amount ?? (parameter.range[1] - parameter.range[0]) * 0.2;
+      const depth = this.context.createGain();
+      depth.gain.value = edge.amount ?? (parameter.range[1] - parameter.range[0]) * 0.2;
       source.connect(depth).connect(target); extraNodes.push(depth);
     }
     for (const module of instrument.modules.filter((item) => item.kind === "output"))

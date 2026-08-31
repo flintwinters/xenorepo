@@ -2,7 +2,9 @@ import type { Instrument, ModuleNode } from "./model.js";
 import { registryDefaults, type ModuleKind, type ParameterValue } from "./module-registry.js";
 
 interface Setup { readonly id: string; readonly kind: ModuleKind; readonly values?: Record<string, ParameterValue>; }
-export interface PresetDefinition { readonly name: string; readonly description: string; readonly instrument: Instrument; }
+export interface PresetDefinition {
+  readonly name: string; readonly description: string; readonly instrument: Instrument;
+}
 
 const moduleOf = ({ id, kind, values }: Setup): ModuleNode => ({ id, kind,
   parameters: { ...registryDefaults(kind), ...values },

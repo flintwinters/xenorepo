@@ -182,7 +182,8 @@ function compressor(context: BuildContext): RuntimeModule {
 }
 function lfo(context: BuildContext): RuntimeModule {
   const oscillator = context.audio.createOscillator(); const depth = context.audio.createGain();
-  const shape = textValue(context.module, "shape"); oscillator.type = shape === "saw" ? "sawtooth" : shape as OscillatorType;
+  const shape = textValue(context.module, "shape");
+  oscillator.type = shape === "saw" ? "sawtooth" : shape as OscillatorType;
   oscillator.frequency.value = value(context.module, "rate");
   depth.gain.value = value(context.module, "depth"); oscillator.connect(depth);
   return { ...runtime(), control: depth, targets: {}, sources: [oscillator],

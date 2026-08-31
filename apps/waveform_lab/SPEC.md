@@ -22,7 +22,10 @@ FastAPI serves one self-contained Preact artifact containing two coordinated wor
   resolution: 48 pitches by 32 steps. Its top-octave control accepts any integer whose derived pitches
   are exactly representable, so notes are not restricted to MIDI's conventional range. Multiple notes
   may occupy a step. The musician can toggle notes, adjust BPM,
-  control app-level master volume, start or stop playback, and see the active step.
+  control app-level master volume, start or stop playback, and see the active step. The musician can
+  export exactly one complete loop pass as a stereo 16-bit PCM WAV file. Export uses the same
+  validated patch, sequencing, tempo, and master-volume signal path as live playback, renders offline
+  without changing transport state, and includes bounded effect release after the final step.
 
 The browser stores one versioned YAML document with explicit `synth` and `loop` sections after
 every valid edit. CodeMirror replaces the patch-bay and waveform GUIs as the synth setup control
@@ -31,7 +34,7 @@ remain GUI-only even though the loop section is persisted as YAML. Missing, malf
 saved state falls back to the documented initial kit of playable `kick`, `snare`, `stick`, `bass`,
 and `lead` instruments without preventing the instrument from loading, while an invalid editor draft
 leaves live and saved state untouched and remains available
-for correction or explicit reversion. Audio begins only after an explicit user gesture and stops
+for correction or explicit reversion. Live audio begins only after an explicit user gesture and stops
 cleanly when playback is stopped or the page is left.
 
 ## Circuit module inventory
@@ -77,6 +80,8 @@ restart.
   through unity gain, remains independent of synth Output modules, and is applied at the destination.
 - Starting playback is repeatable, stopping releases scheduled voices, and graph edits rebuild the
   audio routing without accumulating browser audio nodes.
+- WAV export is repeatable, operates on an immutable snapshot, encodes a standards-compliant stereo
+  16-bit PCM file, and reports rendering or download failure without disrupting live playback.
 - Synth YAML is validated through the domain boundary before it can replace
   live state; applying it preserves the current GUI-owned loop, and legacy JSON state migrates on
   the next valid edit.
@@ -101,13 +106,14 @@ journey by keyboard at a narrow viewport.
 
 Automated acceptance proves deterministic waveform normalization and interpolation, circuit graph
 validation and cascading removal, saved-state validation and recovery, sequencer dimensions and BPM
-bounds, self-contained FastAPI delivery, and the principal wide and narrow browser journeys.
+bounds, WAV download structure, self-contained FastAPI delivery, and the principal wide and narrow
+browser journeys.
 
 ## Deferred scope
 
 Component-level electrical simulation, user-defined module code, modulation-rate audio rendering,
-polyphonic voice allocation controls, automation lanes, sample import, MIDI, recording, audio
-export, collaboration, accounts, server persistence, touch-drawing acceptance, and mobile
+polyphonic voice allocation controls, automation lanes, sample import, MIDI, live recording,
+collaboration, accounts, server persistence, touch-drawing acceptance, and mobile
 audio-engine claims are deferred. The analog-style modules are musically useful Web Audio models,
 not claims of hardware equivalence. The circuit model stays app-owned until another monoapp proves
 a generic contract.

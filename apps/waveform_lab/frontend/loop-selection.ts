@@ -28,10 +28,14 @@ export function boxCells(start: Cell, end: Cell): Set<string> {
     Array.from({ length: highStep - lowStep + 1 }, (_, index) => cellKey({ step: lowStep + index, pitch }))));
 }
 
-export function selectedNotes(lab: LabState, selection: Set<string>, instrument: string): Cell[] {
+export function instrumentNotes(lab: LabState, instrument: string): Cell[] {
   return lab.notes.flatMap((notes, step) => notes
-    .filter((note) => note.instrument === instrument && selection.has(cellKey({ step, pitch: note.pitch })))
+    .filter((note) => note.instrument === instrument)
     .map((note) => ({ step, pitch: note.pitch })));
+}
+
+export function selectedNotes(lab: LabState, selection: Set<string>, instrument: string): Cell[] {
+  return instrumentNotes(lab, instrument).filter((note) => selection.has(cellKey(note)));
 }
 
 export function offsets(cells: Cell[]): NoteOffset[] {

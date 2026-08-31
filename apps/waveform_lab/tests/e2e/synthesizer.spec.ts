@@ -290,6 +290,36 @@ test("[acceptance] box selection supports keyboard clipboard and group dragging"
   await expect(c5s5).toHaveAttribute("aria-pressed", "true");
 });
 
+test("[acceptance] common loop hotkeys act on note groups without hijacking editors", async ({ page }) => {
+  await page.goto("/");
+  const first = page.getByRole("gridcell", { name: "C4, step 1", exact: true });
+  const second = page.getByRole("gridcell", { name: "D4, step 2", exact: true });
+  await first.click(); await second.click();
+
+  await page.keyboard.press("Control+a");
+  await expect(page.locator(".note-cell.selected")).toHaveCount(2);
+  await page.keyboard.press("Backspace");
+  await expect(first).toHaveAttribute("aria-pressed", "false");
+  await expect(second).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByText("0 SELECTED", { exact: true })).toBeVisible();
+
+  await first.click(); await second.click(); await page.keyboard.press("Control+a");
+  await page.keyboard.press("Delete");
+  await expect(first).toHaveAttribute("aria-pressed", "false");
+  await expect(second).toHaveAttribute("aria-pressed", "false");
+
+  await first.click(); await page.keyboard.press("Escape");
+  await expect(page.locator(".note-cell.selected")).toHaveCount(0);
+  await page.keyboard.press("Space");
+  await expect(page.getByText("RUNNING", { exact: true })).toBeVisible();
+  await page.keyboard.press("Space");
+  await expect(page.getByText("READY", { exact: true })).toBeVisible();
+
+  const tempo = page.getByLabel("Tempo in BPM");
+  await tempo.focus(); await page.keyboard.press("Space");
+  await expect(page.getByText("READY", { exact: true })).toBeVisible();
+});
+
 test("[acceptance] coordinate-bearing state migrates and malformed storage recovers", async ({ page }) => {
   await page.addInitScript(() => {
     if (sessionStorage.getItem("waveform-lab-fixture-seeded")) return;

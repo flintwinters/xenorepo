@@ -1,6 +1,6 @@
 const SAMPLE_COUNT = 128;
 export const STEP_COUNT = 32;
-export const STATE_VERSION = 11 as const;
+export const STATE_VERSION = 12 as const;
 export const PITCHES = Array.from({ length: 48 }, (_, index) => 95 - index);
 export type WaveformShape = "sine" | "square" | "saw" | "triangle";
 
@@ -105,7 +105,7 @@ function validParameters(kind: ModuleKind, value: unknown): value is ModuleParam
     return finite(value[name]) && value[name] >= range[0] && value[name] <= range[1];
   });
 }
-type StateVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | typeof STATE_VERSION;
+type StateVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | typeof STATE_VERSION;
 function flatParameters(kind: ModuleKind, value: Record<string, unknown>, requireAll: boolean
     ): ModuleParameters | null {
   const parameters = defaultParameters(kind);
@@ -269,16 +269,16 @@ function instrumentOf(value: unknown, version: StateVersion, mappedName?: string
   const fields = mappedName ? ["color", "waveform", "output", "modules"]
     : ["name", "color", "waveform", "modules"];
   if (Object.keys(value).some((key) => !fields.includes(key))) return null;
-  if (version === STATE_VERSION && value.modules.some((module) =>
+  if (version >= 11 && value.modules.some((module) =>
     record(module) && (module.id === "output" || module.kind === "output"))) return null;
   const parsedModules = modulesOf(value.modules, version);
   let reservedOutput = createModule("output", "output");
-  if (version === STATE_VERSION && value.output !== undefined) {
+  if (version >= 11 && value.output !== undefined) {
     if (!record(value.output) || Object.keys(value.output).some((field) => field !== "level")
       || !finite(value.output.level) || value.output.level < 0 || value.output.level > 1) return null;
     reservedOutput = { ...reservedOutput, parameters: { level: value.output.level } };
   }
-  const modules = parsedModules && version === STATE_VERSION
+  const modules = parsedModules && version >= 11
     ? [...parsedModules, reservedOutput] : parsedModules;
   const embedded = embeddedConnections(value.modules);
   const waveform = waveformOf(value, version);
@@ -305,7 +305,8 @@ function flattened(value: Record<string, unknown>): Record<string, unknown> | nu
   if (value.version === 1) return value;
   if (value.version !== 2 && value.version !== 3 && value.version !== 4 && value.version !== 5
       && value.version !== 6 && value.version !== 7 && value.version !== 8
-      && value.version !== 9 && value.version !== 10 && value.version !== STATE_VERSION) return null;
+      && value.version !== 9 && value.version !== 10 && value.version !== 11
+      && value.version !== STATE_VERSION) return null;
   if (!record(value.synth) || !record(value.loop)) return value;
   return { version: value.version, ...value.synth, ...value.loop };
 }
@@ -316,15 +317,21 @@ export function validatedState(value: unknown): LabState | null {
   const saved = flattened(value);
   if (!saved || (saved.version !== 1 && saved.version !== 2 && saved.version !== 3 && saved.version !== 4
       && saved.version !== 5 && saved.version !== 6 && saved.version !== 7 && saved.version !== 8
-      && saved.version !== 9 && saved.version !== 10 && saved.version !== STATE_VERSION)) return null;
+      && saved.version !== 9 && saved.version !== 10 && saved.version !== 11
+      && saved.version !== STATE_VERSION)) return null;
   const version = saved.version as StateVersion;
-  if (version === STATE_VERSION) {
+  if (version >= 11) {
     if (!record(saved.loop)) return null;
     const entries = Object.entries(saved).filter(([name]) => name !== "version" && name !== "loop");
     if (!entries.length) return null;
     const instruments = entries.map(([name, instrument]) => instrumentOf(instrument, version, name));
     if (instruments.some((instrument) => !instrument)) return null;
-    const validInstruments = instruments as Instrument[];
+    const restoredInstruments = instruments as Instrument[];
+    const priorDefault = playableInstrument("main", "#b8bb26", "sine", "");
+    const validInstruments = version === 11 && restoredInstruments.length === 1
+      && JSON.stringify(restoredInstruments[0]) === JSON.stringify(priorDefault)
+      ? [...restoredInstruments, playableInstrument("bass", "#fb4934", "square")]
+      : restoredInstruments;
     const sequencer = sequence(saved.loop as Record<string, unknown>, version, new Set(entries.map(([name]) => name)));
     return sequencer ? { version: STATE_VERSION, instruments: validInstruments, ...sequencer } : null;
   }

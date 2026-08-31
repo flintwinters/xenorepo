@@ -158,6 +158,32 @@ test("[acceptance] named instruments color independent loop notes", async ({ pag
   await page.getByRole("button", { name: "STOP", exact: false }).click();
 });
 
+test("[acceptance] the prior default setup gains the second default instrument", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("waveform-lab-state-v1", `version: 11
+main:
+  color: "#b8bb26"
+  modules:
+    - id: waveform-1
+      kind: waveform
+      connections:
+        - from: waveform-1
+          to: gain-1
+    - id: gain-1
+      kind: gain
+      connections:
+        - from: gain-1
+          to: output
+loop:
+  bpm: 120
+  volume: 0.8
+  notes:
+${Array.from({ length: 32 }, () => "    - []").join("\n")}
+`));
+  await page.goto("/");
+  await expect(page.getByLabel("Synth setup YAML editor")).toContainText("bass:");
+  await expect(page.getByLabel("Loop instrument").locator("option")).toHaveCount(2);
+});
+
 test("[acceptance] box selection supports keyboard clipboard and group dragging", async ({ page }) => {
   await page.goto("/");
   const c4s1 = page.getByRole("gridcell", { name: "C4, step 1", exact: true });
@@ -207,7 +233,7 @@ test("[acceptance] coordinate-bearing state migrates and malformed storage recov
   await page.getByLabel("Tempo in BPM").fill("134");
   await page.getByLabel("Tempo in BPM").press("Tab");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1")))
-    .toContain("version: 11\nmain:");
+    .toContain("version: 12\nmain:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("synth:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("instruments:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toMatch(/\b[xy]:/);

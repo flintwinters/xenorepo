@@ -51,15 +51,17 @@ button:disabled { opacity: 0.45; cursor: default; }
 .transport .play { min-width: 92px; color: #8ec07c; } .transport .play[aria-pressed="true"] { color: #fb4934; border-color: #fb4934; }
 .transport label { display: flex; align-items: center; gap: 5px; color: #fabd2f; } .transport input { width: 58px; padding: 4px; }
 .transport span { margin-left: auto; color: #8ec07c; }
-.sequence-pane, .sequence-pane > .x-ui-pane-body { overflow: visible; }
-.piano-scroll { overflow-x: auto; overflow-y: hidden; background: #111; } .piano-roll { min-width: 920px; }
+.sequence-pane { min-width: 0; max-width: 100%; }
+.sequence-pane, .sequence-pane > .x-ui-pane-body { overflow-y: visible; }
+.piano-scroll { width: 100%; max-width: 100vw; overflow-x: auto; overflow-y: hidden; background: #111; } .piano-roll { min-width: 920px; }
 .pitch-row { display: grid; grid-template-columns: 48px repeat(32, 1fr); height: clamp(18px, 2.2vh, 24px); }
 .pitch-label { position: sticky; left: 0; z-index: 2; padding: 2px 5px; color: #ebdbb2; font-size: 10px; background: #282828; border: 1px solid #3c3836; }
 .pitch-row button { min-width: 24px; padding: 0; border: 1px solid #282828; background: #1d2021; }
 .pitch-row button.beat { border-left-color: #665c54; } .pitch-row button.bar { border-left: 2px solid #d3869b; }
 .pitch-row button.active { background: #b8bb26; box-shadow: inset 0 0 0 2px #d5d87a; }
+.pitch-row button.held { background: #7c8f22; border-inline-color: #7c8f22; }
 .pitch-row button.playing { border-right-color: #fabd2f; filter: brightness(1.6); }
-@media (max-width: 760px) {
+@media (max-width: 800px) {
   .workspace { display: block; padding: 0; } .workspace > section { margin-bottom: 6px; }
   .circuit-scroll { max-height: 520px; } .wave-editor { height: 220px; }
   .transport span { width: 100%; margin-left: 0; }

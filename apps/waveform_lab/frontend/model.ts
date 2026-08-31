@@ -1,6 +1,6 @@
 export const SAMPLE_COUNT = 128;
 export const STEP_COUNT = 32;
-export const STATE_VERSION = 2 as const;
+export const STATE_VERSION = 3 as const;
 export const PITCHES = Array.from({ length: 24 }, (_, index) => 83 - index);
 
 export type ModuleKind = "waveform" | "gain" | "output" | "filter" | "adsr" | "saturation"
@@ -17,7 +17,7 @@ export interface Connection {
 }
 export interface LabState {
   version: typeof STATE_VERSION; modules: ModuleNode[]; connections: Connection[];
-  samples: number[]; notes: number[][]; bpm: number;
+  samples: number[]; notes: number[][]; holds: number[][]; bpm: number;
 }
 
 type Bounds = Readonly<Record<string, readonly [number, number]>>;
@@ -75,7 +75,7 @@ export function initialState(): LabState {
       createModule("output-1", "output", 520, 62)],
     connections: [{ from: "waveform-1", to: "gain-1", type: "audio" },
       { from: "gain-1", to: "output-1", type: "audio" }],
-    samples: preset("sine"), notes: Array.from({ length: STEP_COUNT }, () => []), bpm: 120,
+    samples: preset("sine"), notes: emptySequence(), holds: emptySequence(), bpm: 120,
   };
 }
 
@@ -147,17 +147,44 @@ export function hasPlayablePath(state: LabState): boolean {
   return false;
 }
 
-function sequence(saved: Record<string, unknown>): Pick<LabState, "samples" | "notes" | "bpm"> | null {
-  if (!Array.isArray(saved.samples) || !Array.isArray(saved.notes) || !finite(saved.bpm)) return null;
-  if (saved.samples.length !== SAMPLE_COUNT || !saved.samples.every((sample) => finite(sample) && sample >= -1 && sample <= 1)
-    || saved.notes.length !== STEP_COUNT) return null;
-  const notes: number[][] = [];
-  for (const step of saved.notes) {
+function emptySequence(): number[][] { return Array.from({ length: STEP_COUNT }, () => []); }
+function pitchSequence(value: unknown): number[][] | null {
+  if (!Array.isArray(value) || value.length !== STEP_COUNT) return null;
+  const result: number[][] = [];
+  for (const step of value) {
     if (!Array.isArray(step) || !step.every((pitch) => Number.isInteger(pitch) && PITCHES.includes(pitch))
       || new Set(step).size !== step.length) return null;
-    notes.push([...step]);
+    result.push([...step].sort((a, b) => a - b));
   }
-  return { samples: [...saved.samples] as number[], notes, bpm: Math.max(40, Math.min(240, saved.bpm)) };
+  return result;
+}
+function validHolds(notes: number[][], holds: number[][]): boolean {
+  for (const pitch of PITCHES) {
+    if (holds.every((step) => step.includes(pitch))) return false;
+    for (let step = 0; step < STEP_COUNT; step += 1) {
+      if (!holds[step]?.includes(pitch)) continue;
+      if (notes[step]?.includes(pitch)) return false;
+      const previous = (step + STEP_COUNT - 1) % STEP_COUNT;
+      if (!notes[previous]?.includes(pitch) && !holds[previous]?.includes(pitch)) return false;
+    }
+  }
+  return true;
+}
+function sequence(saved: Record<string, unknown>, legacy: boolean): Pick<LabState, "samples" | "notes" | "holds" | "bpm"> | null {
+  if (!Array.isArray(saved.samples) || !Array.isArray(saved.notes) || !finite(saved.bpm)) return null;
+  if (saved.samples.length !== SAMPLE_COUNT || !saved.samples.every((sample) => finite(sample) && sample >= -1 && sample <= 1)
+    ) return null;
+  const notes = pitchSequence(saved.notes);
+  const holds = legacy ? emptySequence() : pitchSequence(saved.holds);
+  if (!notes || !holds || !validHolds(notes, holds)) return null;
+  return { samples: [...saved.samples] as number[], notes, holds, bpm: Math.max(40, Math.min(240, saved.bpm)) };
+}
+
+export function noteLength(state: Pick<LabState, "notes" | "holds">, step: number, pitch: number): number {
+  if (!state.notes[step]?.includes(pitch)) return 0;
+  let length = 1;
+  while (length < STEP_COUNT && state.holds[(step + length) % STEP_COUNT]?.includes(pitch)) length += 1;
+  return length;
 }
 function modulesOf(values: unknown[], legacy: boolean): ModuleNode[] | null {
   if (!values.length || !values.every((value) => validModule(value, legacy))) return null;
@@ -183,16 +210,17 @@ function connectionsOf(values: unknown[], modules: ModuleNode[], legacy: boolean
   return result;
 }
 
-/** Restores v2 or atomically migrates a valid v1 patch; every defect returns a fresh patch. */
+/** Restores v3 or atomically migrates a valid v1/v2 patch; every defect returns a fresh patch. */
 export function restoreState(value: unknown): LabState {
   const fallback = initialState();
-  if (!record(value) || (value.version !== 1 && value.version !== STATE_VERSION)
+  if (!record(value) || (value.version !== 1 && value.version !== 2 && value.version !== STATE_VERSION)
     || !Array.isArray(value.modules) || !Array.isArray(value.connections)) return fallback;
-  const legacy = value.version === 1;
-  const modules = modulesOf(value.modules, legacy);
-  const sequencer = sequence(value);
+  const legacyModules = value.version === 1;
+  const legacySequence = value.version !== STATE_VERSION;
+  const modules = modulesOf(value.modules, legacyModules);
+  const sequencer = sequence(value, legacySequence);
   if (!modules || !sequencer) return fallback;
-  const connections = connectionsOf(value.connections, modules, legacy);
+  const connections = connectionsOf(value.connections, modules, legacyModules);
   return connections ? { version: STATE_VERSION, modules, connections, ...sequencer } : fallback;
 }
 

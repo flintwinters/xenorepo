@@ -55,11 +55,31 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
     const samples = this.state.history.at(-1); if (!samples) return;
     this.commit({ ...this.state.lab, samples }); this.setState({ history: this.state.history.slice(0, -1) });
   }
-  private toggleNote(step: number, pitch: number): void {
-    const notes = this.state.lab.notes.map((values) => [...values]); const current = notes[step] ?? [];
+  private toggleNote(step: number, pitch: number, hold: boolean): void {
+    const lab = this.state.lab;
+    if (hold) {
+      const previous = (step + lab.holds.length - 1) % lab.holds.length;
+      const anchored = lab.notes[previous]?.includes(pitch) || lab.holds[previous]?.includes(pitch);
+      const holds = lab.holds.map((values) => [...values]); const current = holds[step] ?? [];
+      if (current.includes(pitch)) {
+        for (let index = step; holds[index]?.includes(pitch); index = (index + 1) % holds.length) {
+          holds[index] = holds[index]?.filter((value) => value !== pitch) ?? [];
+          if (index === (step + holds.length - 1) % holds.length) break;
+        }
+      } else if (anchored) holds[step] = [...current, pitch].sort((a, b) => a - b);
+      this.commit({ ...lab, holds }); return;
+    }
+    const notes = lab.notes.map((values) => [...values]); const current = notes[step] ?? [];
     notes[step] = current.includes(pitch) ? current.filter((value) => value !== pitch)
       : [...current, pitch].sort((a, b) => a - b);
-    this.commit({ ...this.state.lab, notes });
+    const holds = lab.holds.map((values) => [...values]);
+    if (current.includes(pitch)) {
+      for (let index = (step + 1) % holds.length; holds[index]?.includes(pitch); index = (index + 1) % holds.length) {
+        holds[index] = holds[index]?.filter((value) => value !== pitch) ?? [];
+        if (index === step) break;
+      }
+    } else holds[step] = holds[step]?.filter((value) => value !== pitch) ?? [];
+    this.commit({ ...lab, notes, holds });
   }
   private renderWaveform() {
     const points = this.state.lab.samples.map((sample, index) =>
@@ -90,9 +110,12 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
         aria-label="Two bar piano roll" aria-rowcount={24} aria-colcount={32}>
         {PITCHES.map((pitch) => <div class="pitch-row" role="row"><span class="pitch-label">{midiLabel(pitch)}</span>
           {lab.notes.map((values, step) => <button role="gridcell" class={`${values.includes(pitch) ? "active" : ""}
+            ${lab.holds[step]?.includes(pitch) ? "held" : ""}
             ${this.state.activeStep === step ? "playing" : ""} ${step % 16 === 0 ? "bar" : step % 4 === 0 ? "beat" : ""}`}
             aria-label={`${midiLabel(pitch)}, step ${step + 1}`} aria-pressed={values.includes(pitch)}
-            onClick={() => this.toggleNote(step, pitch)} />)}</div>)}</div></div>
+            data-held={lab.holds[step]?.includes(pitch) ? "true" : undefined}
+            onClick={(event) => this.toggleNote(step, pitch, event.shiftKey)} />)}</div>)}</div></div>
+      <p class="editor-note">CLICK: TOGGLE NOTE · SHIFT+CLICK: HOLD FROM PREVIOUS STEP</p>
     </ConsolePane>;
   }
   override render() {

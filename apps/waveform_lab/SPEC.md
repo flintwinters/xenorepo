@@ -22,8 +22,9 @@ FastAPI serves one self-contained Preact artifact containing three coordinated w
   that can be resampled deterministically into a Web Audio periodic wave. Sine, square, saw, and
   triangle presets, undo, and reset make exploration recoverable.
 - A piano-roll loop spans C4 through B5 over two bars of 4/4 time at sixteenth-note resolution: 24
-  pitches by 32 steps. Multiple notes may occupy a step. The musician can toggle notes, adjust BPM,
-  start or stop playback, and see the active step.
+  pitches by 32 steps. Multiple notes may occupy a step, and a note can be held through subsequent
+  steps without being retriggered. The musician can toggle notes and holds, adjust BPM, start or
+  stop playback, and see the active step.
 
 The browser stores the circuit, waveform, notes, and BPM locally after every valid edit. Missing,
 malformed, or obsolete saved state falls back to the documented initial patch without preventing
@@ -60,7 +61,8 @@ persist without requiring transport restart.
   topology, reset restores only the selected module's defaults, and removing a module cascades only
   its attached cables.
 - BPM is finite and bounded from 40 through 240. The sequencer has exactly 32 steps and its note
-  pitches remain inside the declared two-octave range.
+  pitches remain inside the declared two-octave range. Every held cell continues an onset or prior
+  held cell of the same pitch; removing an onset removes its contiguous holds.
 - Starting playback is repeatable, stopping releases scheduled voices, and graph edits rebuild the
   audio routing without accumulating browser audio nodes.
 - Keyboard users can reach controls, edit loop cells, and operate waveform presets and recovery

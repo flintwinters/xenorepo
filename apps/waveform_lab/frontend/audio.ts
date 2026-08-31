@@ -1,4 +1,4 @@
-import { PARAMETER_BOUNDS, hasPlayablePath, type LabState } from "./model.js";
+import { PARAMETER_BOUNDS, hasPlayablePath, noteLength, type LabState } from "./model.js";
 import { buildModule, type AudioCaches, type RuntimeModule } from "./audio/factories.js";
 
 interface VoiceRuntime { sources: AudioScheduledSourceNode[]; nodes: AudioNode[]; cleanupTimer: number; }
@@ -24,7 +24,7 @@ export class SynthEngine {
         const uiTimer = window.setTimeout(() => { this.uiTimers.delete(uiTimer); onStep(scheduledStep); }, uiDelay);
         this.uiTimers.add(uiTimer);
         if (hasPlayablePath(current)) for (const midi of notes)
-          this.play(midi, current, notes.length, this.nextStepTime);
+          this.play(midi, current, notes.length, noteLength(current, scheduledStep, midi), this.nextStepTime);
         this.step = (this.step + 1) % current.notes.length;
         this.nextStepTime += 60 / current.bpm / 4;
       }
@@ -43,9 +43,10 @@ export class SynthEngine {
     node.ratio.value = 12; node.attack.value = 0.003; node.release.value = 0.12; node.connect(audio.destination); return node;
   }
 
-  private play(midi: number, state: LabState, chordSize: number, now: number): void {
+  private play(midi: number, state: LabState, chordSize: number, steps: number, now: number): void {
     if (!this.context || !this.master) return;
-    const gate = Math.max(0.025, Math.min(0.18, 60 / state.bpm / 4 * 0.68));
+    const stepDuration = 60 / state.bpm / 4;
+    const gate = steps === 1 ? Math.max(0.025, Math.min(0.18, stepDuration * 0.68)) : stepDuration * steps * 0.94;
     const modules = new Map(state.modules.map((module) => [module.id, module]));
     const runtimes = new Map<string, RuntimeModule>();
     for (const module of state.modules) runtimes.set(module.id, buildModule({ audio: this.context,

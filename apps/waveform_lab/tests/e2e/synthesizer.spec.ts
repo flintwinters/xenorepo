@@ -36,6 +36,25 @@ test("[acceptance] waveform, tempo, and two-bar polyphonic loop survive reload",
   await expect(page.getByText("READY", { exact: true })).toBeVisible();
 });
 
+test("[acceptance] notes can be held across steps and survive reload", async ({ page }) => {
+  await page.goto("/");
+  const onset = page.getByRole("gridcell", { name: "C4, step 1", exact: true });
+  const second = page.getByRole("gridcell", { name: "C4, step 2", exact: true });
+  const third = page.getByRole("gridcell", { name: "C4, step 3", exact: true });
+  await onset.click();
+  await second.click({ modifiers: ["Shift"] });
+  await third.click({ modifiers: ["Shift"] });
+  await expect(onset).toHaveAttribute("aria-pressed", "true");
+  await expect(second).toHaveAttribute("data-held", "true");
+  await expect(third).toHaveAttribute("data-held", "true");
+  await page.reload();
+  await expect(second).toHaveAttribute("data-held", "true");
+  await expect(third).toHaveAttribute("data-held", "true");
+  await onset.click();
+  await expect(second).not.toHaveAttribute("data-held", "true");
+  await expect(third).not.toHaveAttribute("data-held", "true");
+});
+
 test("[acceptance] the waveform is drawable and undoable", async ({ page }) => {
   await page.goto("/");
   const editor = page.getByLabel("Draw one cycle waveform");
@@ -149,7 +168,7 @@ test("[acceptance] legacy patches migrate and malformed state recovers", async (
   await expect(page.getByRole("gridcell", { name: "C4, step 1", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("slider", { name: "Gain 1 gain" })).toHaveValue("0.8");
   await page.getByRole("slider", { name: "Gain 1 gain" }).fill("1.1");
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("waveform-lab-state-v1") ?? "null").version)).toBe(2);
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem("waveform-lab-state-v1") ?? "null").version)).toBe(3);
 
   await page.evaluate(() => localStorage.setItem("waveform-lab-state-v1", "{malformed"));
   await page.reload();

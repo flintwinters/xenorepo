@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import Mock, patch
 
 from monotools.orchestration.apps import ROOT
-from monotools.orchestration.aesthetics import review_aesthetics, screenshot_inventory
+from monotools.orchestration.aesthetics import DEFAULT_MODEL, review_aesthetics, screenshot_inventory
 from monotools.orchestration.ui import available_local_port, run_ui_check, ui_artifact_directory
 from tests.support import synthetic_app_definition
 
@@ -138,6 +138,14 @@ class BrowserLifecycleTests(unittest.TestCase):
                 for item in image_inputs))
             self.assertTrue(request_body["provider"]["require_parameters"])
             self.assertEqual(request_body["response_format"]["type"], "json_schema")
+            finding_schema = request_body["response_format"]["json_schema"]["schema"] \
+                ["properties"]["findings"]
+            self.assertEqual(finding_schema["maxItems"], 6)
+            self.assertIn("viewport", finding_schema["items"]["required"])
+            self.assertEqual(request_body["model"], "z-ai/glm-5.3-flash")
+            self.assertEqual(request_body["model"], DEFAULT_MODEL)
+            self.assertEqual(request_body["reasoning"], {"effort": "low"})
+            self.assertEqual(request_body["max_tokens"], 4096)
             self.assertEqual(report["verdict"], "pass")
             self.assertEqual(report["gateway"], "openrouter")
             self.assertEqual(report["usage"]["cost"], 0.01)

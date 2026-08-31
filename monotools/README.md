@@ -141,7 +141,8 @@ screenshots to `data/ui-check/aesthetic-screenshots/`. The gate sends the comple
 matrix plus optional app-owned `UI.md` direction to OpenRouter's multimodal
 completion API and retains its structured verdict, resolved model, and usage in
 `aesthetic-review.json`. `OPENROUTER_API_KEY` is mandatory;
-`MONOTOOLS_AESTHETIC_MODEL` may override the default `openai/gpt-5.5` reviewer.
-Routing requires native support for the requested JSON Schema parameters.
+`MONOTOOLS_AESTHETIC_MODEL` may override the default
+`z-ai/glm-5.3-flash` reviewer, a current high-usage, low-cost native multimodal
+model. Routing requires native support for the requested JSON Schema parameters.
 `verify` runs this AI review last, so a model outage, incomplete matrix, or major
 aesthetic finding fails the checkpoint.

@@ -18,7 +18,7 @@ from monotools.orchestration.apps import AppDefinition
 from monotools.orchestration.lifecycle import LifecycleError
 
 
-DEFAULT_MODEL = "openai/gpt-5.5"
+DEFAULT_MODEL = "z-ai/glm-5.3-flash"
 # Split the standard endpoint segment so generic orchestration does not contain
 # any static monoapp identity (one monoapp happens to own that ordinary word).
 OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/" + "ch" + "at/completions"
@@ -28,19 +28,28 @@ REVIEW_SCHEMA = {
     "additionalProperties": False,
     "required": ["verdict", "summary", "findings"],
     "properties": {
-        "verdict": {"type": "string", "enum": ["pass", "fail"]},
-        "summary": {"type": "string"},
+        "verdict": {"type": "string", "enum": ["pass", "fail"],
+            "description": "Fail exactly when at least one finding has major severity."},
+        "summary": {"type": "string",
+            "description": "A concise cross-viewport assessment grounded only in visible evidence."},
         "findings": {
             "type": "array",
+            "maxItems": 6,
+            "description": "Distinct visible issues without repetition; empty when the UI passes cleanly.",
             "items": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["severity", "resolution", "issue", "recommendation"],
+                "required": ["severity", "viewport", "issue", "recommendation"],
                 "properties": {
-                    "severity": {"type": "string", "enum": ["major", "minor"]},
-                    "resolution": {"type": "string"},
-                    "issue": {"type": "string"},
-                    "recommendation": {"type": "string"},
+                    "severity": {"type": "string", "enum": ["major", "minor"],
+                        "description": "Major blocks shipping; minor is optional polish."},
+                    "viewport": {"type": "string",
+                        "enum": ["desktop 1440x1000", "tablet 768x1024", "phone 390x844", "all"],
+                        "description": "The supplied viewport where the issue is visibly present."},
+                    "issue": {"type": "string",
+                        "description": "Specific visible defect and its consequence."},
+                    "recommendation": {"type": "string",
+                        "description": "One concrete design change that directly addresses the issue."},
                 },
             },
         },
@@ -105,7 +114,8 @@ def _request_payload(definition: AppDefinition, screenshots: list[Path], model: 
             "url": f"data:image/png;base64,{encoded}", "detail": "high"}})
     return {
         "model": model,
-        "reasoning": {"effort": "high"},
+        "max_tokens": 4096,
+        "reasoning": {"effort": "low"},
         "messages": [{"role": "user", "content": content}],
         "provider": {"require_parameters": True},
         "response_format": {"type": "json_schema", "json_schema": {
@@ -144,7 +154,7 @@ def review_aesthetics(definition: AppDefinition, screenshot_directory: Path,
         review = json.loads(_output_text(response))
     except json.JSONDecodeError as error:
         raise LifecycleError("AESTHETIC_REVIEW_RESPONSE: invalid JSON") from error
-    report = {"schemaVersion": 2, "app": definition.name, "gateway": "openrouter",
+    report = {"schemaVersion": 3, "app": definition.name, "gateway": "openrouter",
         "provider": response.get("provider"), "model": response.get("model", model),
         "responseId": response.get("id"), "usage": response.get("usage"),
         "screenshots": [path.name for path in screenshots], **review}

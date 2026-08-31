@@ -23,7 +23,7 @@ FastAPI serves one self-contained Preact artifact containing two coordinated wor
   are exactly representable, so notes are not restricted to MIDI's conventional range. Multiple notes
   may occupy a step. The musician can toggle notes, adjust BPM,
   control app-level master volume, start or stop playback, and see the active step. The musician can
-  export exactly one complete loop pass as a stereo 16-bit PCM WAV file. Export uses the same
+  export exactly four contiguous loop passes as a stereo 16-bit PCM WAV file. Export uses the same
   validated patch, sequencing, tempo, and master-volume signal path as live playback, renders offline
   without changing transport state, and includes bounded effect release after the final step.
 

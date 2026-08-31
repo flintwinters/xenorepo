@@ -21,5 +21,5 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 - Shared command controls and semantic piano-grid styling pass wide/narrow acceptance.
 - Loop editing supports focus-safe standard hotkeys and confirmed all-instrument clearing.
 - Applied synth YAML immediately re-projects instrument metadata into the live loop editor.
-- One offline-rendered loop pass exports as stereo 16-bit PCM WAV without changing playback.
+- Four contiguous offline-rendered loop passes export as stereo 16-bit PCM WAV without changing playback.
 - Next: profile larger preset graphs before introducing shared effect buses or AudioWorklets.

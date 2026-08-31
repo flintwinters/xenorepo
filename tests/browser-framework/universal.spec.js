@@ -120,8 +120,10 @@ for (const route of routes) {
           await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
         });
         expect(await visualDefects(page), `${route.path} at ${viewport.name}`).toEqual([]);
+        const filename = `${routeName(route.path)}--${viewport.name}`
+          + `--${viewport.width}x${viewport.height}.png`;
         await page.screenshot({
-          path: `${aestheticDirectory}/${routeName(route.path)}--${viewport.name}--${viewport.width}x${viewport.height}.png`,
+          path: `${aestheticDirectory}/${filename}`,
           fullPage: false,
           animations: "disabled",
         });

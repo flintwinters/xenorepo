@@ -11,10 +11,16 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await page.goto("/");
   await expect(page.getByRole("status")).toHaveText("Board ready");
   const suffix = `${testInfo.project.name}-${Date.now()}`,
-    queue = `Queue ${suffix}`, doing = `Doing ${suffix}`;
+    queue = `Queue ${suffix}`, renamedQueue = `Planned ${suffix}`, doing = `Doing ${suffix}`;
   await createColumn(page, queue);
   await createColumn(page, doing);
-  const source = page.locator(".column").filter({ hasText: queue });
+  await page.getByRole("button", { name: `Rename ${queue}` }).click();
+  const columnEditor = page.getByRole("dialog", { name: "EDIT COLUMN" });
+  await expect(columnEditor).toBeVisible();
+  await columnEditor.getByLabel("Column name").fill(renamedQueue);
+  await columnEditor.getByRole("button", { name: "SAVE", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Column renamed");
+  const source = page.locator(".column").filter({ hasText: renamedQueue });
   await source.getByRole("button", { name: "+ CARD" }).click();
   await page.getByLabel("Title").fill(`Prove board ${suffix}`);
   await page.getByLabel("Description").fill("A persisted acceptance card");

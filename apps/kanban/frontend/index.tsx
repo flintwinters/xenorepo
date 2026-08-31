@@ -3,7 +3,7 @@ import { CommandButton, ConsolePane, ConsoleShell, EmptyState, StatusRail, Utili
 import {
   addComment, addLink, addUpload, createCard, createColumn, editAttachment, editBoard,
   editCard, editColumn, editComment, loadBoard, moveCard, moveColumn, setArchived,
-  type Attachment, type Card, type CardFields, type Comment, type KanbanView,
+  type Attachment, type Card, type CardFields, type Column, type Comment, type KanbanView,
 } from "./client.js";
 import "./styles.css";
 
@@ -14,6 +14,7 @@ interface State {
   selected: string | null;
   creatingIn: string | null;
   editingBoard: boolean;
+  editingColumn: string | null;
   message: string;
   failed: boolean;
   busy: boolean;
@@ -26,7 +27,7 @@ const active = <T extends { archived_at?: string | null }>(values: T[]): T[] =>
 
 class KanbanBoard extends Component<Record<string, never>, State> {
   override state: State = { view: null, mode: "board", selected: null, creatingIn: null,
-    editingBoard: false, message: "Loading board…", failed: false, busy: false };
+    editingBoard: false, editingColumn: null, message: "Loading board…", failed: false, busy: false };
   private dragged: string | null = null;
 
   override componentDidMount(): void { void this.refresh("Board ready"); }
@@ -76,9 +77,15 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const name = window.prompt("Column name");
     if (name) this.perform("Column created", () => createColumn(name));
   };
-  private renameColumn = (id: string, current: string): void => {
-    const name = window.prompt("Column name", current);
-    if (name && name !== current) this.perform("Column renamed", () => editColumn(id, name));
+  private saveColumn = (event: SubmitEvent): void => {
+    event.preventDefault();
+    const id = this.state.editingColumn;
+    if (!id) return;
+    const name = String(new FormData(event.currentTarget as HTMLFormElement).get("name"));
+    this.perform("Column renamed", async () => {
+      await editColumn(id, name);
+      this.setState({ editingColumn: null });
+    });
   };
   private archive = (kind: string, id: string, name: string): void => {
     if (window.confirm(`Archive “${name}”?`)) {
@@ -137,6 +144,18 @@ class KanbanBoard extends Component<Record<string, never>, State> {
             onClick={() => this.setState({ editingBoard: false })}>CANCEL</CommandButton>
           <CommandButton type="submit">SAVE</CommandButton></div></form></section></div>;
   }
+  private columnEditor() {
+    const column: Column | undefined = this.state.view?.columns.find(
+      (value) => value.id === this.state.editingColumn,
+    );
+    if (!column) return null;
+    return <div class="backdrop"><section class="dialog" role="dialog" aria-modal="true"
+      aria-labelledby="column-editor-title"><h2 id="column-editor-title">EDIT COLUMN</h2>
+      <form onSubmit={this.saveColumn}><label>Column name<input name="name" required maxLength={120}
+        value={column.name} autofocus /></label><div class="actions"><CommandButton type="button"
+          onClick={() => this.setState({ editingColumn: null })}>CANCEL</CommandButton>
+        <CommandButton type="submit">SAVE</CommandButton></div></form></section></div>;
+  }
   private cardEditor() {
     const card = this.card(this.state.selected);
     if (!card && !this.state.creatingIn) return null;
@@ -180,7 +199,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const cards = this.cards(column.id);
     return <ConsolePane class="column" title={column.name} tone="neutral" titleEnd={<>
       <CommandButton appearance="subtle" aria-label={`Rename ${column.name}`}
-        onClick={() => this.renameColumn(column.id, column.name)}>EDIT</CommandButton>
+        onClick={() => this.setState({ editingColumn: column.id })}>EDIT</CommandButton>
       <CommandButton appearance="subtle" aria-label={`Archive ${column.name}`}
         onClick={() => this.archive("column", column.id, column.name)}>ARCHIVE</CommandButton></>}>
       <div class="card-list" data-column={column.id} onDragOver={(event) => event.preventDefault()}
@@ -236,7 +255,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     return <ConsoleShell class="kanban-shell" header={header} footer={footer}><div class="workspace">
       {!view ? <EmptyState heading="LOADING BOARD" /> : this.state.mode === "board" ? this.board() :
         this.state.mode === "archive" ? this.archiveView() : this.activityView()}</div>
-      {this.boardEditor()}{this.cardEditor()}</ConsoleShell>;
+      {this.boardEditor()}{this.columnEditor()}{this.cardEditor()}</ConsoleShell>;
   }
 }
 

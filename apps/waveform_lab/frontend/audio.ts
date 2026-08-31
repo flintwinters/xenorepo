@@ -95,7 +95,9 @@ export class SynthEngine {
     const all = [...runtimes.values()]; const sources = all.flatMap((item) => item.sources);
     const nodes = [...all.flatMap((item) => item.nodes), ...extraNodes]; const signalEnd = now + gate + release;
     const tail = Math.max(0.03, ...all.map((item) => item.tail)); const cleanupAt = signalEnd + tail + 0.02;
-    for (const source of sources) { try { source.start(now); source.stop(cleanupAt); } catch { /* Invalid source is silent. */ } }
+    for (const source of sources) {
+      try { source.start(now); source.stop(cleanupAt); } catch { /* Invalid source is silent. */ }
+    }
     const cleanupTimer = window.setTimeout(() => {
       const voice = [...this.voices].find((candidate) => candidate.cleanupTimer === cleanupTimer);
       if (voice) { this.disposeVoice(voice); this.voices.delete(voice); }

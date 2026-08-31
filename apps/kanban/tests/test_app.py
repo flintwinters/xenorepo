@@ -133,6 +133,9 @@ class ApplicationTests(unittest.TestCase):
         self.assertNotIn('rel="stylesheet"', document)
         self.assertIn('from "@xenorepo/ui";', source)
         self.assertIn('from "../data/openapi";', client)
+        self.assertNotIn("window.alert", source)
+        self.assertNotIn("window.confirm", source)
+        self.assertNotIn("window.prompt", source)
 
 
 if __name__ == "__main__":

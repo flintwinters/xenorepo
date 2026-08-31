@@ -13,8 +13,11 @@ interface State {
   mode: Mode;
   selected: string | null;
   creatingIn: string | null;
+  creatingColumn: boolean;
   editingBoard: boolean;
   editingColumn: string | null;
+  editingComment: string | null;
+  editingAttachment: string | null;
   message: string;
   failed: boolean;
   busy: boolean;
@@ -27,7 +30,8 @@ const active = <T extends { archived_at?: string | null }>(values: T[]): T[] =>
 
 class KanbanBoard extends Component<Record<string, never>, State> {
   override state: State = { view: null, mode: "board", selected: null, creatingIn: null,
-    editingBoard: false, editingColumn: null, message: "Loading board…", failed: false, busy: false };
+    creatingColumn: false, editingBoard: false, editingColumn: null, editingComment: null,
+    editingAttachment: null, message: "Loading board…", failed: false, busy: false };
   private dragged: string | null = null;
 
   override componentDidMount(): void { void this.refresh("Board ready"); }
@@ -73,9 +77,13 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       this.setState({ selected: null, creatingIn: null });
     });
   };
-  private createColumn = (): void => {
-    const name = window.prompt("Column name");
-    if (name) this.perform("Column created", () => createColumn(name));
+  private saveNewColumn = (event: SubmitEvent): void => {
+    event.preventDefault();
+    const name = String(new FormData(event.currentTarget as HTMLFormElement).get("name"));
+    this.perform("Column created", async () => {
+      await createColumn(name);
+      this.setState({ creatingColumn: false });
+    });
   };
   private saveColumn = (event: SubmitEvent): void => {
     event.preventDefault();
@@ -87,11 +95,9 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       this.setState({ editingColumn: null });
     });
   };
-  private archive = (kind: string, id: string, name: string): void => {
-    if (window.confirm(`Archive “${name}”?`)) {
-      if (kind === "card") this.setState({ selected: null });
-      this.perform(`${kind} archived`, () => setArchived(kind, id));
-    }
+  private archive = (kind: string, id: string): void => {
+    if (kind === "card") this.setState({ selected: null });
+    this.perform(`${kind} archived`, () => setArchived(kind, id));
   };
   private drop = (event: DragEvent, columnId: string): void => {
     event.preventDefault();
@@ -121,16 +127,25 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       await addUpload(cardId, String(data.get("title")), file); form.reset();
     });
   };
-  private editComment = (item: Comment): void => {
-    const body = window.prompt("Comment", item.body);
-    if (body && body !== item.body) this.perform("Comment updated", () => editComment(item.id, body));
+  private saveEditedComment = (event: SubmitEvent): void => {
+    event.preventDefault();
+    const id = this.state.editingComment;
+    if (!id) return;
+    const body = String(new FormData(event.currentTarget as HTMLFormElement).get("body"));
+    this.perform("Comment updated", async () => {
+      await editComment(id, body);
+      this.setState({ editingComment: null });
+    });
   };
-  private editAttachment = (item: Attachment): void => {
-    const title = window.prompt("Attachment title", item.title);
-    if (!title) return;
-    const url = item.kind === "link" ? window.prompt("Web address", item.url ?? "") : undefined;
-    if (item.kind === "link" && !url) return;
-    this.perform("Attachment updated", () => editAttachment(item.id, title, url ?? undefined));
+  private saveEditedAttachment = (event: SubmitEvent): void => {
+    event.preventDefault();
+    const id = this.state.editingAttachment;
+    if (!id) return;
+    const data = new FormData(event.currentTarget as HTMLFormElement);
+    this.perform("Attachment updated", async () => {
+      await editAttachment(id, String(data.get("title")), String(data.get("url") || "") || undefined);
+      this.setState({ editingAttachment: null });
+    });
   };
 
   private boardEditor() {
@@ -156,7 +171,43 @@ class KanbanBoard extends Component<Record<string, never>, State> {
           onClick={() => this.setState({ editingColumn: null })}>CANCEL</CommandButton>
         <CommandButton type="submit">SAVE</CommandButton></div></form></section></div>;
   }
+  private columnCreator() {
+    if (!this.state.creatingColumn) return null;
+    return <div class="backdrop"><section class="dialog" role="dialog" aria-modal="true"
+      aria-labelledby="column-creator-title"><h2 id="column-creator-title">NEW COLUMN</h2>
+      <form onSubmit={this.saveNewColumn}><label>Column name<input name="name" required maxLength={120}
+        autofocus /></label><div class="actions"><CommandButton type="button"
+          onClick={() => this.setState({ creatingColumn: false })}>CANCEL</CommandButton>
+        <CommandButton type="submit">CREATE</CommandButton></div></form></section></div>;
+  }
+  private commentEditor() {
+    const comment: Comment | undefined = this.state.view?.comments.find(
+      (value) => value.id === this.state.editingComment,
+    );
+    if (!comment) return null;
+    return <div class="backdrop"><section class="dialog" role="dialog" aria-modal="true"
+      aria-labelledby="comment-editor-title"><h2 id="comment-editor-title">EDIT COMMENT</h2>
+      <form onSubmit={this.saveEditedComment}><label>Comment<textarea name="body" required maxLength={4000}
+        value={comment.body} autofocus /></label><div class="actions"><CommandButton type="button"
+          onClick={() => this.setState({ editingComment: null })}>CANCEL</CommandButton>
+        <CommandButton type="submit">SAVE</CommandButton></div></form></section></div>;
+  }
+  private attachmentEditor() {
+    const attachment: Attachment | undefined = this.state.view?.attachments.find(
+      (value) => value.id === this.state.editingAttachment,
+    );
+    if (!attachment) return null;
+    return <div class="backdrop"><section class="dialog" role="dialog" aria-modal="true"
+      aria-labelledby="attachment-editor-title"><h2 id="attachment-editor-title">EDIT ATTACHMENT</h2>
+      <form onSubmit={this.saveEditedAttachment}><label>Attachment title<input name="title" required
+        maxLength={120} value={attachment.title} autofocus /></label>{attachment.kind === "link" &&
+          <label>Web address<input name="url" type="url" required value={attachment.url ?? ""} /></label>}
+        <div class="actions"><CommandButton type="button"
+          onClick={() => this.setState({ editingAttachment: null })}>CANCEL</CommandButton>
+          <CommandButton type="submit">SAVE</CommandButton></div></form></section></div>;
+  }
   private cardEditor() {
+    if (this.state.editingComment || this.state.editingAttachment) return null;
     const card = this.card(this.state.selected);
     if (!card && !this.state.creatingIn) return null;
     const value = card ?? { title: "", description: "", assignee: "", labels: [], priority: "normal" };
@@ -172,20 +223,22 @@ class KanbanBoard extends Component<Record<string, never>, State> {
               <option value="high">High</option><option value="urgent">Urgent</option></select></label></div>
         <label>Labels <span class="hint">comma separated</span><input name="labels"
           value={value.labels.join(", ")} /></label><div class="actions">{card && <CommandButton type="button"
-            class="danger" onClick={() => this.archive("card", card.id, card.title)}>ARCHIVE</CommandButton>}
+            class="danger" onClick={() => this.archive("card", card.id)}>ARCHIVE</CommandButton>}
           <CommandButton type="button" onClick={() => this.setState({ selected: null, creatingIn: null })}>
             CLOSE</CommandButton><CommandButton type="submit">SAVE</CommandButton></div></form>
       {card && <div class="card-extras"><section><h3>COMMENTS</h3>{comments.map((item) => <div class="row">
-        <p>{item.body}</p><CommandButton appearance="subtle" onClick={() => this.editComment(item)}>EDIT</CommandButton>
-        <CommandButton appearance="subtle" onClick={() => this.archive("comment", item.id, "comment")}>
+        <p>{item.body}</p><CommandButton appearance="subtle"
+          onClick={() => this.setState({ editingComment: item.id })}>EDIT</CommandButton>
+        <CommandButton appearance="subtle" onClick={() => this.archive("comment", item.id)}>
           ARCHIVE</CommandButton>
       </div>)}<form class="compact-form" onSubmit={(event) => this.saveComment(event, card.id)}>
         <input name="body" required maxLength={4000} placeholder="Write a comment" aria-label="Comment" />
         <CommandButton type="submit">ADD</CommandButton></form></section><section><h3>ATTACHMENTS</h3>
       {attachments.map((item) => <div class="row"><a href={item.kind === "link" ? item.url! :
         `/api/attachments/${item.id}/content`}>{item.title}</a><span>{item.kind.toUpperCase()}</span>
-        <CommandButton appearance="subtle" onClick={() => this.editAttachment(item)}>EDIT</CommandButton>
-        <CommandButton appearance="subtle" onClick={() => this.archive("attachment", item.id, item.title)}>
+        <CommandButton appearance="subtle"
+          onClick={() => this.setState({ editingAttachment: item.id })}>EDIT</CommandButton>
+        <CommandButton appearance="subtle" onClick={() => this.archive("attachment", item.id)}>
           ARCHIVE</CommandButton></div>)}<form class="compact-form" onSubmit={(event) => this.saveLink(event, card.id)}>
         <input name="title" required placeholder="Link title" aria-label="Link title" /><input name="url"
           type="url" required placeholder="https://…" aria-label="Web address" /><CommandButton type="submit">
@@ -201,7 +254,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       <CommandButton appearance="subtle" aria-label={`Rename ${column.name}`}
         onClick={() => this.setState({ editingColumn: column.id })}>EDIT</CommandButton>
       <CommandButton appearance="subtle" aria-label={`Archive ${column.name}`}
-        onClick={() => this.archive("column", column.id, column.name)}>ARCHIVE</CommandButton></>}>
+        onClick={() => this.archive("column", column.id)}>ARCHIVE</CommandButton></>}>
       <div class="card-list" data-column={column.id} onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => this.drop(event, column.id)}>{cards.map((card) => <article data-card-id={card.id}
           class={`card priority-${card.priority}`}
@@ -248,14 +301,15 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       <CommandButton pressed={this.state.mode === "archive"}
         onClick={() => this.setState({ mode: "archive" })}>ARCHIVE</CommandButton>
       <CommandButton onClick={() => this.setState({ editingBoard: true })}>EDIT BOARD</CommandButton>
-      <CommandButton onClick={this.createColumn}>+ COLUMN</CommandButton></UtilityRail>;
+      <CommandButton onClick={() => this.setState({ creatingColumn: true })}>+ COLUMN</CommandButton></UtilityRail>;
     const footer = <StatusRail><span class={this.state.failed ? "error" : ""} role="status">
       {this.state.busy ? "SAVING…" : this.state.message}</span><span class="push">
       {active(view?.columns ?? []).length} COLUMNS · {active(view?.cards ?? []).length} CARDS</span></StatusRail>;
     return <ConsoleShell class="kanban-shell" header={header} footer={footer}><div class="workspace">
       {!view ? <EmptyState heading="LOADING BOARD" /> : this.state.mode === "board" ? this.board() :
         this.state.mode === "archive" ? this.archiveView() : this.activityView()}</div>
-      {this.boardEditor()}{this.columnEditor()}{this.cardEditor()}</ConsoleShell>;
+      {this.boardEditor()}{this.columnCreator()}{this.columnEditor()}{this.commentEditor()}
+      {this.attachmentEditor()}{this.cardEditor()}</ConsoleShell>;
   }
 }
 

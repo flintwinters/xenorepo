@@ -2,8 +2,10 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@xenorepo/browser-testing";
 
 async function createColumn(page: Page, name: string) {
-  page.once("dialog", (dialog) => dialog.accept(name));
   await page.getByRole("button", { name: "+ COLUMN" }).click();
+  const editor = page.getByRole("dialog", { name: "NEW COLUMN" });
+  await editor.getByLabel("Column name").fill(name);
+  await editor.getByRole("button", { name: "CREATE" }).click();
   await expect(page.locator(".column").filter({ hasText: name })).toBeVisible();
 }
 
@@ -51,15 +53,26 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await page.getByLabel("Comment").fill("The drag persisted");
   await page.getByRole("button", { name: "ADD", exact: true }).click();
   await expect(page.getByText("The drag persisted")).toBeVisible();
+  await page.locator(".row").filter({ hasText: "The drag persisted" })
+    .getByRole("button", { name: "EDIT" }).click();
+  const commentEditor = page.getByRole("dialog", { name: "EDIT COMMENT" });
+  await commentEditor.getByLabel("Comment").fill("The drag and edit persisted");
+  await commentEditor.getByRole("button", { name: "SAVE", exact: true }).click();
+  await expect(page.getByText("The drag and edit persisted")).toBeVisible();
   await page.getByLabel("Link title").fill("Reference");
   await page.getByLabel("Web address").fill("https://example.com/kanban");
   await page.getByRole("button", { name: "ADD LINK" }).click();
   await expect(page.getByRole("link", { name: "Reference" })).toBeVisible();
+  await page.locator(".row").filter({ hasText: "Reference" })
+    .getByRole("button", { name: "EDIT" }).click();
+  const attachmentEditor = page.getByRole("dialog", { name: "EDIT ATTACHMENT" });
+  await attachmentEditor.getByLabel("Attachment title").fill("Edited reference");
+  await attachmentEditor.getByRole("button", { name: "SAVE", exact: true }).click();
+  await expect(page.getByRole("link", { name: "Edited reference" })).toBeVisible();
   await page.getByRole("button", { name: "CLOSE" }).click();
   await page.reload();
   await expect(target.locator(".card").filter({ hasText: `Prove board ${suffix}` })).toBeVisible();
   await target.locator(".card").filter({ hasText: `Prove board ${suffix}` }).click();
-  page.once("dialog", (dialog) => dialog.accept());
   await page.locator(".card-dialog .danger button").click();
   await page.getByRole("banner").getByRole("button", { name: "ARCHIVE", exact: true }).click();
   const archived = page.locator(".archive-row").filter({ hasText: `Prove board ${suffix}` });

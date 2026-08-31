@@ -6,7 +6,7 @@ import { SynthEngine } from "./audio.js";
 import { decodeState, encodeState } from "./state-yaml.js";
 import { SynthYamlEditor } from "./yaml-editor.js";
 import {
-  PITCHES, hasPlayablePath, initialState, isNaturalPitch, midiLabel, type LabState,
+  PITCHES, initialState, isNaturalPitch, midiLabel, type LabState,
 } from "./model.js";
 import {
   boxCells, cellKey, moveSelected, pasteNotes, relativeOffsets, removeSelected, selectedNotes, selectionClass,
@@ -147,9 +147,7 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
             disabled={!this.state.clipboard.length || !this.state.anchor}>PASTE</CommandButton>
           <CommandButton onClick={this.deleteSelection}
             disabled={!this.state.selection.size}>DELETE</CommandButton>
-          <output>{this.state.selection.size} SELECTED</output></div>
-        <span role="status">{lab.instruments.some(hasPlayablePath)
-          ? "SIGNAL READY" : "PATCH INCOMPLETE — SILENT"}</span></div>
+          <output>{this.state.selection.size} SELECTED</output></div></div>
       <div class="piano-scroll" tabIndex={0} aria-label="Two bar piano roll editor">
         <div class="piano-roll" role="grid" aria-label="Two bar piano roll"
           aria-rowcount={PITCHES.length} aria-colcount={32}>

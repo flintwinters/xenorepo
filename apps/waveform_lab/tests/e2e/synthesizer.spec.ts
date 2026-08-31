@@ -21,7 +21,7 @@ async function dragBetween(page: Page, from: Locator, to: Locator): Promise<void
 
 test("[acceptance] the GUI loop survives reload and controls playback", async ({ page }) => {
   await page.goto("/");
-  await expect(page.getByText("SIGNAL READY")).toBeVisible();
+  await expect(page.getByLabel("Loop instrument")).toBeVisible();
   await expect(page.getByRole("gridcell")).toHaveCount(48 * 32);
   await expect(page.getByLabel("Patch bay")).toHaveCount(0);
   await expect(page.getByLabel("Draw one cycle waveform")).toHaveCount(0);
@@ -102,7 +102,7 @@ test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) =
   await page.keyboard.type("main:\n  modules: invalid");
   await page.getByRole("button", { name: "APPLY YAML" }).click();
   await expect(page.getByRole("alert")).toContainText("violates");
-  await expect(page.getByText("SIGNAL READY")).toBeVisible();
+  await expect(page.getByLabel("Loop instrument").locator("option")).toHaveCount(5);
 
   await page.getByRole("button", { name: "REVERT DRAFT" }).click();
   await replaceYaml(page, editor, "#b8bb26", "#d3869b");
@@ -286,5 +286,5 @@ test("[acceptance] coordinate-bearing state migrates and malformed storage recov
   await page.evaluate(() => localStorage.setItem("waveform-lab-state-v1", "{malformed"));
   await page.reload();
   await expect(page.getByLabel("Tempo in BPM")).toHaveValue("120");
-  await expect(page.getByText("SIGNAL READY")).toBeVisible();
+  await expect(page.getByLabel("Loop instrument").locator("option")).toHaveCount(5);
 });

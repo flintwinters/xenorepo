@@ -38,7 +38,6 @@ input, select { color: #ebdbb2; font: inherit; background: #282828; border: 1px 
 .selection-tools .x-ui-command-control { padding: 3px 5px; }
 .selection-tools output { min-width: 64px; color: #a89984; }
 .instrument-color { width: 10px; height: 10px; margin: 0; border: 1px solid #ebdbb2; }
-.transport span { margin-left: auto; color: #8ec07c; }
 .sequence-pane > .x-ui-pane-body {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);

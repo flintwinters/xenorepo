@@ -1,442 +1,207 @@
-const SAMPLE_COUNT = 128;
+import { MODULE_REGISTRY, acceptsAudio, emitsAudio, emitsControl, isModuleKind, isSource,
+  modulationTargets, moduleDefinition, registryDefaults, type ModuleKind, type ParameterValue } from "./module-registry.js";
+import { freshInstruments } from "./presets.js";
+
 export const STEP_COUNT = 32;
-export const STATE_VERSION = 13 as const;
+export const STATE_VERSION = 14 as const;
+export { MODULE_REGISTRY, acceptsAudio, emitsAudio, emitsControl, modulationTargets };
+export type { ModuleKind };
+export type ConnectionType = "audio" | "modulation";
+export type ModuleParameters = Record<string, ParameterValue>;
+export interface ModuleNode { id: string; kind: ModuleKind; parameters: ModuleParameters; bypass?: boolean; }
+export interface Connection { from: string; to: string; type?: ConnectionType; target?: string; amount?: number; }
+export interface Instrument { name: string; color: string; modules: ModuleNode[]; connections: Connection[]; }
+export interface SequencedNote { pitch: number; instrument: string; }
+export interface LabState { version: 14; instruments: Instrument[]; notes: SequencedNote[][]; bpm: number; volume: number; }
+
+const finite = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value);
+const record = (value: unknown): value is Record<string, unknown> =>
+  Boolean(value) && typeof value === "object" && !Array.isArray(value);
 export function pitchesForTopOctave(octave: number): number[] {
-  const top = (octave + 1) * 12 + 11;
-  return Array.from({ length: 48 }, (_, index) => top - index);
+  const top = (octave + 1) * 12 + 11; return Array.from({ length: 48 }, (_, index) => top - index);
 }
 export function isSafeTopOctave(octave: number): boolean {
   return Number.isSafeInteger(octave) && pitchesForTopOctave(octave).every(Number.isSafeInteger);
 }
-export type WaveformShape = "sine" | "square" | "saw" | "triangle";
-
-export type ModuleKind = "waveform" | "gain" | "output" | "filter" | "adsr" | "saturation"
-  | "delay" | "reverb" | "mixer" | "chorus" | "compressor" | "noise" | "lfo";
-export type ConnectionType = "audio" | "modulation";
-export type ModuleParameters = Record<string, number>;
-export interface ModuleNode {
-  id: string; kind: ModuleKind;
-  parameters?: ModuleParameters; bypass?: boolean;
-}
-/** Optional for source compatibility with the v1 UI; absent means audio. */
-export interface Connection {
-  from: string; to: string; type?: ConnectionType; target?: string;
-}
-export interface Instrument {
-  name: string; color: string; waveform: WaveformShape;
-  modules: ModuleNode[]; connections: Connection[];
-}
-export interface SequencedNote { pitch: number; instrument: string; }
-export interface LabState {
-  version: typeof STATE_VERSION; instruments: Instrument[];
-  notes: SequencedNote[][]; bpm: number; volume: number;
-}
-
-type Bounds = Readonly<Record<string, readonly [number, number]>>;
-export const PARAMETER_BOUNDS: Readonly<Record<ModuleKind, Bounds>> = {
-  waveform: { detune: [-1200, 1200] }, gain: { gain: [0, 2] }, output: { level: [0, 1] },
-  filter: { mode: [0, 3], frequency: [20, 20000], resonance: [0.1, 30] },
-  adsr: { attack: [0.001, 10], decay: [0.001, 10], sustain: [0, 1], release: [0.001, 20] },
-  saturation: { drive: [1, 20], mix: [0, 1] },
-  delay: { time: [0, 2], feedback: [0, 0.95], mix: [0, 1] },
-  reverb: { decay: [0.1, 20], mix: [0, 1] }, mixer: { level: [0, 2] },
-  chorus: { rate: [0.05, 10], depth: [0, 1], mix: [0, 1] },
-  compressor: { threshold: [-100, 0], ratio: [1, 20], attack: [0, 1], release: [0, 1] },
-  noise: { color: [0, 2], level: [0, 1] }, lfo: { shape: [0, 3], rate: [0.01, 30], depth: [0, 1] },
-};
-export const MODULATION_TARGETS: Readonly<Partial<Record<ModuleKind, readonly string[]>>> = {
-  waveform: ["detune"], gain: ["gain"], output: ["level"], filter: ["frequency", "resonance"],
-  saturation: ["drive", "mix"], delay: ["time", "feedback", "mix"], reverb: ["mix"],
-  mixer: ["level"], chorus: ["rate", "depth", "mix"],
-  compressor: ["threshold", "ratio", "attack", "release"], noise: ["level"],
-};
-const defaults: Readonly<Record<ModuleKind, ModuleParameters>> = {
-  waveform: { detune: 0 }, gain: { gain: 0.8 }, output: { level: 0.8 },
-  filter: { mode: 0, frequency: 1200, resonance: 1 },
-  adsr: { attack: 0.01, decay: 0.15, sustain: 0.7, release: 0.3 },
-  saturation: { drive: 2, mix: 0.5 }, delay: { time: 0.25, feedback: 0.3, mix: 0.25 },
-  reverb: { decay: 2, mix: 0.25 }, mixer: { level: 1 },
-  chorus: { rate: 1.5, depth: 0.35, mix: 0.3 },
-  compressor: { threshold: -24, ratio: 4, attack: 0.01, release: 0.25 },
-  noise: { color: 0, level: 0.25 }, lfo: { shape: 0, rate: 2, depth: 0.5 },
-};
-const kinds = new Set<ModuleKind>(Object.keys(PARAMETER_BOUNDS) as ModuleKind[]);
-const sources = new Set<ModuleKind>(["waveform", "noise"]);
-const controls = new Set<ModuleKind>(["adsr", "lfo"]);
-const bypassable = new Set<ModuleKind>(["filter", "adsr", "saturation", "delay", "reverb", "chorus", "compressor"]);
-
-export function defaultParameters(kind: ModuleKind): ModuleParameters { return { ...defaults[kind] }; }
+export function defaultParameters(kind: ModuleKind): ModuleParameters { return registryDefaults(kind); }
 export function createModule(id: string, kind: ModuleKind): ModuleNode {
-  return { id, kind, parameters: defaultParameters(kind), ...(bypassable.has(kind) ? { bypass: false } : {}) };
+  return { id, kind, parameters: defaultParameters(kind),
+    ...(MODULE_REGISTRY[kind].bypassable ? { bypass: false } : {}) };
 }
-
-interface ModuleSetup { id: string; kind: ModuleKind; parameters?: ModuleParameters; }
-
-function serialInstrument(name: string, color: string, waveform: WaveformShape,
-    setup: ModuleSetup[]): Instrument {
-  const modules = setup.map(({ id, kind, parameters }) => ({ ...createModule(id, kind),
-    ...(parameters ? { parameters: { ...defaultParameters(kind), ...parameters } } : {}) }));
-  const path = [...setup.map(({ id }) => id), "output"];
-  return { name, color, waveform, modules: [...modules, createModule("output", "output")],
-    connections: path.slice(0, -1).map((from, index) => ({ from, to: path[index + 1] as string,
-      type: "audio" })) };
+export function initialState(): LabState {
+  return { version: 14, instruments: freshInstruments(), notes: Array.from({ length: STEP_COUNT }, () => []),
+    bpm: 120, volume: 0.8 };
 }
-
-function priorDefaultInstruments(): Instrument[] {
-  return [
-    serialInstrument("main", "#b8bb26", "sine", [
-      { id: "waveform-1", kind: "waveform" }, { id: "gain-1", kind: "gain" },
-    ]),
-    serialInstrument("bass", "#fb4934", "square", [
-      { id: "bass-waveform-1", kind: "waveform" }, { id: "bass-gain-1", kind: "gain" },
-    ]),
-  ];
-}
-
-function defaultInstruments(): Instrument[] {
-  return [
-    serialInstrument("kick", "#fb4934", "sine", [
-      { id: "kick-oscillator", kind: "waveform", parameters: { detune: -1200 } },
-      { id: "kick-filter", kind: "filter", parameters: { mode: 0, frequency: 180, resonance: 3 } },
-      { id: "kick-envelope", kind: "adsr",
-        parameters: { attack: 0.001, decay: 0.08, sustain: 0.1, release: 0.04 } },
-      { id: "kick-gain", kind: "gain", parameters: { gain: 1.1 } },
-    ]),
-    serialInstrument("snare", "#fe8019", "sine", [
-      { id: "snare-noise", kind: "noise", parameters: { color: 0, level: 0.7 } },
-      { id: "snare-filter", kind: "filter", parameters: { mode: 1, frequency: 1200, resonance: 0.8 } },
-      { id: "snare-envelope", kind: "adsr",
-        parameters: { attack: 0.001, decay: 0.1, sustain: 0.08, release: 0.06 } },
-      { id: "snare-gain", kind: "gain", parameters: { gain: 0.75 } },
-    ]),
-    serialInstrument("stick", "#fabd2f", "sine", [
-      { id: "stick-noise", kind: "noise", parameters: { color: 0, level: 0.45 } },
-      { id: "stick-filter", kind: "filter", parameters: { mode: 1, frequency: 6000, resonance: 2 } },
-      { id: "stick-envelope", kind: "adsr",
-        parameters: { attack: 0.001, decay: 0.02, sustain: 0, release: 0.015 } },
-      { id: "stick-gain", kind: "gain", parameters: { gain: 0.65 } },
-    ]),
-    serialInstrument("bass", "#83a598", "square", [
-      { id: "bass-oscillator", kind: "waveform", parameters: { detune: -1200 } },
-      { id: "bass-filter", kind: "filter", parameters: { mode: 0, frequency: 520, resonance: 2.5 } },
-      { id: "bass-envelope", kind: "adsr",
-        parameters: { attack: 0.008, decay: 0.12, sustain: 0.72, release: 0.18 } },
-      { id: "bass-saturation", kind: "saturation", parameters: { drive: 2.8, mix: 0.22 } },
-      { id: "bass-gain", kind: "gain", parameters: { gain: 0.85 } },
-    ]),
-    serialInstrument("lead", "#b8bb26", "saw", [
-      { id: "lead-oscillator", kind: "waveform" },
-      { id: "lead-filter", kind: "filter", parameters: { mode: 0, frequency: 2400, resonance: 1.8 } },
-      { id: "lead-envelope", kind: "adsr",
-        parameters: { attack: 0.015, decay: 0.12, sustain: 0.78, release: 0.24 } },
-      { id: "lead-delay", kind: "delay", parameters: { time: 0.18, feedback: 0.22, mix: 0.16 } },
-      { id: "lead-gain", kind: "gain", parameters: { gain: 0.72 } },
-    ]),
-  ];
-}
-
-export function waveformSamples(kind: WaveformShape): number[] {
-  return Array.from({ length: SAMPLE_COUNT }, (_, index) => {
-    const phase = index / SAMPLE_COUNT;
+export function waveformSamples(kind: string): number[] {
+  return Array.from({ length: 128 }, (_, index) => { const phase = index / 128;
     if (kind === "sine") return Math.sin(phase * Math.PI * 2);
     if (kind === "square") return phase < 0.5 ? 1 : -1;
-    if (kind === "saw") return 1 - phase * 2;
-    return 1 - 4 * Math.abs(phase - 0.5);
-  });
+    if (kind === "saw") return 1 - phase * 2; return 1 - 4 * Math.abs(phase - 0.5); });
 }
 
-export function initialState(): LabState {
-  return {
-    version: STATE_VERSION,
-    instruments: defaultInstruments(),
-    notes: Array.from({ length: STEP_COUNT }, () => []), bpm: 120, volume: 0.8,
-  };
+function validParameter(value: unknown, definition: { range?: readonly [number, number]; values?: readonly string[] }
+  ): boolean {
+  if (definition.values) return typeof value === "string" && definition.values.includes(value);
+  return finite(value) && Boolean(definition.range) && value >= definition.range![0] && value <= definition.range![1];
 }
-
-function finite(value: unknown): value is number { return typeof value === "number" && Number.isFinite(value); }
-function record(value: unknown): value is Record<string, unknown> {
-  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
-}
-function validParameters(kind: ModuleKind, value: unknown): value is ModuleParameters {
-  if (!record(value)) return false;
-  const bounds = PARAMETER_BOUNDS[kind];
-  const names = Object.keys(bounds);
-  return Object.keys(value).length === names.length && names.every((name) => {
-    const range = bounds[name];
-    if (!range) return false;
-    return finite(value[name]) && value[name] >= range[0] && value[name] <= range[1];
-  });
-}
-type StateVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | typeof STATE_VERSION;
-function flatParameters(kind: ModuleKind, value: Record<string, unknown>, requireAll: boolean
-    ): ModuleParameters | null {
-  const parameters = defaultParameters(kind);
-  for (const [name, range] of Object.entries(PARAMETER_BOUNDS[kind])) {
-    if (value[name] === undefined) { if (requireAll) return null; continue; }
-    if (!finite(value[name]) || value[name] < range[0] || value[name] > range[1]) return null;
-    parameters[name] = value[name];
+function parseModule(value: unknown): ModuleNode | null {
+  if (!record(value) || typeof value.id !== "string" || !value.id || !isModuleKind(value.kind)) return null;
+  const definition = MODULE_REGISTRY[value.kind];
+  const allowed = new Set(["id", "kind", "connections", "bypass", ...Object.keys(definition.parameters)]);
+  if (Object.keys(value).some((name) => !allowed.has(name))) return null;
+  if ((!definition.bypassable && value.bypass !== undefined)
+    || (value.bypass !== undefined && typeof value.bypass !== "boolean")) return null;
+  const parameters = defaultParameters(value.kind);
+  for (const [name, parameter] of Object.entries(definition.parameters)) {
+    if (value[name] !== undefined && !validParameter(value[name], parameter)) return null;
+    if (value[name] !== undefined) parameters[name] = value[name] as ParameterValue;
   }
-  return parameters;
+  return { id: value.id, kind: value.kind, parameters,
+    ...(definition.bypassable ? { bypass: (value.bypass as boolean | undefined) ?? false } : {}) };
 }
-function validModule(value: unknown, version: StateVersion): value is ModuleNode {
-  if (!record(value) || typeof value.id !== "string" || !value.id || !kinds.has(value.kind as ModuleKind)) return false;
-  const kind = value.kind as ModuleKind;
-  if (version === 1) return finite(value.x) && finite(value.y) && ["waveform", "gain", "output"].includes(kind);
-  if (version === 2 && (!finite(value.x) || !finite(value.y))) return false;
-  if (version >= 3 && version <= 5) {
-    const expected = new Set(["id", "kind", "parameters", ...(bypassable.has(kind) ? ["bypass"] : [])]);
-    if (Object.keys(value).some((name) => !expected.has(name))) return false;
-  }
-  if (version >= 6) {
-    const expected = new Set(["id", "kind", ...Object.keys(PARAMETER_BOUNDS[kind]),
-      ...(bypassable.has(kind) ? ["bypass"] : []), ...(version >= 7 ? ["connections"] : [])]);
-    if (Object.keys(value).some((name) => !expected.has(name))
-      || !flatParameters(kind, value, version < 9)) return false;
-    if (version >= 7 && value.connections !== undefined && !Array.isArray(value.connections)) return false;
-  } else if (!validParameters(kind, value.parameters)) return false;
-  return bypassable.has(kind) ? (version >= 9 ? value.bypass === undefined
-    || typeof value.bypass === "boolean" : typeof value.bypass === "boolean") : value.bypass === undefined;
-}
-function edgeType(edge: Connection): ConnectionType { return edge.type ?? "audio"; }
-export function acceptsAudio(kind: ModuleKind): boolean { return !sources.has(kind) && kind !== "lfo"; }
-export function emitsAudio(kind: ModuleKind): boolean { return kind !== "output" && kind !== "lfo"; }
-export function emitsControl(kind: ModuleKind): boolean { return controls.has(kind); }
 function createsCycle(connections: Connection[], candidate: Connection): boolean {
   const adjacency = new Map<string, string[]>();
-  for (const edge of [...connections, candidate]) {
-    const next = adjacency.get(edge.from) ?? []; next.push(edge.to); adjacency.set(edge.from, next);
-  }
-  const pending = [candidate.to];
-  const visited = new Set<string>();
-  while (pending.length) {
-    const id = pending.pop() as string;
-    if (id === candidate.from) return true;
-    if (!visited.has(id)) { visited.add(id); pending.push(...(adjacency.get(id) ?? [])); }
-  }
+  for (const edge of [...connections, candidate]) adjacency.set(edge.from, [...(adjacency.get(edge.from) ?? []), edge.to]);
+  const pending = [candidate.to]; const visited = new Set<string>();
+  while (pending.length) { const id = pending.pop() as string; if (id === candidate.from) return true;
+    if (!visited.has(id)) { visited.add(id); pending.push(...(adjacency.get(id) ?? [])); } }
   return false;
 }
-
 export function validConnection(modules: ModuleNode[], edge: Connection, existing: Connection[] = []): boolean {
-  const from = modules.find((node) => node.id === edge.from);
-  const to = modules.find((node) => node.id === edge.to);
+  const from = modules.find((node) => node.id === edge.from); const to = modules.find((node) => node.id === edge.to);
   if (!from || !to || from.id === to.id || createsCycle(existing, edge)) return false;
-  if (edgeType(edge) === "audio") return edge.target === undefined && emitsAudio(from.kind) && acceptsAudio(to.kind);
-  const occupied = existing.some((item) => edgeType(item) === "modulation"
+  if ((edge.type ?? "audio") === "audio")
+    return edge.target === undefined && edge.amount === undefined && emitsAudio(from.kind) && acceptsAudio(to.kind);
+  const occupied = existing.some((item) => item.type === "modulation"
     && item.to === edge.to && item.target === edge.target);
-  return !occupied && controls.has(from.kind) && typeof edge.target === "string"
-    && (MODULATION_TARGETS[to.kind]?.includes(edge.target) ?? false);
+  return edge.type === "modulation" && !occupied && emitsControl(from.kind) && typeof edge.target === "string"
+    && modulationTargets(to.kind).includes(edge.target) && (edge.amount === undefined || finite(edge.amount));
 }
-
-export function hasPlayablePath(instrument: Instrument): boolean {
-  const outputs = new Set(instrument.modules.filter((node) => node.kind === "output").map((node) => node.id));
-  const pending = instrument.modules.filter((node) => sources.has(node.kind)).map((node) => node.id);
-  const visited = new Set<string>();
-  while (pending.length) {
-    const id = pending.shift() as string;
-    if (outputs.has(id)) return true;
-    if (!visited.has(id)) {
-      visited.add(id);
-      pending.push(...instrument.connections.filter((edge) => edgeType(edge) === "audio" && edge.from === id)
-        .map((edge) => edge.to));
-    }
+function parseConnection(value: unknown, owner: string, modules: ModuleNode[], existing: Connection[]
+  ): Connection | null {
+  if (!record(value) || value.from !== owner || typeof value.to !== "string"
+    || Object.keys(value).some((name) => !["from", "to", "type", "target", "amount"].includes(name))) return null;
+  const edge = { from: owner, to: value.to,
+    ...(value.type === undefined ? {} : { type: value.type as ConnectionType }),
+    ...(value.target === undefined ? {} : { target: value.target as string }),
+    ...(value.amount === undefined ? {} : { amount: value.amount as number }) };
+  const duplicate = existing.some((item) => (item.type ?? "audio") === (edge.type ?? "audio")
+    && item.from === edge.from && item.to === edge.to && item.target === edge.target);
+  return !duplicate && validConnection(modules, edge, existing) ? edge : null;
+}
+function parseInstrument(name: string, value: unknown): Instrument | null {
+  if (!record(value) || !/^#[\da-fA-F]{6}$/.test(value.color as string) || !Array.isArray(value.modules)
+    || Object.keys(value).some((key) => !["color", "output", "modules"].includes(key))) return null;
+  const parsed = value.modules.map(parseModule); if (parsed.some((module) => !module)) return null;
+  const modules = parsed as ModuleNode[];
+  if (!modules.length || new Set(modules.map((module) => module.id)).size !== modules.length
+    || modules.some((module) => module.kind === "output" || module.id === "output")) return null;
+  const output = createModule("output", "output");
+  if (value.output !== undefined) {
+    if (!record(value.output) || Object.keys(value.output).some((key) => key !== "level")
+      || (value.output.level !== undefined
+        && !validParameter(value.output.level, MODULE_REGISTRY.output.parameters.level))) return null;
+    if (value.output.level !== undefined) output.parameters.level = value.output.level as number;
   }
-  return false;
-}
-
-function waveformOf(saved: Record<string, unknown>, version: StateVersion): WaveformShape | null {
-  if (version >= 5)
-    if (version >= 9 && saved.waveform === undefined) return "sine";
-  if (version >= 5)
-    return ["sine", "square", "saw", "triangle"].includes(saved.waveform as string)
-      ? saved.waveform as WaveformShape : null;
-  if (!Array.isArray(saved.samples) || saved.samples.length !== SAMPLE_COUNT
-      || !saved.samples.every((sample) => finite(sample) && sample >= -1 && sample <= 1)) return null;
-  const shapes: WaveformShape[] = ["sine", "square", "saw", "triangle"];
-  return shapes.reduce((best, shape) => {
-    const error = waveformSamples(shape).reduce((sum, sample, index) =>
-      sum + (sample - (saved.samples as number[])[index]!) ** 2, 0);
-    return error < best.error ? { shape, error } : best;
-  }, { shape: "sine" as WaveformShape, error: Number.POSITIVE_INFINITY }).shape;
-}
-function sequence(saved: Record<string, unknown>, version: StateVersion, instruments: Set<string>
-    ): Pick<LabState, "notes" | "bpm" | "volume"> | null {
-  if (!Array.isArray(saved.notes) || !finite(saved.bpm) || saved.notes.length !== STEP_COUNT) return null;
-  const notes: SequencedNote[][] = [];
-  for (const step of saved.notes) {
-    if (!Array.isArray(step)) return null;
-    const values = version < 8 ? step.map((pitch) => ({ pitch, instrument: "main" })) : step;
-    if (!values.every((note) => record(note) && Number.isSafeInteger(note.pitch)
-      && typeof note.instrument === "string" && instruments.has(note.instrument))) return null;
-    const keys = values.map((note) => `${(note as SequencedNote).instrument}:${(note as SequencedNote).pitch}`);
-    if (new Set(keys).size !== keys.length) return null;
-    notes.push(values.map((note) => ({ pitch: (note as SequencedNote).pitch,
-      instrument: (note as SequencedNote).instrument })));
-  }
-  const volume = version < 4 ? 0.8 : saved.volume;
-  if (!finite(volume) || volume < 0 || volume > 1) return null;
-  return { notes, bpm: Math.max(40, Math.min(240, saved.bpm)), volume };
-}
-function modulesOf(values: unknown[], version: StateVersion): ModuleNode[] | null {
-  if (!values.length || !values.every((value) => validModule(value, version))) return null;
-  const modules = values.map((value) => {
-    const node = value as ModuleNode;
-    if (version === 1) return createModule(node.id, node.kind);
-    if (version >= 6) {
-      const raw = value as unknown as Record<string, unknown>;
-      const parameters = flatParameters(node.kind, raw, version < 9);
-      if (!parameters) throw new Error("validated module parameters were not recoverable");
-      return { id: node.id, kind: node.kind,
-        parameters, ...(bypassable.has(node.kind) ? { bypass: node.bypass ?? false } : {}) };
-    }
-    return { id: node.id, kind: node.kind, parameters: { ...node.parameters },
-      ...(node.bypass === undefined ? {} : { bypass: node.bypass }) };
-  });
-  return new Set(modules.map((node) => node.id)).size === modules.length ? modules : null;
-}
-function connectionsOf(values: unknown[], modules: ModuleNode[], legacy: boolean): Connection[] | null {
-  const result: Connection[] = [];
-  for (const value of values) {
-    if (!record(value) || typeof value.from !== "string" || typeof value.to !== "string") return null;
-    const edge: Connection = legacy || value.type === undefined ? { from: value.from, to: value.to, type: "audio" }
-      : { from: value.from, to: value.to, type: value.type as ConnectionType,
-        ...(value.target === undefined ? {} : { target: value.target as string }) };
-    const duplicate = result.some((item) => edgeType(item) === edgeType(edge) && item.from === edge.from
-      && item.to === edge.to && item.target === edge.target);
-    if ((!legacy && edge.type !== "audio" && edge.type !== "modulation") || duplicate
-      || !validConnection(modules, edge, result)) return null;
-    result.push(edge);
-  }
-  return result;
-}
-
-function embeddedConnections(values: unknown[]): unknown[] | null {
-  const connections: unknown[] = [];
-  for (const value of values) {
-    if (!record(value)) return null;
-    const embedded = value.connections ?? [];
-    if (!Array.isArray(embedded)) return null;
-    for (const edge of embedded) {
-      if (!record(edge) || edge.from !== value.id) return null;
+  const complete = [...modules, output]; const connections: Connection[] = [];
+  for (const raw of value.modules) { if (!record(raw)
+      || (raw.connections !== undefined && !Array.isArray(raw.connections))) return null;
+    for (const item of (raw.connections as unknown[] | undefined) ?? []) {
+      const edge = parseConnection(item, raw.id as string, complete, connections); if (!edge) return null;
       connections.push(edge);
-    }
-  }
-  return connections;
+    } }
+  return { name, color: value.color as string, modules: complete, connections };
+}
+function parseSequence(value: unknown, names: Set<string>): Pick<LabState, "notes" | "bpm" | "volume"> | null {
+  if (!record(value) || !Array.isArray(value.notes) || value.notes.length !== STEP_COUNT || !finite(value.bpm)) return null;
+  const notes: SequencedNote[][] = [];
+  for (const step of value.notes) { if (!Array.isArray(step)) return null;
+    if (!step.every((note) => record(note) && Number.isSafeInteger(note.pitch)
+      && typeof note.instrument === "string" && names.has(note.instrument))) return null;
+    const values = step as unknown as SequencedNote[];
+    if (new Set(values.map((note) => `${note.instrument}:${note.pitch}`)).size !== values.length) return null;
+    notes.push(values.map((note) => ({ ...note }))); }
+  return finite(value.volume) && value.volume >= 0 && value.volume <= 1
+    ? { notes, bpm: Math.max(40, Math.min(240, value.bpm)), volume: value.volume } : null;
+}
+function parseCurrent(value: Record<string, unknown>): LabState | null {
+  if (value.version !== 14 || !record(value.loop)) return null;
+  const entries = Object.entries(value).filter(([name]) => name !== "version" && name !== "loop");
+  const instruments = entries.map(([name, raw]) => parseInstrument(name, raw));
+  if (!entries.length || instruments.some((item) => !item)) return null;
+  const sequence = parseSequence(value.loop, new Set(entries.map(([name]) => name)));
+  return sequence ? { version: 14, instruments: instruments as Instrument[], ...sequence } : null;
 }
 
-function instrumentOf(value: unknown, version: StateVersion, mappedName?: string): Instrument | null {
-  if (!record(value) || !/^#[0-9a-fA-F]{6}$/.test(value.color as string)
-      || !Array.isArray(value.modules)) return null;
-  const name = mappedName ?? value.name;
-  if (typeof name !== "string" || !name.trim()) return null;
-  const fields = mappedName ? ["color", "waveform", "output", "modules"]
-    : ["name", "color", "waveform", "modules"];
-  if (Object.keys(value).some((key) => !fields.includes(key))) return null;
-  if (version >= 11 && value.modules.some((module) =>
-    record(module) && (module.id === "output" || module.kind === "output"))) return null;
-  const parsedModules = modulesOf(value.modules, version);
-  let reservedOutput = createModule("output", "output");
-  if (version >= 11 && value.output !== undefined) {
-    if (!record(value.output) || Object.keys(value.output).some((field) => field !== "level")
-      || !finite(value.output.level) || value.output.level < 0 || value.output.level > 1) return null;
-    reservedOutput = { ...reservedOutput, parameters: { level: value.output.level } };
-  }
-  const modules = parsedModules && version >= 11
-    ? [...parsedModules, reservedOutput] : parsedModules;
-  const embedded = embeddedConnections(value.modules);
-  const waveform = waveformOf(value, version);
-  if (!modules || !embedded || !waveform) return null;
-  const connections = connectionsOf(embedded, modules, false);
-  return connections ? { name, color: value.color as string,
-    waveform, modules, connections } : null;
+const LEGACY_KIND: Record<string, ModuleKind> = { waveform: "oscillator", adsr: "envelope" };
+const ENUMS: Record<string, readonly string[]> = { "filter:mode": ["low-pass", "high-pass", "band-pass", "notch"],
+  "noise:color": ["white", "pink", "brown"], "lfo:shape": ["sine", "triangle", "square", "saw"] };
+function migrateModule(raw: unknown, shape: unknown): Record<string, unknown> | null {
+  if (!record(raw) || typeof raw.id !== "string" || typeof raw.kind !== "string") return null;
+  const kind = LEGACY_KIND[raw.kind] ?? raw.kind; if (!isModuleKind(kind)) return null;
+  const source = record(raw.parameters) ? raw.parameters : raw; const values: Record<string, unknown> = {};
+  for (const name of Object.keys(MODULE_REGISTRY[kind].parameters)) { const value = source[name];
+    values[name] = value === undefined ? moduleDefinition(kind).parameters[name]!.default
+      : ENUMS[`${kind}:${name}`] && finite(value) ? ENUMS[`${kind}:${name}`]![Math.round(value)] : value; }
+  if (kind === "oscillator") { const cents = finite(source.detune) ? source.detune : 0;
+    values.shape = typeof source.shape === "string" ? source.shape : typeof shape === "string" ? shape : "sine";
+    values.octave = finite(source.octave) ? source.octave : Math.trunc(cents / 1200);
+    values.semitone = finite(source.semitone) ? source.semitone : 0;
+    values.detune = Math.max(-100, Math.min(100, cents - (values.octave as number) * 1200)); }
+  return { id: raw.id, kind, ...values, ...(MODULE_REGISTRY[kind].bypassable && raw.bypass ? { bypass: true } : {}),
+    ...(Array.isArray(raw.connections) ? { connections: raw.connections } : {}) };
 }
-
-function withReservedOutput(instrument: Instrument): Instrument | null {
-  const outputs = instrument.modules.filter((module) => module.kind === "output");
-  if (outputs.length !== 1) return null;
-  const output = outputs[0] as ModuleNode;
-  if (output.id !== "output" && instrument.modules.some((module) => module.id === "output")) return null;
-  return { ...instrument,
-    modules: instrument.modules.map((module) => module === output
-      ? { ...output, id: "output" } : module),
-    connections: instrument.connections.map((edge) => ({ ...edge,
-      from: edge.from === output.id ? "output" : edge.from,
-      to: edge.to === output.id ? "output" : edge.to })) };
+function migrateInstrument(raw: unknown, external?: unknown[]): Record<string, unknown> | null {
+  if (!record(raw) || !Array.isArray(raw.modules)) return null;
+  const modules: Record<string, unknown>[] = []; let outputId = "output"; let output: object | undefined;
+  for (const item of raw.modules) { const module = migrateModule(item, raw.waveform); if (!module) return null;
+    if (module.kind === "output") { outputId = module.id as string; output = { level: module.level }; } else modules.push(module); }
+  for (const module of modules) if (Array.isArray(module.connections)) module.connections = module.connections.map((edge) =>
+    record(edge) && edge.to === outputId ? { ...edge, to: "output" } : edge);
+  for (const edge of external ?? (Array.isArray(raw.connections) ? raw.connections : [])) {
+    if (!record(edge) || typeof edge.from !== "string") return null;
+    const owner = modules.find((module) => module.id === edge.from); if (!owner) return null;
+    owner.connections = [...((owner.connections as unknown[] | undefined) ?? []),
+      { ...edge, to: edge.to === outputId ? "output" : edge.to }]; }
+  return { color: typeof raw.color === "string" ? raw.color : "#b8bb26", ...(output ? { output } : {}), modules };
 }
-
-function flattened(value: Record<string, unknown>): Record<string, unknown> | null {
-  if (value.version === 1) return value;
-  if (value.version !== 2 && value.version !== 3 && value.version !== 4 && value.version !== 5
-      && value.version !== 6 && value.version !== 7 && value.version !== 8
-      && value.version !== 9 && value.version !== 10 && value.version !== 11 && value.version !== 12
-      && value.version !== STATE_VERSION) return null;
-  if (!record(value.synth) || !record(value.loop)) return value;
-  return { version: value.version, ...value.synth, ...value.loop };
+function migrate(value: Record<string, unknown>): Record<string, unknown> | null {
+  if (!Number.isInteger(value.version) || (value.version as number) < 1 || (value.version as number) > 13) return null;
+  const flat = record(value.synth) && record(value.loop) ? { ...value.synth, loop: value.loop } : value;
+  const result: Record<string, unknown> = { version: 14 }; let loop: unknown;
+  if ((value.version as number) >= 11) { for (const [name, raw] of Object.entries(flat)) {
+      if (name === "version" || name === "loop") continue; const instrument = migrateInstrument(raw);
+      if (!instrument) return null; result[name] = instrument; } loop = flat.loop;
+  } else if ((value.version as number) >= 8 && Array.isArray(flat.instruments)) {
+    for (const raw of flat.instruments) { if (!record(raw) || typeof raw.name !== "string") return null;
+      const instrument = migrateInstrument(raw); if (!instrument) return null; result[raw.name] = instrument; }
+    loop = { bpm: flat.bpm, volume: flat.volume ?? 0.8, notes: flat.notes };
+  } else { const instrument = migrateInstrument(flat, Array.isArray(flat.connections) ? flat.connections : undefined);
+    if (!instrument) return null; result.main = instrument; const notes = Array.isArray(flat.notes)
+      ? flat.notes.map((step) => Array.isArray(step) ? step.map((pitch) => ({ pitch, instrument: "main" })) : step) : flat.notes;
+    loop = { bpm: flat.bpm, volume: flat.volume ?? 0.8, notes }; }
+  result.loop = loop; return result;
 }
-
-/** Validates current nested YAML data or legacy flat state without manufacturing a fallback. */
+function wasDefault(state: LabState, version: number): boolean { const signature = state.instruments.map((instrument) =>
+  [instrument.name, instrument.modules.filter((module) => module.kind !== "output").map((module) => module.id)]);
+  return version === 11 && JSON.stringify(signature) === JSON.stringify([["main", ["waveform-1", "gain-1"]]])
+    || version === 12 && JSON.stringify(signature) === JSON.stringify([["main", ["waveform-1", "gain-1"]],
+      ["bass", ["bass-waveform-1", "bass-gain-1"]]]); }
 export function validatedState(value: unknown): LabState | null {
-  if (!record(value)) return null;
-  const saved = flattened(value);
-  if (!saved || (saved.version !== 1 && saved.version !== 2 && saved.version !== 3 && saved.version !== 4
-      && saved.version !== 5 && saved.version !== 6 && saved.version !== 7 && saved.version !== 8
-      && saved.version !== 9 && saved.version !== 10 && saved.version !== 11 && saved.version !== 12
-      && saved.version !== STATE_VERSION)) return null;
-  const version = saved.version as StateVersion;
-  if (version >= 11) {
-    if (!record(saved.loop)) return null;
-    const entries = Object.entries(saved).filter(([name]) => name !== "version" && name !== "loop");
-    if (!entries.length) return null;
-    const instruments = entries.map(([name, instrument]) => instrumentOf(instrument, version, name));
-    if (instruments.some((instrument) => !instrument)) return null;
-    const restoredInstruments = instruments as Instrument[];
-    const priorDefaults = priorDefaultInstruments();
-    const oldDefault = version === 11 && restoredInstruments.length === 1
-      && JSON.stringify(restoredInstruments) === JSON.stringify(priorDefaults.slice(0, 1));
-    const currentDefault = version === 12
-      && JSON.stringify(restoredInstruments) === JSON.stringify(priorDefaults);
-    const validInstruments = oldDefault || currentDefault ? defaultInstruments() : restoredInstruments;
-    const sequencer = sequence(saved.loop as Record<string, unknown>, version, new Set(entries.map(([name]) => name)));
-    const migratedSequencer = sequencer && (oldDefault || currentDefault)
-      ? { ...sequencer, notes: sequencer.notes.map((notes) => notes.map((note) => ({ ...note,
-        instrument: note.instrument === "main" ? "lead" : note.instrument }))) }
-      : sequencer;
-    return migratedSequencer
-      ? { version: STATE_VERSION, instruments: validInstruments, ...migratedSequencer } : null;
-  }
-  if (version >= 8) {
-    if (!Array.isArray(saved.instruments) || !saved.instruments.length) return null;
-    const instruments = saved.instruments.map((instrument) => instrumentOf(instrument, version));
-    if (instruments.some((instrument) => !instrument)) return null;
-    const migratedInstruments = (instruments as Instrument[]).map(withReservedOutput);
-    if (migratedInstruments.some((instrument) => !instrument)) return null;
-    const validInstruments = migratedInstruments as Instrument[];
-    const names = validInstruments.map((instrument) => instrument.name);
-    if (new Set(names).size !== names.length) return null;
-    const sequencer = sequence(saved, version, new Set(names));
-    return sequencer ? { version: STATE_VERSION, instruments: validInstruments, ...sequencer } : null;
-  }
-  if (!Array.isArray(saved.modules)) return null;
-  const legacy = version === 1;
-  const connectionValues = version === 7 ? embeddedConnections(saved.modules) : saved.connections;
-  if (!Array.isArray(connectionValues)) return null;
-  const modules = modulesOf(saved.modules, version);
-  const sequencer = sequence(saved, version, new Set(["main"]));
-  const waveform = waveformOf(saved, version);
-  if (!modules || !sequencer || !waveform) return null;
-  const connections = connectionsOf(connectionValues, modules, legacy);
-  const migrated = connections ? { name: "main", color: "#b8bb26", waveform, modules, connections } : null;
-  const instruments = migrated ? [withReservedOutput(migrated)] : null;
-  if (instruments?.some((instrument) => !instrument)) return null;
-  return instruments ? { version: STATE_VERSION, instruments: instruments as Instrument[], ...sequencer } : null;
+  if (!record(value)) return null; if (value.version === 14) return parseCurrent(value);
+  const document = migrate(value); const state = document && parseCurrent(document); if (!state) return null;
+  if (!wasDefault(state, value.version as number)) return state;
+  return { ...state, instruments: freshInstruments(), notes: state.notes.map((step) => step.map((note) =>
+    ({ ...note, instrument: note.instrument === "main" ? "lead" : note.instrument }))) };
 }
-
-/** Restores current YAML data or atomically migrates valid legacy state; defects return a fresh patch. */
 export function restoreState(value: unknown): LabState { return validatedState(value) ?? initialState(); }
-
-export function midiLabel(midi: number): string {
-  const names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
-  return `${names[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`;
-}
+export function hasPlayablePath(instrument: Instrument): boolean { const outputs = new Set(instrument.modules
+    .filter((node) => node.kind === "output").map((node) => node.id));
+  const pending = instrument.modules.filter((node) => isSource(node.kind)).map((node) => node.id); const seen = new Set<string>();
+  while (pending.length) { const id = pending.shift() as string; if (outputs.has(id)) return true;
+    if (!seen.has(id)) { seen.add(id); pending.push(...instrument.connections.filter((edge) =>
+      (edge.type ?? "audio") === "audio" && edge.from === id).map((edge) => edge.to)); } } return false; }
+export function midiLabel(midi: number): string { const names = ["C", "C♯", "D", "D♯", "E", "F", "F♯", "G", "G♯", "A", "A♯", "B"];
+  return `${names[((midi % 12) + 12) % 12]}${Math.floor(midi / 12) - 1}`; }
 export function isNaturalPitch(midi: number): boolean {
-  return [0, 2, 4, 5, 7, 9, 11].includes(((midi % 12) + 12) % 12);
-}
+  return [0, 2, 4, 5, 7, 9, 11].includes(((midi % 12) + 12) % 12); }

@@ -15,16 +15,16 @@ function moduleOf(module: ModuleNode, instrument: Instrument): object {
 function connectionOf(connection: Connection): object {
   return { from: connection.from, to: connection.to,
     ...((connection.type ?? "audio") === "audio" ? {} : { type: connection.type }),
-    ...(connection.target === undefined ? {} : { target: connection.target }) };
+    ...(connection.target === undefined ? {} : { target: connection.target }),
+    ...(connection.amount === undefined ? {} : { amount: connection.amount }) };
 }
 
-function instrumentMapOf(state: LabState): Record<string, object> {
-  return Object.fromEntries(state.instruments.map((instrument) => {
+export function instrumentMapOf(instruments: Instrument[]): Record<string, object> {
+  return Object.fromEntries(instruments.map((instrument) => {
     const output = instrument.modules.find((module) => module.kind === "output");
     const level = output?.parameters?.level ?? defaultParameters("output").level;
     return [instrument.name, {
       color: instrument.color,
-      ...(instrument.waveform === "sine" ? {} : { waveform: instrument.waveform }),
       ...(level === defaultParameters("output").level ? {} : { output: { level } }),
       modules: instrument.modules.filter((module) => module.kind !== "output")
         .map((module) => moduleOf(module, instrument)),
@@ -35,7 +35,7 @@ function instrumentMapOf(state: LabState): Record<string, object> {
 function documentOf(state: LabState): object {
   return {
     version: STATE_VERSION,
-    ...instrumentMapOf(state),
+    ...instrumentMapOf(state.instruments),
     loop: { bpm: state.bpm, volume: state.volume, notes: state.notes },
   };
 }
@@ -47,7 +47,7 @@ export function decodeState(source: string): LabState | null {
 }
 
 export function encodeSynth(state: LabState): string {
-  return stringify(instrumentMapOf(state), { lineWidth: 0 });
+  return stringify(instrumentMapOf(state.instruments), { lineWidth: 0 });
 }
 
 export function applySynth(source: string, current: LabState): LabState {

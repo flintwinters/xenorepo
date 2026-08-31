@@ -178,7 +178,7 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
   override render() {
     const header = <UtilityRail><strong>WAVEFORM LAB</strong><span>MODULAR SIGNAL WORKBENCH</span>
       <span class="header-state">{this.state.playing ? "RUNNING" : "READY"}</span></UtilityRail>;
-    const footer = <StatusRail><span>WEB AUDIO</span><span>13 MODULE TYPES · AUDIO + MODULATION</span></StatusRail>;
+    const footer = <StatusRail><span>WEB AUDIO</span><span>16 MODULE TYPES · AUDIO + MODULATION</span></StatusRail>;
     return <ConsoleShell class="lab-shell" header={header} footer={footer}><ConsoleWorkspace class="workspace">
       <SynthYamlEditor lab={this.state.lab} commit={this.commit} />{this.renderSequencer()}
     </ConsoleWorkspace></ConsoleShell>;

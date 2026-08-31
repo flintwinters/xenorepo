@@ -1,4 +1,4 @@
-import { waveformSamples, type ModuleNode, type WaveformShape } from "../model.js";
+import { waveformSamples, type ModuleNode } from "../model.js";
 
 export interface AudioCaches { noise: Map<string, AudioBuffer>; impulses: Map<string, AudioBuffer>; }
 export interface RuntimeModule {
@@ -7,11 +7,16 @@ export interface RuntimeModule {
   tail: number;
 }
 interface BuildContext {
-  audio: AudioContext; module: ModuleNode; waveform: WaveformShape; midi: number;
+  audio: AudioContext; module: ModuleNode; midi: number;
   now: number; gate: number; chordSize: number; caches: AudioCaches;
 }
 
-function value(module: ModuleNode, name: string): number { return module.parameters?.[name] ?? 0; }
+function value(module: ModuleNode, name: string): number {
+  const result = module.parameters[name]; return typeof result === "number" ? result : 0;
+}
+function textValue(module: ModuleNode, name: string): string {
+  const result = module.parameters[name]; return typeof result === "string" ? result : "";
+}
 function runtime(input?: AudioNode, output?: AudioNode): RuntimeModule {
   return { ...(input ? { input } : {}), ...(output ? { output } : {}), targets: {}, sources: [],
     nodes: [input, output].filter((node): node is AudioNode => Boolean(node)), tail: 0 };
@@ -27,35 +32,36 @@ function wetDry(audio: AudioContext, effect: AudioNode, mix: number): RuntimeMod
   const built = runtime(input, output); built.nodes.push(effect, dry, wet); built.targets.mix = wet.gain; return built;
 }
 function periodicBuffer(context: BuildContext): AudioBuffer {
-  const samples = waveformSamples(context.waveform);
+  const samples = waveformSamples(textValue(context.module, "shape"));
   const buffer = context.audio.createBuffer(1, samples.length, context.audio.sampleRate);
   buffer.copyToChannel(Float32Array.from(samples), 0); return buffer;
 }
-function waveform(context: BuildContext): RuntimeModule {
+function oscillator(context: BuildContext): RuntimeModule {
   const source = context.audio.createBufferSource(); const gain = context.audio.createGain();
   source.buffer = periodicBuffer(context); source.loop = true;
   const frequency = Math.max(0.001, Math.min(context.audio.sampleRate / 2,
     440 * 2 ** ((context.midi - 69) / 12)));
   source.playbackRate.value = frequency * source.buffer.length / context.audio.sampleRate;
-  source.detune.value = value(context.module, "detune");
+  source.detune.value = value(context.module, "detune") + value(context.module, "semitone") * 100
+    + value(context.module, "octave") * 1200;
   gain.gain.value = 0.16 / Math.sqrt(Math.max(1, context.chordSize)); source.connect(gain);
   return { ...runtime(undefined, gain), targets: { detune: source.detune }, sources: [source],
     nodes: [source, gain], tail: 0 };
 }
-function seededNoise(audio: AudioContext, color: number, cache: AudioCaches): AudioBuffer {
+function seededNoise(audio: AudioContext, color: string, cache: AudioCaches): AudioBuffer {
   const key = `${audio.sampleRate}:${color}`; const found = cache.noise.get(key); if (found) return found;
   const buffer = audio.createBuffer(1, audio.sampleRate, audio.sampleRate); const data = buffer.getChannelData(0);
   let seed = 0x12345678; let pink = 0; let brown = 0;
   for (let index = 0; index < data.length; index += 1) {
     seed = (1664525 * seed + 1013904223) >>> 0; const white = seed / 0x80000000 - 1;
     pink = pink * 0.92 + white * 0.08; brown = Math.max(-1, Math.min(1, brown + white * 0.02));
-    data[index] = color < 0.5 ? white : color < 1.5 ? pink * 3 : brown;
+    data[index] = color === "white" ? white : color === "pink" ? pink * 3 : brown;
   }
   cache.noise.set(key, buffer); return buffer;
 }
 function noise(context: BuildContext): RuntimeModule {
   const source = context.audio.createBufferSource(); const gain = context.audio.createGain();
-  source.buffer = seededNoise(context.audio, value(context.module, "color"), context.caches); source.loop = true;
+  source.buffer = seededNoise(context.audio, textValue(context.module, "color"), context.caches); source.loop = true;
   gain.gain.value = value(context.module, "level") / Math.sqrt(Math.max(1, context.chordSize)); source.connect(gain);
   return { ...runtime(undefined, gain), targets: { level: gain.gain }, sources: [source],
     nodes: [source, gain], tail: 0 };
@@ -66,17 +72,31 @@ function gainModule(context: BuildContext, parameter = "gain"): RuntimeModule {
 }
 function filter(context: BuildContext): RuntimeModule {
   const node = context.audio.createBiquadFilter();
-  node.type = (["lowpass", "highpass", "bandpass", "notch"] as const)[
-    Math.round(value(context.module, "mode"))] ?? "lowpass";
+  const modes = { "low-pass": "lowpass", "high-pass": "highpass", "band-pass": "bandpass", notch: "notch" } as const;
+  node.type = modes[textValue(context.module, "mode") as keyof typeof modes] ?? "lowpass";
   node.frequency.value = value(context.module, "frequency"); node.Q.value = value(context.module, "resonance");
   return { ...runtime(node, node), targets: { frequency: node.frequency, resonance: node.Q } };
 }
-function adsr(context: BuildContext): RuntimeModule {
+function eq(context: BuildContext): RuntimeModule {
+  const low = context.audio.createBiquadFilter(); const mid = context.audio.createBiquadFilter();
+  const high = context.audio.createBiquadFilter(); low.type = "lowshelf"; low.frequency.value = 250;
+  mid.type = "peaking"; mid.frequency.value = 1200; mid.Q.value = 0.8;
+  high.type = "highshelf"; high.frequency.value = 4500;
+  low.gain.value = value(context.module, "low"); mid.gain.value = value(context.module, "mid");
+  high.gain.value = value(context.module, "high"); low.connect(mid).connect(high);
+  return { ...runtime(low, high), targets: { low: low.gain, mid: mid.gain, high: high.gain },
+    nodes: [low, mid, high] };
+}
+function pan(context: BuildContext): RuntimeModule {
+  const node = context.audio.createStereoPanner(); node.pan.value = value(context.module, "pan");
+  return { ...runtime(node, node), targets: { pan: node.pan } };
+}
+function envelope(context: BuildContext): RuntimeModule {
   const audioGain = context.audio.createGain(); const constant = context.audio.createConstantSource();
   const envelope = context.audio.createGain(); constant.offset.value = 1; constant.connect(envelope);
   const attack = value(context.module, "attack"); const decay = value(context.module, "decay");
   const sustain = value(context.module, "sustain"); const release = value(context.module, "release");
-  for (const param of [audioGain.gain, envelope.gain]) {
+  for (const param of [audioGain.gain]) {
     param.setValueAtTime(0, context.now); param.linearRampToValueAtTime(1, context.now + attack);
     param.linearRampToValueAtTime(sustain, context.now + attack + decay);
     param.setValueAtTime(sustain, context.now + context.gate);
@@ -138,6 +158,21 @@ function chorus(context: BuildContext): RuntimeModule {
   built.sources.push(oscillator); built.nodes.push(oscillator, depth);
   built.targets.rate = oscillator.frequency; built.targets.depth = depth.gain; built.tail = 0.05; return built;
 }
+function phaser(context: BuildContext): RuntimeModule {
+  const filters = Array.from({ length: 4 }, () => context.audio.createBiquadFilter());
+  filters.forEach((node, index) => { node.type = "allpass"; node.frequency.value = 400 + index * 350; });
+  filters.slice(0, -1).forEach((node, index) => node.connect(filters[index + 1] as AudioNode));
+  const oscillator = context.audio.createOscillator(); const depth = context.audio.createGain();
+  oscillator.frequency.value = value(context.module, "rate");
+  depth.gain.value = value(context.module, "depth") * 900; oscillator.connect(depth);
+  for (const node of filters) depth.connect(node.frequency);
+  const feedback = context.audio.createGain(); feedback.gain.value = value(context.module, "feedback");
+  filters.at(-1)?.connect(feedback).connect(filters[0] as AudioNode);
+  const built = wetDry(context.audio, filters[0] as AudioNode, value(context.module, "mix"));
+  built.sources.push(oscillator); built.nodes.push(...filters, oscillator, depth, feedback);
+  built.targets.rate = oscillator.frequency; built.targets.depth = depth.gain;
+  built.targets.feedback = feedback.gain; built.tail = 0.1; return built;
+}
 function compressor(context: BuildContext): RuntimeModule {
   const node = context.audio.createDynamicsCompressor();
   node.threshold.value = value(context.module, "threshold"); node.ratio.value = value(context.module, "ratio");
@@ -147,8 +182,7 @@ function compressor(context: BuildContext): RuntimeModule {
 }
 function lfo(context: BuildContext): RuntimeModule {
   const oscillator = context.audio.createOscillator(); const depth = context.audio.createGain();
-  oscillator.type = (["sine", "triangle", "square", "sawtooth"] as const)[
-    Math.round(value(context.module, "shape"))] ?? "sine";
+  const shape = textValue(context.module, "shape"); oscillator.type = shape === "saw" ? "sawtooth" : shape as OscillatorType;
   oscillator.frequency.value = value(context.module, "rate");
   depth.gain.value = value(context.module, "depth"); oscillator.connect(depth);
   return { ...runtime(), control: depth, targets: {}, sources: [oscillator],
@@ -156,12 +190,12 @@ function lfo(context: BuildContext): RuntimeModule {
 }
 
 export function buildModule(context: BuildContext): RuntimeModule {
-  if (context.module.bypass && context.module.kind !== "adsr") return passthrough(context.audio);
+  if (context.module.bypass && context.module.kind !== "envelope") return passthrough(context.audio);
   const factories: Record<ModuleNode["kind"], (value: BuildContext) => RuntimeModule> = {
-    waveform, noise, gain: gainModule, output: (item) => gainModule(item, "level"),
+    oscillator, noise, gain: gainModule, output: (item) => gainModule(item, "level"),
     mixer: (item) => gainModule(item, "level"),
-    filter, adsr: (item) => item.module.bypass ? passthrough(item.audio) : adsr(item),
-    saturation, delay, reverb, chorus, compressor, lfo,
+    filter, envelope: (item) => item.module.bypass ? passthrough(item.audio) : envelope(item),
+    eq, pan, phaser, saturation, delay, reverb, chorus, compressor, lfo,
   };
   return factories[context.module.kind](context);
 }

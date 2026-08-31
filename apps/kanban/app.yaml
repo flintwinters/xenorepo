@@ -4,7 +4,9 @@ module: apps.kanban.backend.server
 imports:
   - "@xenorepo/ui"
   - monotools.orchestration.management
+  - monotools.runtime.appkit
   - monotools.runtime.application
+  - monotools.runtime.http
 frontend:
   artifacts:
     index:

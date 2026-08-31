@@ -13,7 +13,7 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
-- Implement the specified single-board column and card lifecycle as a shippable
-  walking skeleton.
-- Prove exact ordering, restart persistence, and trusted drag behavior through
-  the app-owned acceptance journey.
+- The specified single-board walking skeleton is implemented with durable
+  configurable columns, ordered cards, and wide/narrow acceptance evidence.
+- Run the real-world pilot in `SPEC.md`; promote only after its actual workflow
+  and restart observations agree with the automated acceptance contract.

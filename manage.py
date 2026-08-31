@@ -29,6 +29,7 @@ from monotools.orchestration.management import ApplicationManager, PythonSuite, 
 from monotools.orchestration.output import print_error
 from monotools.orchestration.ui import run_ui_check
 from monotools.orchestration.aesthetics import review_aesthetics
+from monotools.orchestration.hygiene import analyze_ui_hygiene
 from monotools.provisioning.audit import AuditReport, audit_workspace
 from monotools.provisioning.management import attach_repository_commands
 from monotools.provisioning.repositories import uninitialized_app_submodules
@@ -323,6 +324,23 @@ def ui_check(app_name: str | None = typer.Argument(None),
     except (EnvironmentConfigurationError, LifecycleError) as error:
         _fail(error)
     console.print(f"[bold green]browser proofs passed[/] ({len(selected)} app(s))")
+
+
+@app.command("ui-hygiene")
+def ui_hygiene(app_name: str | None = typer.Argument(None)) -> None:
+    """Measure UI vocabulary and enforce toolkit and CSS boundaries."""
+    selected = [definition for definition, _ in MANAGERS
+        if app_name is None or definition.name == app_name]
+    if not selected:
+        _fail(f"unknown app '{app_name}'; available: {', '.join(d.name for d, _ in MANAGERS)}")
+    try:
+        for definition in selected:
+            report = analyze_ui_hygiene(definition, ROOT)
+            metrics = report["metrics"]
+            console.print(f"[green]UI hygiene passed[/] {definition.name} "
+                f"({metrics['commandButtons']} commands; {metrics['domainControls']} domain controls)")
+    except LifecycleError as error:
+        _fail(error)
 
 
 @app.command("aesthetic-check")

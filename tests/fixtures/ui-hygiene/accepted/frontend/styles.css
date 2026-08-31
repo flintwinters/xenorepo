@@ -1,0 +1,2 @@
+.fixture-root button { border: 1px solid var(--edge); }
+.fixture-root { --edge: #333; gap: 8px; padding: 8px; }

@@ -25,6 +25,7 @@ from monotools.orchestration.lifecycle import (
 from monotools.orchestration.output import print_error
 from monotools.orchestration.ui import run_ui_check
 from monotools.orchestration.aesthetics import review_aesthetics
+from monotools.orchestration.hygiene import analyze_ui_hygiene
 
 
 console = Console()
@@ -180,6 +181,17 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
             _fail(error)
         console.print(f"[bold green]AI aesthetic review passed[/] {definition.name} "
             f"({report['model']}; {artifacts / 'aesthetic-review.json'})")
+
+    @app.command("ui-hygiene")
+    def ui_hygiene() -> None:
+        """Measure UI vocabulary and enforce toolkit and CSS boundaries."""
+        try:
+            report = analyze_ui_hygiene(definition, workspace)
+        except LifecycleError as error:
+            _fail(error)
+        metrics = report["metrics"]
+        console.print(f"[bold green]UI hygiene passed[/] {definition.name} "
+            f"({metrics['commandButtons']} commands; {metrics['domainControls']} domain controls)")
 
     @app.command()
     def verify() -> None:

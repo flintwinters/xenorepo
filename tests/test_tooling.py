@@ -1,3 +1,5 @@
+import json
+import subprocess
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -28,6 +30,30 @@ class RepositoryAppTests(unittest.TestCase):
             routes=(("/", "index"),),
             capabilities=frozenset(),
         )
+
+    def hygiene_fixture(self, name: str) -> tuple[subprocess.CompletedProcess[str], dict[str, object]]:
+        fixture = ROOT / "tests" / "fixtures" / "ui-hygiene" / name
+        completed = subprocess.run(
+            ["node", "monotools/node/ui-hygiene.mjs", str(fixture)], cwd=ROOT,
+            check=False, text=True, capture_output=True,
+        )
+        return completed, json.loads(completed.stdout)
+
+    def test_ui_hygiene_accepts_toolkit_commands_and_marked_domain_controls(self) -> None:
+        completed, report = self.hygiene_fixture("accepted")
+        self.assertEqual(completed.returncode, 0, completed.stderr)
+        self.assertEqual(report["hardViolationCount"], 0)
+        self.assertEqual(report["metrics"]["commandButtons"], 1)
+        self.assertEqual(report["metrics"]["emptyStates"], 1)
+        self.assertEqual(report["metrics"]["domainControls"], 1)
+        self.assertEqual(report["metrics"]["globalSelectors"], [])
+
+    def test_ui_hygiene_rejects_native_commands_and_bare_global_selectors(self) -> None:
+        completed, report = self.hygiene_fixture("rejected")
+        self.assertEqual(completed.returncode, 1)
+        self.assertEqual(report["hardViolationCount"], 3)
+        self.assertEqual({item["code"] for item in report["violations"]},
+            {"UNCLASSIFIED_NATIVE_BUTTON", "BARE_GLOBAL_SELECTOR"})
 
     def test_source_line_validation_covers_programs_and_stylesheets(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="source-lines-") as temporary:

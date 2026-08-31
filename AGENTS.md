@@ -59,6 +59,16 @@ it, and **Monotools** is the canonical orchestration library.
   monoapp checkpoint with `uv run manage.py verify`; leaf checks are diagnostic.
 - Keep source files under 600 lines and cyclomatic complexity at most 8. Do not
   hide project state or put exposition in UI elements.
+- Before authoring presentation code, inventory shared UI primitives and tokens.
+  Reuse toolkit commands and empty states unless their semantics are demonstrably
+  unsuitable; generic native buttons are not a local design surface.
+- Treat every border, gap, background, shadow, label, and persistent control as
+  a visual cost requiring functional justification. Keep containers visually
+  silent by default; reject box-within-box composition, slogans, serial numbers,
+  eyebrow labels, fake status, and other decorative AI conventions.
+- Before UI completion, inspect populated wide and narrow screenshots and record
+  an explicit critique for AI artifacts, control clutter, hierarchy loss, and
+  responsive layouts that preserve containment while destroying product structure.
 
 ## 3. Current tasks
 

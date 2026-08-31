@@ -175,7 +175,8 @@ function migrate(value: Record<string, unknown>): Record<string, unknown> | null
   } else if ((value.version as number) >= 8 && Array.isArray(flat.instruments)) {
     for (const raw of flat.instruments) { if (!record(raw) || typeof raw.name !== "string") return null;
       const instrument = migrateInstrument(raw); if (!instrument) return null; result[raw.name] = instrument; }
-    loop = { bpm: flat.bpm, volume: flat.volume ?? 0.8, notes: flat.notes };
+    loop = record(flat.loop) ? flat.loop
+      : { bpm: flat.bpm, volume: flat.volume ?? 0.8, notes: flat.notes };
   } else { const instrument = migrateInstrument(flat, Array.isArray(flat.connections) ? flat.connections : undefined);
     if (!instrument) return null; result.main = instrument; const notes = Array.isArray(flat.notes)
       ? flat.notes.map((step) => Array.isArray(step) ? step.map((pitch) => ({ pitch, instrument: "main" })) : step) : flat.notes;

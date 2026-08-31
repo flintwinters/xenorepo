@@ -47,9 +47,9 @@ function valueOptions(field: string, kind: ModuleKind | null, context: Completio
 function completions(context: CompletionContext): CompletionResult | null {
   const word = context.matchBefore(/[\w/-]*/); if (!word) return null;
   const line = context.state.doc.lineAt(context.pos); const prefix = line.text.slice(0, context.pos - line.from);
-  if (/^(?:preset)?[\w -]*$/.test(prefix))
+  if (!prefix.startsWith(" ") && /^(?:preset)?[\w -]*$/.test(prefix))
     return { from: prefix.startsWith("preset") ? line.from : word.from, options: presetOptions(context),
-      validFor: /^(?:preset)?[\w /-]*$/ };
+      validFor: /^(?:preset)?[\w /-]*$/, filter: false };
   if (!context.explicit && word.from === word.to) return null;
   const kind = nearestKind(context); const field = prefix.match(/(?:^|\s)([\w-]+):\s*[\w.-]*$/)?.[1];
   if (field) return { from: word.from, options: valueOptions(field, kind, context), validFor: /^[\w.-]*$/ };

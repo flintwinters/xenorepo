@@ -83,6 +83,9 @@ restart.
   live state; applying it preserves the current GUI-owned loop, and legacy JSON state migrates on
   the next valid edit.
 - Keyboard users can reach the YAML controls, edit loop cells, and operate recovery actions. The
+  editor suggests structural fields, module kinds, compatible parameter names, waveform and
+  connection values, and existing module identifiers while typing or when completion is requested.
+  Suggestions remain advisory; the domain validator remains authoritative. The
   document and loop remain fully fitted without scrollbars at wide and narrow viewports; only the
   code editor owns overflow and scrolling.
 

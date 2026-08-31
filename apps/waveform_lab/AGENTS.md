@@ -15,6 +15,7 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
+- YAML completion derives module and parameter suggestions from the domain inventory.
 - Fresh and prior-default recovery provides a five-voice percussion, bass, and lead starter kit.
 - Shared command controls and semantic piano-grid styling pass wide/narrow acceptance.
 - Next: profile larger polyphonic graphs before introducing shared effect buses or AudioWorklets.

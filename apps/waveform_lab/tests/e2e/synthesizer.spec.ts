@@ -116,6 +116,21 @@ test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) =
     .toHaveAttribute("aria-pressed", "true");
 });
 
+test("[acceptance] YAML typing suggests module kinds and their parameters", async ({ page }) => {
+  await page.goto("/");
+  const content = page.getByLabel("Synth setup YAML editor").locator(".cm-content");
+  await content.click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type("\n    - id: probe-filter\n      kind: fi");
+  const completions = page.locator(".cm-tooltip-autocomplete");
+  await expect(completions).toBeVisible();
+  await expect(completions).toContainText("filter");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("\n      freq");
+  await expect(completions).toBeVisible();
+  await expect(completions).toContainText("frequency");
+});
+
 test("[acceptance] named instruments color independent loop notes", async ({ page }) => {
   await page.addInitScript(() => {
     if (sessionStorage.getItem("multi-instrument-seeded")) return;

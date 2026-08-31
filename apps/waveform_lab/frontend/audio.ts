@@ -3,6 +3,7 @@ import { moduleDefinition } from "./module-registry.js";
 import { buildModule, type AudioCaches, type RuntimeModule } from "./audio/factories.js";
 
 interface VoiceRuntime { sources: AudioScheduledSourceNode[]; nodes: AudioNode[]; cleanupTimer: number; }
+const EXPORT_LOOP_COUNT = 4;
 
 export class SynthEngine {
   private context: AudioContext | null = null;
@@ -54,17 +55,20 @@ export class SynthEngine {
 
   async renderLoop(state: LabState): Promise<AudioBuffer> {
     const sampleRate = 44_100; const stepDuration = 60 / state.bpm / 4;
-    const duration = state.notes.length * stepDuration + 6.5;
+    const loopDuration = state.notes.length * stepDuration;
+    const duration = loopDuration * EXPORT_LOOP_COUNT + 6.5;
     const audio = new OfflineAudioContext(2, Math.ceil(duration * sampleRate), sampleRate);
     const master = this.createCompressor(audio); const volume = audio.createGain();
     volume.gain.value = state.volume; master.connect(volume).connect(audio.destination);
     const caches: AudioCaches = { noise: new Map(), impulses: new Map() };
-    state.notes.forEach((notes, step) => notes.forEach((note) => {
-      const instrument = state.instruments.find((item) => item.name === note.instrument);
-      const chordSize = notes.filter((item) => item.instrument === note.instrument).length;
-      if (instrument && hasPlayablePath(instrument)) this.play(audio, master, note.pitch, instrument,
-        state.bpm, chordSize, step * stepDuration, false, caches);
-    }));
+    for (let pass = 0; pass < EXPORT_LOOP_COUNT; pass += 1)
+      state.notes.forEach((notes, step) => notes.forEach((note) => {
+        const instrument = state.instruments.find((item) => item.name === note.instrument);
+        const chordSize = notes.filter((item) => item.instrument === note.instrument).length;
+        const now = pass * loopDuration + step * stepDuration;
+        if (instrument && hasPlayablePath(instrument)) this.play(audio, master, note.pitch, instrument,
+          state.bpm, chordSize, now, false, caches);
+      }));
     return audio.startRendering();
   }
 

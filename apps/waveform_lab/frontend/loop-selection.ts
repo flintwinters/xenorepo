@@ -59,6 +59,10 @@ export function removeSelected(lab: LabState, selection: Set<string>, instrument
   return { ...lab, notes: withoutCells(lab, selectedNotes(lab, selection, instrument), instrument) };
 }
 
+export function clearNotes(lab: LabState): LabState {
+  return { ...lab, notes: lab.notes.map(() => []) };
+}
+
 export function pasteNotes(lab: LabState, clipboard: NoteOffset[], anchor: Cell, instrument: string): LabState {
   const targets = clipboard.map((note) => ({ step: anchor.step + note.step,
     pitch: anchor.pitch - note.pitch })).filter((cell) =>

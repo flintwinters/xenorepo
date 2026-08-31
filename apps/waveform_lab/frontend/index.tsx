@@ -9,8 +9,8 @@ import {
   initialState, isNaturalPitch, isSafeTopOctave, midiLabel, pitchesForTopOctave, type LabState,
 } from "./model.js";
 import {
-  boxCells, cellKey, instrumentNotes, moveSelected, pasteNotes, relativeOffsets, removeSelected, selectedNotes,
-  selectionClass, type Cell, type NoteOffset,
+  boxCells, cellKey, clearNotes, instrumentNotes, moveSelected, pasteNotes, relativeOffsets, removeSelected,
+  selectedNotes, selectionClass, type Cell, type NoteOffset,
 } from "./loop-selection.js";
 import "./styles.css";
 
@@ -86,6 +86,11 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
     if (!this.state.selection.size) return;
     this.commit(removeSelected(this.state.lab, this.state.selection, this.state.selectedInstrument));
     this.setState({ selection: new Set() });
+  };
+  private clearLoop = (): void => {
+    if (!window.confirm("Delete every note in the loop?")) return;
+    this.commit(clearNotes(this.state.lab));
+    this.setState({ selection: new Set(), clipboard: [], anchor: null });
   };
   private paste = (): void => {
     if (!this.state.anchor || !this.state.clipboard.length) return;
@@ -174,6 +179,8 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
             disabled={!this.state.clipboard.length || !this.state.anchor}>PASTE</CommandButton>
           <CommandButton onClick={this.deleteSelection}
             disabled={!this.state.selection.size}>DELETE</CommandButton>
+          <CommandButton onClick={this.clearLoop}
+            disabled={!lab.notes.some((notes) => notes.length)}>CLEAR LOOP</CommandButton>
           <output>{this.state.selection.size} SELECTED</output></div></div>
       <div class="piano-scroll" tabIndex={0} aria-label="Two bar piano roll editor">
         <div class="piano-roll" role="grid" aria-label="Two bar piano roll"

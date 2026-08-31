@@ -19,5 +19,5 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 - One registry drives 16 module kinds, validation, audio construction, serialization, and completion.
 - A 16-instrument preset catalog drives completion and the five-voice fresh/default recovery kit.
 - Shared command controls and semantic piano-grid styling pass wide/narrow acceptance.
-- Loop editing supports focus-safe standard selection, clipboard, deletion, escape, and playback hotkeys.
+- Loop editing supports focus-safe standard hotkeys and confirmed all-instrument clearing.
 - Next: profile larger preset graphs before introducing shared effect buses or AudioWorklets.

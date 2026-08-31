@@ -320,6 +320,28 @@ test("[acceptance] common loop hotkeys act on note groups without hijacking edit
   await expect(page.getByText("READY", { exact: true })).toBeVisible();
 });
 
+test("[acceptance] clear loop confirms and deletes every instrument's notes", async ({ page }) => {
+  await page.goto("/");
+  const selector = page.getByLabel("Loop instrument");
+  const kick = page.getByRole("gridcell", { name: "C4, step 1", exact: true });
+  const snare = page.getByRole("gridcell", { name: "D4, step 2", exact: true });
+  await kick.click();
+  await selector.selectOption("snare"); await snare.click();
+
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await page.getByRole("button", { name: "CLEAR LOOP" }).click();
+  await expect(snare).toHaveAttribute("aria-pressed", "true");
+
+  page.once("dialog", (dialog) => dialog.accept());
+  await page.getByRole("button", { name: "CLEAR LOOP" }).click();
+  await expect(snare).toHaveAttribute("aria-pressed", "false");
+  await expect(page.getByRole("button", { name: "CLEAR LOOP" })).toBeDisabled();
+  await selector.selectOption("kick");
+  await expect(kick).toHaveAttribute("aria-pressed", "false");
+  await page.reload();
+  await expect(kick).toHaveAttribute("aria-pressed", "false");
+});
+
 test("[acceptance] coordinate-bearing state migrates and malformed storage recovers", async ({ page }) => {
   await page.addInitScript(() => {
     if (sessionStorage.getItem("waveform-lab-fixture-seeded")) return;

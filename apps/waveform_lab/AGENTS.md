@@ -16,7 +16,7 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 ## Current tasks
 
 - The four-octave grid navigates an unbounded integer pitch domain without constraining stored notes.
-- YAML completion derives module and parameter suggestions from the domain inventory.
-- Fresh and prior-default recovery provides a five-voice percussion, bass, and lead starter kit.
+- One registry drives 16 module kinds, validation, audio construction, serialization, and completion.
+- A 16-instrument preset catalog drives completion and the five-voice fresh/default recovery kit.
 - Shared command controls and semantic piano-grid styling pass wide/narrow acceptance.
-- Next: profile larger polyphonic graphs before introducing shared effect buses or AudioWorklets.
+- Next: profile larger preset graphs before introducing shared effect buses or AudioWorklets.

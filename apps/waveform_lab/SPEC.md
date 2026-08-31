@@ -2,10 +2,8 @@
 
 ## Outcome
 
-Waveform Lab lets a musician construct a small modular synthesizer, shape its oscillator waveform
-precisely, and audition a repeating phrase without leaving the browser. The first release succeeds
-when the musician can draw a valid single-cycle waveform, patch a playable signal path, enter a
-two-bar melody, hear the loop at an adjustable tempo, and return later to the same patch.
+Waveform Lab lets a musician construct a 16-module subtractive synthesizer from canonical YAML,
+start from a reusable instrument preset, and audition a repeating phrase without leaving the browser.
 
 The product is an analog-style signal-flow instrument implemented with the browser Web Audio API.
 It does not simulate component-level voltages, tolerances, or electrical behavior.
@@ -15,8 +13,8 @@ It does not simulate component-level voltages, tolerances, or electrical behavio
 FastAPI serves one self-contained Preact artifact containing two coordinated work areas:
 
 - A CodeMirror YAML editor is the sole synth setup surface. Its named, colored instrument arrays
-  each own `modules`, embedded connections, and a named `waveform`, defining independent arbitrary
-  acyclic serial and parallel routing and oscillator shapes.
+  each own `modules` and embedded connections, defining independent arbitrary acyclic serial and
+  parallel routing. Each oscillator owns its shape and tuning.
   The audio layer derives its private single-cycle buffer; raw samples are never persisted or
   exposed. An incomplete or disconnected valid graph remains editable and silent;
   malformed or invalid drafts never replace the live setup and can be corrected or reverted.
@@ -38,16 +36,11 @@ cleanly when playback is stopped or the page is left.
 
 ## Circuit module inventory
 
-- **Sources:** Waveform emits the user-drawn periodic signal for sequenced pitches; Noise emits a
-  bounded noise signal. Neither accepts an audio input.
-- **Dynamics and tone:** Gain controls level; ADSR shapes triggered notes; Filter provides
-  low-pass, high-pass, band-pass, and notch modes; Compressor bounds dynamics; Saturation applies
-  a continuously variable nonlinear waveshaping curve.
-- **Time and space:** Delay controls time, feedback, and wet mix; Chorus controls rate, depth, and
-  wet mix; Reverb controls decay and wet mix through a deterministic generated impulse response.
-- **Routing and control:** Mixer combines audio branches; Output connects the final signal to the
-  browser destination. LFO and ADSR expose typed modulation outputs to compatible Gain, Filter,
-  Saturation, Delay, Reverb, Chorus, and Compressor parameters.
+- **Sources and control:** Oscillator, Noise, Envelope, and LFO provide tuned periodic signals,
+  named noise colors, triggered shaping, and modulation.
+- **Dynamics and tone:** Filter, three-band EQ, Gain, Saturation, and Compressor shape timbre and level.
+- **Routing and space:** Mixer, Pan, and Output combine, position, and terminate audio paths.
+- **Effects:** Delay, Chorus, Phaser, and Reverb provide bounded tails and deterministic cleanup.
 
 Every adjustable parameter and bypass state is represented explicitly in YAML. Applying parameter
 changes during playback rebuilds the graph coherently and persists without requiring transport
@@ -55,8 +48,8 @@ restart.
 
 ## Product invariants and states
 
-- Waveform is one of `sine`, `square`, `saw`, or `triangle`; deterministic finite normalized samples
-  are derived only inside the audio layer.
+- Oscillator and LFO shapes, noise colors, and filter modes use readable YAML enum names. Oscillator
+  octave, semitone, and cent offsets are explicit; deterministic samples are audio-layer details.
 - Circuit connections reference existing typed ports, reject self-connections and duplicates, and
   are removed with their module. Audio connections cannot originate at Output or terminate at a
   source. Modulation connections require a control source and compatible target parameter. Cycles
@@ -74,8 +67,10 @@ restart.
 - Modules contain only sonic identity, type, parameters, and optional bypass state; obsolete visual
   canvas coordinates are migrated away and are not part of current synth YAML. Each parameter is a
   direct module field rather than being hidden under a `parameters` wrapper.
-- Omitted module parameters use their module-kind defaults, omitted bypass means enabled, and an
-  omitted instrument waveform means sine. Canonical YAML suppresses these default values.
+- Omitted module parameters use registry defaults and omitted bypass means enabled. Canonical v14
+  YAML rejects instrument-level `waveform`, `waveform` modules, and `adsr` modules.
+- Modulation amount is optional and measured in target units; omission uses 20% of the target range.
+- Root completion offers 16 complete preset instruments and chooses deterministic unique names.
 - BPM is finite and bounded from 40 through 240. The sequencer has exactly 32 steps and note pitches
   may be any safely represented integer; the four-octave grid is a movable view, not a domain bound.
   App volume is finite and bounded from silence

@@ -196,7 +196,8 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
             ${this.state.activeStep === step ? "playing" : ""}
             ${step % 16 === 0 ? "bar" : step % 4 === 0 ? "beat" : ""}`}
             data-cell data-step={step} data-pitch={pitch}
-            style={{ "--note-color": color }} aria-label={`${midiLabel(pitch)}, step ${step + 1}`}
+            style={{ backgroundColor: assignments.length ? color : undefined }}
+            aria-label={`${midiLabel(pitch)}, step ${step + 1}`}
             aria-pressed={Boolean(selected)} onDblClick={() => this.toggleNote(step, pitch)}
             onPointerDown={(event) => this.pointerDown(event, { step, pitch })}
             onPointerMove={this.pointerMove} onPointerUp={this.pointerUp} />;

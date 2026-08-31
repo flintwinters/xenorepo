@@ -20,4 +20,5 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 - A 16-instrument preset catalog drives completion and the five-voice fresh/default recovery kit.
 - Shared command controls and semantic piano-grid styling pass wide/narrow acceptance.
 - Loop editing supports focus-safe standard hotkeys and confirmed all-instrument clearing.
+- Applied synth YAML immediately re-projects instrument metadata into the live loop editor.
 - Next: profile larger preset graphs before introducing shared effect buses or AudioWorklets.

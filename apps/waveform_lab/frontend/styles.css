@@ -78,7 +78,7 @@ input, select { color: #ebdbb2; font: inherit; background: #282828; border: 1px 
 .note-cell.beat { border-left-color: #665c54; }
 .note-cell.bar { border-left: 2px solid #d3869b; }
 .pitch-row .note-cell.active {
-  background: var(--note-color, #b8bb26);
+  background-color: #b8bb26;
   box-shadow: inset 0 0 0 1px #ebdbb2;
 }
 .pitch-row .note-cell.selected {

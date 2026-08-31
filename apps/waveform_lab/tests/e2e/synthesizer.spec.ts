@@ -126,9 +126,12 @@ test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) =
   await expect(page.getByLabel("Loop instrument").locator("option")).toHaveCount(5);
 
   await page.getByRole("button", { name: "REVERT DRAFT" }).click();
-  await replaceYaml(page, editor, "#b8bb26", "#d3869b");
+  await replaceYaml(page, editor, "#fb4934", "#d3869b");
   await page.getByRole("button", { name: "APPLY YAML" }).click();
   await expect(page.getByText("Synth YAML applied and saved.")).toBeVisible();
+  await expect(page.locator(".instrument-color")).toHaveCSS("background-color", "rgb(211, 134, 155)");
+  await expect(page.getByRole("gridcell", { name: "C4, step 1", exact: true }))
+    .toHaveCSS("background-color", "rgb(211, 134, 155)");
   await page.reload();
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).toContain('color: "#d3869b"');
   await expect(page.getByRole("gridcell", { name: "C4, step 1", exact: true }))

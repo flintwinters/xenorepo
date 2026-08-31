@@ -1,6 +1,6 @@
 const SAMPLE_COUNT = 128;
 export const STEP_COUNT = 32;
-export const STATE_VERSION = 12 as const;
+export const STATE_VERSION = 13 as const;
 export const PITCHES = Array.from({ length: 48 }, (_, index) => 95 - index);
 export type WaveformShape = "sine" | "square" | "saw" | "triangle";
 
@@ -64,12 +64,69 @@ export function createModule(id: string, kind: ModuleKind): ModuleNode {
   return { id, kind, parameters: defaultParameters(kind), ...(bypassable.has(kind) ? { bypass: false } : {}) };
 }
 
-function playableInstrument(name: string, color: string, waveform: WaveformShape, prefix = `${name}-`): Instrument {
-  const source = `${prefix}waveform-1`;
-  const gain = `${prefix}gain-1`;
-  return { name, color, waveform,
-    modules: [createModule(source, "waveform"), createModule(gain, "gain"), createModule("output", "output")],
-    connections: [{ from: source, to: gain, type: "audio" }, { from: gain, to: "output", type: "audio" }] };
+interface ModuleSetup { id: string; kind: ModuleKind; parameters?: ModuleParameters; }
+
+function serialInstrument(name: string, color: string, waveform: WaveformShape,
+    setup: ModuleSetup[]): Instrument {
+  const modules = setup.map(({ id, kind, parameters }) => ({ ...createModule(id, kind),
+    ...(parameters ? { parameters: { ...defaultParameters(kind), ...parameters } } : {}) }));
+  const path = [...setup.map(({ id }) => id), "output"];
+  return { name, color, waveform, modules: [...modules, createModule("output", "output")],
+    connections: path.slice(0, -1).map((from, index) => ({ from, to: path[index + 1] as string,
+      type: "audio" })) };
+}
+
+function priorDefaultInstruments(): Instrument[] {
+  return [
+    serialInstrument("main", "#b8bb26", "sine", [
+      { id: "waveform-1", kind: "waveform" }, { id: "gain-1", kind: "gain" },
+    ]),
+    serialInstrument("bass", "#fb4934", "square", [
+      { id: "bass-waveform-1", kind: "waveform" }, { id: "bass-gain-1", kind: "gain" },
+    ]),
+  ];
+}
+
+function defaultInstruments(): Instrument[] {
+  return [
+    serialInstrument("kick", "#fb4934", "sine", [
+      { id: "kick-oscillator", kind: "waveform", parameters: { detune: -1200 } },
+      { id: "kick-filter", kind: "filter", parameters: { mode: 0, frequency: 180, resonance: 3 } },
+      { id: "kick-envelope", kind: "adsr",
+        parameters: { attack: 0.001, decay: 0.08, sustain: 0.1, release: 0.04 } },
+      { id: "kick-gain", kind: "gain", parameters: { gain: 1.1 } },
+    ]),
+    serialInstrument("snare", "#fe8019", "sine", [
+      { id: "snare-noise", kind: "noise", parameters: { color: 0, level: 0.7 } },
+      { id: "snare-filter", kind: "filter", parameters: { mode: 1, frequency: 1200, resonance: 0.8 } },
+      { id: "snare-envelope", kind: "adsr",
+        parameters: { attack: 0.001, decay: 0.1, sustain: 0.08, release: 0.06 } },
+      { id: "snare-gain", kind: "gain", parameters: { gain: 0.75 } },
+    ]),
+    serialInstrument("stick", "#fabd2f", "sine", [
+      { id: "stick-noise", kind: "noise", parameters: { color: 0, level: 0.45 } },
+      { id: "stick-filter", kind: "filter", parameters: { mode: 1, frequency: 6000, resonance: 2 } },
+      { id: "stick-envelope", kind: "adsr",
+        parameters: { attack: 0.001, decay: 0.02, sustain: 0, release: 0.015 } },
+      { id: "stick-gain", kind: "gain", parameters: { gain: 0.65 } },
+    ]),
+    serialInstrument("bass", "#83a598", "square", [
+      { id: "bass-oscillator", kind: "waveform", parameters: { detune: -1200 } },
+      { id: "bass-filter", kind: "filter", parameters: { mode: 0, frequency: 520, resonance: 2.5 } },
+      { id: "bass-envelope", kind: "adsr",
+        parameters: { attack: 0.008, decay: 0.12, sustain: 0.72, release: 0.18 } },
+      { id: "bass-saturation", kind: "saturation", parameters: { drive: 2.8, mix: 0.22 } },
+      { id: "bass-gain", kind: "gain", parameters: { gain: 0.85 } },
+    ]),
+    serialInstrument("lead", "#b8bb26", "saw", [
+      { id: "lead-oscillator", kind: "waveform" },
+      { id: "lead-filter", kind: "filter", parameters: { mode: 0, frequency: 2400, resonance: 1.8 } },
+      { id: "lead-envelope", kind: "adsr",
+        parameters: { attack: 0.015, decay: 0.12, sustain: 0.78, release: 0.24 } },
+      { id: "lead-delay", kind: "delay", parameters: { time: 0.18, feedback: 0.22, mix: 0.16 } },
+      { id: "lead-gain", kind: "gain", parameters: { gain: 0.72 } },
+    ]),
+  ];
 }
 
 export function waveformSamples(kind: WaveformShape): number[] {
@@ -85,8 +142,7 @@ export function waveformSamples(kind: WaveformShape): number[] {
 export function initialState(): LabState {
   return {
     version: STATE_VERSION,
-    instruments: [playableInstrument("main", "#b8bb26", "sine", ""),
-      playableInstrument("bass", "#fb4934", "square")],
+    instruments: defaultInstruments(),
     notes: Array.from({ length: STEP_COUNT }, () => []), bpm: 120, volume: 0.8,
   };
 }
@@ -105,7 +161,7 @@ function validParameters(kind: ModuleKind, value: unknown): value is ModuleParam
     return finite(value[name]) && value[name] >= range[0] && value[name] <= range[1];
   });
 }
-type StateVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | typeof STATE_VERSION;
+type StateVersion = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | typeof STATE_VERSION;
 function flatParameters(kind: ModuleKind, value: Record<string, unknown>, requireAll: boolean
     ): ModuleParameters | null {
   const parameters = defaultParameters(kind);
@@ -305,7 +361,7 @@ function flattened(value: Record<string, unknown>): Record<string, unknown> | nu
   if (value.version === 1) return value;
   if (value.version !== 2 && value.version !== 3 && value.version !== 4 && value.version !== 5
       && value.version !== 6 && value.version !== 7 && value.version !== 8
-      && value.version !== 9 && value.version !== 10 && value.version !== 11
+      && value.version !== 9 && value.version !== 10 && value.version !== 11 && value.version !== 12
       && value.version !== STATE_VERSION) return null;
   if (!record(value.synth) || !record(value.loop)) return value;
   return { version: value.version, ...value.synth, ...value.loop };
@@ -317,7 +373,7 @@ export function validatedState(value: unknown): LabState | null {
   const saved = flattened(value);
   if (!saved || (saved.version !== 1 && saved.version !== 2 && saved.version !== 3 && saved.version !== 4
       && saved.version !== 5 && saved.version !== 6 && saved.version !== 7 && saved.version !== 8
-      && saved.version !== 9 && saved.version !== 10 && saved.version !== 11
+      && saved.version !== 9 && saved.version !== 10 && saved.version !== 11 && saved.version !== 12
       && saved.version !== STATE_VERSION)) return null;
   const version = saved.version as StateVersion;
   if (version >= 11) {
@@ -327,13 +383,19 @@ export function validatedState(value: unknown): LabState | null {
     const instruments = entries.map(([name, instrument]) => instrumentOf(instrument, version, name));
     if (instruments.some((instrument) => !instrument)) return null;
     const restoredInstruments = instruments as Instrument[];
-    const priorDefault = playableInstrument("main", "#b8bb26", "sine", "");
-    const validInstruments = version === 11 && restoredInstruments.length === 1
-      && JSON.stringify(restoredInstruments[0]) === JSON.stringify(priorDefault)
-      ? [...restoredInstruments, playableInstrument("bass", "#fb4934", "square")]
-      : restoredInstruments;
+    const priorDefaults = priorDefaultInstruments();
+    const oldDefault = version === 11 && restoredInstruments.length === 1
+      && JSON.stringify(restoredInstruments) === JSON.stringify(priorDefaults.slice(0, 1));
+    const currentDefault = version === 12
+      && JSON.stringify(restoredInstruments) === JSON.stringify(priorDefaults);
+    const validInstruments = oldDefault || currentDefault ? defaultInstruments() : restoredInstruments;
     const sequencer = sequence(saved.loop as Record<string, unknown>, version, new Set(entries.map(([name]) => name)));
-    return sequencer ? { version: STATE_VERSION, instruments: validInstruments, ...sequencer } : null;
+    const migratedSequencer = sequencer && (oldDefault || currentDefault)
+      ? { ...sequencer, notes: sequencer.notes.map((notes) => notes.map((note) => ({ ...note,
+        instrument: note.instrument === "main" ? "lead" : note.instrument }))) }
+      : sequencer;
+    return migratedSequencer
+      ? { version: STATE_VERSION, instruments: validInstruments, ...migratedSequencer } : null;
   }
   if (version >= 8) {
     if (!Array.isArray(saved.instruments) || !saved.instruments.length) return null;

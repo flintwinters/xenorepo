@@ -28,9 +28,9 @@ The browser stores one versioned YAML document with explicit `synth` and `loop` 
 every valid edit. CodeMirror replaces the patch-bay and waveform GUIs as the synth setup control
 surface; applying a valid draft updates the live synth atomically. Notes and BPM
 remain GUI-only even though the loop section is persisted as YAML. Missing, malformed, or obsolete
-saved state falls back to the documented initial pair of playable instruments—a `main` sine patch
-and a `bass` square patch—without preventing the instrument from loading, while an invalid editor
-draft leaves live and saved state untouched and remains available
+saved state falls back to the documented initial kit of playable `kick`, `snare`, `stick`, `bass`,
+and `lead` instruments without preventing the instrument from loading, while an invalid editor draft
+leaves live and saved state untouched and remains available
 for correction or explicit reversion. Audio begins only after an explicit user gesture and stops
 cleanly when playback is stopped or the page is left.
 

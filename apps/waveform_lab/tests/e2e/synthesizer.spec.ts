@@ -65,25 +65,27 @@ test("[acceptance] the GUI loop survives reload and controls playback", async ({
 test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) => {
   await page.goto("/");
   const editor = page.getByLabel("Synth setup YAML editor");
-  await expect(editor).toContainText("main:");
-  await expect(editor).toContainText("bass:");
-  await expect(page.getByLabel("Loop instrument").locator("option")).toHaveCount(2);
+  await expect(editor).toContainText("kick:");
+  const options = page.getByLabel("Loop instrument").locator("option");
+  await expect(options).toHaveText(["kick", "snare", "stick", "bass", "lead"]);
   await expect(editor).not.toContainText("synth:");
   await expect(editor).not.toContainText("instruments:");
   await expect(editor).not.toContainText("name: main");
-  await expect(editor).toContainText('color: "#b8bb26"');
   await expect(editor).toContainText("modules:");
-  await expect(editor).toContainText("waveform: square");
   await expect(editor).not.toContainText("samples:");
   await expect(editor).not.toContainText("parameters:");
-  await expect(editor).toContainText("from: waveform-1");
-  await expect(editor).toContainText("to: gain-1");
-  await expect(editor).toContainText("to: output");
+  await expect(editor).toContainText("from: kick-oscillator");
+  await expect(editor).toContainText("to: kick-filter");
   await expect(editor).not.toContainText("kind: output");
   await expect(editor).not.toContainText("type: audio");
   await expect(editor).not.toContainText("notes:");
   await expect(editor).not.toContainText("volume:");
   await expect(editor).not.toContainText(/\b[xy]:/);
+  await editor.locator(".cm-content").click();
+  await page.keyboard.press("Control+End");
+  await expect(editor).toContainText("from: bass-gain");
+  await expect(editor).toContainText("lead:");
+  await expect(editor).toContainText("to: output");
   const theme = await editor.evaluate((element) => ({
     editor: getComputedStyle(element.querySelector(".cm-editor")!).backgroundColor,
     gutter: getComputedStyle(element.querySelector(".cm-gutters")!).backgroundColor,
@@ -103,11 +105,13 @@ test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) =
   await expect(page.getByText("SIGNAL READY")).toBeVisible();
 
   await page.getByRole("button", { name: "REVERT DRAFT" }).click();
-  await replaceYaml(page, editor, "#b8bb26", "#83a598");
+  await replaceYaml(page, editor, "#b8bb26", "#d3869b");
   await page.getByRole("button", { name: "APPLY YAML" }).click();
   await expect(page.getByText("Synth YAML applied and saved.")).toBeVisible();
   await page.reload();
-  await expect(editor).toContainText('color: "#83a598"');
+  await editor.locator(".cm-content").click();
+  await page.keyboard.press("Control+End");
+  await expect(editor).toContainText('color: "#d3869b"');
   await expect(page.getByRole("gridcell", { name: "C4, step 1", exact: true }))
     .toHaveAttribute("aria-pressed", "true");
 });
@@ -158,8 +162,8 @@ test("[acceptance] named instruments color independent loop notes", async ({ pag
   await page.getByRole("button", { name: "STOP", exact: false }).click();
 });
 
-test("[acceptance] the prior default setup gains the second default instrument", async ({ page }) => {
-  await page.addInitScript(() => localStorage.setItem("waveform-lab-state-v1", `version: 11
+test("[acceptance] the prior default setup gains the five-voice starter kit", async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem("waveform-lab-state-v1", `version: 12
 main:
   color: "#b8bb26"
   modules:
@@ -173,15 +177,33 @@ main:
       connections:
         - from: gain-1
           to: output
+bass:
+  color: "#fb4934"
+  waveform: square
+  modules:
+    - id: bass-waveform-1
+      kind: waveform
+      connections:
+        - from: bass-waveform-1
+          to: bass-gain-1
+    - id: bass-gain-1
+      kind: gain
+      connections:
+        - from: bass-gain-1
+          to: output
 loop:
   bpm: 120
   volume: 0.8
   notes:
-${Array.from({ length: 32 }, () => "    - []").join("\n")}
+    - - pitch: 60
+        instrument: main
+${Array.from({ length: 31 }, () => "    - []").join("\n")}
 `));
   await page.goto("/");
-  await expect(page.getByLabel("Synth setup YAML editor")).toContainText("bass:");
-  await expect(page.getByLabel("Loop instrument").locator("option")).toHaveCount(2);
+  await expect(page.getByLabel("Loop instrument").locator("option"))
+    .toHaveText(["kick", "snare", "stick", "bass", "lead"]);
+  await expect(page.getByRole("gridcell", { name: "C4, step 1", exact: true }))
+    .toHaveCSS("background-color", "rgb(184, 187, 38)");
 });
 
 test("[acceptance] box selection supports keyboard clipboard and group dragging", async ({ page }) => {
@@ -233,7 +255,7 @@ test("[acceptance] coordinate-bearing state migrates and malformed storage recov
   await page.getByLabel("Tempo in BPM").fill("134");
   await page.getByLabel("Tempo in BPM").press("Tab");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1")))
-    .toContain("version: 12\nmain:");
+    .toContain("version: 13\nmain:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("synth:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toContain("instruments:");
   expect(await page.evaluate(() => localStorage.getItem("waveform-lab-state-v1"))).not.toMatch(/\b[xy]:/);

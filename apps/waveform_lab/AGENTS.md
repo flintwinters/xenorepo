@@ -15,6 +15,6 @@ Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
 
 ## Current tasks
 
-- Fresh and malformed-state recovery provides two independently playable default instruments.
+- Fresh and prior-default recovery provides a five-voice percussion, bass, and lead starter kit.
 - Shared command controls and semantic piano-grid styling pass wide/narrow acceptance.
 - Next: profile larger polyphonic graphs before introducing shared effect buses or AudioWorklets.

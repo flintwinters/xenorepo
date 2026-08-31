@@ -41,3 +41,5 @@ Make responsive behavior change information topology rather than scaling the int
 Use semantic landmarks and real compact interactions. Do not use pills, translucent glass, rounded modern cards, floating shadow islands, giant headings, oversized controls, animation, or transitions. Deliver one HTML document with embedded CSS and JavaScript and no external dependencies.
 
 Do not use technical language anywhere it is not required in the UI.
+
+Do not use javascript alerts in place of modals.

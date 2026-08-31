@@ -66,12 +66,14 @@ test("[acceptance] raw YAML is the only synth setup surface", async ({ page }) =
   await page.goto("/");
   const editor = page.getByLabel("Synth setup YAML editor");
   await expect(editor).toContainText("main:");
+  await expect(editor).toContainText("bass:");
+  await expect(page.getByLabel("Loop instrument").locator("option")).toHaveCount(2);
   await expect(editor).not.toContainText("synth:");
   await expect(editor).not.toContainText("instruments:");
   await expect(editor).not.toContainText("name: main");
   await expect(editor).toContainText('color: "#b8bb26"');
   await expect(editor).toContainText("modules:");
-  await expect(editor).not.toContainText("waveform:");
+  await expect(editor).toContainText("waveform: square");
   await expect(editor).not.toContainText("samples:");
   await expect(editor).not.toContainText("parameters:");
   await expect(editor).toContainText("from: waveform-1");

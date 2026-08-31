@@ -64,6 +64,14 @@ export function createModule(id: string, kind: ModuleKind): ModuleNode {
   return { id, kind, parameters: defaultParameters(kind), ...(bypassable.has(kind) ? { bypass: false } : {}) };
 }
 
+function playableInstrument(name: string, color: string, waveform: WaveformShape, prefix = `${name}-`): Instrument {
+  const source = `${prefix}waveform-1`;
+  const gain = `${prefix}gain-1`;
+  return { name, color, waveform,
+    modules: [createModule(source, "waveform"), createModule(gain, "gain"), createModule("output", "output")],
+    connections: [{ from: source, to: gain, type: "audio" }, { from: gain, to: "output", type: "audio" }] };
+}
+
 export function waveformSamples(kind: WaveformShape): number[] {
   return Array.from({ length: SAMPLE_COUNT }, (_, index) => {
     const phase = index / SAMPLE_COUNT;
@@ -77,11 +85,8 @@ export function waveformSamples(kind: WaveformShape): number[] {
 export function initialState(): LabState {
   return {
     version: STATE_VERSION,
-    instruments: [{ name: "main", color: "#b8bb26", waveform: "sine",
-      modules: [createModule("waveform-1", "waveform"), createModule("gain-1", "gain"),
-        createModule("output", "output")],
-      connections: [{ from: "waveform-1", to: "gain-1", type: "audio" },
-        { from: "gain-1", to: "output", type: "audio" }] }],
+    instruments: [playableInstrument("main", "#b8bb26", "sine", ""),
+      playableInstrument("bass", "#fb4934", "square")],
     notes: Array.from({ length: STEP_COUNT }, () => []), bpm: 120, volume: 0.8,
   };
 }

@@ -6,9 +6,15 @@
 .error { color: #fb4934; }
 .workspace { min-width: 0; min-height: 0; overflow: hidden; background: var(--board-background, #1d2021); }
 .board { display: flex; height: 100%; min-width: 100%; gap: 1px; overflow-x: auto; background: #111; }
-.column { flex: 1 0 300px; height: 100%; }
+.column {
+  --tone-light: color-mix(in srgb, var(--column-color, #665c54) 78%, white);
+  --tone-dark: color-mix(in srgb, var(--column-color, #665c54) 76%, black);
+  --tone-rim: color-mix(in srgb, var(--column-color, #665c54) 62%, white);
+  --tone-shadow: color-mix(in srgb, var(--column-color, #665c54) 48%, black);
+  flex: 1 0 300px;
+  height: 100%;
+}
 .column .x-ui-chrome { min-height: 28px; }
-.column .x-ui-chrome { background: var(--column-color, #665c54); }
 .column .x-ui-title-end { gap: 2px; }
 .column .x-ui-command-control { padding-inline: 4px; border-color: transparent; box-shadow: none; }
 .card-list { display: grid; align-content: start; min-height: 100%; gap: 6px; padding: 7px; background: #202223; }

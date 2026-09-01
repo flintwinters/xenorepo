@@ -28,7 +28,7 @@
         background: var(--bg);
         color: var(--fg);
       }
-      :is(.landing, .arena) button,
+      :is(.landing, .arena) .x-ui-command-control,
       :is(.landing, .arena) input {
         font: inherit;
         color: inherit;

@@ -30,13 +30,13 @@
       body {
         overflow: hidden;
       }
-      .frame button,
+      .frame .x-ui-command-control,
       .frame input,
       .frame textarea {
         font: inherit;
         color: inherit;
       }
-      .frame button {
+      .frame .x-ui-command-control {
         background: linear-gradient(#45413f, #302d2b);
         border: 1px solid #a89984;
         border-radius: 0;
@@ -46,16 +46,16 @@
         padding: 3px 8px;
         cursor: pointer;
       }
-      .frame button:active {
+      .frame .x-ui-command-control:active {
         transform: translate(1px, 1px);
         background: linear-gradient(#242220, #181716);
         box-shadow: inset 1px 1px #080909;
       }
-      .frame button:disabled {
+      .frame .x-ui-command-control:disabled {
         color: #665c54;
         cursor: not-allowed;
       }
-      .frame button:focus-visible,
+      .frame .x-ui-command-control:focus-visible,
       .frame input:focus-visible,
       .frame textarea:focus-visible {
         outline: 2px solid var(--yellow);
@@ -77,7 +77,7 @@
         white-space: nowrap;
         overflow: hidden;
       }
-      .rail button {
+      .rail .x-ui-command-control {
         padding: 1px 6px;
       }
       .brand {
@@ -159,7 +159,7 @@
         border-bottom-color: #665c54;
         padding: 5px;
       }
-      .frame form button {
+      .frame form .x-ui-command-control {
         margin-right: 5px;
       }
       .signed {
@@ -269,7 +269,7 @@
         color: var(--red);
         border-color: var(--red);
       }
-      .auth-message button {
+      .auth-message .x-ui-command-control {
         margin-top: 6px;
       }
       @media (max-width: 620px) {

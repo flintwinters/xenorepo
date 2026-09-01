@@ -86,8 +86,8 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const fields: BoardFields = { name: String(data.get("name")),
       description: String(data.get("description")),
       default_priority: String(data.get("default_priority")) as BoardFields["default_priority"],
-      background_color: String(data.get("background_color")),
-      accent_color: String(data.get("accent_color")), label_colors };
+      background_color: this.state.view!.board.background_color,
+      accent_color: this.state.view!.board.accent_color, label_colors };
     this.perform("Board details updated", async () => {
       await editBoard(fields);
       this.setState({ editingBoard: false });
@@ -188,9 +188,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
           value={board.description} /></label><label>Default card priority<select name="default_priority"
             value={board.default_priority}><option value="low">Low</option><option value="normal">Normal</option>
             <option value="high">High</option><option value="urgent">Urgent</option></select></label>
-        <div class="field-row"><ColorField label="Board background" name="background_color"
-          value={board.background_color} /><ColorField label="Accent color" name="accent_color"
-            value={board.accent_color} /></div>{knownLabels.length > 0 && <fieldset>
+        {knownLabels.length > 0 && <fieldset>
           <legend>Label colors</legend>{knownLabels.map((label, index) => <ColorField label={label}
             name={`label_color_${index}`}
             value={board.label_colors[label.toLocaleLowerCase()] ?? board.accent_color} />)}</fieldset>}
@@ -352,13 +350,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const footer = <StatusRail><span class={this.state.failed ? "error" : ""} role="status">
       {this.state.busy ? "SAVING…" : this.state.message}</span><span class="push">
       {active(view?.columns ?? []).length} COLUMNS · {active(view?.cards ?? []).length} CARDS</span></StatusRail>;
-    const theme = board ? `--board-background:${board.background_color};--board-accent:${board.accent_color};` +
-      `--console-bg:${board.background_color};--console-panel:${board.background_color};` +
-      `--console-focus:${board.accent_color};--console-button-border:${board.accent_color};` +
-      `--console-button-border-hover:${board.accent_color};--console-rail-border:${board.accent_color};` +
-      `--console-rail-background:linear-gradient(color-mix(in srgb, ${board.background_color} 72%, ` +
-      `${board.accent_color}),${board.background_color})` : "";
-    return <ConsoleShell class="kanban-shell" style={theme} header={header} footer={footer}><div class="workspace">
+    return <ConsoleShell class="kanban-shell" header={header} footer={footer}><div class="workspace">
       {!view ? <EmptyState heading="LOADING BOARD" /> : this.state.mode === "board" ? this.board() :
         this.state.mode === "archive" ? this.archiveView() : this.activityView()}</div>
       {this.boardEditor()}{this.columnCreator()}{this.columnEditor()}{this.commentEditor()}

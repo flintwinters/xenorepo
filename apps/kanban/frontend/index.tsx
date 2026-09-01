@@ -1,5 +1,5 @@
 import { Component, render } from "preact";
-import { CommandButton, ConsolePane, ConsoleShell, EmptyState, StatusRail, UtilityRail } from "@xenorepo/ui";
+import { CommandButton, ConsolePane, ConsoleShell, EmptyState, Modal, StatusRail, UtilityRail } from "@xenorepo/ui";
 import {
   addComment, addLink, addUpload, createCard, createColumn, editAttachment, editBoard,
   editCard, editColumn, editComment, loadBoard, moveCard, moveColumn, setArchived,
@@ -168,8 +168,8 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const board = this.state.view?.board;
     if (!board || !this.state.editingBoard) return null;
     const knownLabels = this.knownLabels();
-    return <div class="backdrop"><section class="dialog" role="dialog" aria-modal="true"
-      aria-labelledby="board-editor-title"><h2 id="board-editor-title">BOARD SETTINGS</h2>
+    return <Modal class="backdrop" contentClass="dialog" labelledBy="board-editor-title"
+      onDismiss={() => this.setState({ editingBoard: false })}><h2 id="board-editor-title">BOARD SETTINGS</h2>
       <form onSubmit={this.saveBoard}><label>Name<input name="name" required maxLength={120}
         value={board.name} /></label><label>Description<textarea name="description" maxLength={4000}
           value={board.description} /></label><label>Default card priority<select name="default_priority"
@@ -183,56 +183,57 @@ class KanbanBoard extends Component<Record<string, never>, State> {
             value={board.label_colors[label.toLocaleLowerCase()] ?? board.accent_color} /></label>)}</fieldset>}
         <div class="actions"><CommandButton type="button"
             onClick={() => this.setState({ editingBoard: false })}>CANCEL</CommandButton>
-          <CommandButton type="submit">SAVE</CommandButton></div></form></section></div>;
+          <CommandButton type="submit">SAVE</CommandButton></div></form></Modal>;
   }
   private columnEditor() {
     const column: Column | undefined = this.state.view?.columns.find(
       (value) => value.id === this.state.editingColumn,
     );
     if (!column) return null;
-    return <div class="backdrop"><section class="dialog" role="dialog" aria-modal="true"
-      aria-labelledby="column-editor-title"><h2 id="column-editor-title">EDIT COLUMN</h2>
+    return <Modal class="backdrop" contentClass="dialog" labelledBy="column-editor-title"
+      onDismiss={() => this.setState({ editingColumn: null })}><h2 id="column-editor-title">EDIT COLUMN</h2>
       <form onSubmit={this.saveColumn}><label>Column name<input name="name" required maxLength={120}
         value={column.name} autofocus /></label><label>Column color<input name="color" type="color"
           value={column.color} /></label><div class="actions"><CommandButton type="button"
           onClick={() => this.setState({ editingColumn: null })}>CANCEL</CommandButton>
-        <CommandButton type="submit">SAVE</CommandButton></div></form></section></div>;
+        <CommandButton type="submit">SAVE</CommandButton></div></form></Modal>;
   }
   private columnCreator() {
     if (!this.state.creatingColumn) return null;
-    return <div class="backdrop"><section class="dialog" role="dialog" aria-modal="true"
-      aria-labelledby="column-creator-title"><h2 id="column-creator-title">NEW COLUMN</h2>
+    return <Modal class="backdrop" contentClass="dialog" labelledBy="column-creator-title"
+      onDismiss={() => this.setState({ creatingColumn: false })}><h2 id="column-creator-title">NEW COLUMN</h2>
       <form onSubmit={this.saveNewColumn}><label>Column name<input name="name" required maxLength={120}
         autofocus /></label><label>Column color<input name="color" type="color" value="#665c54" /></label>
         <div class="actions"><CommandButton type="button"
           onClick={() => this.setState({ creatingColumn: false })}>CANCEL</CommandButton>
-        <CommandButton type="submit">CREATE</CommandButton></div></form></section></div>;
+        <CommandButton type="submit">CREATE</CommandButton></div></form></Modal>;
   }
   private commentEditor() {
     const comment: Comment | undefined = this.state.view?.comments.find(
       (value) => value.id === this.state.editingComment,
     );
     if (!comment) return null;
-    return <div class="backdrop"><section class="dialog" role="dialog" aria-modal="true"
-      aria-labelledby="comment-editor-title"><h2 id="comment-editor-title">EDIT COMMENT</h2>
+    return <Modal class="backdrop" contentClass="dialog" labelledBy="comment-editor-title"
+      onDismiss={() => this.setState({ editingComment: null })}><h2 id="comment-editor-title">EDIT COMMENT</h2>
       <form onSubmit={this.saveEditedComment}><label>Comment<textarea name="body" required maxLength={4000}
         value={comment.body} autofocus /></label><div class="actions"><CommandButton type="button"
           onClick={() => this.setState({ editingComment: null })}>CANCEL</CommandButton>
-        <CommandButton type="submit">SAVE</CommandButton></div></form></section></div>;
+        <CommandButton type="submit">SAVE</CommandButton></div></form></Modal>;
   }
   private attachmentEditor() {
     const attachment: Attachment | undefined = this.state.view?.attachments.find(
       (value) => value.id === this.state.editingAttachment,
     );
     if (!attachment) return null;
-    return <div class="backdrop"><section class="dialog" role="dialog" aria-modal="true"
-      aria-labelledby="attachment-editor-title"><h2 id="attachment-editor-title">EDIT ATTACHMENT</h2>
+    return <Modal class="backdrop" contentClass="dialog" labelledBy="attachment-editor-title"
+      onDismiss={() => this.setState({ editingAttachment: null })}>
+      <h2 id="attachment-editor-title">EDIT ATTACHMENT</h2>
       <form onSubmit={this.saveEditedAttachment}><label>Attachment title<input name="title" required
         maxLength={120} value={attachment.title} autofocus /></label>{attachment.kind === "link" &&
           <label>Web address<input name="url" type="url" required value={attachment.url ?? ""} /></label>}
         <div class="actions"><CommandButton type="button"
           onClick={() => this.setState({ editingAttachment: null })}>CANCEL</CommandButton>
-          <CommandButton type="submit">SAVE</CommandButton></div></form></section></div>;
+          <CommandButton type="submit">SAVE</CommandButton></div></form></Modal>;
   }
   private cardEditor() {
     if (this.state.editingComment || this.state.editingAttachment) return null;
@@ -242,8 +243,9 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       priority: this.state.view?.board.default_priority ?? "normal", color: "#32302f" };
     const comments = active(this.state.view?.comments ?? []).filter((item) => item.card_id === card?.id);
     const attachments = active(this.state.view?.attachments ?? []).filter((item) => item.card_id === card?.id);
-    return <div class="backdrop"><section class="dialog card-dialog" role="dialog" aria-modal="true"
-      aria-labelledby="card-editor-title"><h2 id="card-editor-title">{card ? "CARD DETAILS" : "NEW CARD"}</h2>
+    return <Modal class="backdrop" contentClass="dialog card-dialog" labelledBy="card-editor-title"
+      onDismiss={() => this.setState({ selected: null, creatingIn: null })}>
+      <h2 id="card-editor-title">{card ? "CARD DETAILS" : "NEW CARD"}</h2>
       <form class="card-fields" onSubmit={this.saveCard}><label>Title<input name="title" required maxLength={120}
         value={value.title} /></label><label>Description<textarea name="description" maxLength={4000}
           value={value.description} /></label><div class="field-row"><label>Assignee<input name="assignee"
@@ -276,7 +278,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
             onSubmit={(event) => this.saveUpload(event, card.id)}>
         <input name="title" required placeholder="File title" aria-label="File title" /><input name="file"
           type="file" required aria-label="Choose file" /><CommandButton type="submit">UPLOAD</CommandButton>
-      </form></section></div>}</section></div>;
+      </form></section></div>}</Modal>;
   }
   private column(column: NonNullable<State["view"]>["columns"][number]) {
     const cards = this.cards(column.id);

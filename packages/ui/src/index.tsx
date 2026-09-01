@@ -1,4 +1,5 @@
 import type { ComponentChildren, JSX } from "preact";
+import { useEffect } from "preact/hooks";
 import "./styles.css";
 
 type Tone = "blue" | "green" | "orange" | "purple" | "neutral";
@@ -67,5 +68,31 @@ export function EmptyState({ heading = "NO RECORDS", detail, class: className,
   ...props }: EmptyStateProps) {
   return <div class={classes("x-ui-empty-state", className as string | undefined)} {...props}>
     <strong>{heading}</strong>{detail && <p>{detail}</p>}
+  </div>;
+}
+
+interface ModalProps extends Omit<DivProps, "onClick"> {
+  labelledBy: string;
+  onDismiss: () => void;
+  contentClass?: string;
+}
+
+export function Modal({ labelledBy, onDismiss, contentClass, class: className,
+  children, ...props }: ModalProps) {
+  useEffect(() => {
+    const dismissOnEscape = (event: KeyboardEvent): void => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onDismiss();
+    };
+    window.addEventListener("keydown", dismissOnEscape);
+    return () => window.removeEventListener("keydown", dismissOnEscape);
+  }, [onDismiss]);
+  return <div class={classes("x-ui-modal-backdrop", className as string | undefined)}
+    onClick={(event) => {
+      if (event.target === event.currentTarget) onDismiss();
+    }} {...props}>
+    <section class={classes("x-ui-modal-content", contentClass)} role="dialog" aria-modal="true"
+      aria-labelledby={labelledBy}>{children}</section>
   </div>;
 }

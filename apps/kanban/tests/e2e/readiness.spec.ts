@@ -13,6 +13,13 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await page.goto("/");
   await expect(page.getByRole("status")).toHaveText("Board ready");
   const initialBoard = (await (await page.request.get("/api/board")).json()).board;
+  await page.getByRole("button", { name: "+ COLUMN" }).click();
+  await expect(page.getByRole("dialog", { name: "NEW COLUMN" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog", { name: "NEW COLUMN" })).toHaveCount(0);
+  await page.getByRole("button", { name: "+ COLUMN" }).click();
+  await page.locator(".backdrop").click({ position: { x: 2, y: 2 } });
+  await expect(page.getByRole("dialog", { name: "NEW COLUMN" })).toHaveCount(0);
   const suffix = `${testInfo.project.name}-${Date.now()}`,
     queue = `Queue ${suffix}`, renamedQueue = `Planned ${suffix}`, doing = `Doing ${suffix}`;
   await createColumn(page, queue);

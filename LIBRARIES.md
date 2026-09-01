@@ -21,11 +21,13 @@ contracts; `monotools.orchestration` must not depend on provisioning policy.
 The typed `ConsoleShell`, `UtilityRail`, `StatusRail`, `ConsolePane`, and
 `CommandButton` components each have nine independent consumers. `EmptyState`
 has three and owns only centered empty-result geometry around an app-owned heading
-and optional detail. Component props extend the corresponding Preact native
-HTML attributes, named props replace slots, and stable `x-ui-*` classes are the
-styling boundary. The package owns only proved console geometry and interaction
-treatment; app layout remains in external app-owned CSS. All consumers import
-`@xenorepo/ui`.
+and optional detail. `Modal` has two independent consumers and owns accessible
+dialog structure, Escape dismissal, and direct-backdrop dismissal while leaving
+content and backdrop presentation app-owned. Component props extend the
+corresponding Preact native HTML attributes, named props replace slots, and
+stable `x-ui-*` classes are the styling boundary. The package owns only proved
+console geometry and interaction treatment; app layout remains in external
+app-owned CSS. All consumers import `@xenorepo/ui`.
 Established catalogued controls are the default for matching semantics. The
 independent-consumer rule governs creating abstractions, not consuming them.
 

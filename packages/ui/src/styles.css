@@ -38,6 +38,7 @@
   outline-offset: 2px;
 }
 .x-ui-modal-content,
+.x-ui-shell input:not([type="checkbox"], [type="radio"], [type="range"]),
 .x-ui-shell textarea {
   border-radius: 4px;
 }

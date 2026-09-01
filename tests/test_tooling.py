@@ -401,6 +401,17 @@ frontend:
             compact_styles,
         )
 
+    def test_console_text_entry_controls_share_subtle_corners(self) -> None:
+        styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
+            encoding="utf-8")
+        compact_styles = " ".join(styles.split())
+
+        self.assertIn(
+            '.x-ui-shell input:not([type="checkbox"], [type="radio"], '
+            '[type="range"]), .x-ui-shell textarea { border-radius: 4px; }',
+            compact_styles,
+        )
+
     def test_content_height_panes_never_create_vertical_scrollports(self) -> None:
         styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
             encoding="utf-8")

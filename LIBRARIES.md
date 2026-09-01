@@ -24,8 +24,9 @@ has three and owns only centered empty-result geometry around an app-owned headi
 and optional detail. `Modal` has two independent consumers and owns accessible
 dialog structure, Escape dismissal, and direct-backdrop dismissal while leaving
 content and backdrop presentation app-owned except for the shared subtle corner
-radius. Textareas within the shared shell use the same radius and never expose
-native drag resizing. Component props extend the corresponding Preact native
+radius. Rectangular inputs and textareas within the shared shell use the same
+radius, while textareas never expose native drag resizing. Component props extend
+the corresponding Preact native
 HTML attributes, named props replace slots, and stable `x-ui-*` classes are the
 styling boundary. Console colors remain application-owned through the documented
 `--console-*` custom properties, including rail background and border overrides.

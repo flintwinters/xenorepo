@@ -9,15 +9,21 @@ from pydantic import BaseModel, ConfigDict, HttpUrl, StringConstraints, field_va
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 Text = Annotated[str, StringConstraints(strip_whitespace=True, max_length=4000)]
 Priority = Literal["low", "normal", "high", "urgent"]
+Color = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$")]
 
 
 class BoardEdit(BaseModel):
     name: Name
     description: Text = ""
+    default_priority: Priority = "normal"
+    background_color: Color = "#1d2021"
+    accent_color: Color = "#fabd2f"
+    label_colors: dict[Name, Color] = {}
 
 
 class ColumnCreate(BaseModel):
     name: Name
+    color: Color = "#665c54"
 
 
 class ColumnEdit(ColumnCreate):
@@ -34,6 +40,7 @@ class CardFields(BaseModel):
     assignee: Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)] = ""
     labels: list[Name] = []
     priority: Priority = "normal"
+    color: Color = "#32302f"
 
     @field_validator("labels")
     @classmethod
@@ -81,6 +88,10 @@ class BoardView(BaseModel):
     description: str
     created_at: datetime
     updated_at: datetime
+    default_priority: Priority
+    background_color: Color
+    accent_color: Color
+    label_colors: dict[str, Color]
 
 
 class ColumnView(BaseModel):
@@ -88,6 +99,7 @@ class ColumnView(BaseModel):
     name: str
     position: int
     archived_at: datetime | None
+    color: Color
 
 
 class CardView(BaseModel):
@@ -102,6 +114,7 @@ class CardView(BaseModel):
     archived_at: datetime | None
     created_at: datetime
     updated_at: datetime
+    color: Color
 
 
 class CommentView(BaseModel):

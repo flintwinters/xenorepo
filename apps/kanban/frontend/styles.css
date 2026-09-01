@@ -1,17 +1,18 @@
 * { box-sizing: border-box; }
 .kanban-shell { height: 100%; color: #ebdbb2; }
-.brand { color: #fabd2f; letter-spacing: .06em; }
+.brand { color: var(--board-accent, #fabd2f); letter-spacing: .06em; }
 .push { margin-left: auto; }
 .board-description { max-width: 36vw; color: #a89984; overflow: hidden; text-overflow: ellipsis; }
 .error { color: #fb4934; }
-.workspace { min-width: 0; min-height: 0; overflow: hidden; background: #1d2021; }
+.workspace { min-width: 0; min-height: 0; overflow: hidden; background: var(--board-background, #1d2021); }
 .board { display: flex; height: 100%; min-width: 100%; gap: 1px; overflow-x: auto; background: #111; }
 .column { flex: 1 0 300px; height: 100%; }
 .column .x-ui-chrome { min-height: 28px; }
+.column .x-ui-chrome { background: var(--column-color, #665c54); }
 .column .x-ui-title-end { gap: 2px; }
 .column .x-ui-command-control { padding-inline: 4px; border-color: transparent; box-shadow: none; }
 .card-list { display: grid; align-content: start; min-height: 100%; gap: 6px; padding: 7px; background: #202223; }
-.card { padding: 8px; border-left: 3px solid #83a598; background: #32302f; cursor: grab; }
+.card { padding: 8px; border-left: 3px solid #83a598; background: var(--card-color, #32302f); cursor: grab; }
 .card:hover, .card:focus-visible { background: #3c3836; outline: 1px solid #fabd2f; outline-offset: 1px; }
 .card.priority-low { border-left-color: #928374; }
 .card.priority-high { border-left-color: #fe8019; }
@@ -19,8 +20,7 @@
 .card strong, .card p { display: block; margin: 0; overflow-wrap: anywhere; }
 .card p { margin-top: 5px; color: #d5c4a1; white-space: pre-line; }
 .card-meta { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 7px; color: #a89984; font-size: 10px; }
-.card-meta span { padding: 1px 4px; background: #1d2021; }
-.add-card { width: 100%; margin-top: 2px; }
+.card-meta span { padding: 1px 4px; background: var(--label-color, #1d2021); }
 .backdrop {
   position: fixed; z-index: 10; inset: 0; display: grid; place-items: center;
   padding: 16px; background: #000b;
@@ -34,6 +34,8 @@
 .dialog h3 { margin-top: 14px; padding-bottom: 4px; color: #83a598; border-bottom: 1px solid #504945; font-size: 12px; }
 .dialog form, .card-fields { display: grid; gap: 9px; }
 .dialog label { display: grid; gap: 3px; color: #a89984; }
+.dialog fieldset { display: grid; gap: 7px; margin: 0; padding: 8px; border: 1px solid #504945; }
+.dialog legend { color: #a89984; }
 .dialog input, .dialog textarea, .dialog select {
   width: 100%; min-width: 0; padding: 5px 7px; color: #ebdbb2;
   font: inherit; background: #181a1b; border: 1px solid #665c54;

@@ -61,8 +61,12 @@ class ApplicationTests(unittest.TestCase):
 
     def test_board_column_card_ordering_and_restart_persist(self) -> None:
         board = self.client.request("PATCH", "/api/board",
-            json={"name": "Ship it", "description": "One honest board"})
-        first, second = self.column("Queue"), self.column("Doing")
+            json={"name": "Ship it", "description": "One honest board", "default_priority": "urgent",
+                "background_color": "#112233", "accent_color": "#44aa88",
+                "label_colors": {"Quality": "#335577"}})
+        first = self.client.request("POST", "/api/columns",
+            json={"name": "Queue", "color": "#445566"}).json()
+        second = self.column("Doing")
         one, two = self.card(first["id"], "One"), self.card(first["id"], "Two")
         self.assertEqual(one["labels"], ["Quality", "Backend"])
         moved = self.client.request("PUT", f"/api/cards/{two['id']}/position",
@@ -73,6 +77,10 @@ class ApplicationTests(unittest.TestCase):
         restarted = Client(create_app(store=KanbanStore(self.sessions), uploads=self.uploads))
         view = restarted.request("GET", "/api/board").json()
         self.assertEqual(view["board"]["name"], "Ship it")
+        self.assertEqual((view["board"]["default_priority"], view["board"]["background_color"],
+            view["board"]["label_colors"]), ("urgent", "#112233", {"quality": "#335577"}))
+        self.assertEqual(next(value for value in view["columns"]
+            if value["id"] == first["id"])["color"], "#445566")
         self.assertEqual([value["name"] for value in view["columns"][:2]], ["Doing", "Queue"])
         persisted_move = next(value for value in view["cards"] if value["id"] == two["id"])
         self.assertEqual(persisted_move["column_id"], second["id"])

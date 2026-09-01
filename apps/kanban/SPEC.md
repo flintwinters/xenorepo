@@ -11,7 +11,10 @@ board, no accounts, no due dates, and no collaboration behavior.
 
 - One persistent board whose name and description can be edited.
 - User-created, named columns with explicit ordering and reversible archiving.
+- Per-column Add Card controls in column headers.
 - Cards with editable title, description, assignee text, labels, and priority.
+- Board settings for default card priority, board background and accent, plus individual column,
+  card, and label colors.
 - Mouse drag-and-drop for ordering cards within a column and moving them between columns.
 - Editable comments, local file uploads, and web-link attachments.
 - Reversible archiving for the board's columns, cards, comments, and attachments.

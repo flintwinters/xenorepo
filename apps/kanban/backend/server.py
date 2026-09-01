@@ -51,12 +51,12 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
         status_code=status.HTTP_201_CREATED)
     async def create_column(value: ColumnCreate, request: Request) -> ColumnView:
         require_origin(request)
-        return board.create_column(value.name)
+        return board.create_column(value.name, value.color)
 
     @application.patch("/api/columns/{column_id}", response_model=ColumnView)
     async def edit_column(column_id: str, value: ColumnEdit, request: Request) -> ColumnView:
         require_origin(request)
-        return board.edit_column(column_id, value.name)
+        return board.edit_column(column_id, value.name, value.color)
 
     @application.put("/api/columns/{column_id}/position", response_model=ColumnView)
     async def move_column(column_id: str, value: PositionInput, request: Request) -> ColumnView:

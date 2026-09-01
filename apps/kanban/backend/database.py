@@ -35,6 +35,18 @@ class BoardRecord(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class BoardSettingsRecord(Base):
+    __tablename__ = "kanban_board_settings"
+    __table_args__ = (CheckConstraint("id = 1", name="single_board_settings"),)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    default_priority: Mapped[str] = mapped_column(String(10), default="normal")
+    background_color: Mapped[str] = mapped_column(String(7), default="#1d2021")
+    accent_color: Mapped[str] = mapped_column(String(7), default="#fabd2f")
+    column_colors_json: Mapped[str] = mapped_column(Text, default="{}")
+    card_colors_json: Mapped[str] = mapped_column(Text, default="{}")
+    label_colors_json: Mapped[str] = mapped_column(Text, default="{}")
+
+
 class ColumnRecord(Base):
     __tablename__ = "kanban_columns"
     __table_args__ = (Index("active_column_order", "archived_at", "position", "id"),)
@@ -97,19 +109,24 @@ class ActivityRecord(Base):
     occurred_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
-def _board(value: BoardRecord) -> BoardView:
-    return BoardView.model_validate(value, from_attributes=True)
+def _board(value: BoardRecord, settings: BoardSettingsRecord) -> BoardView:
+    return BoardView(id=value.id, name=value.name, description=value.description,
+        created_at=value.created_at, updated_at=value.updated_at,
+        default_priority=settings.default_priority, background_color=settings.background_color,
+        accent_color=settings.accent_color, label_colors=json.loads(settings.label_colors_json))
 
 
-def _column(value: ColumnRecord) -> ColumnView:
-    return ColumnView.model_validate(value, from_attributes=True)
+def _column(value: ColumnRecord, colors: dict[str, str]) -> ColumnView:
+    return ColumnView(id=value.id, name=value.name, position=value.position,
+        archived_at=value.archived_at, color=colors.get(value.id, "#665c54"))
 
 
-def _card(value: CardRecord) -> CardView:
+def _card(value: CardRecord, colors: dict[str, str]) -> CardView:
     return CardView(id=value.id, column_id=value.column_id, title=value.title,
         description=value.description, assignee=value.assignee, labels=json.loads(value.labels_json),
         priority=value.priority, position=value.position, archived_at=value.archived_at,
-        created_at=value.created_at, updated_at=value.updated_at)
+        created_at=value.created_at, updated_at=value.updated_at,
+        color=colors.get(value.id, "#32302f"))
 
 
 def _comment(value: CommentRecord) -> CommentView:
@@ -131,13 +148,15 @@ class KanbanStore:
 
     def _initialize(self) -> None:
         with self.sessions.begin() as session:
-            if session.scalar(select(BoardRecord)) is not None:
-                return
-            instant = self.now()
-            board = BoardRecord(id=str(uuid4()), singleton=1, name="My board", description="",
-                created_at=instant, updated_at=instant)
-            session.add(board)
-            self._activity(session, "created", "board", board.id, "Created board “My board”")
+            board = session.scalar(select(BoardRecord))
+            if board is None:
+                instant = self.now()
+                board = BoardRecord(id=str(uuid4()), singleton=1, name="My board", description="",
+                    created_at=instant, updated_at=instant)
+                session.add(board)
+                self._activity(session, "created", "board", board.id, "Created board “My board”")
+            if session.get(BoardSettingsRecord, 1) is None:
+                session.add(BoardSettingsRecord(id=1))
 
     def _activity(self, session: Session, kind: str, subject_type: str,
         subject_id: str, summary: str) -> None:
@@ -155,6 +174,10 @@ class KanbanStore:
         with self.sessions() as session:
             board = session.scalar(select(BoardRecord))
             assert board is not None
+            settings = session.get(BoardSettingsRecord, 1)
+            assert settings is not None
+            column_colors = json.loads(settings.column_colors_json)
+            card_colors = json.loads(settings.card_colors_json)
             columns = session.scalars(select(ColumnRecord).order_by(
                 ColumnRecord.archived_at.is_not(None), ColumnRecord.position, ColumnRecord.id)).all()
             cards = session.scalars(select(CardRecord).order_by(
@@ -166,8 +189,10 @@ class KanbanStore:
                 AttachmentRecord.created_at, AttachmentRecord.id)).all()
             activity = session.scalars(select(ActivityRecord).order_by(
                 ActivityRecord.occurred_at.desc(), ActivityRecord.id.desc()).limit(200)).all()
-            return KanbanView(board=_board(board), columns=[_column(value) for value in columns],
-                cards=[_card(value) for value in cards], comments=[_comment(value) for value in comments],
+            return KanbanView(board=_board(board, settings),
+                columns=[_column(value, column_colors) for value in columns],
+                cards=[_card(value, card_colors) for value in cards],
+                comments=[_comment(value) for value in comments],
                 attachments=[_attachment(value) for value in attachments],
                 activity=[ActivityView.model_validate(value) for value in activity])
 
@@ -175,12 +200,18 @@ class KanbanStore:
         with self.sessions.begin() as session:
             board = session.scalar(select(BoardRecord))
             assert board is not None
+            settings = session.get(BoardSettingsRecord, 1)
+            assert settings is not None
             board.name, board.description, board.updated_at = value.name, value.description, self.now()
+            settings.default_priority = value.default_priority
+            settings.background_color, settings.accent_color = value.background_color, value.accent_color
+            settings.label_colors_json = json.dumps({key.casefold(): color
+                for key, color in value.label_colors.items()})
             self._activity(session, "edited", "board", board.id, f"Edited board “{board.name}”")
             session.flush()
-            return _board(board)
+            return _board(board, settings)
 
-    def create_column(self, name: str) -> ColumnView:
+    def create_column(self, name: str, color: str) -> ColumnView:
         with self.sessions.begin() as session:
             position = len(session.scalars(select(ColumnRecord).where(
                 ColumnRecord.archived_at.is_(None))).all())
@@ -188,17 +219,28 @@ class KanbanStore:
             record = ColumnRecord(id=str(uuid4()), name=name, position=position,
                 archived_at=None, created_at=instant, updated_at=instant)
             session.add(record)
+            colors = self._set_color(session, "column", record.id, color)
             self._activity(session, "created", "column", record.id, f"Created column “{name}”")
             session.flush()
-            return _column(record)
+            return _column(record, colors)
 
-    def edit_column(self, identity: str, name: str) -> ColumnView:
+    def edit_column(self, identity: str, name: str, color: str) -> ColumnView:
         with self.sessions.begin() as session:
             record = self._required(session, ColumnRecord, identity, "Column")
             record.name, record.updated_at = name, self.now()
+            colors = self._set_color(session, "column", identity, color)
             self._activity(session, "edited", "column", identity, f"Renamed column to “{name}”")
             session.flush()
-            return _column(record)
+            return _column(record, colors)
+
+    def _set_color(self, session: Session, kind: str, identity: str, color: str) -> dict[str, str]:
+        settings = session.get(BoardSettingsRecord, 1)
+        assert settings is not None
+        attribute = f"{kind}_colors_json"
+        colors = json.loads(getattr(settings, attribute))
+        colors[identity] = color
+        setattr(settings, attribute, json.dumps(colors))
+        return colors
 
     def move_column(self, identity: str, requested: int) -> ColumnView:
         with self.sessions.begin() as session:
@@ -214,7 +256,9 @@ class KanbanStore:
             record.updated_at = self.now()
             self._activity(session, "moved", "column", identity, f"Moved column “{record.name}”")
             session.flush()
-            return _column(record)
+            settings = session.get(BoardSettingsRecord, 1)
+            assert settings is not None
+            return _column(record, json.loads(settings.column_colors_json))
 
     def create_card(self, value: CardCreate) -> CardView:
         with self.sessions.begin() as session:
@@ -228,9 +272,10 @@ class KanbanStore:
                 labels_json=json.dumps(value.labels), priority=value.priority, position=position,
                 archived_at=None, created_at=instant, updated_at=instant)
             session.add(record)
+            colors = self._set_color(session, "card", record.id, value.color)
             self._activity(session, "created", "card", record.id, f"Created card “{record.title}”")
             session.flush()
-            return _card(record)
+            return _card(record, colors)
 
     def edit_card(self, identity: str, value: CardEdit) -> CardView:
         with self.sessions.begin() as session:
@@ -238,9 +283,10 @@ class KanbanStore:
             record.title, record.description = value.title, value.description
             record.assignee, record.labels_json = value.assignee, json.dumps(value.labels)
             record.priority, record.updated_at = value.priority, self.now()
+            colors = self._set_color(session, "card", identity, value.color)
             self._activity(session, "edited", "card", identity, f"Edited card “{record.title}”")
             session.flush()
-            return _card(record)
+            return _card(record, colors)
 
     @staticmethod
     def _active_cards(session: Session, column_id: str) -> list[CardRecord]:
@@ -266,7 +312,9 @@ class KanbanStore:
             record.updated_at = self.now()
             self._activity(session, "moved", "card", identity, f"Moved card “{record.title}”")
             session.flush()
-            return _card(record)
+            settings = session.get(BoardSettingsRecord, 1)
+            assert settings is not None
+            return _card(record, json.loads(settings.card_colors_json))
 
     def archive(self, kind: str, identity: str, restore: bool = False) -> None:
         models = {"column": ColumnRecord, "card": CardRecord,

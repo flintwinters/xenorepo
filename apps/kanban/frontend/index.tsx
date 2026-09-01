@@ -3,7 +3,8 @@ import { CommandButton, ConsolePane, ConsoleShell, EmptyState, StatusRail, Utili
 import {
   addComment, addLink, addUpload, createCard, createColumn, editAttachment, editBoard,
   editCard, editColumn, editComment, loadBoard, moveCard, moveColumn, setArchived,
-  type Attachment, type Card, type CardFields, type Column, type Comment, type KanbanView,
+  type Attachment, type BoardFields, type Card, type CardFields, type Column, type Comment,
+  type KanbanView,
 } from "./client.js";
 import "./styles.css";
 
@@ -57,11 +58,25 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     return active(this.state.view?.cards ?? []).filter((value) => value.column_id === columnId)
       .sort((a, b) => a.position - b.position);
   }
+  private knownLabels(): string[] {
+    const values = new Map<string, string>();
+    for (const card of this.state.view?.cards ?? [])
+      for (const label of card.labels) values.set(label.toLocaleLowerCase(), label);
+    return [...values.values()].sort((left, right) => left.localeCompare(right));
+  }
   private saveBoard = (event: SubmitEvent): void => {
     event.preventDefault();
     const data = new FormData(event.currentTarget as HTMLFormElement);
+    const label_colors = Object.fromEntries(this.knownLabels().map(
+      (label, index) => [label, String(data.get(`label_color_${index}`))],
+    ));
+    const fields: BoardFields = { name: String(data.get("name")),
+      description: String(data.get("description")),
+      default_priority: String(data.get("default_priority")) as BoardFields["default_priority"],
+      background_color: String(data.get("background_color")),
+      accent_color: String(data.get("accent_color")), label_colors };
     this.perform("Board details updated", async () => {
-      await editBoard(String(data.get("name")), String(data.get("description")));
+      await editBoard(fields);
       this.setState({ editingBoard: false });
     });
   };
@@ -70,7 +85,8 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const data = new FormData(event.currentTarget as HTMLFormElement), existing = this.card(this.state.selected);
     const fields: CardFields = { title: String(data.get("title")),
       description: String(data.get("description")), assignee: String(data.get("assignee")),
-      labels: labels(data.get("labels")), priority: String(data.get("priority")) as CardFields["priority"] };
+      labels: labels(data.get("labels")), priority: String(data.get("priority")) as CardFields["priority"],
+      color: String(data.get("color")) };
     this.perform(existing ? "Card updated" : "Card created", async () => {
       if (existing) await editCard(existing.id, fields);
       else await createCard(this.state.creatingIn!, fields);
@@ -79,9 +95,9 @@ class KanbanBoard extends Component<Record<string, never>, State> {
   };
   private saveNewColumn = (event: SubmitEvent): void => {
     event.preventDefault();
-    const name = String(new FormData(event.currentTarget as HTMLFormElement).get("name"));
+    const data = new FormData(event.currentTarget as HTMLFormElement);
     this.perform("Column created", async () => {
-      await createColumn(name);
+      await createColumn(String(data.get("name")), String(data.get("color")));
       this.setState({ creatingColumn: false });
     });
   };
@@ -89,9 +105,9 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     event.preventDefault();
     const id = this.state.editingColumn;
     if (!id) return;
-    const name = String(new FormData(event.currentTarget as HTMLFormElement).get("name"));
+    const data = new FormData(event.currentTarget as HTMLFormElement);
     this.perform("Column renamed", async () => {
-      await editColumn(id, name);
+      await editColumn(id, String(data.get("name")), String(data.get("color")));
       this.setState({ editingColumn: null });
     });
   };
@@ -151,11 +167,21 @@ class KanbanBoard extends Component<Record<string, never>, State> {
   private boardEditor() {
     const board = this.state.view?.board;
     if (!board || !this.state.editingBoard) return null;
+    const knownLabels = this.knownLabels();
     return <div class="backdrop"><section class="dialog" role="dialog" aria-modal="true"
-      aria-labelledby="board-editor-title"><h2 id="board-editor-title">EDIT BOARD</h2>
+      aria-labelledby="board-editor-title"><h2 id="board-editor-title">BOARD SETTINGS</h2>
       <form onSubmit={this.saveBoard}><label>Name<input name="name" required maxLength={120}
         value={board.name} /></label><label>Description<textarea name="description" maxLength={4000}
-          value={board.description} /></label><div class="actions"><CommandButton type="button"
+          value={board.description} /></label><label>Default card priority<select name="default_priority"
+            value={board.default_priority}><option value="low">Low</option><option value="normal">Normal</option>
+            <option value="high">High</option><option value="urgent">Urgent</option></select></label>
+        <div class="field-row"><label>Board background<input name="background_color" type="color"
+          value={board.background_color} /></label><label>Accent color<input name="accent_color" type="color"
+            value={board.accent_color} /></label></div>{knownLabels.length > 0 && <fieldset>
+          <legend>Label colors</legend>{knownLabels.map((label, index) => <label>{label}<input
+            name={`label_color_${index}`} type="color"
+            value={board.label_colors[label.toLocaleLowerCase()] ?? board.accent_color} /></label>)}</fieldset>}
+        <div class="actions"><CommandButton type="button"
             onClick={() => this.setState({ editingBoard: false })}>CANCEL</CommandButton>
           <CommandButton type="submit">SAVE</CommandButton></div></form></section></div>;
   }
@@ -167,7 +193,8 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     return <div class="backdrop"><section class="dialog" role="dialog" aria-modal="true"
       aria-labelledby="column-editor-title"><h2 id="column-editor-title">EDIT COLUMN</h2>
       <form onSubmit={this.saveColumn}><label>Column name<input name="name" required maxLength={120}
-        value={column.name} autofocus /></label><div class="actions"><CommandButton type="button"
+        value={column.name} autofocus /></label><label>Column color<input name="color" type="color"
+          value={column.color} /></label><div class="actions"><CommandButton type="button"
           onClick={() => this.setState({ editingColumn: null })}>CANCEL</CommandButton>
         <CommandButton type="submit">SAVE</CommandButton></div></form></section></div>;
   }
@@ -176,7 +203,8 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     return <div class="backdrop"><section class="dialog" role="dialog" aria-modal="true"
       aria-labelledby="column-creator-title"><h2 id="column-creator-title">NEW COLUMN</h2>
       <form onSubmit={this.saveNewColumn}><label>Column name<input name="name" required maxLength={120}
-        autofocus /></label><div class="actions"><CommandButton type="button"
+        autofocus /></label><label>Column color<input name="color" type="color" value="#665c54" /></label>
+        <div class="actions"><CommandButton type="button"
           onClick={() => this.setState({ creatingColumn: false })}>CANCEL</CommandButton>
         <CommandButton type="submit">CREATE</CommandButton></div></form></section></div>;
   }
@@ -210,7 +238,8 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     if (this.state.editingComment || this.state.editingAttachment) return null;
     const card = this.card(this.state.selected);
     if (!card && !this.state.creatingIn) return null;
-    const value = card ?? { title: "", description: "", assignee: "", labels: [], priority: "normal" };
+    const value = card ?? { title: "", description: "", assignee: "", labels: [],
+      priority: this.state.view?.board.default_priority ?? "normal", color: "#32302f" };
     const comments = active(this.state.view?.comments ?? []).filter((item) => item.card_id === card?.id);
     const attachments = active(this.state.view?.attachments ?? []).filter((item) => item.card_id === card?.id);
     return <div class="backdrop"><section class="dialog card-dialog" role="dialog" aria-modal="true"
@@ -221,6 +250,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
             maxLength={120} value={value.assignee} /></label><label>Priority<select name="priority"
               value={value.priority}><option value="low">Low</option><option value="normal">Normal</option>
               <option value="high">High</option><option value="urgent">Urgent</option></select></label></div>
+        <label>Card color<input name="color" type="color" value={value.color} /></label>
         <label>Labels <span class="hint">comma separated</span><input name="labels"
           value={value.labels.join(", ")} /></label><div class="actions">{card && <CommandButton type="button"
             class="danger" onClick={() => this.archive("card", card.id)}>ARCHIVE</CommandButton>}
@@ -250,21 +280,23 @@ class KanbanBoard extends Component<Record<string, never>, State> {
   }
   private column(column: NonNullable<State["view"]>["columns"][number]) {
     const cards = this.cards(column.id);
-    return <ConsolePane class="column" title={column.name} tone="neutral" titleEnd={<>
+    return <ConsolePane class="column" style={`--column-color:${column.color}`} title={column.name}
+      tone="neutral" titleEnd={<><CommandButton appearance="subtle"
+        onClick={() => this.setState({ creatingIn: column.id })}>+ CARD</CommandButton>
       <CommandButton appearance="subtle" aria-label={`Rename ${column.name}`}
         onClick={() => this.setState({ editingColumn: column.id })}>EDIT</CommandButton>
       <CommandButton appearance="subtle" aria-label={`Archive ${column.name}`}
         onClick={() => this.archive("column", column.id)}>ARCHIVE</CommandButton></>}>
       <div class="card-list" data-column={column.id} onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => this.drop(event, column.id)}>{cards.map((card) => <article data-card-id={card.id}
-          class={`card priority-${card.priority}`}
+          class={`card priority-${card.priority}`} style={`--card-color:${card.color}`}
           draggable onDragStart={() => { this.dragged = card.id; }} onDragEnd={() => { this.dragged = null; }}
           onClick={() => this.setState({ selected: card.id })} onKeyDown={(event) => {
             if (event.key === "Enter") this.setState({ selected: card.id });
           }} tabIndex={0}><strong>{card.title}</strong>{card.description && <p>{card.description}</p>}
-          <div class="card-meta">{card.labels.map((label) => <span>{label}</span>)}
+          <div class="card-meta">{card.labels.map((label) => <span style={`--label-color:${
+            this.state.view?.board.label_colors[label.toLocaleLowerCase()] ?? "#1d2021"}`}>{label}</span>)}
             {card.assignee && <span>@{card.assignee}</span>}<span>{card.priority}</span></div></article>)}
-        <CommandButton class="add-card" onClick={() => this.setState({ creatingIn: column.id })}>+ CARD</CommandButton>
       </div></ConsolePane>;
   }
   private board() {
@@ -305,7 +337,8 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const footer = <StatusRail><span class={this.state.failed ? "error" : ""} role="status">
       {this.state.busy ? "SAVING…" : this.state.message}</span><span class="push">
       {active(view?.columns ?? []).length} COLUMNS · {active(view?.cards ?? []).length} CARDS</span></StatusRail>;
-    return <ConsoleShell class="kanban-shell" header={header} footer={footer}><div class="workspace">
+    const theme = board ? `--board-background:${board.background_color};--board-accent:${board.accent_color}` : "";
+    return <ConsoleShell class="kanban-shell" style={theme} header={header} footer={footer}><div class="workspace">
       {!view ? <EmptyState heading="LOADING BOARD" /> : this.state.mode === "board" ? this.board() :
         this.state.mode === "archive" ? this.archiveView() : this.activityView()}</div>
       {this.boardEditor()}{this.columnCreator()}{this.columnEditor()}{this.commentEditor()}

@@ -12,6 +12,7 @@ async function createColumn(page: Page, name: string) {
 test("[acceptance] creates, edits, drags, archives, restores, and reloads durable work", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.getByRole("status")).toHaveText("Board ready");
+  const initialBoard = (await (await page.request.get("/api/board")).json()).board;
   const suffix = `${testInfo.project.name}-${Date.now()}`,
     queue = `Queue ${suffix}`, renamedQueue = `Planned ${suffix}`, doing = `Doing ${suffix}`;
   await createColumn(page, queue);
@@ -20,18 +21,30 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   const columnEditor = page.getByRole("dialog", { name: "EDIT COLUMN" });
   await expect(columnEditor).toBeVisible();
   await columnEditor.getByLabel("Column name").fill(renamedQueue);
+  await columnEditor.getByLabel("Column color").fill("#336699");
   await columnEditor.getByRole("button", { name: "SAVE", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Column renamed");
   const source = page.locator(".column").filter({ hasText: renamedQueue });
+  await page.getByRole("button", { name: "EDIT BOARD" }).click();
+  const settings = page.getByRole("dialog", { name: "BOARD SETTINGS" });
+  await settings.getByLabel("Default card priority").selectOption("urgent");
+  await settings.getByLabel("Board background").fill("#202530");
+  await settings.getByLabel("Accent color").fill("#44aa88");
+  await settings.getByRole("button", { name: "SAVE", exact: true }).click();
   await source.getByRole("button", { name: "+ CARD" }).click();
   await page.getByLabel("Title").fill(`Prove board ${suffix}`);
   await page.getByLabel("Description").fill("A persisted acceptance card");
   await page.getByLabel("Assignee").fill("Felix");
-  await page.getByLabel("Priority").selectOption("high");
+  await expect(page.getByLabel("Priority")).toHaveValue("urgent");
+  await page.getByLabel("Card color").fill("#41395c");
   await page.getByLabel(/Labels/).fill("acceptance, durable");
   await page.getByRole("button", { name: "SAVE", exact: true }).click();
   const card = page.locator(".card").filter({ hasText: `Prove board ${suffix}` });
   await expect(card).toContainText("@Felix");
+  await page.getByRole("button", { name: "EDIT BOARD" }).click();
+  const palette = page.getByRole("dialog", { name: "BOARD SETTINGS" });
+  await palette.getByLabel("acceptance").fill("#8255aa");
+  await palette.getByRole("button", { name: "SAVE", exact: true }).click();
   const cardId = await card.getAttribute("data-card-id");
   const sourceId = await source.locator(".card-list").getAttribute("data-column");
   const target = page.locator(".column").filter({ hasText: doing }).locator(".card-list");
@@ -86,6 +99,11 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   expect((await page.request.delete(`/api/archive/card/${cardId}`)).ok()).toBe(true);
   expect((await page.request.delete(`/api/archive/column/${sourceId}`)).ok()).toBe(true);
   expect((await page.request.delete(`/api/archive/column/${targetId}`)).ok()).toBe(true);
+  expect((await page.request.patch("/api/board", { data: {
+    name: initialBoard.name, description: initialBoard.description,
+    default_priority: initialBoard.default_priority, background_color: initialBoard.background_color,
+    accent_color: initialBoard.accent_color, label_colors: initialBoard.label_colors,
+  } })).ok()).toBe(true);
 });
 
 test("[visual] populated single-board workflow", async ({ page }) => {

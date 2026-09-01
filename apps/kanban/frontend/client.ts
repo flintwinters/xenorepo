@@ -8,6 +8,7 @@ export type Column = components["schemas"]["ColumnView"];
 export type Comment = components["schemas"]["CommentView"];
 export type Attachment = components["schemas"]["AttachmentView"];
 export type CardFields = components["schemas"]["CardEdit"];
+export type BoardFields = components["schemas"]["BoardEdit"];
 
 function result<T>(data: T | undefined, error: unknown): T {
   if (error) {
@@ -22,17 +23,17 @@ export async function loadBoard(): Promise<KanbanView> {
   const { data, error } = await api.GET("/api/board");
   return result(data, error);
 }
-export async function editBoard(name: string, description: string): Promise<void> {
-  const { error } = await api.PATCH("/api/board", { body: { name, description } });
+export async function editBoard(fields: BoardFields): Promise<void> {
+  const { error } = await api.PATCH("/api/board", { body: fields });
   if (error) result(undefined, error);
 }
-export async function createColumn(name: string): Promise<void> {
-  const { error } = await api.POST("/api/columns", { body: { name } });
+export async function createColumn(name: string, color: string): Promise<void> {
+  const { error } = await api.POST("/api/columns", { body: { name, color } });
   if (error) result(undefined, error);
 }
-export async function editColumn(id: string, name: string): Promise<void> {
+export async function editColumn(id: string, name: string, color: string): Promise<void> {
   const { error } = await api.PATCH("/api/columns/{column_id}", {
-    params: { path: { column_id: id } }, body: { name },
+    params: { path: { column_id: id } }, body: { name, color },
   });
   if (error) result(undefined, error);
 }

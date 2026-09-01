@@ -43,6 +43,9 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await settings.getByLabel("Board background").fill("#202530");
   await settings.getByLabel("Accent color").fill("#44aa88");
   await settings.getByRole("button", { name: "SAVE", exact: true }).click();
+  await expect(page.locator(".kanban-shell")).toHaveCSS("--console-rail-border", "#44aa88");
+  await expect(page.getByRole("banner").locator(".x-ui-rail")).toHaveCSS("border-bottom-color", "rgb(68, 170, 136)");
+  await expect(page.locator(".workspace")).toHaveCSS("background-color", "rgb(32, 37, 48)");
   await source.getByRole("button", { name: "+ CARD" }).click();
   await page.getByLabel("Title").fill(`Prove board ${suffix}`);
   await page.getByLabel("Description").fill("A persisted acceptance card");

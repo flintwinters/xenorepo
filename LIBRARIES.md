@@ -27,9 +27,10 @@ content and backdrop presentation app-owned except for the shared subtle corner
 radius. Textareas within the shared shell use the same radius and never expose
 native drag resizing. Component props extend the corresponding Preact native
 HTML attributes, named props replace slots, and stable `x-ui-*` classes are the
-styling boundary. The package owns only proved console geometry and interaction
-treatment; app layout remains in external app-owned CSS. All consumers import
-`@xenorepo/ui`.
+styling boundary. Console colors remain application-owned through the documented
+`--console-*` custom properties, including rail background and border overrides.
+The package owns only proved console geometry and interaction treatment; app
+layout remains in external app-owned CSS. All consumers import `@xenorepo/ui`.
 Established catalogued controls are the default for matching semantics. The
 independent-consumer rule governs creating abstractions, not consuming them.
 

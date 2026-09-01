@@ -52,8 +52,8 @@
   padding: 1px 6px;
   overflow: hidden;
   white-space: nowrap;
-  background: linear-gradient(#3c3836, #282828);
-  border-bottom: 1px solid #101112;
+  background: var(--console-rail-background, linear-gradient(#3c3836, #282828));
+  border-bottom: 1px solid var(--console-rail-border, #101112);
 }
 .x-ui-pane {
   display: grid;

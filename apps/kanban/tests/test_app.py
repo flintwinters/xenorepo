@@ -145,6 +145,7 @@ class ApplicationTests(unittest.TestCase):
         self.assertNotIn("window.alert", source)
         self.assertNotIn("window.confirm", source)
         self.assertNotIn("window.prompt", source)
+        self.assertNotIn('type="color"', source)
 
 
 if __name__ == "__main__":

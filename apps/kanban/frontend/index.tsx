@@ -28,6 +28,18 @@ const labels = (value: FormDataEntryValue | null): string[] => String(value ?? "
   .split(",").map((item) => item.trim()).filter(Boolean);
 const active = <T extends { archived_at?: string | null }>(values: T[]): T[] =>
   values.filter((value) => !value.archived_at);
+const colorPresets = ["#1d2021", "#665c54", "#458588", "#689d6a", "#d79921", "#cc241d", "#b16286"];
+
+function ColorField({ label, name, value }: { label: string; name: string; value: string }) {
+  return <label class="color-field">{label}<span class="color-control">
+    <input name={name} value={value} required pattern="#[0-9a-fA-F]{6}" aria-label={label} />
+    <span class="color-presets">{colorPresets.map((color) =>
+      <button type="button" class="color-swatch" data-ui-control="domain" style={`--swatch:${color}`} title={color}
+        aria-label={`Use ${color}`} onClick={(event) => {
+          const input = event.currentTarget.closest(".color-control")?.querySelector("input");
+          if (input) { input.value = color; input.dispatchEvent(new Event("input", { bubbles: true })); }
+        }} />)}</span></span></label>;
+}
 
 class KanbanBoard extends Component<Record<string, never>, State> {
   override state: State = { view: null, mode: "board", selected: null, creatingIn: null,
@@ -175,12 +187,12 @@ class KanbanBoard extends Component<Record<string, never>, State> {
           value={board.description} /></label><label>Default card priority<select name="default_priority"
             value={board.default_priority}><option value="low">Low</option><option value="normal">Normal</option>
             <option value="high">High</option><option value="urgent">Urgent</option></select></label>
-        <div class="field-row"><label>Board background<input name="background_color" type="color"
-          value={board.background_color} /></label><label>Accent color<input name="accent_color" type="color"
-            value={board.accent_color} /></label></div>{knownLabels.length > 0 && <fieldset>
-          <legend>Label colors</legend>{knownLabels.map((label, index) => <label>{label}<input
-            name={`label_color_${index}`} type="color"
-            value={board.label_colors[label.toLocaleLowerCase()] ?? board.accent_color} /></label>)}</fieldset>}
+        <div class="field-row"><ColorField label="Board background" name="background_color"
+          value={board.background_color} /><ColorField label="Accent color" name="accent_color"
+            value={board.accent_color} /></div>{knownLabels.length > 0 && <fieldset>
+          <legend>Label colors</legend>{knownLabels.map((label, index) => <ColorField label={label}
+            name={`label_color_${index}`}
+            value={board.label_colors[label.toLocaleLowerCase()] ?? board.accent_color} />)}</fieldset>}
         <div class="actions"><CommandButton type="button"
             onClick={() => this.setState({ editingBoard: false })}>CANCEL</CommandButton>
           <CommandButton type="submit">SAVE</CommandButton></div></form></Modal>;
@@ -193,8 +205,8 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     return <Modal class="backdrop" contentClass="dialog" labelledBy="column-editor-title"
       onDismiss={() => this.setState({ editingColumn: null })}><h2 id="column-editor-title">EDIT COLUMN</h2>
       <form onSubmit={this.saveColumn}><label>Column name<input name="name" required maxLength={120}
-        value={column.name} autofocus /></label><label>Column color<input name="color" type="color"
-          value={column.color} /></label><div class="actions"><CommandButton type="button"
+        value={column.name} autofocus /></label><ColorField label="Column color" name="color"
+          value={column.color} /><div class="actions"><CommandButton type="button"
           onClick={() => this.setState({ editingColumn: null })}>CANCEL</CommandButton>
         <CommandButton type="submit">SAVE</CommandButton></div></form></Modal>;
   }
@@ -203,7 +215,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     return <Modal class="backdrop" contentClass="dialog" labelledBy="column-creator-title"
       onDismiss={() => this.setState({ creatingColumn: false })}><h2 id="column-creator-title">NEW COLUMN</h2>
       <form onSubmit={this.saveNewColumn}><label>Column name<input name="name" required maxLength={120}
-        autofocus /></label><label>Column color<input name="color" type="color" value="#665c54" /></label>
+        autofocus /></label><ColorField label="Column color" name="color" value="#665c54" />
         <div class="actions"><CommandButton type="button"
           onClick={() => this.setState({ creatingColumn: false })}>CANCEL</CommandButton>
         <CommandButton type="submit">CREATE</CommandButton></div></form></Modal>;
@@ -252,7 +264,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
             maxLength={120} value={value.assignee} /></label><label>Priority<select name="priority"
               value={value.priority}><option value="low">Low</option><option value="normal">Normal</option>
               <option value="high">High</option><option value="urgent">Urgent</option></select></label></div>
-        <label>Card color<input name="color" type="color" value={value.color} /></label>
+        <ColorField label="Card color" name="color" value={value.color} />
         <label>Labels <span class="hint">comma separated</span><input name="labels"
           value={value.labels.join(", ")} /></label><div class="actions">{card && <CommandButton type="button"
             class="danger" onClick={() => this.archive("card", card.id)}>ARCHIVE</CommandButton>}
@@ -339,7 +351,12 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const footer = <StatusRail><span class={this.state.failed ? "error" : ""} role="status">
       {this.state.busy ? "SAVING…" : this.state.message}</span><span class="push">
       {active(view?.columns ?? []).length} COLUMNS · {active(view?.cards ?? []).length} CARDS</span></StatusRail>;
-    const theme = board ? `--board-background:${board.background_color};--board-accent:${board.accent_color}` : "";
+    const theme = board ? `--board-background:${board.background_color};--board-accent:${board.accent_color};` +
+      `--console-bg:${board.background_color};--console-panel:${board.background_color};` +
+      `--console-focus:${board.accent_color};--console-button-border:${board.accent_color};` +
+      `--console-button-border-hover:${board.accent_color};--console-rail-border:${board.accent_color};` +
+      `--console-rail-background:linear-gradient(color-mix(in srgb, ${board.background_color} 72%, ` +
+      `${board.accent_color}),${board.background_color})` : "";
     return <ConsoleShell class="kanban-shell" style={theme} header={header} footer={footer}><div class="workspace">
       {!view ? <EmptyState heading="LOADING BOARD" /> : this.state.mode === "board" ? this.board() :
         this.state.mode === "archive" ? this.archiveView() : this.activityView()}</div>

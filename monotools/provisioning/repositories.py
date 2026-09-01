@@ -15,6 +15,8 @@ import shutil
 import subprocess
 from typing import TYPE_CHECKING
 
+from monotools.orchestration.apps import AppDefinitionError, validate_app_name
+
 if TYPE_CHECKING:
     from monotools.orchestration.apps import AppDefinition
 
@@ -31,6 +33,15 @@ class AppRepositoryState:
     clean: bool
     remote: str | None
     revision: str
+
+
+@dataclass(frozen=True)
+class AppDeletion:
+    """The local repository boundary removed for one monoapp."""
+
+    name: str
+    mode: str
+    path: Path
 
 
 _GITHUB_COMPONENT = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]*[A-Za-z0-9])?$")
@@ -59,6 +70,39 @@ def uninitialized_app_submodules(workspace: Path) -> tuple[Path, ...]:
     """Return declared app submodules whose working trees have not been populated."""
     return tuple(path for path in declared_app_submodules(workspace)
         if not (path / ".git").exists())
+
+
+def delete_app(workspace: Path, name: str) -> AppDeletion:
+    """Remove one local monoapp and every host-repository registration it owns."""
+    try:
+        valid_name = validate_app_name(name)
+    except AppDefinitionError as error:
+        raise RepositoryError(str(error)) from error
+    workspace = workspace.resolve()
+    relative = Path("apps") / valid_name
+    directory = workspace / relative
+    submodule = directory in declared_app_submodules(workspace)
+    if not directory.exists() and not submodule:
+        available = sorted(path.name for path in (workspace / "apps").iterdir()
+            if path.is_dir() and not path.name.startswith((".", "_")))
+        raise RepositoryError(
+            f"unknown monoapp {valid_name!r}; available: {', '.join(available) or 'none'}"
+        )
+    if submodule:
+        _git(workspace, "submodule", "deinit", "-f", "--", str(relative))
+        _git(workspace, "rm", "-f", "--", str(relative))
+        module_metadata = workspace / ".git" / "modules" / relative
+        if module_metadata.exists():
+            shutil.rmtree(module_metadata)
+        mode = "submodule"
+    else:
+        tracked = _git(workspace, "ls-files", "--", str(relative))
+        if tracked:
+            _git(workspace, "rm", "-r", "-f", "--", str(relative))
+        mode = "monolith"
+    if directory.exists():
+        shutil.rmtree(directory)
+    return AppDeletion(valid_name, mode, relative)
 
 
 def _run(command: list[str], cwd: Path) -> str:

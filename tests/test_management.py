@@ -21,6 +21,7 @@ from monotools.orchestration.output import print_error
 from monotools.provisioning.repositories import (
     AppRepositoryState,
     RepositoryError,
+    delete_app,
     declared_app_submodules,
     promote_to_submodule,
     uninitialized_app_submodules,
@@ -372,6 +373,74 @@ frontend:
             ):
                 with self.subTest(name=name), self.assertRaisesRegex(ScaffoldError, message):
                     scaffold_app(apps_directory, name, title)
+
+    def test_deletion_removes_tracked_and_ignored_monolith_context(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="delete-") as temporary:
+            workspace = Path(temporary)
+            directory = workspace / "apps" / "signal_lab"
+            (directory / "data" / "uploads").mkdir(parents=True)
+            (directory / "manage.py").write_text("manager = None\n", encoding="utf-8")
+            (directory / "data" / "database.sqlite3").touch()
+            calls: list[tuple[str, ...]] = []
+
+            def git(_cwd: Path, *arguments: str) -> str:
+                calls.append(arguments)
+                return "apps/signal_lab/manage.py" if arguments[0] == "ls-files" else ""
+
+            with patch("monotools.provisioning.repositories._git", side_effect=git):
+                deleted = delete_app(workspace, "signal_lab")
+
+            self.assertEqual((deleted.name, deleted.mode), ("signal_lab", "monolith"))
+            self.assertFalse(directory.exists())
+            self.assertIn(("rm", "-r", "-f", "--", "apps/signal_lab"), calls)
+
+    def test_deletion_removes_submodule_registration_and_local_metadata(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="delete-") as temporary:
+            workspace = Path(temporary)
+            directory = workspace / "apps" / "signal_lab"
+            metadata = workspace / ".git" / "modules" / "apps" / "signal_lab"
+            directory.mkdir(parents=True)
+            metadata.mkdir(parents=True)
+            (workspace / ".gitmodules").write_text(
+                "[submodule \"signal_lab\"]\n"
+                "\tpath = apps/signal_lab\n"
+                "\turl = git@example.test:signal_lab.git\n", encoding="utf-8")
+            calls: list[tuple[str, ...]] = []
+
+            def git(_cwd: Path, *arguments: str) -> str:
+                calls.append(arguments)
+                return ""
+
+            with patch("monotools.provisioning.repositories._git", side_effect=git):
+                deleted = delete_app(workspace, "signal_lab")
+
+            self.assertEqual(deleted.mode, "submodule")
+            self.assertFalse(directory.exists())
+            self.assertFalse(metadata.exists())
+            self.assertEqual(calls, [
+                ("submodule", "deinit", "-f", "--", "apps/signal_lab"),
+                ("rm", "-f", "--", "apps/signal_lab"),
+            ])
+
+    def test_deletion_rejects_unknown_and_unsafe_names(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="delete-") as temporary:
+            workspace = Path(temporary)
+            (workspace / "apps").mkdir()
+            for name, message in (("../escape", "app name must"), ("missing", "unknown monoapp")):
+                with self.subTest(name=name), self.assertRaisesRegex(RepositoryError, message):
+                    delete_app(workspace, name)
+
+    def test_root_deletion_requires_exact_confirmation_before_mutation(self) -> None:
+        with patch("manage.delete_app") as delete:
+            rejected = CliRunner().invoke(repository_manager.app,
+                ["monoapp", "delete", "signal_lab", "--confirm", "another_app"])
+            accepted = CliRunner().invoke(repository_manager.app,
+                ["monoapp", "delete", "signal_lab", "--confirm", "signal_lab"])
+
+        self.assertEqual(rejected.exit_code, 1)
+        self.assertIn("must exactly match", rejected.output)
+        self.assertEqual(accepted.exit_code, 0)
+        delete.assert_called_once_with(ROOT, "signal_lab")
 
     def test_repository_promotion_requires_explicit_valid_github_identity(self) -> None:
         definition = repository_manager.MANAGERS[0][0]

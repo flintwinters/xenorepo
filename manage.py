@@ -32,7 +32,9 @@ from monotools.orchestration.aesthetics import review_aesthetics
 from monotools.orchestration.hygiene import analyze_ui_hygiene
 from monotools.provisioning.audit import AuditReport, audit_workspace
 from monotools.provisioning.management import attach_repository_commands
-from monotools.provisioning.repositories import uninitialized_app_submodules
+from monotools.provisioning.repositories import (
+    RepositoryError, delete_app, uninitialized_app_submodules,
+)
 from monotools.provisioning.scaffolding import ScaffoldError, scaffold_app
 
 
@@ -172,6 +174,21 @@ def create_monoapp(name: str = typer.Argument(...),
         _fail(error)
     console.print(f"[bold green]Created monoapp[/] {directory.relative_to(ROOT)}")
     console.print(f"Complete {directory.relative_to(ROOT) / 'SPEC.md'}, then run uv run manage.py verify.")
+
+
+@monoapp.command("delete")
+def delete_monoapp(name: str = typer.Argument(...),
+    confirm: str = typer.Option(..., "--confirm",
+        help="Repeat the exact monoapp name to authorize permanent local deletion.")) -> None:
+    """Delete a monoapp's directory, runtime data, commands, and repository registration."""
+    if confirm != name:
+        _fail("--confirm must exactly match the monoapp name")
+    try:
+        deleted = delete_app(ROOT, name)
+    except (OSError, RepositoryError) as error:
+        _fail(error)
+    console.print(f"[bold green]Deleted monoapp[/] {deleted.name} ({deleted.mode})")
+    console.print("Commit the staged deletion, then run uv run manage.py verify.")
 
 
 @app.command()

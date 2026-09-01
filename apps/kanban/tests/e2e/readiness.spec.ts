@@ -56,6 +56,11 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await page.getByRole("button", { name: "SAVE", exact: true }).click();
   const card = page.locator(".card").filter({ hasText: `Prove board ${suffix}` });
   await expect(card).toContainText("@Felix");
+  expect(await card.evaluate((element) => {
+    const cardStyle = getComputedStyle(element), listStyle = getComputedStyle(element.parentElement!);
+    return { cardMargin: cardStyle.margin, cardPadding: cardStyle.padding,
+      listGap: listStyle.gap, listPadding: listStyle.padding };
+  })).toEqual({ cardMargin: "0px", cardPadding: "0px", listGap: "0px", listPadding: "0px" });
   await page.getByRole("button", { name: "EDIT BOARD" }).click();
   const palette = page.getByRole("dialog", { name: "BOARD SETTINGS" });
   await palette.getByLabel("acceptance").fill("#8255aa");

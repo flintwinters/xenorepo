@@ -2,6 +2,9 @@ import type { ComponentChildren, JSX } from "preact";
 import { useEffect } from "preact/hooks";
 import "./styles.css";
 
+export { MonoForm } from "./monoform";
+export type { MonoFormManifest, MonoFormOperation, MonoFormProps, MonoFormResult } from "./monoform";
+
 type Tone = "blue" | "green" | "orange" | "purple" | "neutral";
 type DivProps = JSX.HTMLAttributes<HTMLDivElement>;
 

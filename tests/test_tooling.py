@@ -133,6 +133,68 @@ frontend:
             with self.assertRaisesRegex(AppDefinitionError, "preact.*must end in .tsx"):
                 load_app(directory)
 
+    def test_monoform_metadata_forbids_source_and_requires_allowlist(self) -> None:
+        base = """name: fixture
+title: Fixture
+module: apps.fixture.backend.server
+capabilities: [monoform]
+frontend:
+  artifacts:
+    forms:
+      format: monoform
+      output: forms.html
+      operations: [create_example]
+  routes:
+    /forms: forms
+"""
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="monoform-metadata-") as temporary:
+            directory = Path(temporary) / "fixture"
+            (directory / "frontend").mkdir(parents=True)
+            (directory / "backend").mkdir()
+            (directory / "manage.py").touch()
+            (directory / "app.yaml").write_text(base, encoding="utf-8")
+            artifact = load_app(directory).artifacts[0]
+            self.assertEqual(artifact.operations, ("create_example",))
+            self.assertIsNone(artifact.source)
+            for mutation, message in (("      source: frontend/index.tsx\n", "forbids source"),
+                    ("      operations: []\n", "requires unique operations")):
+                contents = base.replace("      operations: [create_example]\n", mutation)
+                (directory / "app.yaml").write_text(contents, encoding="utf-8")
+                with self.assertRaisesRegex(AppDefinitionError, message):
+                    load_app(directory)
+
+    def test_monoform_build_is_allowlisted_self_contained_and_atomic(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="monoform-build-") as temporary:
+            directory = Path(temporary)
+            data = directory / "data"
+            data.mkdir()
+            manifest = {"schemaVersion": 1, "application": {"name": "fixture", "title": "Fixture"},
+                "operations": [{"operationId": "create_example", "kind": "create",
+                    "entity": "example", "title": "Create example", "submitLabel": "Save",
+                    "destructive": False, "method": "POST", "path": "/api/examples",
+                    "parameters": [], "bodySchema": {"type": "object", "properties": {
+                        "name": {"type": "string"}}, "required": ["name"]},
+                    "successStatuses": [200]}]}
+            (data / "monoform.json").write_text(json.dumps(manifest), encoding="utf-8")
+            definition = AppDefinition(name="fixture", title="Fixture", directory=directory,
+                module="fixture.server", artifacts=(FrontendArtifact("forms", "monoform", None,
+                    Path("forms.html"), ("create_example",)),), routes=(("/forms", "forms"),),
+                capabilities=frozenset({"monoform"}))
+            build_app(definition, ROOT)
+            output = directory / "dist" / "forms.html"
+            first = output.read_bytes()
+            self.assertIn(b"Create example", first)
+            self.assertNotIn(b'script src=', first)
+            build_app(definition, ROOT)
+            self.assertEqual(output.read_bytes(), first)
+            broken = AppDefinition(name="fixture", title="Fixture", directory=directory,
+                module="fixture.server", artifacts=(FrontendArtifact("forms", "monoform", None,
+                    Path("forms.html"), ("missing",)),), routes=(("/forms", "forms"),),
+                capabilities=frozenset({"monoform"}))
+            with self.assertRaises(LifecycleError):
+                build_app(broken, ROOT)
+            self.assertEqual(output.read_bytes(), first)
+
     def test_preact_diagnostics_preserve_the_existing_dist_artifact(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="preact-error-") as temporary:
             directory = Path(temporary)

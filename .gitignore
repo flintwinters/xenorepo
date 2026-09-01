@@ -67,6 +67,8 @@ htmlcov/
 apps/*/data/*.db
 apps/*/data/openapi.json
 apps/*/data/openapi.d.ts
+apps/*/data/monoform.json
+apps/*/data/monoform-build/
 
 # Temporary app/runtime artifacts
 apps/*/README.md

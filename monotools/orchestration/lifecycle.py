@@ -95,6 +95,9 @@ def _validate_frontend(definition: AppDefinition, workspace: Path) -> None:
 
 
 def _build_frontend(definition: AppDefinition, artifact: FrontendArtifact, workspace: Path) -> None:
+    if artifact.format == "monoform":
+        _build_monoform(definition, artifact, workspace)
+        return
     npm = shutil.which("npm")
     if npm is None:
         raise LifecycleError("npm not found; run python manage.py bootstrap before building Preact pages")
@@ -112,9 +115,32 @@ def _build_frontend(definition: AppDefinition, artifact: FrontendArtifact, works
     _write_document(definition, artifact, script, styles)
 
 
-def _write_document(definition: AppDefinition, artifact: FrontendArtifact,
-    script: str, styles: str) -> None:
+def _build_monoform(definition: AppDefinition, artifact: FrontendArtifact, workspace: Path) -> None:
+    node = shutil.which("node")
+    if node is None:
+        raise LifecycleError("node not found; run python manage.py bootstrap before building MonoForm pages")
+    staging = definition.directory / "data" / "monoform-build" / artifact.name
+    staging.mkdir(parents=True, exist_ok=True)
+    bundle = staging / "bundle.js"
+    stylesheet = staging / "bundle.css"
+    operations = staging / "operations.json"
+    operations.write_text(json.dumps(artifact.operations) + "\n", encoding="utf-8")
+    manifest = definition.directory / "data" / "monoform.json"
+    _run([node, "monotools/node/build-monoform.mjs", str(manifest.relative_to(workspace)),
+        str(operations.relative_to(workspace)), str(bundle.relative_to(workspace)),
+        str(stylesheet.relative_to(workspace))], workspace)
+    script = bundle.read_text(encoding="utf-8")
+    styles = stylesheet.read_text(encoding="utf-8")
+    staged_artifact = staging / "artifact.html"
+    _write_document(definition, artifact, script, styles, output=staged_artifact)
     output = definition.dist_directory / artifact.output
+    output.parent.mkdir(parents=True, exist_ok=True)
+    os.replace(staged_artifact, output)
+
+
+def _write_document(definition: AppDefinition, artifact: FrontendArtifact,
+    script: str, styles: str, *, output: Path | None = None) -> None:
+    output = output or definition.dist_directory / artifact.output
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(
         "<!doctype html>\n<html lang=\"en\">\n<head>\n"

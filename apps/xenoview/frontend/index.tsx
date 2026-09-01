@@ -229,7 +229,7 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
       ? collapsedPaths.filter((path) => path !== node.path) : [...collapsedPaths, node.path] }));
     return <><tr class={`tree-row ${node.kind}`} style={style}><td class="tree-entry"
       data-path={node.path} data-lines={treeLines(node.lines)} data-bytes={treeBytes(node.bytes)}>
-      {directory ? <button type="button" aria-expanded={!collapsed}
+      {directory ? <button type="button" data-ui-control="domain" aria-expanded={!collapsed}
         aria-label={`${collapsed ? "Expand" : "Collapse"} ${node.name} directory`} onClick={toggle}>
         <span aria-hidden="true">{collapsed ? "▸ " : "▾ "}</span>{node.name}</button>
         : <span>{node.name}</span>}</td>

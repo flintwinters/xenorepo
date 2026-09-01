@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 import asyncio
 import unittest
+from unittest.mock import Mock
 
 import httpx
 
@@ -13,6 +14,7 @@ from apps.xenoview.backend.scanner import (
 )
 from apps.xenoview.backend.server import ROOT, create_app
 from monotools.persistence.database import create_session_factory
+from monotools.orchestration.services import ServiceError, ServiceStatus
 
 
 class Client:
@@ -130,9 +132,34 @@ class CockpitTests(unittest.TestCase):
         self.assertEqual(response.status_code, 403)
         self.assertEqual(self.client.request("GET", "/api/history").json(), [])
 
+    def test_monoapp_status_and_lifecycle_routes_delegate_to_supervisor(self) -> None:
+        stopped = ServiceStatus("calculator", "Calculator", 8100,
+            "http://127.0.0.1:8100", False, False, False)
+        running = ServiceStatus("calculator", "Calculator", 8100,
+            "http://127.0.0.1:8100", True, True, True)
+        supervisor = Mock()
+        supervisor.statuses.return_value = [stopped]
+        supervisor.start.return_value = running
+        supervisor.stop.return_value = stopped
+        client = Client(create_app(repository=self.repository, supervisor=supervisor))
+        self.assertEqual(client.request("GET", "/api/monoapps").json()[0]["name"], "calculator")
+        self.assertTrue(client.request("POST", "/api/monoapps/calculator/start").json()["running"])
+        self.assertFalse(client.request("POST", "/api/monoapps/calculator/stop").json()["running"])
+        supervisor.start.assert_called_once_with("calculator")
+        supervisor.stop.assert_called_once_with("calculator")
+
+    def test_monoapp_transitions_reject_foreign_origins_and_conflicts(self) -> None:
+        supervisor = Mock()
+        supervisor.start.side_effect = ServiceError("calculator is already running")
+        client = Client(create_app(repository=self.repository, supervisor=supervisor))
+        forbidden = client.request("POST", "/api/monoapps/calculator/start",
+            headers={"Origin": "https://foreign.test"})
+        conflict = client.request("POST", "/api/monoapps/calculator/start")
+        self.assertEqual((forbidden.status_code, conflict.status_code), (403, 409))
+
     def test_openapi_describes_every_cockpit_response(self) -> None:
         schemas = create_app(repository=self.repository).openapi()["components"]["schemas"]
-        self.assertTrue({"Overview", "ModuleFact", "TreeNode",
+        self.assertTrue({"Overview", "ModuleFact", "TreeNode", "MonoappStatus",
             "SnapshotView", "SnapshotResult", "RepositoryHistory", "CommitFact"}.issubset(schemas))
         overview = schemas["Overview"]
         self.assertEqual(overview["additionalProperties"], False)

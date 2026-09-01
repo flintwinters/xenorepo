@@ -7,6 +7,7 @@ imports:
   - "@xenorepo/ui"
   - monotools.orchestration.apps
   - monotools.orchestration.management
+  - monotools.orchestration.services
   - monotools.provisioning.audit
   - monotools.runtime.appkit
   - monotools.runtime.application

@@ -116,3 +116,13 @@ class SnapshotView(Contract):
 class SnapshotResult(Contract):
     snapshot: SnapshotView
     created: bool
+
+
+class MonoappStatus(Contract):
+    name: str
+    title: str
+    port: int
+    url: str
+    running: bool
+    healthy: bool
+    managed: bool

@@ -1,4 +1,8 @@
-"""Supervise local monoapp services through the canonical lifecycle contract."""
+"""Supervise local monoapp services through the canonical lifecycle contract.
+
+The supervisor keeps process ownership and runtime observation in Monotools so
+operator surfaces can control apps without duplicating build or launch policy.
+"""
 
 from __future__ import annotations
 

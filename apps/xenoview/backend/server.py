@@ -41,29 +41,29 @@ def create_app(database_url: str | None = None, repository: SnapshotRepository |
     application.state.services = services
 
     @application.get("/api/overview", response_model=Overview)
-    async def overview() -> dict[str, object]:
+    def overview() -> dict[str, object]:
         result = scan_overview(root)
         result["delta"] = _delta(result["metrics"], snapshots.latest())
         return result
 
     @application.get("/api/modules", response_model=list[ModuleFact])
-    async def modules() -> list[dict[str, object]]:
+    def modules() -> list[dict[str, object]]:
         return scan_modules(root)
 
     @application.get("/api/tree", response_model=TreeNode)
-    async def tree() -> dict[str, object]:
+    def tree() -> dict[str, object]:
         return scan_tree(root)
 
     @application.get("/api/history", response_model=list[SnapshotView])
-    async def history() -> list[dict[str, object]]:
+    def history() -> list[dict[str, object]]:
         return snapshots.list()
 
     @application.get("/api/repository-history", response_model=RepositoryHistory)
-    async def repository_history() -> dict[str, object]:
+    def repository_history() -> dict[str, object]:
         return scan_history(root)
 
     @application.get("/api/monoapps", response_model=list[MonoappStatus])
-    async def monoapps() -> list[dict[str, object]]:
+    def monoapps() -> list[dict[str, object]]:
         return [asdict(item) for item in services.statuses()]
 
     async def transition(request: Request, name: str, action: str) -> dict[str, object]:

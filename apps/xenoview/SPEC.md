@@ -13,6 +13,7 @@ The product succeeds when an owner can answer, within a minute: how large is the
 - A Monotools module inventory showing file size, line count, public definitions, exact consuming monoapps, and direct internal dependencies.
 - A bounded, interactively collapsible repository tree showing directories and relevant files with byte and line totals, excluding generated, private, and runtime-heavy directories. Every app and maintained end-to-end test subtree remains measurable but starts collapsed.
 - Visible measurement time, repository revision, dirty state, exclusions, failures, and definitions so the dashboard cannot imply false precision.
+- A local monoapp overview with live health, deterministic URLs, and start/stop controls that reuse Monotools lifecycle rules and stop only Xenoview-owned processes.
 
 ## Scorecard definitions
 
@@ -35,6 +36,7 @@ FastAPI serves a Preact client and three read-only views backed by one determini
 - `GET /api/overview` returns the current scorecard, audit counts, latest saved delta, exclusions, revision, and dirty state.
 - `GET /api/modules` returns the Monotools inventory.
 - `GET /api/tree` returns a bounded hierarchical repository projection.
+- `GET /api/monoapps` reports local runtime state; same-origin `POST` transitions start and stop a named monoapp.
 - `GET /api/repository-history` derives absolute app line trajectories plus commit, app, and language changes from Git without mutation. `GET /api/history` returns optional saved metric baselines; `POST /api/snapshots` records one after same-origin validation.
 
 SQLite stores snapshots in `data/xenoview.db`; `XENOVIEW_DATABASE_URL` may select another SQLAlchemy database. Scans never write to source control or execute repository code. Results use a short process-local cache invalidated by the explicit snapshot operation.

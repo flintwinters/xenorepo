@@ -1,14 +1,24 @@
 import { expect, test } from "@xenorepo/browser-testing";
 
 test("[acceptance] operator navigates repository evidence and records a baseline", async ({ page }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(180_000);
   await page.goto("/");
+  await expect(page.locator("#app")).toContainText("Local services", { timeout: 30_000 });
+  await expect(page.locator(".service-row")).toHaveCount(10);
+  const calculator = page.locator(".service-row").filter({ hasText: "calculator" });
+  await expect(calculator).toContainText("stopped");
+  await calculator.getByRole("button", { name: "START" }).click();
+  await expect(calculator).toContainText("healthy", { timeout: 30_000 });
+  await expect(calculator.getByRole("link", { name: "OPEN" })).toHaveAttribute("href", "http://127.0.0.1:8100");
+  await calculator.getByRole("button", { name: "STOP" }).click();
+  await expect(calculator).toContainText("stopped");
+  await page.getByRole("button", { name: "overview", exact: true }).click();
   await expect(page.locator("#app")).toContainText("Repository scorecard", {
     timeout: 30_000,
   });
   await expect(page.locator("#app")).toContainText("source lines");
   await expect(page.locator("#app")).toContainText("Lines by language");
-  await expect(page.locator("nav .x-ui-command").first()).toContainText("overview");
+  await expect(page.locator("nav .x-ui-command").first()).toContainText("monoapps");
   const tablePanes = page.locator(".overview .x-ui-pane-content-height");
   await expect(tablePanes).toHaveCount(3);
   const tableOverflow = await tablePanes.locator(".x-ui-pane-body").evaluateAll((bodies) =>
@@ -86,11 +96,14 @@ test("[acceptance] operator navigates repository evidence and records a baseline
 
   await page.getByRole("button", { name: "RECORD SNAPSHOT", exact: true }).click();
   await expect(page.locator("#app")).toContainText("Repository trajectory");
-  await expect(page.locator("#app")).toContainText(/Snapshot recorded|already recorded/);
+  await expect(page.locator(".history-note")).toContainText(/[1-9]\d* optional metric baselines recorded/, {
+    timeout: 60_000,
+  });
 });
 
 test("[visual] initial repository cockpit", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "overview", exact: true }).click();
   await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}" });
   await expect(page.locator("#app")).toHaveScreenshot("repository-cockpit.png", {
     mask: [page.locator("time")],

@@ -3,15 +3,35 @@ import { Component, render, type ComponentChildren } from "preact";
 import {
   CommandButton, ConsolePane, ConsoleShell, ConsoleWorkspace, StatusRail, UtilityRail,
 } from "@xenorepo/ui";
-import { captureSnapshot, loadCockpit, loadHistory, type ModuleFact, type Overview,
-  type RepositoryHistory, type Snapshot, type TreeNode } from "./client.js";
+import {
+  captureSnapshot,
+  loadCockpit,
+  loadHistory,
+  loadMonoapps,
+  transitionMonoapp,
+  type MonoappStatus,
+  type ModuleFact,
+  type Overview,
+  type RepositoryHistory,
+  type Snapshot,
+  type TreeNode,
+} from "./client.js";
 import "./styles.css";
 
-type Page = "overview" | "explorer" | "history";
-interface State { page: Page; overview: Overview | null; modules: ModuleFact[];
-  tree: TreeNode | null; repositoryHistory: RepositoryHistory | null;
+type Page = "monoapps" | "overview" | "explorer" | "history";
+interface State {
+  page: Page;
+  overview: Overview | null;
+  modules: ModuleFact[];
+  tree: TreeNode | null;
+  repositoryHistory: RepositoryHistory | null;
   snapshots: Snapshot[];
-  collapsedPaths: string[]; message: string; failed: boolean; busy: boolean; }
+  monoapps: MonoappStatus[];
+  collapsedPaths: string[];
+  message: string;
+  failed: boolean;
+  busy: boolean;
+}
 
 const number = new Intl.NumberFormat("en-US");
 const bytes = (value: number) => value < 1024 ? `${value} B` : value < 1024 ** 2
@@ -44,10 +64,30 @@ const ansiColor = (code: string): string => {
 };
 
 class XenorepoCockpit extends Component<Record<string, never>, State> {
-  override state: State = { page: "overview", overview: null, modules: [], tree: null,
-    repositoryHistory: null, snapshots: [], collapsedPaths: [], message: "Scanning repository…",
-    failed: false, busy: false };
-  override componentDidMount(): void { void this.load(); }
+  override state: State = {
+    page: "monoapps",
+    overview: null,
+    modules: [],
+    tree: null,
+    repositoryHistory: null,
+    snapshots: [],
+    monoapps: [],
+    collapsedPaths: [],
+    message: "Scanning repository…",
+    failed: false,
+    busy: false,
+  };
+  override componentDidMount(): void {
+    void this.loadServices();
+    void this.load();
+  }
+  private loadServices = async (): Promise<void> => {
+    try {
+      this.setState({ monoapps: await loadMonoapps() });
+    } catch (error) {
+      this.setState({ failed: true, message: error instanceof Error ? error.message : "Service scan failed" });
+    }
+  };
   private perform = async (action: () => Promise<void>): Promise<void> => {
     this.setState({ busy: true });
     try { await action(); this.setState({ failed: false }); }
@@ -55,21 +95,78 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
       message: error instanceof Error ? error.message : "Unexpected error" }); }
     finally { this.setState({ busy: false }); }
   };
-  private load = async (): Promise<void> => this.perform(async () => {
-    const [overview, modules, tree, repositoryHistory, snapshots] = await loadCockpit();
-    const state = overview.dirty ? " · working tree modified" : " · clean";
-    this.setState({ overview, modules, tree, repositoryHistory, snapshots,
-      collapsedPaths: initiallyCollapsed(tree),
-      message: `Scan complete · ${overview.revision}${state}` });
-  });
-  private capture = async (): Promise<void> => this.perform(async () => {
-    const created = await captureSnapshot();
-    const snapshots = await loadHistory();
-    const overview = this.state.overview;
-    if (overview) overview.delta = Object.fromEntries(Object.keys(overview.metrics).map((key) => [key, 0]));
-    this.setState({ snapshots, overview, page: "history", message: created
-      ? "Snapshot recorded" : "Current repository state was already recorded" });
-  });
+  private load = async (): Promise<void> =>
+    this.perform(async () => {
+      const [overview, modules, tree, repositoryHistory, snapshots] = await loadCockpit();
+      const state = overview.dirty ? " · working tree modified" : " · clean";
+      this.setState({
+        overview,
+        modules,
+        tree,
+        repositoryHistory,
+        snapshots,
+        collapsedPaths: initiallyCollapsed(tree),
+        message: `Scan complete · ${overview.revision}${state}`,
+      });
+    });
+  private transition = async (app: MonoappStatus): Promise<void> =>
+    this.perform(async () => {
+      const action = app.running ? "stop" : "start";
+      const changed = await transitionMonoapp(app.name, action);
+      this.setState(({ monoapps }) => ({
+        monoapps: monoapps.map((item) => item.name === changed.name ? changed : item),
+        message: `${changed.title} ${changed.running ? "started" : "stopped"}`,
+      }));
+    });
+  private monoappsPage(): ComponentChildren {
+    const running = this.state.monoapps.filter((item) => item.running).length;
+    const healthy = this.state.monoapps.filter((item) => item.healthy).length;
+    return (
+      <section class="page monoapps">
+        <div class="page-heading">
+          <div>
+            <p class="eyebrow">Local services</p>
+            <h1>Monoapps</h1>
+          </div>
+          <p>{running} running · {healthy} healthy · {this.state.monoapps.length} available</p>
+        </div>
+        <div class="service-list">
+          {this.state.monoapps.map((app) => (
+            <article class="service-row">
+              <span class={`service-light ${app.healthy ? "healthy" : app.running ? "starting" : "stopped"}`} />
+              <div class="service-identity">
+                <strong>{app.title}</strong>
+                <span>{app.name}</span>
+              </div>
+              <span class="service-state">{app.healthy ? "healthy" : app.running ? "starting" : "stopped"}</span>
+              <span class="service-port">:{app.port}</span>
+              {app.healthy
+                ? <a href={app.url} target="_blank" rel="noreferrer">OPEN</a>
+                : <span class="service-open">—</span>}
+              <CommandButton disabled={this.state.busy || (app.running && !app.managed)}
+                onClick={() => void this.transition(app)}>
+                {app.running ? "STOP" : "START"}
+              </CommandButton>
+            </article>
+          ))}
+        </div>
+        <p class="service-note">Xenoview can stop only services started from this cockpit.</p>
+      </section>
+    );
+  }
+  private capture = async (): Promise<void> =>
+    this.perform(async () => {
+      const created = await captureSnapshot();
+      const snapshots = await loadHistory();
+      const overview = this.state.overview;
+      if (overview) overview.delta = Object.fromEntries(Object.keys(overview.metrics).map((key) => [key, 0]));
+      this.setState({
+        snapshots,
+        overview,
+        page: "history",
+        message: created ? "Snapshot recorded" : "Current repository state was already recorded",
+      });
+    });
   private metric(key: string, value: number): ComponentChildren {
     const delta = this.state.overview?.delta[key] ?? 0;
     return <article class="metric"><span>{label(key)}</span>
@@ -206,19 +303,44 @@ class XenorepoCockpit extends Component<Record<string, never>, State> {
         baselines recorded.</p></section>;
   }
   override render(): ComponentChildren {
-    const pages: Page[] = ["overview", "explorer", "history"];
-    const header = <UtilityRail><span class="brand">XENO // COCKPIT</span><nav>{pages.map((page) =>
-      <CommandButton aria-label={page} pressed={this.state.page === page}
-        onClick={() => this.setState({ page })}>{page}</CommandButton>)}</nav><span class="push" />
-      <CommandButton aria-label="RESCAN" disabled={this.state.busy}
-        onClick={() => void this.load()}>RESCAN</CommandButton>
-      <CommandButton aria-label="RECORD SNAPSHOT" disabled={this.state.busy}
-        onClick={() => void this.capture()}>RECORD SNAPSHOT</CommandButton></UtilityRail>;
-    const footer = <StatusRail><span class={this.state.failed ? "error" : "ok"}>
-      {this.state.failed ? "FAULT" : "READY"}</span><span>{this.state.message}</span>
-      <span class="push">{this.state.overview?.fingerprint.slice(0, 10) ?? "----------"}</span></StatusRail>;
-    const content = this.state.page === "overview" ? this.overviewPage()
-      : this.state.page === "explorer" ? this.explorerPage() : this.historyPage();
+    const pages: Page[] = ["monoapps", "overview", "explorer", "history"];
+    const header = (
+      <UtilityRail>
+        <span class="brand">XENO // COCKPIT</span>
+        <nav>
+          {pages.map((page) => (
+            <CommandButton aria-label={page} pressed={this.state.page === page} onClick={() => this.setState({ page })}>
+              {page}
+            </CommandButton>
+          ))}
+        </nav>
+        <span class="push" />
+        <CommandButton aria-label="RESCAN" disabled={this.state.busy} onClick={() => {
+          void this.loadServices();
+          void this.load();
+        }}>
+          RESCAN
+        </CommandButton>
+        <CommandButton aria-label="RECORD SNAPSHOT" disabled={this.state.busy} onClick={() => void this.capture()}>
+          RECORD SNAPSHOT
+        </CommandButton>
+      </UtilityRail>
+    );
+    const footer = (
+      <StatusRail>
+        <span class={this.state.failed ? "error" : "ok"}>{this.state.failed ? "FAULT" : "READY"}</span>
+        <span>{this.state.message}</span>
+        <span class="push">{this.state.overview?.fingerprint.slice(0, 10) ?? "----------"}</span>
+      </StatusRail>
+    );
+    const content =
+      this.state.page === "monoapps"
+        ? this.monoappsPage()
+        : this.state.page === "overview"
+        ? this.overviewPage()
+        : this.state.page === "explorer"
+          ? this.explorerPage()
+          : this.historyPage();
     return <ConsoleShell header={header} footer={footer}>
       <ConsoleWorkspace class="cockpit-main">{content}</ConsoleWorkspace>
     </ConsoleShell>;

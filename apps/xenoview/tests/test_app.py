@@ -171,6 +171,7 @@ class CockpitTests(unittest.TestCase):
         client = Path("apps/xenoview/frontend/client.ts").read_text(encoding="utf-8")
         self.assertIn("XENO // COCKPIT", document)
         self.assertIn("/api/overview", document)
+        self.assertIn("/api/monoapps", document)
         self.assertNotIn("APP_BUNDLE", document)
         self.assertIn('from "@xenorepo/ui";', source)
         self.assertIn('from "../data/openapi";', client)

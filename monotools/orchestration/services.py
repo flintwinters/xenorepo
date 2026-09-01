@@ -16,7 +16,8 @@ import urllib.error
 import urllib.request
 
 from monotools.orchestration.apps import AppDefinition
-from monotools.orchestration.lifecycle import build_app, validate_app, validate_dist
+from monotools.orchestration.lifecycle import LifecycleError, build_app, validate_app, validate_dist
+from monotools.orchestration.ui import wait_for_health
 
 
 class ServiceError(RuntimeError):
@@ -74,6 +75,13 @@ class ServiceSupervisor:
                 stderr=subprocess.DEVNULL,
             )
             self._processes[name] = process
+            try:
+                wait_for_health(port, process)
+            except LifecycleError as error:
+                process.terminate()
+                process.wait(timeout=5)
+                self._processes.pop(name, None)
+                raise ServiceError(f"{name} failed to become healthy") from error
             return self._status(definition)
 
     def stop(self, name: str) -> ServiceStatus:
@@ -82,7 +90,7 @@ class ServiceSupervisor:
         with self._lock:
             process = self._live_process(name)
             if process is None:
-                raise ServiceError(f"{name} is not running under Xenoview")
+                raise ServiceError(f"{name} is not running under this supervisor")
             process.terminate()
             try:
                 process.wait(timeout=5)

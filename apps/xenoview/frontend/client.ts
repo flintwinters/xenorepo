@@ -8,6 +8,7 @@ export type ModuleFact = components["schemas"]["ModuleFact"];
 export type TreeNode = components["schemas"]["TreeNode"];
 export type Snapshot = components["schemas"]["SnapshotView"];
 export type RepositoryHistory = components["schemas"]["RepositoryHistory"];
+export type MonoappStatus = components["schemas"]["MonoappStatus"];
 
 function result<T>(data: T | undefined, error: unknown): T {
   if (error) {
@@ -28,6 +29,18 @@ export async function loadCockpit(): Promise<
   return [result(overview.data, overview.error), result(modules.data, modules.error),
     result(tree.data, tree.error), result(repositoryHistory.data, repositoryHistory.error),
     result(snapshots.data, snapshots.error)];
+}
+
+export async function loadMonoapps(): Promise<MonoappStatus[]> {
+  const { data, error } = await api.GET("/api/monoapps");
+  return result(data, error);
+}
+
+export async function transitionMonoapp(name: string, action: "start" | "stop"): Promise<MonoappStatus> {
+  const response = action === "start"
+    ? await api.POST("/api/monoapps/{name}/start", { params: { path: { name } } })
+    : await api.POST("/api/monoapps/{name}/stop", { params: { path: { name } } });
+  return result(response.data, response.error);
 }
 
 export async function captureSnapshot(): Promise<boolean> {

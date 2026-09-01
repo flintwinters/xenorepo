@@ -2,72 +2,80 @@
 
 ## 1. Guiding motivation
 
-Monotools is the primary product; monoapps are experiments that prove its
-planning, creation, lifecycle, validation, and maintenance workflows. Optimize
-for a coherent developer experience, deterministic behavior, reusable
-automation, short feedback loops, and actionable failures. Promote recurring
-operations and protections into Monotools instead of accumulating app-specific
-scripts.
+Monotools is the primary product; monoapps prove its planning, creation,
+lifecycle, validation, and maintenance workflows. Optimize for coherence,
+determinism, reusable automation, short feedback loops, and actionable failures.
+Promote recurring operations and protections into Monotools.
 
-Terminology: the **monorepo** is this repository, a **monoapp** is an app within
-it, and **Monotools** is the canonical orchestration library.
+Before implementation, complete this design review:
+
+1. Reframe the request as a system outcome, not a file-level task.
+2. Model actors, responsibilities, invariants, state transitions, dependencies,
+   control surfaces, adjacent behavior, and lifecycle phases.
+3. Compare inaction, existing mechanisms, and the simplest adequate intervention
+   by coherence, reversibility, blast radius, opportunity cost, and maintenance.
+4. Evaluate normal, incomplete, malformed, unavailable, repeated, interrupted,
+   and recovery states.
+5. Reject local convenience that disables unrelated behavior, removes recovery,
+   exposes implementation accidents publicly, creates avoidable invalid
+   intermediate states, or assigns responsibility to the wrong layer.
+6. State the supporting evidence, weakest assumption, and evidence that would
+   reverse the choice.
+
+The **monorepo** is this repository, a **monoapp** is one app, and **Monotools**
+is the orchestration library.
 
 ## 2. Architecture and invariants
 
-- Root `manage.py` is the sole routine entrypoint. It exposes discoverable
-  Typer/Rich commands for every app and recurring workflow.
+- Root `manage.py` is the sole routine entrypoint, exposing Typer/Rich commands
+  for every app and recurring workflow.
 - Monoapps declare typed metadata and capabilities; Monotools owns discovery,
   scaffolding, lifecycle, build, validation, tests, and status reporting.
-- Monotools uses `orchestration`, `runtime`, `persistence`, and
-  `integrations` packages; every module is documented and recursively discovered.
+- Monotools uses documented, recursively discovered `orchestration`, `runtime`,
+  `persistence`, and `integrations` packages.
+- Treat every public and control-plane boundary as a product contract.
+  Foreseeable repository, configuration, dependency, and runtime states must
+  produce coherent, contextual behavior with bounded blast radius. Preserve
+  unrelated work, observability, and canonical recovery controls; reserve raw
+  crashes for genuine programmer defects.
 - Plan a new monoapp in `apps/<app>/SPEC.md` as a shippable walking skeleton
   with real-world validation criteria before implementation.
-- Before creating a monoapp, ask the user broad-strokes, close-ended clarifying
-  questions until the intended walking-skeleton specification and acceptance
-  criteria are decision-complete; then run the creation routine, preserve its
-  generated files, and customize them in place.
+- Before creation, ask close-ended questions until the walking-skeleton spec and
+  acceptance criteria are decision-complete; then run the creation routine and
+  customize its generated files in place.
 - Each monoapp separates `frontend/` and `backend/`; its root contains only
-  administration, structure, entrypoints, and information. Its sole root-level
-  Python file is `manage.py`, and it has a standalone-deployment README.
-- FastAPI is each app's only runtime service. App YAML maps server-owned URLs to
-  self-contained compiled `dist/` HTML artifacts; HTML is never application
-  source. Frontend entries are strict Preact TSX with external CSS, compiled by
-  Monotools. Do not add separate frontend services, private Node projects, or
-  build scripts.
-- Persist durable domain facts through SQLAlchemy ORM, with SQLite as the local
-  default and PostgreSQL-compatible models and transaction boundaries. Preserve
-  identifiers, timestamps, provenance, transitions, relationships, constraints,
-  and indexes; derive projections and migrate schemas repeatably.
-- Keep framework code modular and DRY, but extract abstractions only after an
-  app proves the shared boundary. Apps may share Monotools and contracts, not
-  application source or build artifacts.
-- Operations must be deterministic, composable, and reversible where practical.
-  Validate preconditions before mutation, report partial failures and recovery
-  steps, and never claim success before readiness is stable.
+  administration and information, with `manage.py` as its sole Python file and
+  a standalone-deployment README.
+- FastAPI is each app's only runtime service. App YAML maps server URLs to
+  compiled, self-contained `dist/` HTML; HTML is never source. Monotools compiles
+  strict Preact TSX entries with external CSS. Do not add frontend services,
+  private Node projects, or build scripts.
+- Persist durable facts through SQLAlchemy ORM, defaulting locally to SQLite with
+  PostgreSQL-compatible models and transactions. Preserve identifiers,
+  timestamps, provenance, transitions, relationships, constraints, and indexes;
+  derive projections and migrate repeatably.
+- Keep framework code modular and DRY; extract abstractions only after an app
+  proves the boundary. Apps share Monotools and contracts, not app source or
+  artifacts.
+- Reintegrate proven tools and protections into Monotools; consolidate duplicates.
+- Operations are deterministic, composable, and reversible where practical.
+  Validate before mutation, report partial failures and recovery, and claim
+  success only after stable readiness.
 - Route all repeatable validation through root `manage.py`. Test in visible,
   ignored per-app `data/`, never hidden directories or `/tmp`. Finish every
   monoapp checkpoint with `uv run manage.py verify`; leaf checks are diagnostic.
 - Keep source files under 600 lines and cyclomatic complexity at most 8. Do not
   hide project state or put exposition in UI elements.
-- Before authoring presentation code, inventory shared UI primitives and tokens.
-  Reuse toolkit commands and empty states unless their semantics are demonstrably
-  unsuitable; generic native buttons are not a local design surface.
-- Treat every border, gap, background, shadow, label, and persistent control as
-  a visual cost requiring functional justification. Keep containers visually
-  silent by default; reject box-within-box composition, slogans, serial numbers,
-  eyebrow labels, fake status, and other decorative AI conventions.
-- Before UI completion, inspect populated wide and narrow screenshots and record
-  an explicit critique for AI artifacts, control clutter, hierarchy loss, and
-  responsive layouts that preserve containment while destroying product structure.
 
 ## 3. Current tasks
 
-- Keep the completed Preact-only architecture gates permanent.
-- Keep deterministic app-owned wide/narrow visual baselines; do not redesign.
+- Preserve Preact-only architecture gates and deterministic app-owned wide/narrow
+  visual baselines.
 - Enforce the dependency direction `monoapp -> generic Monotools contract`,
   with no static monoapp identity or product policy in central code or tests.
 - Admit shared code only after independent consumers prove a generic boundary;
   keep `LIBRARIES.md` authoritative for contracts and extraction policy.
+- Keep the active checkpoint and next action concise in `PREACT_MIGRATION.md`.
 - Create monoapps from the Monotools template and promote mature apps to
   independently versioned GitHub submodules without weakening their verified
   dependency on the enclosing Xenorepo platform.

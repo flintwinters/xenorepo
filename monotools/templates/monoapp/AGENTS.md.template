@@ -3,6 +3,10 @@
 ## Motivation
 
 Define the user outcome and the smallest real-world journey that proves {{app_title}} is useful.
+Design from the whole product, not the edited component. Model invariants, state
+transitions, dependencies, adjacent journeys, degraded operation, and recovery
+before implementation. Reject local correctness that creates disproportionate
+global failure, surprising public behavior, or unusable control surfaces.
 
 ## Architecture
 

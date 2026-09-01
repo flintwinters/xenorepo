@@ -14,6 +14,7 @@ contracts; `monotools.orchestration` must not depend on provisioning policy.
 | --- | --- | --- | --- | --- |
 | Monotools | Python + TypeScript tooling | `monotools/`, `tsconfig.preact.json` | Typed metadata, discovery, lifecycle orchestration, build validation, FastAPI runtime, portable persistence, generic transport primitives, and evidence handling. | A capability must be declarative and reusable by an arbitrary future monoapp. |
 | Console Preact UI | TypeScript + CSS | `packages/ui/` | Typed shells, panes, rails, and command controls with stable classes and external presentation. | Every component must have at least two independent monoapp consumers. |
+| MonoForm | Python + TypeScript | `monotools/runtime/monoform.py`, `packages/ui/src/monoform.tsx` | Validated CRUD declarations, deterministic manifests, schema-derived forms, fixed same-origin transport, and immutable allowlisted page artifacts. | Use only where the generic contract preserves the workflow; backend security and domain invariants remain app-owned. |
 | Browser Testing | JavaScript/TypeScript | `packages/browser-testing/` | Shared Playwright fixtures, strict browser diagnostics, trusted input drivers, schema-versioned evidence, and static proof validation. | Shared code contains no app routes, selectors, entities, or gesture semantics. |
 
 ## Console Preact UI contract
@@ -35,6 +36,19 @@ layout remains in external app-owned CSS. All consumers import `@xenorepo/ui`.
 Established catalogued controls are the default for matching semantics. The
 independent-consumer rule governs creating abstractions, not consuming them.
 
+## MonoForm contract
+
+Two independent monoapps prove the same generic declaration, manifest, renderer,
+and transport boundary without app-specific shared branches. MonoForm
+accepts only annotated relative `/api` operations and declared primitive fields,
+filters initial and submitted values through the manifest, escapes rendered
+content, binds hidden path values, maps validation and platform errors, prevents
+parallel submission, and confirms destructive operations. Generated pages expose
+only metadata-allowlisted operations and atomically replace prior artifacts.
+Authentication, authorization, same-origin enforcement, transactions, and domain
+validation remain server-authoritative. Unsupported or product-defining flows
+remain bespoke without a waiver.
+
 ## Monotools production contract inventory
 
 Application metadata is authoritative for direct cross-boundary production
@@ -54,6 +68,7 @@ root orchestration surfaces rather than independently adopted app contracts.
 | `monotools.runtime.appkit` | 7 |
 | `monotools.runtime.application` | 9 |
 | `monotools.runtime.http` | 7 |
+| `monotools.runtime.monoform` | 2 |
 | `monotools.runtime.realtime` | 3 |
 
 Single-consumer modules are narrow typed integration contracts, not extracted

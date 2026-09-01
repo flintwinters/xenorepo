@@ -1,4 +1,8 @@
-"""Declare and normalize the deliberately small MonoForm CRUD contract."""
+"""Declare and normalize the deliberately small MonoForm CRUD contract.
+
+The module converts trusted typed declarations and ordinary OpenAPI schemas into
+a renderer-neutral manifest while rejecting unsafe or unsupported structures.
+"""
 
 from __future__ import annotations
 
@@ -46,25 +50,33 @@ def _resolve(schema: object, document: Mapping[str, object], location: str) -> d
     value = deepcopy(dict(schema))
     reference = value.pop("$ref", None)
     if reference is not None:
-        if not isinstance(reference, str) or not reference.startswith("#/components/schemas/"):
-            raise MonoFormContractError(f"{location}.$ref must be a local schema reference")
-        target: object = document
-        for part in reference[2:].split("/"):
-            target = target.get(part) if isinstance(target, Mapping) else None
-        if not isinstance(target, Mapping):
-            raise MonoFormContractError(f"{location}.$ref does not resolve: {reference}")
-        value = deepcopy(dict(target)) | value
+        value = _reference(reference, document, location) | value
     for keyword in ("allOf", "oneOf"):
         if keyword in value:
             raise MonoFormContractError(f"{location}.{keyword} is not supported")
     if "anyOf" in value:
-        branches = value.pop("anyOf")
-        if (not isinstance(branches, list) or len(branches) != 2
-            or sum(branch == {"type": "null"} for branch in branches) != 1):
-            raise MonoFormContractError(f"{location}.anyOf supports only one schema plus null")
-        branch = next(branch for branch in branches if branch != {"type": "null"})
-        value = _resolve(branch, document, f"{location}.anyOf") | value | {"nullable": True}
+        value = _nullable(value, document, location)
     return value
+
+
+def _reference(reference: object, document: Mapping[str, object], location: str) -> dict[str, object]:
+    if not isinstance(reference, str) or not reference.startswith("#/components/schemas/"):
+        raise MonoFormContractError(f"{location}.$ref must be a local schema reference")
+    target: object = document
+    for part in reference[2:].split("/"):
+        target = target.get(part) if isinstance(target, Mapping) else None
+    if not isinstance(target, Mapping):
+        raise MonoFormContractError(f"{location}.$ref does not resolve: {reference}")
+    return deepcopy(dict(target))
+
+
+def _nullable(value: dict[str, object], document: Mapping[str, object], location: str) -> dict[str, object]:
+    branches = value.pop("anyOf")
+    if (not isinstance(branches, list) or len(branches) != 2
+        or sum(branch == {"type": "null"} for branch in branches) != 1):
+        raise MonoFormContractError(f"{location}.anyOf supports only one schema plus null")
+    branch = next(branch for branch in branches if branch != {"type": "null"})
+    return _resolve(branch, document, f"{location}.anyOf") | value | {"nullable": True}
 
 
 def _primitive(schema: object, document: Mapping[str, object], location: str,
@@ -93,6 +105,18 @@ def _body_schema(schema: object, document: Mapping[str, object], location: str) 
 def _operation(path: str, method: str, raw: Mapping[str, object],
     document: Mapping[str, object]) -> dict[str, object]:
     location = f"{method.upper()} {path}"
+    operation_id, declaration = _operation_header(path, raw, location)
+    parameters = [_parameter(parameter, index, document, location)
+        for index, parameter in enumerate(raw.get("parameters", []))]
+    body = _request_body(raw.get("requestBody"), document, location)
+    statuses = sorted(int(status) for status in raw.get("responses", {})
+        if str(status).isdigit() and 200 <= int(status) < 300)
+    return {"operationId": operation_id, **dict(declaration), "method": method.upper(),
+        "path": path, "parameters": parameters, "bodySchema": body, "successStatuses": statuses}
+
+
+def _operation_header(path: str, raw: Mapping[str, object],
+    location: str) -> tuple[str, Mapping[object, object]]:
     if not path.startswith("/api/") or "://" in path or path.startswith("//"):
         raise MonoFormContractError(f"{location} must use a same-origin /api path")
     operation_id = raw.get("operationId")
@@ -101,27 +125,29 @@ def _operation(path: str, method: str, raw: Mapping[str, object],
     declaration = raw.get(EXTENSION)
     if not isinstance(declaration, Mapping):
         raise MonoFormContractError(f"{location}.{EXTENSION} must be a mapping")
-    parameters = []
-    for index, parameter in enumerate(raw.get("parameters", [])):
-        parameter_location = f"{location}.parameters[{index}]"
-        if not isinstance(parameter, Mapping) or parameter.get("in") not in {"path", "query"}:
-            raise MonoFormContractError(f"{parameter_location}.in must be path or query")
-        parameters.append({"name": parameter.get("name"), "in": parameter.get("in"),
-            "required": bool(parameter.get("required")), "schema": _primitive(
-                parameter.get("schema"), document, f"{parameter_location}.schema", arrays=False)})
-    body = None
-    request_body = raw.get("requestBody")
-    if request_body is not None:
-        content = request_body.get("content") if isinstance(request_body, Mapping) else None
-        json_body = content.get("application/json") if isinstance(content, Mapping) else None
-        if not isinstance(json_body, Mapping):
-            raise MonoFormContractError(f"{location}.requestBody must use application/json")
-        body = _body_schema(json_body.get("schema"), document,
-            f"{location}.requestBody.content.application/json.schema")
-    statuses = sorted(int(status) for status in raw.get("responses", {})
-        if str(status).isdigit() and 200 <= int(status) < 300)
-    return {"operationId": operation_id, **dict(declaration), "method": method.upper(),
-        "path": path, "parameters": parameters, "bodySchema": body, "successStatuses": statuses}
+    return operation_id, declaration
+
+
+def _parameter(parameter: object, index: int, document: Mapping[str, object],
+    location: str) -> dict[str, object]:
+    parameter_location = f"{location}.parameters[{index}]"
+    if not isinstance(parameter, Mapping) or parameter.get("in") not in {"path", "query"}:
+        raise MonoFormContractError(f"{parameter_location}.in must be path or query")
+    return {"name": parameter.get("name"), "in": parameter.get("in"),
+        "required": bool(parameter.get("required")), "schema": _primitive(
+            parameter.get("schema"), document, f"{parameter_location}.schema", arrays=False)}
+
+
+def _request_body(request_body: object, document: Mapping[str, object],
+    location: str) -> dict[str, object] | None:
+    if request_body is None:
+        return None
+    content = request_body.get("content") if isinstance(request_body, Mapping) else None
+    json_body = content.get("application/json") if isinstance(content, Mapping) else None
+    if not isinstance(json_body, Mapping):
+        raise MonoFormContractError(f"{location}.requestBody must use application/json")
+    return _body_schema(json_body.get("schema"), document,
+        f"{location}.requestBody.content.application/json.schema")
 
 
 def monoform_manifest(document: Mapping[str, object], *, app: str, title: str) -> dict[str, object]:

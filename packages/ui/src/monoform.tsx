@@ -85,18 +85,25 @@ function valueFor(field: MonoFormSchema, raw: unknown): unknown {
 }
 
 function validate(schema: MonoFormSchema | null, values: Values): Errors {
-  const errors: Errors = {};
-  for (const [name, field] of Object.entries(schema?.properties || {})) {
-    const raw = values[name];
-    if (schema?.required?.includes(name) && (raw === "" || raw === null || raw === undefined)) {
-      errors[name] = `${labelFor(name, field)} is required`;
-    } else if (typeof raw === "string" && field.minLength !== undefined && raw.length < field.minLength) {
-      errors[name] = `${labelFor(name, field)} must contain at least ${field.minLength} characters`;
-    } else if (typeof raw === "string" && field.maxLength !== undefined && raw.length > field.maxLength) {
-      errors[name] = `${labelFor(name, field)} cannot exceed ${field.maxLength} characters`;
-    }
-  }
-  return errors;
+  return Object.fromEntries(Object.entries(schema?.properties || {}).flatMap(([name, field]) => {
+    const error = validateField(name, field, values[name], Boolean(schema?.required?.includes(name)));
+    return error ? [[name, error]] : [];
+  }));
+}
+
+function validateField(name: string, field: MonoFormSchema, raw: unknown, required: boolean): string {
+  const label = labelFor(name, field);
+  if (required && ["", null, undefined].includes(raw as null | undefined | string)) return `${label} is required`;
+  if (typeof raw !== "string") return "";
+  return lengthError(label, field, raw);
+}
+
+function lengthError(label: string, field: MonoFormSchema, raw: string): string {
+  if (field.minLength !== undefined && raw.length < field.minLength)
+    return `${label} must contain at least ${field.minLength} characters`;
+  if (field.maxLength !== undefined && raw.length > field.maxLength)
+    return `${label} cannot exceed ${field.maxLength} characters`;
+  return "";
 }
 
 function fieldError(detail: unknown): Errors {
@@ -156,6 +163,46 @@ function requestPath(operation: MonoFormOperation, paths: Record<string, string 
   return query.size ? `${path}?${query}` : path;
 }
 
+interface RequestOutcome { result?: MonoFormResult; errors: Errors; message: string }
+
+function requestOptions(operation: MonoFormOperation, body: Values | undefined): RequestInit {
+  return { method: operation.method, credentials: "same-origin",
+    ...(body ? { headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {}) };
+}
+
+function failureOutcome(data: unknown, status: number): RequestOutcome {
+  const errors = fieldError((data as { detail?: unknown } | null)?.detail);
+  const envelope = data as { error?: unknown; message?: unknown; detail?: unknown } | null;
+  const fallback = envelope?.error || envelope?.message || envelope?.detail || `Request failed (${status})`;
+  return { errors, message: Object.keys(errors).length ? "Review the marked fields." : String(fallback) };
+}
+
+async function execute(operation: MonoFormOperation, operationId: string,
+  pathValues: Record<string, string | number>, values: Values): Promise<RequestOutcome> {
+  const bodyProperties = Object.entries(operation.bodySchema?.properties || {});
+  const body = operation.bodySchema ? Object.fromEntries(bodyProperties.map(([name, field]) =>
+    [name, valueFor(field, values[name])])) : undefined;
+  try {
+    const response = await fetch(requestPath(operation, pathValues, values), requestOptions(operation, body));
+    const data = response.status === 204 ? null : await response.json().catch(() => null);
+    if (response.ok) return { result: { operationId, status: response.status, data }, errors: {}, message: "" };
+    return failureOutcome(data, response.status);
+  } catch {
+    return { errors: {}, message: "The service is unavailable. Try again." };
+  }
+}
+
+function submissionErrors(operation: MonoFormOperation, pathValues: Record<string, string | number>,
+  values: Values): Errors {
+  const errors = validate(operation.bodySchema, values);
+  for (const parameter of operation.parameters) {
+    const value = parameter.in === "path" ? pathValues[parameter.name] : values[parameter.name];
+    if (parameter.required && [undefined, ""].includes(value as undefined | string))
+      errors[parameter.name] = `${parameter.name} is required`;
+  }
+  return errors;
+}
+
 export function MonoForm({ manifest, operationId, pathValues = {}, initialValues = {},
   onSuccess, onCancel }: MonoFormProps) {
   const operation = manifest.schemaVersion === 1
@@ -175,37 +222,12 @@ export function MonoForm({ manifest, operationId, pathValues = {}, initialValues
   const submit = async (event: JSX.TargetedSubmitEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault();
     if (pending || (operation.destructive && !confirmed)) return;
-    const local = validate(operation.bodySchema, values);
-    for (const parameter of operation.parameters) {
-      const value = parameter.in === "path" ? pathValues[parameter.name] : values[parameter.name];
-      if (parameter.required && (value === undefined || value === "")) {
-        local[parameter.name] = `${parameter.name} is required`;
-      }
-    }
+    const local = submissionErrors(operation, pathValues, values);
     if (Object.keys(local).length) { setErrors(local); return; }
     setPending(true); setErrors({}); setMessage("");
-    try {
-      const bodyProperties = Object.entries(operation.bodySchema?.properties || {});
-      const body = operation.bodySchema ? Object.fromEntries(bodyProperties.map(([name, field]) =>
-        [name, valueFor(field, values[name])])) : undefined;
-      const response = await fetch(requestPath(operation, pathValues, values), {
-        method: operation.method, credentials: "same-origin",
-        ...(body ? { headers: { "content-type": "application/json" }, body: JSON.stringify(body) } : {}),
-      });
-      const data = response.status === 204 ? null : await response.json().catch(() => null);
-      if (!response.ok) {
-        const mapped = fieldError((data as { detail?: unknown } | null)?.detail);
-        setErrors(mapped);
-        setMessage(Object.keys(mapped).length ? "Review the marked fields."
-          : String((data as { error?: unknown; message?: unknown; detail?: unknown } | null)?.error
-            || (data as { message?: unknown; detail?: unknown } | null)?.message
-            || (data as { detail?: unknown } | null)?.detail || `Request failed (${response.status})`));
-        return;
-      }
-      onSuccess?.({ operationId, status: response.status, data });
-    } catch {
-      setMessage("The service is unavailable. Try again.");
-    } finally { setPending(false); }
+    const outcome = await execute(operation, operationId, pathValues, values);
+    setErrors(outcome.errors); setMessage(outcome.message); setPending(false);
+    if (outcome.result) onSuccess?.(outcome.result);
   };
   return <form class="x-ui-monoform" onSubmit={submit} noValidate>
     {properties.map(([name, schema]) => <Field name={name} schema={schema} value={values[name]}

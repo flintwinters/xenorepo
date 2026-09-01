@@ -51,7 +51,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await page.getByLabel("Description").fill("A persisted acceptance card");
   await page.getByLabel("Assignee").fill("Felix");
   await expect(page.getByLabel("Priority")).toHaveValue("urgent");
-  await page.getByLabel("Card color").fill("#41395c");
+  await page.getByLabel("Color", { exact: true }).fill("#41395c");
   await page.getByLabel(/Labels/).fill("acceptance, durable");
   await page.getByRole("button", { name: "SAVE", exact: true }).click();
   const card = page.locator(".card").filter({ hasText: `Prove board ${suffix}` });
@@ -102,7 +102,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await attachmentEditor.getByLabel("Attachment title").fill("Edited reference");
   await attachmentEditor.getByRole("button", { name: "SAVE", exact: true }).click();
   await expect(page.getByRole("link", { name: "Edited reference" })).toBeVisible();
-  await page.getByRole("button", { name: "CLOSE" }).click();
+  await page.getByRole("button", { name: "Cancel" }).click();
   await page.reload();
   await expect(target.locator(".card").filter({ hasText: `Prove board ${suffix}` })).toBeVisible();
   await target.locator(".card").filter({ hasText: `Prove board ${suffix}` }).click();

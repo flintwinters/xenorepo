@@ -9,6 +9,12 @@ Replace this walking-skeleton text with the concrete user outcome before product
 The FastAPI service serves one self-contained Preact artifact. The browser journey proves the named
 application reaches its ready state through the same Monotools lifecycle used by every monoapp.
 
+## Interaction contracts
+
+Identify conventional CRUD operations and decide explicitly whether MonoForm can preserve their
+workflow. Prefer typed MonoForm declarations when its schema-derived fields and fixed transport fit;
+keep product-defining, conditional, relationship, file, or specialized interactions app-owned.
+
 ## Real-world validation
 
 Replace the generated readiness assertion with an app-owned end-to-end journey before promotion.

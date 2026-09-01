@@ -47,5 +47,6 @@ and JavaScript frontend compatibility only after the final consumer migrates.
 ## Current checkpoint
 
 The Preact migration is complete. Keep the Preact-only metadata and production
-source gates permanent; address future frontend work as independent product or
-shared-contract checkpoints.
+source gates permanent. MonoForm now provides an optional contract-generated
+CRUD path within Preact or as immutable artifacts; keep specialized interaction
+work app-owned and treat future frontend work as independent checkpoints.

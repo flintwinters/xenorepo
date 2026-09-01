@@ -15,6 +15,7 @@ from apps.kanban.backend.schemas import (
 from monotools.runtime.appkit import create_app_context
 from monotools.runtime.application import create_application
 from monotools.runtime.http import domain_error_handler, enforce_same_origin
+from monotools.runtime.monoform import monoform_operation
 
 
 DIRECTORY = Path(__file__).parent.parent
@@ -63,13 +64,25 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
         require_origin(request)
         return board.move_column(column_id, value.position)
 
+    @application.post("/api/columns/{column_id}/cards", response_model=CardView,
+        status_code=status.HTTP_201_CREATED, operation_id="create_card",
+        openapi_extra=monoform_operation(
+            kind="create", entity="card", title="Create card", submit_label="SAVE"))
+    async def create_card(column_id: str, value: CardEdit, request: Request) -> CardView:
+        require_origin(request)
+        return board.create_card(CardCreate(column_id=column_id, **value.model_dump()))
+
     @application.post("/api/cards", response_model=CardView,
-        status_code=status.HTTP_201_CREATED)
-    async def create_card(value: CardCreate, request: Request) -> CardView:
+        status_code=status.HTTP_201_CREATED, include_in_schema=False)
+    async def create_card_compatibility(value: CardCreate, request: Request) -> CardView:
+        """Preserve the prior HTTP contract while clients move to the bound path."""
         require_origin(request)
         return board.create_card(value)
 
-    @application.patch("/api/cards/{card_id}", response_model=CardView)
+    @application.patch("/api/cards/{card_id}", response_model=CardView,
+        operation_id="edit_card",
+        openapi_extra=monoform_operation(kind="update", entity="card",
+            title="Edit card", submit_label="SAVE"))
     async def edit_card(card_id: str, value: CardEdit, request: Request) -> CardView:
         require_origin(request)
         return board.edit_card(card_id, value)

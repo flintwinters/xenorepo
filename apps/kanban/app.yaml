@@ -3,12 +3,14 @@ title: Kanban
 module: apps.kanban.backend.server
 capabilities:
   - database
+  - monoform
 imports:
   - "@xenorepo/ui"
   - monotools.orchestration.management
   - monotools.runtime.appkit
   - monotools.runtime.application
   - monotools.runtime.http
+  - monotools.runtime.monoform
 frontend:
   artifacts:
     index:

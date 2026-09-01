@@ -192,6 +192,15 @@ def _artifact(name: str, raw: object, path: Path) -> FrontendArtifact:
         or not all(isinstance(value, str) and value for value in raw_operations)):
         raise AppDefinitionError(f"{_display(path)} {label}.operations must be non-empty strings")
     operations = tuple(raw_operations)
+    _validate_artifact_format(format_name, source, operations, path)
+    output = _relative_path(item.get("output"), path, f"{label}.output")
+    if output.suffix != ".html":
+        raise AppDefinitionError(f"{_display(path)} frontend artifact output must end in .html")
+    return FrontendArtifact(name, format_name, source, output, operations)
+
+
+def _validate_artifact_format(format_name: str, source: Path | None, operations: tuple[str, ...],
+    path: Path) -> None:
     if format_name == "preact" and (source is None or source.suffix != ".tsx"):
         raise AppDefinitionError(f"{_display(path)} preact frontend artifact source must end in .tsx")
     if format_name == "preact" and operations:
@@ -200,10 +209,6 @@ def _artifact(name: str, raw: object, path: Path) -> FrontendArtifact:
         raise AppDefinitionError(f"{_display(path)} monoform frontend artifact forbids source")
     if format_name == "monoform" and (not operations or len(set(operations)) != len(operations)):
         raise AppDefinitionError(f"{_display(path)} monoform frontend artifact requires unique operations")
-    output = _relative_path(item.get("output"), path, f"{label}.output")
-    if output.suffix != ".html":
-        raise AppDefinitionError(f"{_display(path)} frontend artifact output must end in .html")
-    return FrontendArtifact(name, format_name, source, output, operations)
 
 
 def _artifacts(value: object, path: Path) -> tuple[FrontendArtifact, ...]:

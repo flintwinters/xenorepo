@@ -1,9 +1,11 @@
 import { Component, render } from "preact";
-import { CommandButton, ConsolePane, ConsoleShell, EmptyState, Modal, StatusRail, UtilityRail } from "@xenorepo/ui";
+import { CommandButton, ConsolePane, ConsoleShell, EmptyState, Modal, MonoForm, StatusRail,
+  UtilityRail, type MonoFormManifest } from "@xenorepo/ui";
+import rawManifest from "../data/monoform.json";
 import {
-  addComment, addLink, addUpload, createCard, createColumn, editAttachment, editBoard,
-  editCard, editColumn, editComment, loadBoard, moveCard, moveColumn, setArchived,
-  type Attachment, type BoardFields, type Card, type CardFields, type Column, type Comment,
+  addComment, addLink, addUpload, createColumn, editAttachment, editBoard,
+  editColumn, editComment, loadBoard, moveCard, moveColumn, setArchived,
+  type Attachment, type BoardFields, type Card, type Column, type Comment,
   type KanbanView,
 } from "./client.js";
 import "./styles.css";
@@ -24,10 +26,9 @@ interface State {
   busy: boolean;
 }
 
-const labels = (value: FormDataEntryValue | null): string[] => String(value ?? "")
-  .split(",").map((item) => item.trim()).filter(Boolean);
 const active = <T extends { archived_at?: string | null }>(values: T[]): T[] =>
   values.filter((value) => !value.archived_at);
+const monoform = rawManifest as MonoFormManifest;
 const colorPresets = ["#1d2021", "#665c54", "#458588", "#689d6a", "#d79921", "#cc241d", "#b16286"];
 
 function ColorField({ label, name, value }: { label: string; name: string; value: string }) {
@@ -91,19 +92,6 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     this.perform("Board details updated", async () => {
       await editBoard(fields);
       this.setState({ editingBoard: false });
-    });
-  };
-  private saveCard = (event: SubmitEvent): void => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget as HTMLFormElement), existing = this.card(this.state.selected);
-    const fields: CardFields = { title: String(data.get("title")),
-      description: String(data.get("description")), assignee: String(data.get("assignee")),
-      labels: labels(data.get("labels")), priority: String(data.get("priority")) as CardFields["priority"],
-      color: String(data.get("color")) };
-    this.perform(existing ? "Card updated" : "Card created", async () => {
-      if (existing) await editCard(existing.id, fields);
-      else await createCard(this.state.creatingIn!, fields);
-      this.setState({ selected: null, creatingIn: null });
     });
   };
   private saveNewColumn = (event: SubmitEvent): void => {
@@ -257,18 +245,15 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     return <Modal class="backdrop" contentClass="dialog card-dialog" labelledBy="card-editor-title"
       onDismiss={() => this.setState({ selected: null, creatingIn: null })}>
       <h2 id="card-editor-title">{card ? "CARD DETAILS" : "NEW CARD"}</h2>
-      <form class="card-fields" onSubmit={this.saveCard}><label>Title<input name="title" required maxLength={120}
-        value={value.title} /></label><label>Description<textarea name="description" maxLength={4000}
-          value={value.description} /></label><div class="field-row"><label>Assignee<input name="assignee"
-            maxLength={120} value={value.assignee} /></label><label>Priority<select name="priority"
-              value={value.priority}><option value="low">Low</option><option value="normal">Normal</option>
-              <option value="high">High</option><option value="urgent">Urgent</option></select></label></div>
-        <ColorField label="Card color" name="color" value={value.color} />
-        <label>Labels <span class="hint">comma separated</span><input name="labels"
-          value={value.labels.join(", ")} /></label><div class="actions">{card && <CommandButton type="button"
-            class="danger" onClick={() => this.archive("card", card.id)}>ARCHIVE</CommandButton>}
-          <CommandButton type="button" onClick={() => this.setState({ selected: null, creatingIn: null })}>
-            CLOSE</CommandButton><CommandButton type="submit">SAVE</CommandButton></div></form>
+      <div class="card-fields"><MonoForm manifest={monoform}
+        operationId={card ? "edit_card" : "create_card"}
+        pathValues={card ? { card_id: card.id } : { column_id: this.state.creatingIn! }}
+        initialValues={value} onCancel={() => this.setState({ selected: null, creatingIn: null })}
+        onSuccess={() => {
+          this.setState({ selected: null, creatingIn: null });
+          void this.refresh(card ? "Card updated" : "Card created");
+        }} />{card && <div class="actions"><CommandButton type="button" class="danger"
+          onClick={() => this.archive("card", card.id)}>ARCHIVE</CommandButton></div>}</div>
       {card && <div class="card-extras"><section><h3>COMMENTS</h3>{comments.map((item) => <div class="row">
         <p>{item.body}</p><CommandButton appearance="subtle"
           onClick={() => this.setState({ editingComment: item.id })}>EDIT</CommandButton>

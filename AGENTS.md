@@ -7,20 +7,13 @@ lifecycle, validation, and maintenance workflows. Optimize for coherence,
 determinism, reusable automation, short feedback loops, and actionable failures.
 Promote recurring operations and protections into Monotools.
 
-Before implementation, complete this design review:
-
-1. Reframe the request as a system outcome, not a file-level task.
-2. Model actors, responsibilities, invariants, state transitions, dependencies,
-   control surfaces, adjacent behavior, and lifecycle phases.
-3. Compare inaction, existing mechanisms, and the simplest adequate intervention
-   by coherence, reversibility, blast radius, opportunity cost, and maintenance.
-4. Evaluate normal, incomplete, malformed, unavailable, repeated, interrupted,
-   and recovery states.
-5. Reject local convenience that disables unrelated behavior, removes recovery,
-   exposes implementation accidents publicly, creates avoidable invalid
-   intermediate states, or assigns responsibility to the wrong layer.
-6. State the supporting evidence, weakest assumption, and evidence that would
-   reverse the choice.
+Before implementation, review the system outcome, actors, responsibilities,
+invariants, states, dependencies, adjacent behavior, and lifecycle. Compare
+inaction, existing mechanisms, and the simplest adequate intervention by
+coherence, reversibility, blast radius, and maintenance. Cover malformed,
+unavailable, repeated, interrupted, and recovery states. Reject misplaced
+responsibility, exposed implementation accidents, invalid intermediate states,
+and lost recovery. State the evidence, weakest assumption, and reversal test.
 
 The **monorepo** is this repository, a **monoapp** is one app, and **Monotools**
 is the orchestration library.
@@ -48,8 +41,10 @@ is the orchestration library.
   a standalone-deployment README.
 - FastAPI is each app's only runtime service. App YAML maps server URLs to
   compiled, self-contained `dist/` HTML; HTML is never source. Monotools compiles
-  strict Preact TSX entries with external CSS. Do not add frontend services,
-  private Node projects, or build scripts.
+  strict Preact TSX entries with external CSS or immutable allowlisted MonoForm
+  pages. Prefer MonoForm for conventional CRUD after a suitability review;
+  product-defining or unsupported interactions remain app-owned. Do not add
+  frontend services, private Node projects, or build scripts.
 - Persist durable facts through SQLAlchemy ORM, defaulting locally to SQLite with
   PostgreSQL-compatible models and transactions. Preserve identifiers,
   timestamps, provenance, transitions, relationships, constraints, and indexes;
@@ -71,6 +66,8 @@ is the orchestration library.
 
 - Preserve Preact-only architecture gates and deterministic app-owned wide/narrow
   visual baselines.
+- Keep MonoForm a narrow secure CRUD default, not an authorization layer or a
+  substitute for app-owned workflows and server-side invariants.
 - Enforce the dependency direction `monoapp -> generic Monotools contract`,
   with no static monoapp identity or product policy in central code or tests.
 - Admit shared code only after independent consumers prove a generic boundary;

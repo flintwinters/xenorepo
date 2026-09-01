@@ -44,7 +44,9 @@ export async function moveColumn(id: string, position: number): Promise<void> {
   if (error) result(undefined, error);
 }
 export async function createCard(column_id: string, fields: CardFields): Promise<void> {
-  const { error } = await api.POST("/api/cards", { body: { ...fields, column_id } });
+  const { error } = await api.POST("/api/columns/{column_id}/cards", {
+    params: { path: { column_id } }, body: fields,
+  });
   if (error) result(undefined, error);
 }
 export async function editCard(id: string, fields: CardFields): Promise<void> {

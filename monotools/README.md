@@ -87,12 +87,15 @@ FastAPI, Preact, metadata, specification, agent-context, ignore, and app-owned
 test skeleton. Replace the generated product placeholders and acceptance
 journey; the template is structure, not a product specification.
 
-`uv run manage.py monoapp delete NAME --confirm NAME` permanently removes the
+`uv run manage.py monoapp delete NAME` permanently removes the
 local app boundary. This includes its source, specification, manager, tests,
 compiled artifacts, ignored runtime data and uploads, dynamically discovered
 commands, and any Xenorepo submodule registration and local module metadata.
-The deletion is staged when the app is tracked. It deliberately does not delete
-an independently hosted remote repository.
+The command records the repository deletion immediately in one path-scoped Git
+commit, leaving unrelated changes outside that commit. It deliberately does not
+delete an independently hosted remote repository. Reverting the commit restores
+versioned app context; ignored runtime data and uploads are not recoverable. An
+unversioned app must be committed before it can be deleted through this command.
 
 When mounted by Xenorepo, every managed app exposes `git status` and
 `git create-repo` through `monotools.provisioning`. Promotion requires

@@ -177,18 +177,14 @@ def create_monoapp(name: str = typer.Argument(...),
 
 
 @monoapp.command("delete")
-def delete_monoapp(name: str = typer.Argument(...),
-    confirm: str = typer.Option(..., "--confirm",
-        help="Repeat the exact monoapp name to authorize permanent local deletion.")) -> None:
+def delete_monoapp(name: str = typer.Argument(...)) -> None:
     """Delete a monoapp's directory, runtime data, commands, and repository registration."""
-    if confirm != name:
-        _fail("--confirm must exactly match the monoapp name")
     try:
         deleted = delete_app(ROOT, name)
     except (OSError, RepositoryError) as error:
         _fail(error)
     console.print(f"[bold green]Deleted monoapp[/] {deleted.name} ({deleted.mode})")
-    console.print("Commit the staged deletion, then run uv run manage.py verify.")
+    console.print(f"Committed as {deleted.revision}; run uv run manage.py verify.")
 
 
 @app.command()

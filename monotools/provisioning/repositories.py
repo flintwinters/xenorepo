@@ -42,6 +42,7 @@ class AppDeletion:
     name: str
     mode: str
     path: Path
+    revision: str
 
 
 _GITHUB_COMPONENT = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]*[A-Za-z0-9])?$")
@@ -88,6 +89,11 @@ def delete_app(workspace: Path, name: str) -> AppDeletion:
         raise RepositoryError(
             f"unknown monoapp {valid_name!r}; available: {', '.join(available) or 'none'}"
         )
+    tracked = "" if submodule else _git(workspace, "ls-files", "--", str(relative))
+    if not submodule and not tracked:
+        raise RepositoryError(
+            f"{valid_name} is not versioned; commit it before deletion so the deletion can be reverted"
+        )
     if submodule:
         _git(workspace, "submodule", "deinit", "-f", "--", str(relative))
         _git(workspace, "rm", "-f", "--", str(relative))
@@ -96,13 +102,21 @@ def delete_app(workspace: Path, name: str) -> AppDeletion:
             shutil.rmtree(module_metadata)
         mode = "submodule"
     else:
-        tracked = _git(workspace, "ls-files", "--", str(relative))
-        if tracked:
-            _git(workspace, "rm", "-r", "-f", "--", str(relative))
+        _git(workspace, "rm", "-r", "-f", "--", str(relative))
         mode = "monolith"
     if directory.exists():
         shutil.rmtree(directory)
-    return AppDeletion(valid_name, mode, relative)
+    subject = f"Delete {valid_name} monoapp"
+    body = (
+        f"Remove the complete local {relative} application boundary, including its source, "
+        "specification, tests, management commands, and repository registration."
+    )
+    pathspecs = [str(relative)]
+    if submodule:
+        pathspecs.insert(0, ".gitmodules")
+    _git(workspace, "commit", "--only", "-m", subject, "-m", body, "--", *pathspecs)
+    revision = _git(workspace, "rev-parse", "--short", "HEAD")
+    return AppDeletion(valid_name, mode, relative, revision)
 
 
 def _run(command: list[str], cwd: Path) -> str:

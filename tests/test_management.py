@@ -385,14 +385,19 @@ frontend:
 
             def git(_cwd: Path, *arguments: str) -> str:
                 calls.append(arguments)
-                return "apps/signal_lab/manage.py" if arguments[0] == "ls-files" else ""
+                if arguments[0] == "ls-files":
+                    return "apps/signal_lab/manage.py"
+                return "abc1234" if arguments[:2] == ("rev-parse", "--short") else ""
 
             with patch("monotools.provisioning.repositories._git", side_effect=git):
                 deleted = delete_app(workspace, "signal_lab")
 
-            self.assertEqual((deleted.name, deleted.mode), ("signal_lab", "monolith"))
+            self.assertEqual((deleted.name, deleted.mode, deleted.revision),
+                ("signal_lab", "monolith", "abc1234"))
             self.assertFalse(directory.exists())
             self.assertIn(("rm", "-r", "-f", "--", "apps/signal_lab"), calls)
+            self.assertEqual(calls[-2][0:2], ("commit", "--only"))
+            self.assertEqual(calls[-2][-2:], ("--", "apps/signal_lab"))
 
     def test_deletion_removes_submodule_registration_and_local_metadata(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="delete-") as temporary:
@@ -409,7 +414,7 @@ frontend:
 
             def git(_cwd: Path, *arguments: str) -> str:
                 calls.append(arguments)
-                return ""
+                return "def5678" if arguments[:2] == ("rev-parse", "--short") else ""
 
             with patch("monotools.provisioning.repositories._git", side_effect=git):
                 deleted = delete_app(workspace, "signal_lab")
@@ -417,10 +422,11 @@ frontend:
             self.assertEqual(deleted.mode, "submodule")
             self.assertFalse(directory.exists())
             self.assertFalse(metadata.exists())
-            self.assertEqual(calls, [
+            self.assertEqual(calls[:2], [
                 ("submodule", "deinit", "-f", "--", "apps/signal_lab"),
                 ("rm", "-f", "--", "apps/signal_lab"),
             ])
+            self.assertEqual(calls[-2][-3:], ("--", ".gitmodules", "apps/signal_lab"))
 
     def test_deletion_rejects_unknown_and_unsafe_names(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="delete-") as temporary:
@@ -430,16 +436,26 @@ frontend:
                 with self.subTest(name=name), self.assertRaisesRegex(RepositoryError, message):
                     delete_app(workspace, name)
 
-    def test_root_deletion_requires_exact_confirmation_before_mutation(self) -> None:
-        with patch("manage.delete_app") as delete:
-            rejected = CliRunner().invoke(repository_manager.app,
-                ["monoapp", "delete", "signal_lab", "--confirm", "another_app"])
-            accepted = CliRunner().invoke(repository_manager.app,
-                ["monoapp", "delete", "signal_lab", "--confirm", "signal_lab"])
+    def test_deletion_rejects_unversioned_context_that_cannot_be_restored(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="delete-") as temporary:
+            workspace = Path(temporary)
+            directory = workspace / "apps" / "signal_lab"
+            directory.mkdir(parents=True)
+            with patch("monotools.provisioning.repositories._git", return_value=""):
+                with self.assertRaisesRegex(RepositoryError, "commit it before deletion"):
+                    delete_app(workspace, "signal_lab")
+            self.assertTrue(directory.exists())
 
-        self.assertEqual(rejected.exit_code, 1)
-        self.assertIn("must exactly match", rejected.output)
-        self.assertEqual(accepted.exit_code, 0)
+    def test_root_deletion_is_one_command_without_confirmation(self) -> None:
+        deletion = type("Deletion", (), {
+            "name": "signal_lab", "mode": "monolith", "revision": "abc1234",
+        })()
+        with patch("manage.delete_app", return_value=deletion) as delete:
+            result = CliRunner().invoke(repository_manager.app,
+                ["monoapp", "delete", "signal_lab"])
+
+        self.assertEqual(result.exit_code, 0)
+        self.assertIn("Committed as abc1234", result.output)
         delete.assert_called_once_with(ROOT, "signal_lab")
 
     def test_repository_promotion_requires_explicit_valid_github_identity(self) -> None:

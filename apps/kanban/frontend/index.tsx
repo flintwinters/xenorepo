@@ -34,7 +34,8 @@ function ColorField({ label, name, value }: { label: string; name: string; value
   return <label class="color-field">{label}<span class="color-control">
     <input name={name} value={value} required pattern="#[0-9a-fA-F]{6}" aria-label={label} />
     <span class="color-presets">{colorPresets.map((color) =>
-      <button type="button" class="color-swatch" data-ui-control="domain" style={`--swatch:${color}`} title={color}
+      <CommandButton type="button" appearance="subtle" class="color-swatch"
+        style={`--swatch:${color}`} title={color}
         aria-label={`Use ${color}`} onClick={(event) => {
           const input = event.currentTarget.closest(".color-control")?.querySelector("input");
           if (input) { input.value = color; input.dispatchEvent(new Event("input", { bubbles: true })); }

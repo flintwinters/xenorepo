@@ -37,6 +37,13 @@
   outline: 2px solid var(--console-focus, #fabd2f);
   outline-offset: 2px;
 }
+.x-ui-modal-content,
+.x-ui-shell textarea {
+  border-radius: 4px;
+}
+.x-ui-shell textarea {
+  resize: none;
+}
 .x-ui-rail {
   display: flex;
   align-items: center;

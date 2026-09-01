@@ -34,6 +34,11 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   const source = page.locator(".column").filter({ hasText: renamedQueue });
   await page.getByRole("button", { name: "EDIT BOARD" }).click();
   const settings = page.getByRole("dialog", { name: "BOARD SETTINGS" });
+  expect(await settings.evaluate((element) => ({
+    modalRadius: getComputedStyle(element).borderRadius,
+    resize: getComputedStyle(element.querySelector("textarea")!).resize,
+    textareaRadius: getComputedStyle(element.querySelector("textarea")!).borderRadius,
+  }))).toEqual({ modalRadius: "4px", resize: "none", textareaRadius: "4px" });
   await settings.getByLabel("Default card priority").selectOption("urgent");
   await settings.getByLabel("Board background").fill("#202530");
   await settings.getByLabel("Accent color").fill("#44aa88");

@@ -270,9 +270,9 @@ frontend:
             "authored-html": (base.replace("frontend/index.tsx", "frontend/index.html"),
                 r"preact frontend artifact source must end in .tsx"),
             "legacy-format": (base.replace("format: preact", "format: lit"),
-                "frontend format must be 'preact', got 'lit'"),
+                "frontend format must be preact or monoform, got 'lit'"),
             "document-format": (base.replace("format: preact", "format: document"),
-                "frontend format must be 'preact', got 'document'"),
+                "frontend format must be preact or monoform, got 'document'"),
         }
         with TemporaryDirectory(dir=ROOT / "tests", prefix="metadata-") as temporary:
             directory = Path(temporary) / "fixture"

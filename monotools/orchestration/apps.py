@@ -19,7 +19,7 @@ _ARTIFACT_NAME = re.compile(r"^[a-z][a-z0-9_-]*$")
 _APP_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 _ROUTE_PATH = re.compile(r"^/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$")
 _RESERVED_ROUTES = frozenset({"/agent/tools", "/health"})
-_FRONTEND_FORMAT = "preact"
+_FRONTEND_FORMATS = frozenset({"preact", "monoform"})
 
 
 class AppDefinitionError(ValueError):
@@ -59,8 +59,9 @@ class FrontendArtifact:
 
     name: str
     format: str
-    source: Path
+    source: Path | None
     output: Path
+    operations: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -178,21 +179,31 @@ def _artifact(name: str, raw: object, path: Path) -> FrontendArtifact:
         raise AppDefinitionError(f"{_display(path)} invalid frontend artifact name: {name!r}")
     label = f"frontend.artifacts.{name}"
     item = _mapping(raw, path, label)
-    _only_keys(item, frozenset({"format", "source", "output"}), path, label)
+    _only_keys(item, frozenset({"format", "source", "output", "operations"}), path, label)
     format_name = _string(item.get("format"), path, f"{label}.format")
-    if format_name != _FRONTEND_FORMAT:
+    if format_name not in _FRONTEND_FORMATS:
         raise AppDefinitionError(
-            f"{_display(path)} frontend format must be {_FRONTEND_FORMAT!r}, got {format_name!r}"
+            f"{_display(path)} frontend format must be preact or monoform, got {format_name!r}"
         )
-    source = _relative_path(item.get("source"), path, f"{label}.source")
-    if source.suffix != ".tsx":
-        raise AppDefinitionError(
-            f"{_display(path)} preact frontend artifact source must end in .tsx"
-        )
+    source = (_relative_path(item.get("source"), path, f"{label}.source")
+        if "source" in item else None)
+    raw_operations = item.get("operations", [])
+    if (not isinstance(raw_operations, list)
+        or not all(isinstance(value, str) and value for value in raw_operations)):
+        raise AppDefinitionError(f"{_display(path)} {label}.operations must be non-empty strings")
+    operations = tuple(raw_operations)
+    if format_name == "preact" and (source is None or source.suffix != ".tsx"):
+        raise AppDefinitionError(f"{_display(path)} preact frontend artifact source must end in .tsx")
+    if format_name == "preact" and operations:
+        raise AppDefinitionError(f"{_display(path)} preact frontend artifact forbids operations")
+    if format_name == "monoform" and source is not None:
+        raise AppDefinitionError(f"{_display(path)} monoform frontend artifact forbids source")
+    if format_name == "monoform" and (not operations or len(set(operations)) != len(operations)):
+        raise AppDefinitionError(f"{_display(path)} monoform frontend artifact requires unique operations")
     output = _relative_path(item.get("output"), path, f"{label}.output")
     if output.suffix != ".html":
         raise AppDefinitionError(f"{_display(path)} frontend artifact output must end in .html")
-    return FrontendArtifact(name, format_name, source, output)
+    return FrontendArtifact(name, format_name, source, output, operations)
 
 
 def _artifacts(value: object, path: Path) -> tuple[FrontendArtifact, ...]:
@@ -238,7 +249,8 @@ def _validate_structure(directory: Path, name: str, module: str,
     if module != expected_module:
         raise AppDefinitionError(f"{_display(directory)} module must be {expected_module!r}")
     outside_frontend = sorted(str(artifact.source) for artifact in artifacts
-        if not artifact.source.parts or artifact.source.parts[0] != "frontend")
+        if artifact.source is not None
+        and (not artifact.source.parts or artifact.source.parts[0] != "frontend"))
     if outside_frontend:
         raise AppDefinitionError(
             f"{_display(directory)} frontend sources must be beneath frontend/: "
@@ -277,7 +289,7 @@ def load_app(directory: Path) -> AppDefinition:
     if not isinstance(declared_capabilities, list) or not all(isinstance(item, str) for item in declared_capabilities):
         raise AppDefinitionError(f"{_display(metadata_path)} capabilities must be a list of strings")
     capabilities = frozenset(declared_capabilities)
-    unsupported = capabilities - {"database", "realtime"}
+    unsupported = capabilities - {"database", "realtime", "monoform"}
     if unsupported:
         raise AppDefinitionError(
             f"{_display(metadata_path)} has unsupported capabilities: {', '.join(sorted(unsupported))}"

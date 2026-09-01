@@ -24,6 +24,7 @@ from fastapi.routing import APIWebSocketRoute
 from monotools.orchestration.apps import AppDefinition, FrontendArtifact
 from monotools.runtime.application import AGENT_TOOLS_ROUTE, api_openapi_schema
 from monotools.runtime.openapi import OpenAPIContractError, validate_api_openapi_schema
+from monotools.runtime.monoform import MonoFormContractError, monoform_manifest
 
 
 class LifecycleError(RuntimeError):
@@ -74,7 +75,8 @@ def _run(command: list[str], cwd: Path) -> None:
 
 
 def _validate_frontend(definition: AppDefinition, workspace: Path) -> None:
-    entries = [definition.directory / artifact.source for artifact in definition.artifacts]
+    entries = [definition.directory / artifact.source for artifact in definition.artifacts
+        if artifact.source is not None]
     if not entries:
         return
     from monotools.orchestration.hygiene import analyze_ui_hygiene
@@ -199,6 +201,12 @@ def _generate_openapi_types(definition: AppDefinition, application: FastAPI,
         raise LifecycleError(f"{definition.name} {error}") from error
     data_directory = definition.directory / "data"
     data_directory.mkdir(exist_ok=True)
+    try:
+        manifest = monoform_manifest(schema, app=definition.name, title=definition.title)
+    except MonoFormContractError as error:
+        raise LifecycleError(f"{definition.name} MonoForm contract failed: {error}") from error
+    manifest_path = data_directory / "monoform.json"
+    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     schema_path = data_directory / "openapi.json"
     declaration = data_directory / "openapi.d.ts"
     schema_path.write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8")
@@ -213,7 +221,8 @@ def _required_sources(definition: AppDefinition) -> tuple[Path, ...]:
         definition.directory / "app.yaml",
         definition.backend_directory / "server.py",
     ]
-    expected.extend(definition.directory / artifact.source for artifact in definition.artifacts)
+    expected.extend(definition.directory / artifact.source for artifact in definition.artifacts
+        if artifact.source is not None)
     if "database" in definition.capabilities:
         expected.extend(
             [definition.backend_directory / "database.py",
@@ -248,7 +257,7 @@ def validate_dist(definition: AppDefinition) -> None:
 def collect_app_status(definition: AppDefinition) -> dict[str, bool]:
     """Collect an application's source and artifact health without mutation."""
     return {
-        "source": all((definition.directory / artifact.source).is_file()
+        "source": all(artifact.source is None or (definition.directory / artifact.source).is_file()
             for artifact in definition.artifacts),
         "readme": (definition.directory / "README.md").is_file(),
         "data": (definition.directory / "data").is_dir(),

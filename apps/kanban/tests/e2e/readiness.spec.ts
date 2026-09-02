@@ -31,17 +31,13 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
     queue = `Queue ${suffix}`, renamedQueue = `Planned ${suffix}`, doing = `Doing ${suffix}`;
   await createColumn(page, queue);
   await createColumn(page, doing);
-  await page.getByRole("button", { name: `Rename ${doing}` }).click();
-  await page.getByRole("button", { name: `Move ${doing} left` }).click();
+  await page.getByLabel(`Drag ${doing} column`).dragTo(page.getByLabel(`Drag ${queue} column`));
   await expect(page.getByRole("status")).toHaveText("Column moved");
   await expectColumnBefore(page, doing, queue);
   await page.reload();
   await expectColumnBefore(page, doing, queue);
-  await page.getByRole("button", { name: `Rename ${doing}` }).click();
-  await page.getByRole("button", { name: `Move ${doing} right` }).click();
+  await page.getByLabel(`Drag ${doing} column`).dragTo(page.getByLabel(`Drag ${queue} column`));
   await expect(page.getByRole("status")).toHaveText("Column moved");
-  await page.getByRole("dialog", { name: "EDIT COLUMN" })
-    .getByRole("button", { name: "CANCEL" }).click();
   await page.getByRole("button", { name: `Rename ${queue}` }).click();
   const columnEditor = page.getByRole("dialog", { name: "EDIT COLUMN" });
   await expect(columnEditor).toBeVisible();

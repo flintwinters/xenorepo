@@ -48,6 +48,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     creatingColumn: false, editingBoard: false, editingColumn: null, editingComment: null,
     editingAttachment: null, message: "Loading board…", failed: false, busy: false };
   private dragged: string | null = null;
+  private draggedColumn: string | null = null;
 
   override componentDidMount(): void { void this.refresh("Board ready"); }
   private refresh = async (message?: string): Promise<void> => {
@@ -123,8 +124,14 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     this.dragged = null;
     this.perform("Card moved", () => moveCard(id, columnId, position));
   };
-  private reorderColumn = (column: Column, position: number): void => {
-    this.perform("Column moved", () => moveColumn(column.id, position));
+  private dropColumn = (event: DragEvent, target: Column): void => {
+    event.preventDefault();
+    const identity = this.draggedColumn;
+    if (!identity || identity === target.id) return;
+    this.draggedColumn = null;
+    const columns = active(this.state.view?.columns ?? []).sort((a, b) => a.position - b.position);
+    this.perform("Column moved", () => moveColumn(identity,
+      columns.findIndex((column) => column.id === target.id)));
   };
   private saveComment = (event: SubmitEvent, cardId: string): void => {
     event.preventDefault();
@@ -192,20 +199,11 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       (value) => value.id === this.state.editingColumn,
     );
     if (!column) return null;
-    const columns = active(this.state.view?.columns ?? []).sort((a, b) => a.position - b.position);
-    const position = columns.findIndex((value) => value.id === column.id);
     return <Modal class="backdrop" contentClass="dialog" labelledBy="column-editor-title"
       onDismiss={() => this.setState({ editingColumn: null })}><h2 id="column-editor-title">EDIT COLUMN</h2>
       <form onSubmit={this.saveColumn}><label>Column name<input name="name" required maxLength={120}
         value={column.name} autofocus /></label><ColorField label="Column color" name="color"
-          value={column.color} /><div class="column-position"><span>Column position</span>
-          <CommandButton type="button" disabled={position === 0}
-            aria-label={`Move ${column.name} left`}
-            onClick={() => this.reorderColumn(column, position - 1)}>← LEFT</CommandButton>
-          <CommandButton type="button" disabled={position === columns.length - 1}
-            aria-label={`Move ${column.name} right`}
-            onClick={() => this.reorderColumn(column, position + 1)}>RIGHT →</CommandButton></div>
-        <div class="actions"><CommandButton type="button"
+          value={column.color} /><div class="actions"><CommandButton type="button"
           onClick={() => this.setState({ editingColumn: null })}>CANCEL</CommandButton>
         <CommandButton type="submit">SAVE</CommandButton></div></form></Modal>;
   }
@@ -291,7 +289,12 @@ class KanbanBoard extends Component<Record<string, never>, State> {
   private column(column: Column) {
     const cards = this.cards(column.id);
     return <ConsolePane class="column" style={`--column-color:${column.color}`} title={column.name}
-      tone="neutral" titleEnd={<><CommandButton appearance="subtle"
+      tone="neutral" chromeProps={{ draggable: true, "aria-label": `Drag ${column.name} column`,
+        onDragStart: () => { this.draggedColumn = column.id; },
+        onDragEnd: () => { this.draggedColumn = null; },
+        onDragOver: (event) => { if (this.draggedColumn) event.preventDefault(); },
+        onDrop: (event) => this.dropColumn(event, column) }}
+      titleEnd={<><CommandButton appearance="subtle"
         onClick={() => this.setState({ creatingIn: column.id })}>+ CARD</CommandButton>
       <CommandButton appearance="subtle" aria-label={`Rename ${column.name}`}
         onClick={() => this.setState({ editingColumn: column.id })}>EDIT</CommandButton>

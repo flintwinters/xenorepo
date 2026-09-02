@@ -449,6 +449,13 @@ frontend:
         self.assertIn(".x-ui-pane-body { min-height: 0; overflow: auto; }", compact_styles)
         self.assertIn('class="x-ui-title-end"', components)
 
+    def test_console_panes_accept_typed_chrome_interactions(self) -> None:
+        components = (ROOT / "packages" / "ui" / "src" / "index.tsx").read_text(
+            encoding="utf-8")
+
+        self.assertIn("chromeProps?: JSX.HTMLAttributes<HTMLDivElement>", components)
+        self.assertIn('<div class="x-ui-chrome" {...chromeProps}>', components)
+
     def test_console_workspace_owns_flush_hairline_panel_layout(self) -> None:
         styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
             encoding="utf-8")

@@ -6,7 +6,7 @@
 .error { color: #fb4934; }
 .workspace { min-width: 0; min-height: 0; overflow: hidden; background: #1d2021; }
 .board {
-  display: flex; height: 100%; min-width: 100%; gap: 1px; overflow-x: auto;
+  display: flex; width: 100%; height: 100%; min-width: 0; gap: 1px; overflow: hidden;
   background: #504945;
 }
 .column {
@@ -14,10 +14,15 @@
   --tone-dark: color-mix(in srgb, var(--column-color, #665c54) 76%, black);
   --tone-rim: color-mix(in srgb, var(--column-color, #665c54) 62%, white);
   --tone-shadow: color-mix(in srgb, var(--column-color, #665c54) 48%, black);
-  flex: 1 0 300px;
+  flex: 1 1 0;
+  min-width: 0;
   height: 100%;
 }
-.column .x-ui-title-end { gap: 2px; }
+.column .x-ui-chrome { flex-wrap: wrap; align-content: start; }
+.column .x-ui-chrome > span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.column .x-ui-title-end { min-width: 0; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: 2px; }
+.column .x-ui-command { min-width: 0; max-width: 100%; }
+.column .x-ui-command-control { overflow: hidden; text-overflow: ellipsis; }
 .card-list { display: grid; align-content: start; min-height: 100%; gap: 0; padding: 0; background: #202223; }
 .card { margin: 0; padding: 0; border-left: 3px solid #83a598; background: var(--card-color, #32302f); cursor: grab; }
 .card:hover, .card:focus-visible { background: #3c3836; outline: 1px solid #fabd2f; outline-offset: 1px; }
@@ -91,7 +96,6 @@
   .kanban-shell > header .x-ui-rail { flex-wrap: wrap; white-space: normal; padding-block: 4px; }
   .board-description { display: none; }
   .push { flex: 1; }
-  .column { flex: 0 0 min(86vw, 320px); }
   .field-row, .compact-form, .compact-form:has(input[type="file"]) { grid-template-columns: 1fr; }
   .row { flex-wrap: wrap; }
   .row p, .row a { flex-basis: 100%; }

@@ -160,6 +160,20 @@ test("[visual] populated single-board workflow", async ({ page }) => {
     await page.getByRole("button", { name: "SAVE", exact: true }).click();
   }
   await expect(page.locator(".card").filter({ hasText: "Outline launch" })).toBeVisible();
+  expect(await page.locator(".board").evaluate((board) => {
+    const boardBox = board.getBoundingClientRect();
+    const columns = [...board.querySelectorAll(".column")].map(
+      (column) => column.getBoundingClientRect(),
+    );
+    return {
+      fillsWidth: Math.abs(boardBox.width - board.parentElement!.getBoundingClientRect().width) < 1,
+      columnsInside: columns.every((column) =>
+        column.left >= boardBox.left && column.right <= boardBox.right + 1),
+      equalWidths: Math.max(...columns.map((column) => column.width)) -
+        Math.min(...columns.map((column) => column.width)) < 1,
+      pageOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    };
+  })).toEqual({ fillsWidth: true, columnsInside: true, equalWidths: true, pageOverflow: false });
   await page.addStyleTag({ content: "*,*::before,*::after{animation:none!important;transition:none!important}" });
   await expect(page.locator("#app")).toHaveScreenshot("kanban-board.png", { maxDiffPixels: 500 });
 });

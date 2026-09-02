@@ -1,1 +1,0 @@
-"""Quiz-owned regression suite."""

@@ -65,7 +65,7 @@ is the orchestration library.
 ## 3. Current tasks
 
 - Preserve Preact-only architecture gates and deterministic app-owned wide/narrow
-  visual baselines.
+  visual checks; generate their image baselines locally without versioning them.
 - Keep MonoForm a narrow secure CRUD default, not an authorization layer or a
   substitute for app-owned workflows and server-side invariants.
 - Enforce the dependency direction `monoapp -> generic Monotools contract`,

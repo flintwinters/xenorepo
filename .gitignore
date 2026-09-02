@@ -74,3 +74,10 @@ apps/*/data/monoform-build/
 apps/*/README.md
 apps/*/data/ui-check/
 tests/data/
+
+# Generated test images
+**/tests/**/*.png
+**/tests/**/*.jpg
+**/tests/**/*.jpeg
+**/tests/**/*.webp
+**/tests/**/*.gif

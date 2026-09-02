@@ -1,1 +1,0 @@
-"""Calculator backend package."""

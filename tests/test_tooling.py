@@ -504,6 +504,28 @@ frontend:
         self.assertIn("inset 0 -1px rgb(255 255 255 / 0.08)", styles)
         self.assertNotIn("transition:", styles)
 
+    def test_chrome_command_buttons_share_their_chrome_color(self) -> None:
+        styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
+            encoding="utf-8")
+        compact_styles = " ".join(styles.split())
+
+        self.assertIn(".x-ui-chrome .x-ui-command-control {", styles)
+        self.assertIn(
+            "--console-button-background: linear-gradient("
+            "rgb(74 70 67 / 0.82), rgb(53 49 47 / 0.82));",
+            compact_styles,
+        )
+        self.assertIn(
+            "--console-button-hover-background: linear-gradient("
+            "rgb(85 80 77 / 0.82), rgb(61 57 54 / 0.82));",
+            compact_styles,
+        )
+        self.assertIn(
+            "--console-button-pressed-background: linear-gradient("
+            "rgb(36 34 32 / 0.82), rgb(24 23 22 / 0.82));",
+            compact_styles,
+        )
+
     def test_console_command_buttons_expose_toggle_state_only_when_requested(self) -> None:
         components = (ROOT / "packages" / "ui" / "src" / "index.tsx").read_text(
             encoding="utf-8")

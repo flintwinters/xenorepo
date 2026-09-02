@@ -88,6 +88,11 @@
   gap: 4px;
   margin-left: auto;
 }
+.x-ui-chrome .x-ui-command-control {
+  --console-button-background: linear-gradient(rgb(74 70 67 / 0.82), rgb(53 49 47 / 0.82));
+  --console-button-hover-background: linear-gradient(rgb(85 80 77 / 0.82), rgb(61 57 54 / 0.82));
+  --console-button-pressed-background: linear-gradient(rgb(36 34 32 / 0.82), rgb(24 23 22 / 0.82));
+}
 .x-ui-pane-body {
   min-height: 0;
   overflow: auto;

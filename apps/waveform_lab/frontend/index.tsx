@@ -208,7 +208,8 @@ class WaveformLab extends Component<Record<string, never>, ViewState> {
             const assignments = values.filter((note) => note.pitch === pitch);
             const selected = assignments.find((note) => note.instrument === this.state.selectedInstrument);
             const color = lab.instruments.find((item) => item.name === (selected ?? assignments[0])?.instrument)?.color;
-            return <button data-ui-control="domain" role="gridcell" class={`note-cell ${assignments.length ? "active" : ""}
+            return <button data-ui-control="domain" role="gridcell"
+            class={`note-cell ${assignments.length ? "active" : ""}
             ${selectionClass(this.state.selection, { step, pitch })}
             ${this.state.activeStep === step ? "playing" : ""}
             ${step % 16 === 0 ? "bar" : step % 4 === 0 ? "beat" : ""}`}

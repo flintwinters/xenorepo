@@ -1,15 +1,19 @@
 name: calculator
 title: Calculator
 module: apps.calculator.backend.server
+capabilities:
+  - monoform
 imports:
-  - "@xenorepo/ui"
   - monotools.orchestration.management
   - monotools.runtime.application
+  - monotools.runtime.http
+  - monotools.runtime.monoform
 frontend:
   artifacts:
     index:
-      format: preact
-      source: frontend/index.tsx
+      format: monoform
+      operations:
+        - calculate
       output: index.html
   routes:
     /: index

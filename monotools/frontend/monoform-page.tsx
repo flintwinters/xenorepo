@@ -1,20 +1,23 @@
 import { render } from "preact";
+import { useState } from "preact/hooks";
 import { ConsolePane, ConsoleShell, MonoForm } from "@xenorepo/ui";
 import type { MonoFormManifest, MonoFormResult } from "@xenorepo/ui";
 
 declare const MONOFORM_MANIFEST: MonoFormManifest;
 
 function GeneratedForms() {
+  const [outcome, setOutcome] = useState("");
   const report = (result: MonoFormResult): void => {
-    const node = document.getElementById("monoform-result");
-    if (node) node.textContent = `${result.operationId} completed (${result.status}).`;
+    const data = result.data === null ? "" : ` ${JSON.stringify(result.data)}`;
+    setOutcome(`${result.operationId} completed (${result.status}).${data}`);
   };
   return <ConsoleShell header={<strong>{MONOFORM_MANIFEST.application.title}</strong>}>
-    <div id="monoform-result" role="status" />
-    {MONOFORM_MANIFEST.operations.map((operation) =>
-      <ConsolePane title={operation.title} contentHeight>
-        <MonoForm manifest={MONOFORM_MANIFEST} operationId={operation.operationId} onSuccess={report} />
-      </ConsolePane>)}
+    <div><div id="monoform-result" role="status">{outcome}</div>
+      {MONOFORM_MANIFEST.operations.map((operation) =>
+        <ConsolePane title={operation.title} contentHeight>
+          <MonoForm manifest={MONOFORM_MANIFEST} operationId={operation.operationId} onSuccess={report} />
+        </ConsolePane>)}
+    </div>
   </ConsoleShell>;
 }
 

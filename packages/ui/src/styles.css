@@ -170,7 +170,13 @@
 .x-ui-monoform-field > textarea { min-height: 80px; }
 .x-ui-monoform-field small[role="alert"], .x-ui-monoform > [role="alert"] { color: #fb4934; }
 .x-ui-monoform-actions { display: flex; gap: 8px; }
-.x-ui-monoform-actions button { min-height: 28px; padding: 3px 10px; }
+.x-ui-monoform-actions .x-ui-command-control { min-height: 28px; padding: 3px 10px; }
+.x-ui-monoform-result:not(:empty) {
+  padding: 6px 12px;
+  color: var(--console-fg, #ebdbb2);
+  background: var(--console-bg, #1d2021);
+  border-bottom: 1px solid var(--console-divider, #111);
+}
 .x-ui-monoform-confirm { display: flex; align-items: center; gap: 6px; }
 @media (max-width: 390px) {
   .x-ui-command-control {

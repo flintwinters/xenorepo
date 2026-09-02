@@ -184,6 +184,9 @@ frontend:
             output = directory / "dist" / "forms.html"
             first = output.read_bytes()
             self.assertIn(b"Create example", first)
+            self.assertIn(b"x-ui-rail", first)
+            self.assertIn(b"x-ui-command-control", first)
+            self.assertIn(b"x-ui-monoform-result", first)
             self.assertNotIn(b'script src=', first)
             build_app(definition, ROOT)
             self.assertEqual(output.read_bytes(), first)
@@ -534,7 +537,7 @@ frontend:
         )
 
     def test_console_command_buttons_expose_toggle_state_only_when_requested(self) -> None:
-        components = (ROOT / "packages" / "ui" / "src" / "index.tsx").read_text(
+        components = (ROOT / "packages" / "ui" / "src" / "command-button.tsx").read_text(
             encoding="utf-8")
 
         self.assertIn("pressed === undefined ? {}", components)

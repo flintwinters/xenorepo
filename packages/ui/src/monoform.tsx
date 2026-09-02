@@ -1,5 +1,6 @@
 import type { JSX } from "preact";
 import { useMemo, useState } from "preact/hooks";
+import { CommandButton } from "./command-button";
 
 export type MonoFormScalar = string | number | boolean | null;
 
@@ -73,7 +74,7 @@ function initialBody(schema: MonoFormSchema | null, supplied: Values,
   const properties = { ...(schema?.properties || {}), ...Object.fromEntries(parameters
     .filter((parameter) => parameter.in === "query").map((parameter) => [parameter.name, parameter.schema])) };
   return Object.fromEntries(Object.entries(properties).map(([name, field]) =>
-    [name, supplied[name] ?? field.default ?? (field.type === "boolean" ? false : "")]));
+    [name, supplied[name] ?? field.default ?? field.enum?.[0] ?? (field.type === "boolean" ? false : "")]));
 }
 
 function valueFor(field: MonoFormSchema, raw: unknown): unknown {
@@ -239,10 +240,12 @@ export function MonoForm({ manifest, operationId, pathValues = {}, initialValues
         onChange={(event) => setConfirmed(event.currentTarget.checked)} /> Confirm this destructive action
     </label>}
     <div class="x-ui-monoform-actions">
-      <button type="submit" disabled={pending || (operation.destructive && !confirmed)}>
+      <CommandButton type="submit" disabled={pending || (operation.destructive && !confirmed)}>
         {pending ? "Working…" : operation.submitLabel}
-      </button>
-      {onCancel && <button type="button" disabled={pending} onClick={onCancel}>Cancel</button>}
+      </CommandButton>
+      {onCancel && <CommandButton type="button" disabled={pending} onClick={onCancel}>
+        Cancel
+      </CommandButton>}
     </div>
   </form>;
 }

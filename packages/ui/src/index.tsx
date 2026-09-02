@@ -4,6 +4,8 @@ import "./styles.css";
 
 export { MonoForm } from "./monoform";
 export type { MonoFormManifest, MonoFormOperation, MonoFormProps, MonoFormResult } from "./monoform";
+export { CommandButton } from "./command-button";
+export type { CommandButtonProps } from "./command-button";
 
 type Tone = "blue" | "green" | "orange" | "purple" | "neutral";
 type DivProps = JSX.HTMLAttributes<HTMLDivElement>;
@@ -50,19 +52,6 @@ export function ConsolePane({ title, titleEnd, tone = "blue", contentHeight = fa
     </div>
     <div class="x-ui-pane-body">{children}</div>
   </section>;
-}
-
-interface CommandButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
-  pressed?: boolean;
-  appearance?: "default" | "subtle";
-}
-
-export function CommandButton({ pressed, appearance = "default", class: className,
-  children, ...props }: CommandButtonProps) {
-  return <span class={classes("x-ui-command", `x-ui-command-${appearance}`, className as string | undefined)}>
-    <button class="x-ui-command-control" {...(pressed === undefined ? {} : { "aria-pressed": pressed })}
-      {...props}>{children}</button>
-  </span>;
 }
 
 interface EmptyStateProps extends DivProps {

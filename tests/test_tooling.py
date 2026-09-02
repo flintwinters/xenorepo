@@ -533,6 +533,11 @@ frontend:
         self.assertIn("inset 0 -1px rgb(255 255 255 / 0.08)", styles)
         self.assertNotIn("transition:", styles)
 
+    def test_form_actions_preserve_shared_command_button_styling(self) -> None:
+        styles = (MONOUI_SOURCE / "styles.css").read_text(encoding="utf-8")
+
+        self.assertNotIn(".x-ui-form-actions .x-ui-command-control", styles)
+
     def test_chrome_command_buttons_share_their_chrome_color(self) -> None:
         styles = (MONOUI_SOURCE / "styles.css").read_text(
             encoding="utf-8")

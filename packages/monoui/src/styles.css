@@ -171,7 +171,6 @@
 .x-ui-form-field > textarea.x-ui-form-control { min-height: 80px; }
 .x-ui-form-field small[role="alert"], .x-ui-form > [role="alert"] { color: #fb4934; }
 .x-ui-form-actions { display: flex; gap: 8px; }
-.x-ui-form-actions .x-ui-command-control { min-height: 28px; padding: 3px 10px; }
 .x-ui-monoform-result:not(:empty) {
   padding: 6px 12px;
   color: var(--console-fg, #ebdbb2);

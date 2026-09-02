@@ -489,6 +489,17 @@ frontend:
             compact_styles,
         )
 
+    def test_monoform_composes_shared_form_components(self) -> None:
+        monoform = (ROOT / "packages" / "ui" / "src" / "monoform.tsx").read_text(
+            encoding="utf-8")
+
+        for component in ("Form", "FormActions", "FormConfirmation", "FormField",
+                "FormInput", "FormSelect", "FormTextarea"):
+            self.assertIn(f"<{component}", monoform)
+        self.assertNotIn("<input", monoform)
+        self.assertNotIn("<select", monoform)
+        self.assertNotIn("<textarea", monoform)
+
     def test_content_height_panes_never_create_vertical_scrollports(self) -> None:
         styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
             encoding="utf-8")

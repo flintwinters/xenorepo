@@ -20,12 +20,15 @@ contracts; `monotools.orchestration` must not depend on provisioning policy.
 ## Console Preact UI contract
 
 The typed `ConsoleShell`, `UtilityRail`, `StatusRail`, `ConsolePane`, and
-`CommandButton` components each have nine independent consumers. `EmptyState`
+`CommandButton` components each have nine independent consumers. Typed `Form`,
+`FormField`, `FormInput`, `FormSelect`, `FormTextarea`, `FormConfirmation`, and
+`FormActions` primitives own form structure and presentation for the independent
+MonoForm consumers. `EmptyState`
 has three and owns only centered empty-result geometry around an app-owned heading
 and optional detail. `Modal` has two independent consumers and owns accessible
 dialog structure, Escape dismissal, and direct-backdrop dismissal while leaving
 content and backdrop presentation app-owned except for the shared subtle corner
-radius. Rectangular inputs and textareas within the shared shell use the same
+radius. Rectangular inputs, selects, and textareas within the shared shell use the same
 radius, while textareas never expose native drag resizing. Component props extend
 the corresponding Preact native
 HTML attributes, named props replace slots, and stable `x-ui-*` classes are the

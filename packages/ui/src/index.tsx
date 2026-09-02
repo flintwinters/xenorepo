@@ -6,6 +6,9 @@ export { MonoForm } from "./monoform";
 export type { MonoFormManifest, MonoFormOperation, MonoFormProps, MonoFormResult } from "./monoform";
 export { CommandButton } from "./command-button";
 export type { CommandButtonProps } from "./command-button";
+export {
+  Form, FormActions, FormConfirmation, FormField, FormInput, FormSelect, FormTextarea,
+} from "./form-controls";
 
 type Tone = "blue" | "green" | "orange" | "purple" | "neutral";
 type DivProps = JSX.HTMLAttributes<HTMLDivElement>;

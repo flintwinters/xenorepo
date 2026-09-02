@@ -1,6 +1,9 @@
 import type { JSX } from "preact";
 import { useMemo, useState } from "preact/hooks";
 import { CommandButton } from "./command-button";
+import {
+  Form, FormActions, FormConfirmation, FormField, FormInput, FormSelect, FormTextarea,
+} from "./form-controls";
 
 export type MonoFormScalar = string | number | boolean | null;
 
@@ -125,30 +128,27 @@ function Field({ name, schema, value, error, disabled, onChange }: {
     "aria-describedby": error ? `monoform-${name}-error` : undefined };
   let control: JSX.Element;
   if (schema.type === "boolean") {
-    control = <input {...common} type="checkbox" checked={Boolean(value)}
+    control = <FormInput {...common} type="checkbox" checked={Boolean(value)}
       onChange={(event) => onChange(event.currentTarget.checked)} />;
   } else if (schema.enum) {
-    control = <select {...common} value={String(value ?? "")}
+    control = <FormSelect {...common} value={String(value ?? "")}
       onChange={(event) => onChange(event.currentTarget.value)}>
       {schema.nullable && <option value="">None</option>}
       {schema.enum.map((option) => <option value={String(option)}>{String(option)}</option>)}
-    </select>;
+    </FormSelect>;
   } else if (schema.type === "string" && schema.format === undefined && schema.maxLength
       && schema.maxLength > 160) {
-    control = <textarea {...common} value={String(value ?? "")}
+    control = <FormTextarea {...common} value={String(value ?? "")}
       onInput={(event) => onChange(event.currentTarget.value)} />;
   } else {
     const type = schema.type === "integer" || schema.type === "number" ? "number"
       : schema.format === "date-time" ? "datetime-local" : schema.format || "text";
-    control = <input {...common} type={type} value={String(value ?? "")}
+    control = <FormInput {...common} type={type} value={String(value ?? "")}
       min={schema.minimum} max={schema.maximum} minLength={schema.minLength} maxLength={schema.maxLength}
       onInput={(event) => onChange(event.currentTarget.value)} />;
   }
-  return <label class="x-ui-monoform-field" for={`monoform-${name}`}>
-    <span>{labelFor(name, schema)}</span>{control}
-    {schema.description && <small>{schema.description}</small>}
-    {error && <small id={`monoform-${name}-error`} role="alert">{error}</small>}
-  </label>;
+  return <FormField label={labelFor(name, schema)} controlId={`monoform-${name}`}
+    description={schema.description} error={error}>{control}</FormField>;
 }
 
 function requestPath(operation: MonoFormOperation, paths: Record<string, string | number>,
@@ -230,22 +230,22 @@ export function MonoForm({ manifest, operationId, pathValues = {}, initialValues
     setErrors(outcome.errors); setMessage(outcome.message); setPending(false);
     if (outcome.result) onSuccess?.(outcome.result);
   };
-  return <form class="x-ui-monoform" onSubmit={submit} noValidate>
+  return <Form class="x-ui-monoform" onSubmit={submit} noValidate>
     {properties.map(([name, schema]) => <Field name={name} schema={schema} value={values[name]}
       {...(errors[name] ? { error: errors[name] } : {})} disabled={pending}
       onChange={(value) => setValues({ ...values, [name]: value })} />)}
     {message && <p role="alert">{message}</p>}
-    {operation.destructive && <label class="x-ui-monoform-confirm">
-      <input type="checkbox" checked={confirmed} disabled={pending}
-        onChange={(event) => setConfirmed(event.currentTarget.checked)} /> Confirm this destructive action
-    </label>}
-    <div class="x-ui-monoform-actions">
+    {operation.destructive && <FormConfirmation checked={confirmed} disabled={pending}
+      onChange={(event) => setConfirmed(event.currentTarget.checked)}>
+      Confirm this destructive action
+    </FormConfirmation>}
+    <FormActions>
       <CommandButton type="submit" disabled={pending || (operation.destructive && !confirmed)}>
         {pending ? "Working…" : operation.submitLabel}
       </CommandButton>
       {onCancel && <CommandButton type="button" disabled={pending} onClick={onCancel}>
         Cancel
       </CommandButton>}
-    </div>
-  </form>;
+    </FormActions>
+  </Form>;
 }

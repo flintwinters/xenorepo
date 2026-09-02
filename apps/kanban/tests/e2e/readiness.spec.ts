@@ -9,6 +9,13 @@ async function createColumn(page: Page, name: string) {
   await expect(page.locator(".column").filter({ hasText: name })).toBeVisible();
 }
 
+async function expectColumnBefore(page: Page, left: string, right: string) {
+  await expect.poll(async () => {
+    const names = await page.locator(".column .x-ui-chrome > span:first-child").allTextContents();
+    return names.indexOf(left) < names.indexOf(right);
+  }).toBe(true);
+}
+
 test("[acceptance] creates, edits, drags, archives, restores, and reloads durable work", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.getByRole("status")).toHaveText("Board ready");
@@ -24,6 +31,17 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
     queue = `Queue ${suffix}`, renamedQueue = `Planned ${suffix}`, doing = `Doing ${suffix}`;
   await createColumn(page, queue);
   await createColumn(page, doing);
+  await page.getByRole("button", { name: `Rename ${doing}` }).click();
+  await page.getByRole("button", { name: `Move ${doing} left` }).click();
+  await expect(page.getByRole("status")).toHaveText("Column moved");
+  await expectColumnBefore(page, doing, queue);
+  await page.reload();
+  await expectColumnBefore(page, doing, queue);
+  await page.getByRole("button", { name: `Rename ${doing}` }).click();
+  await page.getByRole("button", { name: `Move ${doing} right` }).click();
+  await expect(page.getByRole("status")).toHaveText("Column moved");
+  await page.getByRole("dialog", { name: "EDIT COLUMN" })
+    .getByRole("button", { name: "CANCEL" }).click();
   await page.getByRole("button", { name: `Rename ${queue}` }).click();
   const columnEditor = page.getByRole("dialog", { name: "EDIT COLUMN" });
   await expect(columnEditor).toBeVisible();

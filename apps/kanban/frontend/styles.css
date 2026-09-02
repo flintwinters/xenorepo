@@ -56,6 +56,8 @@
   background: var(--swatch); border-color: color-mix(in srgb, var(--swatch) 55%, white);
 }
 .color-swatch .x-ui-command-control:hover { background: var(--swatch); }
+.column-position { display: flex; align-items: center; gap: 6px; }
+.column-position > span { margin-right: auto; color: #a89984; }
 .field-row { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; }
 .hint { color: #7c746b; font-weight: normal; }
 .actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 4px; }

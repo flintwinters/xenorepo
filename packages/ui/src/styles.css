@@ -30,7 +30,9 @@
   background: var(--console-divider, #111);
 }
 .x-ui-shell button,
-.x-ui-shell input {
+.x-ui-shell input,
+.x-ui-shell select,
+.x-ui-shell textarea {
   font: inherit;
 }
 .x-ui-shell :focus-visible {
@@ -39,6 +41,7 @@
 }
 .x-ui-modal-content,
 .x-ui-shell input:not([type="checkbox"], [type="radio"], [type="range"]),
+.x-ui-shell select,
 .x-ui-shell textarea {
   border-radius: 4px;
 }

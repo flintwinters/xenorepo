@@ -473,14 +473,19 @@ frontend:
             compact_styles,
         )
 
-    def test_console_text_entry_controls_share_subtle_corners(self) -> None:
+    def test_console_form_entry_controls_share_font_and_subtle_corners(self) -> None:
         styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
             encoding="utf-8")
         compact_styles = " ".join(styles.split())
 
         self.assertIn(
             '.x-ui-shell input:not([type="checkbox"], [type="radio"], '
-            '[type="range"]), .x-ui-shell textarea { border-radius: 4px; }',
+            '[type="range"]), .x-ui-shell select, .x-ui-shell textarea { border-radius: 4px; }',
+            compact_styles,
+        )
+        self.assertIn(
+            ".x-ui-shell button, .x-ui-shell input, .x-ui-shell select, "
+            ".x-ui-shell textarea { font: inherit; }",
             compact_styles,
         )
 

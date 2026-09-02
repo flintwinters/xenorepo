@@ -44,7 +44,7 @@ function inspectTypescript(file, workspace, metrics, violations) {
     file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS,
   );
   function visit(node) {
-    if (ts.isImportDeclaration(node) && node.moduleSpecifier.text === "@xenorepo/ui") {
+    if (ts.isImportDeclaration(node) && node.moduleSpecifier.text === "monoui") {
       metrics.toolkitImports += 1;
     }
     if (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) {

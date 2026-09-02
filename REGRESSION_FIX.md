@@ -99,9 +99,9 @@ Evidence:
 
 The realtime messaging and board consumers now independently implement
 substantially equivalent `StatusIndicator` components. Two independent
-consumers prove the shared UI boundary, but `@xenorepo/ui` does not expose it.
+consumers prove the shared UI boundary, but `monoui` does not expose it.
 
-- Define a typed `StatusIndicator` in `packages/ui` using native HTML attribute
+- Define a typed `StatusIndicator` in `packages/monoui` using native HTML attribute
   props and stable shared classes.
 - Preserve app-owned tone policy, labels, placement, and layout.
 - Replace both local implementations without expanding the shared component into

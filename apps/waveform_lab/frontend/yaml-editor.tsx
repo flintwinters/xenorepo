@@ -4,7 +4,7 @@ import { EditorState } from "@codemirror/state";
 import { EditorView, keymap } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { Component } from "preact";
-import { CommandButton, ConsolePane } from "@xenorepo/ui";
+import { CommandButton, ConsolePane } from "monoui";
 import { applySynth, encodeSynth } from "./state-yaml.js";
 import { gruvbox } from "./gruvbox.js";
 import { synthYamlCompletion } from "./yaml-completion.js";

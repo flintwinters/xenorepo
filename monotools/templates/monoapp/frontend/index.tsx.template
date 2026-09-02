@@ -2,7 +2,7 @@ import { render } from "preact";
 import { useState } from "preact/hooks";
 import {
   CommandButton, ConsolePane, ConsoleShell, ConsoleWorkspace, StatusRail, UtilityRail,
-} from "@xenorepo/ui";
+} from "monoui";
 import "./styles.css";
 
 function Application() {

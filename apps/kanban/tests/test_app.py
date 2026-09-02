@@ -139,7 +139,7 @@ class ApplicationTests(unittest.TestCase):
         self.assertIn("/api/board", document)
         self.assertNotIn('src="', document)
         self.assertNotIn('rel="stylesheet"', document)
-        self.assertIn('from "@xenorepo/ui";', source)
+        self.assertIn('from "monoui";', source)
         self.assertIn("Modal", source)
         self.assertIn('from "../data/openapi";', client)
         self.assertNotIn("window.alert", source)

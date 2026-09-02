@@ -14,7 +14,7 @@ global failure, surprising public behavior, or unusable control surfaces.
 Calculator owns its FastAPI arithmetic policy and consumes generic Monotools contracts from the
 enclosing Xenorepo. Its frontend is a native MonoForm artifact generated from the declared OpenAPI
 operation; app-owned TypeScript and CSS are forbidden. There are no durable domain facts.
-Compose established shell, pane, rail, command, and empty-state controls from `@xenorepo/ui`.
+Compose established shell, pane, rail, command, and empty-state controls from `monoui`.
 
 Inventory shared UI primitives and tokens before writing presentation code. Reuse toolkit commands
 and empty states unless their semantics are demonstrably unsuitable. Treat every border, gap,

@@ -5,7 +5,6 @@ capabilities:
   - database
   - realtime
 imports:
-  - "@xenorepo/ui"
   - monotools.orchestration.management
   - monotools.persistence.database
   - monotools.persistence.orm
@@ -13,6 +12,7 @@ imports:
   - monotools.runtime.application
   - monotools.runtime.http
   - monotools.runtime.realtime
+  - "monoui"
 frontend:
   artifacts:
     index:

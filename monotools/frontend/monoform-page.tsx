@@ -1,7 +1,7 @@
 import { render } from "preact";
 import { useState } from "preact/hooks";
-import { ConsolePane, ConsoleShell, MonoForm, UtilityRail } from "@xenorepo/ui";
-import type { MonoFormManifest, MonoFormResult } from "@xenorepo/ui";
+import { ConsolePane, ConsoleShell, MonoForm, UtilityRail } from "monoui";
+import type { MonoFormManifest, MonoFormResult } from "monoui";
 
 declare const MONOFORM_MANIFEST: MonoFormManifest;
 

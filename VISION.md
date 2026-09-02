@@ -90,7 +90,7 @@ framework construction toward systematic extraction and product refinement.
 | Persistence | SQLAlchemy repositories, SQLite data directories, migrations, constraints, provenance, and realtime models are established in several apps. | Exercise migrations more broadly and validate PostgreSQL compatibility where the domain requires it. |
 | Quality infrastructure | Platform and app-owned suites cover Python behavior, HTTP, realtime, persistence, and real browser interaction with preserved evidence. | Broaden lifecycle failure coverage and app-owned browser proof where it reduces demonstrated risk. |
 | Product proving grounds | Independent monoapps exercise distinct lifecycle, interface, persistence, realtime, and process boundaries. | Keep product policy app-owned and promote only independently reusable findings into shared contracts. |
-| Library governance | `LIBRARIES.md` catalogs Monotools and Console Preact UI and defines extraction rules. | Keep the catalog authoritative and continue separating app domain code from shared platform code. |
+| Library governance | `LIBRARIES.md` catalogs Monotools and MonoUI and defines extraction rules. | Keep the catalog authoritative and continue separating app domain code from shared platform code. |
 
 ## Strategic sequence
 

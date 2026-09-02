@@ -21,7 +21,7 @@ def frontend_inputs(definition: AppDefinition, workspace: Path) -> tuple[Path, .
 
 def _frontend_tooling_inputs(definition: AppDefinition, workspace: Path) -> tuple[Path, ...]:
     inputs = [*(_files_beneath(definition.directory / "frontend")),
-        *(_files_beneath(workspace / "packages" / "ui" / "src")),
+        *(_files_beneath(workspace / "packages" / "monoui" / "src")),
         *(workspace / name for name in
             ("package.json", "package-lock.json", "tsconfig.preact.json")),
         *(workspace / "monotools" / "node" / name for name in

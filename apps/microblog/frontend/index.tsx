@@ -1,6 +1,6 @@
 /** Typed WIRE/98 account, publishing, pagination, and event-stream client. */
 import { Component, render } from "preact";
-import { CommandButton } from "@xenorepo/ui";
+import { CommandButton } from "monoui";
 import {
   authenticate,
   logout,

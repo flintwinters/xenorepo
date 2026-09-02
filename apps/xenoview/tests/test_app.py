@@ -173,7 +173,7 @@ class CockpitTests(unittest.TestCase):
         self.assertIn("/api/overview", document)
         self.assertIn("/api/monoapps", document)
         self.assertNotIn("APP_BUNDLE", document)
-        self.assertIn('from "@xenorepo/ui";', source)
+        self.assertIn('from "monoui";', source)
         self.assertIn('from "../data/openapi";', client)
         self.assertNotIn("from \"lit\"", source)
 

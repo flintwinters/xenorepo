@@ -18,6 +18,9 @@ from monotools.runtime.application import create_application
 from monotools.orchestration.watch import frontend_inputs, watch_frontend
 
 
+MONOUI_SOURCE = ROOT / "packages" / "monoui" / "src"
+
+
 class RepositoryAppTests(unittest.TestCase):
     def fixture_definition(self, directory: Path, *, name: str = "sample-lab") -> AppDefinition:
         return AppDefinition(
@@ -271,7 +274,7 @@ frontend:
 
         self.assertIn("# Custom Library Catalog", catalog)
         self.assertIn("`monotools/`", catalog)
-        self.assertIn("`packages/ui/`", catalog)
+        self.assertIn("`packages/monoui/`", catalog)
         self.assertIn("Applications are consumers; they do not", catalog)
         self.assertIn("import one another.", catalog)
 
@@ -443,9 +446,9 @@ frontend:
             self.assertEqual(output.read_bytes(), before)
 
     def test_console_panes_have_bounded_scroll_and_title_controls(self) -> None:
-        styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
+        styles = (MONOUI_SOURCE / "styles.css").read_text(
             encoding="utf-8")
-        components = (ROOT / "packages" / "ui" / "src" / "index.tsx").read_text(
+        components = (MONOUI_SOURCE / "index.tsx").read_text(
             encoding="utf-8")
         compact_styles = " ".join(styles.split())
 
@@ -453,16 +456,16 @@ frontend:
         self.assertIn('class="x-ui-title-end"', components)
 
     def test_console_panes_accept_typed_chrome_interactions(self) -> None:
-        components = (ROOT / "packages" / "ui" / "src" / "index.tsx").read_text(
+        components = (MONOUI_SOURCE / "index.tsx").read_text(
             encoding="utf-8")
 
         self.assertIn("chromeProps?: JSX.HTMLAttributes<HTMLDivElement>", components)
         self.assertIn('<div class="x-ui-chrome" {...chromeProps}>', components)
 
     def test_console_workspace_owns_flush_hairline_panel_layout(self) -> None:
-        styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
+        styles = (MONOUI_SOURCE / "styles.css").read_text(
             encoding="utf-8")
-        components = (ROOT / "packages" / "ui" / "src" / "index.tsx").read_text(
+        components = (MONOUI_SOURCE / "index.tsx").read_text(
             encoding="utf-8")
         compact_styles = " ".join(styles.split())
 
@@ -474,7 +477,7 @@ frontend:
         )
 
     def test_console_form_entry_controls_share_font_and_subtle_corners(self) -> None:
-        styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
+        styles = (MONOUI_SOURCE / "styles.css").read_text(
             encoding="utf-8")
         compact_styles = " ".join(styles.split())
 
@@ -490,7 +493,7 @@ frontend:
         )
 
     def test_monoform_composes_shared_form_components(self) -> None:
-        monoform = (ROOT / "packages" / "ui" / "src" / "monoform.tsx").read_text(
+        monoform = (MONOUI_SOURCE / "monoform.tsx").read_text(
             encoding="utf-8")
 
         for component in ("Form", "FormActions", "FormConfirmation", "FormField",
@@ -501,9 +504,9 @@ frontend:
         self.assertNotIn("<textarea", monoform)
 
     def test_content_height_panes_never_create_vertical_scrollports(self) -> None:
-        styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
+        styles = (MONOUI_SOURCE / "styles.css").read_text(
             encoding="utf-8")
-        components = (ROOT / "packages" / "ui" / "src" / "index.tsx").read_text(
+        components = (MONOUI_SOURCE / "index.tsx").read_text(
             encoding="utf-8")
         compact_styles = " ".join(styles.split())
 
@@ -514,7 +517,7 @@ frontend:
             "overflow: visible; }"), compact_styles)
 
     def test_console_command_buttons_reverse_their_shadow_when_pressed(self) -> None:
-        styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
+        styles = (MONOUI_SOURCE / "styles.css").read_text(
             encoding="utf-8")
         compact_styles = " ".join(styles.split())
 
@@ -531,7 +534,7 @@ frontend:
         self.assertNotIn("transition:", styles)
 
     def test_chrome_command_buttons_share_their_chrome_color(self) -> None:
-        styles = (ROOT / "packages" / "ui" / "src" / "styles.css").read_text(
+        styles = (MONOUI_SOURCE / "styles.css").read_text(
             encoding="utf-8")
         compact_styles = " ".join(styles.split())
 
@@ -553,7 +556,7 @@ frontend:
         )
 
     def test_console_command_buttons_expose_toggle_state_only_when_requested(self) -> None:
-        components = (ROOT / "packages" / "ui" / "src" / "command-button.tsx").read_text(
+        components = (MONOUI_SOURCE / "command-button.tsx").read_text(
             encoding="utf-8")
 
         self.assertIn("pressed === undefined ? {}", components)

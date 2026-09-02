@@ -4,7 +4,6 @@ module: apps.mailing_list.backend.server
 capabilities:
   - database
 imports:
-  - "@xenorepo/ui"
   - monotools.integrations.commerce
   - monotools.integrations.mailer
   - monotools.integrations.stripe
@@ -13,6 +12,7 @@ imports:
   - monotools.runtime.appkit
   - monotools.runtime.application
   - monotools.runtime.http
+  - "monoui"
 frontend:
   artifacts:
     index:

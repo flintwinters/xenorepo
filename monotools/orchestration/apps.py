@@ -152,14 +152,14 @@ def _imports(value: object, path: Path) -> tuple[str, ...]:
     unsupported = [item for item in value if not _is_shared_import(item)]
     if unsupported:
         raise AppDefinitionError(
-            f"{_display(path)} imports must name shared Monotools or Xenorepo modules: "
+            f"{_display(path)} imports must name shared Monotools, MonoUI, or Xenorepo modules: "
             f"{', '.join(unsupported)}"
         )
     return tuple(value)
 
 
 def _is_shared_import(name: str) -> bool:
-    return name.startswith("monotools.") or name.startswith("@xenorepo/")
+    return name == "monoui" or name.startswith("monotools.") or name.startswith("@xenorepo/")
 
 
 def _load_yaml(path: Path) -> Mapping[str, object]:

@@ -4,13 +4,13 @@ module: apps.microblog.backend.server
 capabilities:
   - database
 imports:
-  - "@xenorepo/ui"
   - monotools.orchestration.management
   - monotools.persistence.auth
   - monotools.persistence.database
   - monotools.runtime.appkit
   - monotools.runtime.application
   - monotools.runtime.http
+  - "monoui"
 frontend:
   artifacts:
     index:

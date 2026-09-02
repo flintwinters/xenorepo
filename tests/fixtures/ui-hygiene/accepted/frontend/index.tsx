@@ -1,4 +1,4 @@
-import { CommandButton, EmptyState } from "@xenorepo/ui";
+import { CommandButton, EmptyState } from "monoui";
 
 export const View = () => <main class="fixture-root">
   <CommandButton>RESET</CommandButton>

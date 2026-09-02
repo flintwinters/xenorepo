@@ -1,6 +1,6 @@
 import { Component, render } from "preact";
 import { CommandButton, ConsolePane, ConsoleShell, EmptyState, Modal, MonoForm, StatusRail,
-  UtilityRail, type MonoFormManifest } from "@xenorepo/ui";
+  UtilityRail, type MonoFormManifest } from "monoui";
 import rawManifest from "../data/monoform.json";
 import {
   addComment, addLink, addUpload, createColumn, editAttachment, editBoard,

@@ -1,7 +1,7 @@
 import type { ComponentChildren, JSX } from "preact";
 
 
-type FormProps = JSX.HTMLAttributes<HTMLFormElement>;
+type FormProps = JSX.FormHTMLAttributes<HTMLFormElement>;
 type InputProps = JSX.InputHTMLAttributes<HTMLInputElement>;
 type SelectProps = JSX.SelectHTMLAttributes<HTMLSelectElement>;
 type TextareaProps = JSX.TextareaHTMLAttributes<HTMLTextAreaElement>;

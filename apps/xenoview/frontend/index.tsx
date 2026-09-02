@@ -2,7 +2,7 @@
 import { Component, render, type ComponentChildren } from "preact";
 import {
   CommandButton, ConsolePane, ConsoleShell, ConsoleWorkspace, StatusRail, UtilityRail,
-} from "@xenorepo/ui";
+} from "monoui";
 import {
   captureSnapshot,
   loadCockpit,

@@ -7,7 +7,7 @@ import {
   ConsoleWorkspace,
   StatusRail,
   UtilityRail,
-} from "@xenorepo/ui";
+} from "monoui";
 import { checkout, checkoutStatus, offering, settleSandbox } from "./client.js";
 import "./styles.css";
 

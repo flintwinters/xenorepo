@@ -18,7 +18,7 @@ Use tiny crisp monospaced typography, near-solid leading, shallow chrome, compac
 
 ## Command controls
 
-Use `CommandButton` from `@xenorepo/ui` for ordinary commands. Use native buttons only when semantics
+Use `CommandButton` from `monoui` for ordinary commands. Use native buttons only when semantics
 require a distinct treatment, such as tabs, grid cells, tree toggles, or drag handles.
 
 All ordinary command buttons share one restrained construction. Use a compact content-sized dark face approximately one text row high, tight horizontal padding, a neutral one-pixel outline, and square or nearly square corners. Shade the face with a subtle light-to-dark vertical gradient. Add a faint translucent highlight just inside the upper edge, restrained darker inset shading along the lower edge, and a short soft shadow centered directly beneath the face. The result should look gently raised and clean, not chunky, pixel-stacked, or heavily beveled.

@@ -164,7 +164,7 @@ def build_app(definition: AppDefinition, workspace: Path) -> None:
 
 
 _SHARED_PACKAGE_IMPORT = re.compile(
-    r"(?:from\s+|import\s*(?:\([^)]*?from\s+)?)[\"'](@xenorepo/[^/\"']+)[\"']"
+    r"(?:from\s+|import\s*(?:\([^)]*?from\s+)?)[\"'](monoui|@xenorepo/[^/\"']+)[\"']"
 )
 
 

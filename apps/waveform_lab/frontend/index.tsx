@@ -1,7 +1,7 @@
 import { Component, render } from "preact";
 import {
   CommandButton, ConsolePane, ConsoleShell, ConsoleWorkspace, StatusRail, UtilityRail,
-} from "@xenorepo/ui";
+} from "monoui";
 import { SynthEngine } from "./audio.js";
 import { decodeState, encodeState } from "./state-yaml.js";
 import { SynthYamlEditor } from "./yaml-editor.js";

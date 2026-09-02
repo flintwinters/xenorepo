@@ -13,11 +13,11 @@ contracts; `monotools.orchestration` must not depend on provisioning policy.
 | Library | Language | Location | Public responsibility | Adoption rule |
 | --- | --- | --- | --- | --- |
 | Monotools | Python + TypeScript tooling | `monotools/`, `tsconfig.preact.json` | Typed metadata, discovery, lifecycle orchestration, build validation, FastAPI runtime, portable persistence, generic transport primitives, and evidence handling. | A capability must be declarative and reusable by an arbitrary future monoapp. |
-| Console Preact UI | TypeScript + CSS | `packages/ui/` | Typed shells, panes, rails, and command controls with stable classes and external presentation. | Every component must have at least two independent monoapp consumers. |
-| MonoForm | Python + TypeScript | `monotools/runtime/monoform.py`, `packages/ui/src/monoform.tsx` | Validated CRUD declarations, deterministic manifests, schema-derived forms, fixed same-origin transport, and immutable allowlisted page artifacts. | Use only where the generic contract preserves the workflow; backend security and domain invariants remain app-owned. |
+| MonoUI | TypeScript + CSS | `packages/monoui/` | Typed shells, panes, rails, and command controls with stable classes and external presentation. | Every component must have at least two independent monoapp consumers. |
+| MonoForm | Python + TypeScript | `monotools/runtime/monoform.py`, `packages/monoui/src/monoform.tsx` | Validated CRUD declarations, deterministic manifests, schema-derived forms, fixed same-origin transport, and immutable allowlisted page artifacts. | Use only where the generic contract preserves the workflow; backend security and domain invariants remain app-owned. |
 | Browser Testing | JavaScript/TypeScript | `packages/browser-testing/` | Shared Playwright fixtures, strict browser diagnostics, trusted input drivers, schema-versioned evidence, and static proof validation. | Shared code contains no app routes, selectors, entities, or gesture semantics. |
 
-## Console Preact UI contract
+## MonoUI contract
 
 The typed `ConsoleShell`, `UtilityRail`, `StatusRail`, `ConsolePane`, and
 `CommandButton` components each have nine independent consumers. Typed `Form`,
@@ -35,7 +35,7 @@ HTML attributes, named props replace slots, and stable `x-ui-*` classes are the
 styling boundary. Console colors remain application-owned through the documented
 `--console-*` custom properties, including rail background and border overrides.
 The package owns only proved console geometry and interaction treatment; app
-layout remains in external app-owned CSS. All consumers import `@xenorepo/ui`.
+layout remains in external app-owned CSS. All consumers import `monoui`.
 Established catalogued controls are the default for matching semantics. The
 independent-consumer rule governs creating abstractions, not consuming them.
 

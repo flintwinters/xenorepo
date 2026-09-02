@@ -12,7 +12,7 @@ global failure, surprising public behavior, or unusable control surfaces.
 
 {{app_title}} owns its product behavior and consumes generic Monotools contracts from the enclosing
 Xenorepo. Keep frontend, backend, tests, and durable domain facts app-owned.
-Compose established shell, pane, rail, command, and empty-state controls from `@xenorepo/ui`.
+Compose established shell, pane, rail, command, and empty-state controls from `monoui`.
 
 Inventory shared UI primitives and tokens before writing presentation code. Reuse toolkit commands
 and empty states unless their semantics are demonstrably unsuitable. Treat every border, gap,

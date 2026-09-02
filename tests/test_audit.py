@@ -26,7 +26,7 @@ class AuditTests(unittest.TestCase):
             (first / "backend" / "server.py").write_text(
                 "from apps.nebula.backend import server\n", encoding="utf-8")
             (first / "frontend" / "index.ts").write_text(
-                'import "../../../packages/ui/src/index.js";\n',
+                'import "../../../packages/monoui/src/index.js";\n',
                 encoding="utf-8",
             )
             (first / "frontend" / "legacy.html").write_text("<p>authored HTML</p>\n",

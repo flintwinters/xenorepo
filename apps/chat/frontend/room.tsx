@@ -1,7 +1,7 @@
 import { Component, createRef } from "preact";
 import {
   CommandButton, ConsolePane, ConsoleShell, ConsoleWorkspace, EmptyState, StatusRail, UtilityRail,
-} from "@xenorepo/ui";
+} from "monoui";
 import { ChatTransport } from "./socket.js";
 import type { ChatMessage, ConnectionState, ServerEvent } from "./types.js";
 import "./styles.css";

@@ -525,14 +525,14 @@ frontend:
             '.x-ui-command-control[aria-pressed="true"]:not(:disabled)')
         self.assertIn(pressed_rule, compact_styles)
         self.assertIn("var(--console-button-face-middle) 45%", styles)
-        self.assertIn("var(--console-button-border, #c6b58f)", styles)
-        self.assertIn("var(--console-button-border-top, #f0dfb8)", styles)
-        self.assertIn("var(--console-button-border-hover, #f0dfb8)", styles)
-        self.assertIn("var(--console-button-border-top-hover, #fbf1c7)", styles)
+        self.assertIn("border: 1px solid var(--console-button-border)", styles)
+        self.assertIn("border-top-color: var(--console-button-border-top)", styles)
+        self.assertIn("border-color: var(--console-button-border-hover)", styles)
+        self.assertIn("border-top-color: var(--console-button-border-top-hover)", styles)
         self.assertIn("transform: translateY(1px)", styles)
         self.assertIn("var(--console-button-pressed-middle) 45%", styles)
-        self.assertIn("inset 0 3px 4px rgb(0 0 0 / 0.65)", styles)
-        self.assertIn("inset 0 -1px rgb(255 255 255 / 0.08)", styles)
+        self.assertIn("inset 0 3px 4px color-mix", styles)
+        self.assertIn("inset 0 -1px color-mix", styles)
         self.assertNotIn("transition:", styles)
 
     def test_form_actions_preserve_shared_command_button_styling(self) -> None:
@@ -569,20 +569,19 @@ frontend:
             encoding="utf-8")
         compact_styles = " ".join(styles.split())
 
-        self.assertIn(".x-ui-chrome .x-ui-command-control {", styles)
-        chrome_button_rule = compact_styles.split(
-            ".x-ui-chrome .x-ui-command-control {", 1)[1].split("}", 1)[0]
+        self.assertNotIn(".x-ui-chrome .x-ui-command-control", styles)
+        chrome_rule = compact_styles.split(".x-ui-chrome {", 1)[1].split("}", 1)[0]
+        self.assertIn("--console-button-tint: var(--tone-base)", chrome_rule)
+        button_rule = compact_styles.split(".x-ui-command-control {", 1)[1].split("}", 1)[0]
         for property_name in (
             "face-top", "face-middle", "face-bottom", "hover-top", "hover-middle",
             "hover-bottom", "pressed-top", "pressed-middle", "pressed-bottom", "border",
             "border-top", "border-hover", "border-top-hover", "shadow", "hover-shadow",
             "pressed-shadow",
         ):
-            self.assertIn(f"--console-button-{property_name}:", chrome_button_rule)
-        self.assertNotIn("background:", chrome_button_rule)
-        self.assertIn("var(--tone-base)", chrome_button_rule)
-        self.assertIn("color-mix(in srgb", chrome_button_rule)
-        self.assertNotIn(" / ", chrome_button_rule)
+            self.assertIn(f"--console-button-{property_name}:", button_rule)
+        self.assertIn("var(--console-button-tint, #504945)", button_rule)
+        self.assertIn("color-mix(in srgb", button_rule)
         for tone in ("blue", "green", "orange", "purple", "neutral"):
             self.assertRegex(styles,
                 rf"\.x-ui-tone-{tone} \{{\s+--tone-base: #[0-9a-f]{{6}};")

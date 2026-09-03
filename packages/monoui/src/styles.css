@@ -68,6 +68,7 @@
   background: var(--console-panel, #282828);
 }
 .x-ui-chrome {
+  --console-button-tint: var(--tone-base);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -106,30 +107,6 @@
   gap: 4px;
   margin-left: auto;
 }
-.x-ui-chrome .x-ui-command-control {
-  --console-button-face-top: color-mix(in srgb, var(--tone-base) 44%, #665c54);
-  --console-button-face-middle: color-mix(in srgb, var(--tone-base) 38%, #504945);
-  --console-button-face-bottom: color-mix(in srgb, var(--tone-base) 32%, #282828);
-  --console-button-hover-top: color-mix(in srgb, var(--tone-base) 54%, #7c6f64);
-  --console-button-hover-middle: color-mix(in srgb, var(--tone-base) 48%, #665c54);
-  --console-button-hover-bottom: color-mix(in srgb, var(--tone-base) 40%, #3c3836);
-  --console-button-pressed-top: color-mix(in srgb, var(--tone-base) 25%, #282828);
-  --console-button-pressed-middle: color-mix(in srgb, var(--tone-base) 21%, #242424);
-  --console-button-pressed-bottom: color-mix(in srgb, var(--tone-base) 18%, #1d2021);
-  --console-button-border: color-mix(in srgb, var(--tone-base) 68%, #ebdbb2);
-  --console-button-border-top: color-mix(in srgb, var(--tone-base) 72%, white);
-  --console-button-border-hover: color-mix(in srgb, var(--tone-base) 78%, #fbf1c7);
-  --console-button-border-top-hover: color-mix(in srgb, var(--tone-base) 82%, white);
-  --console-button-shadow:
-    inset 0 1px color-mix(in srgb, var(--tone-base) 30%, white),
-    0 1px 2px color-mix(in srgb, var(--tone-base) 22%, black);
-  --console-button-hover-shadow:
-    inset 0 1px color-mix(in srgb, var(--tone-base) 38%, white),
-    0 2px 4px color-mix(in srgb, var(--tone-base) 20%, black);
-  --console-button-pressed-shadow:
-    inset 0 3px 4px color-mix(in srgb, var(--tone-base) 18%, black),
-    inset 0 -1px color-mix(in srgb, var(--tone-base) 22%, white);
-}
 .x-ui-pane-body {
   min-height: 0;
   overflow: auto;
@@ -144,41 +121,53 @@
   display: inline-block;
 }
 .x-ui-command-control {
-  --console-button-face-top: #504b48;
-  --console-button-face-middle: #45413e;
-  --console-button-face-bottom: #35312f;
-  --console-button-hover-top: #5d5753;
-  --console-button-hover-middle: #504b48;
-  --console-button-hover-bottom: #3d3936;
-  --console-button-pressed-top: #2b2927;
-  --console-button-pressed-middle: #211f1e;
-  --console-button-pressed-bottom: #181716;
+  --console-button-face-top: color-mix(in srgb, var(--console-button-tint, #504945) 44%, #665c54);
+  --console-button-face-middle: color-mix(in srgb, var(--console-button-tint, #504945) 38%, #504945);
+  --console-button-face-bottom: color-mix(in srgb, var(--console-button-tint, #504945) 32%, #282828);
+  --console-button-hover-top: color-mix(in srgb, var(--console-button-tint, #504945) 54%, #7c6f64);
+  --console-button-hover-middle: color-mix(in srgb, var(--console-button-tint, #504945) 48%, #665c54);
+  --console-button-hover-bottom: color-mix(in srgb, var(--console-button-tint, #504945) 40%, #3c3836);
+  --console-button-pressed-top: color-mix(in srgb, var(--console-button-tint, #504945) 25%, #282828);
+  --console-button-pressed-middle: color-mix(in srgb, var(--console-button-tint, #504945) 21%, #242424);
+  --console-button-pressed-bottom: color-mix(in srgb, var(--console-button-tint, #504945) 18%, #1d2021);
+  --console-button-border: color-mix(in srgb, var(--console-button-tint, #504945) 68%, #ebdbb2);
+  --console-button-border-top: color-mix(in srgb, var(--console-button-tint, #504945) 72%, white);
+  --console-button-border-hover: color-mix(in srgb, var(--console-button-tint, #504945) 78%, #fbf1c7);
+  --console-button-border-top-hover: color-mix(in srgb, var(--console-button-tint, #504945) 82%, white);
+  --console-button-shadow:
+    inset 0 1px color-mix(in srgb, var(--console-button-tint, #504945) 30%, white),
+    0 1px 2px color-mix(in srgb, var(--console-button-tint, #504945) 22%, black);
+  --console-button-hover-shadow:
+    inset 0 1px color-mix(in srgb, var(--console-button-tint, #504945) 38%, white),
+    0 2px 4px color-mix(in srgb, var(--console-button-tint, #504945) 20%, black);
+  --console-button-pressed-shadow:
+    inset 0 3px 4px color-mix(in srgb, var(--console-button-tint, #504945) 18%, black),
+    inset 0 -1px color-mix(in srgb, var(--console-button-tint, #504945) 22%, white);
   width: 100%;
   min-height: 18px;
   padding: 1px 6px;
   color: var(--console-fg, #ebdbb2);
   background: linear-gradient(var(--console-button-face-top) 0%,
     var(--console-button-face-middle) 45%, var(--console-button-face-bottom) 100%);
-  border: 1px solid var(--console-button-border, #c6b58f);
-  border-top-color: var(--console-button-border-top, #f0dfb8);
+  border: 1px solid var(--console-button-border);
+  border-top-color: var(--console-button-border-top);
   border-radius: 4px;
-  box-shadow: var(--console-button-shadow, inset 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.45));
+  box-shadow: var(--console-button-shadow);
   cursor: pointer;
 }
 .x-ui-command-control:hover:not(:disabled) {
   background: linear-gradient(var(--console-button-hover-top) 0%,
     var(--console-button-hover-middle) 45%, var(--console-button-hover-bottom) 100%);
-  border-color: var(--console-button-border-hover, #f0dfb8);
-  border-top-color: var(--console-button-border-top-hover, #fbf1c7);
-  box-shadow: var(--console-button-hover-shadow, inset 0 1px rgb(255 255 255 / 0.14), 0 2px 4px rgb(0 0 0 / 0.4));
+  border-color: var(--console-button-border-hover);
+  border-top-color: var(--console-button-border-top-hover);
+  box-shadow: var(--console-button-hover-shadow);
 }
 .x-ui-command-control:active:not(:disabled),
 .x-ui-command-control[aria-pressed="true"]:not(:disabled) {
   transform: translateY(1px);
   background: linear-gradient(var(--console-button-pressed-top) 0%,
     var(--console-button-pressed-middle) 45%, var(--console-button-pressed-bottom) 100%);
-  box-shadow: var(--console-button-pressed-shadow,
-    inset 0 3px 4px rgb(0 0 0 / 0.65), inset 0 -1px rgb(255 255 255 / 0.08));
+  box-shadow: var(--console-button-pressed-shadow);
 }
 .x-ui-command-control:disabled {
   color: var(--console-muted, #a89984);

@@ -45,7 +45,10 @@
 }
 .card-dialog { width: min(720px, 100%); }
 .dialog h2, .dialog h3 { margin: 0 0 10px; color: #fabd2f; font-size: 14px; }
-.dialog h3 { margin-top: 14px; padding-bottom: 4px; color: #83a598; border-bottom: 1px solid #504945; font-size: 12px; }
+.dialog h3 {
+  margin-top: 14px; margin-bottom: 0; padding-bottom: 4px; color: #83a598;
+  border-bottom: 1px solid #504945; font-size: 12px;
+}
 .dialog form, .card-fields { display: grid; gap: 9px; }
 .dialog label { display: grid; gap: 3px; color: #a89984; }
 .dialog fieldset { display: grid; gap: 7px; margin: 0; padding: 8px; border: 1px solid #504945; }

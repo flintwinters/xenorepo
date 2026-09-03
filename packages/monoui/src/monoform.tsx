@@ -9,7 +9,7 @@ export type MonoFormScalar = string | number | boolean | null;
 
 export interface MonoFormSchema {
   type: "object" | "string" | "integer" | "number" | "boolean" | "array";
-  format?: "date" | "date-time";
+  format?: "color" | "date" | "date-time";
   title?: string;
   description?: string;
   enum?: MonoFormScalar[];
@@ -60,6 +60,7 @@ export interface MonoFormResult {
 export interface MonoFormProps {
   manifest: MonoFormManifest;
   operationId: string;
+  title?: string;
   pathValues?: Record<string, string | number>;
   initialValues?: Record<string, unknown>;
   onSuccess?: (result: MonoFormResult) => void;
@@ -142,10 +143,16 @@ function Field({ name, schema, value, error, disabled, onChange }: {
       onInput={(event) => onChange(event.currentTarget.value)} />;
   } else {
     const type = schema.type === "integer" || schema.type === "number" ? "number"
-      : schema.format === "date-time" ? "datetime-local" : schema.format || "text";
-    control = <FormInput {...common} type={type} value={String(value ?? "")}
+      : schema.format === "date-time" ? "datetime-local"
+      : schema.format === "color" ? "text" : schema.format || "text";
+    const input = <FormInput {...common} type={type} value={String(value ?? "")}
       min={schema.minimum} max={schema.maximum} minLength={schema.minLength} maxLength={schema.maxLength}
       onInput={(event) => onChange(event.currentTarget.value)} />;
+    const color = /^#[0-9a-fA-F]{6}$/.test(String(value ?? "")) ? String(value) : undefined;
+    control = schema.format === "color" ? <span class="x-ui-color-control">
+      {input}<span class="x-ui-color-preview" style={color ? `--preview-color:${color}` : undefined}
+        aria-hidden="true" />
+    </span> : input;
   }
   return <FormField label={labelFor(name, schema)} controlId={`monoform-${name}`}
     description={schema.description} error={error}>{control}</FormField>;
@@ -204,7 +211,7 @@ function submissionErrors(operation: MonoFormOperation, pathValues: Record<strin
   return errors;
 }
 
-export function MonoForm({ manifest, operationId, pathValues = {}, initialValues = {},
+export function MonoForm({ manifest, operationId, title, pathValues = {}, initialValues = {},
   onSuccess, onCancel }: MonoFormProps) {
   const operation = manifest.schemaVersion === 1
     ? manifest.operations.find((candidate) => candidate.operationId === operationId) : undefined;
@@ -230,22 +237,25 @@ export function MonoForm({ manifest, operationId, pathValues = {}, initialValues
     setErrors(outcome.errors); setMessage(outcome.message); setPending(false);
     if (outcome.result) onSuccess?.(outcome.result);
   };
-  return <Form class="x-ui-monoform" onSubmit={submit} noValidate>
-    {properties.map(([name, schema]) => <Field name={name} schema={schema} value={values[name]}
-      {...(errors[name] ? { error: errors[name] } : {})} disabled={pending}
-      onChange={(value) => setValues({ ...values, [name]: value })} />)}
-    {message && <p role="alert">{message}</p>}
-    {operation.destructive && <FormConfirmation checked={confirmed} disabled={pending}
-      onChange={(event) => setConfirmed(event.currentTarget.checked)}>
-      Confirm this destructive action
-    </FormConfirmation>}
-    <FormActions>
-      <CommandButton type="submit" disabled={pending || (operation.destructive && !confirmed)}>
-        {pending ? "Working…" : operation.submitLabel}
-      </CommandButton>
-      {onCancel && <CommandButton type="button" disabled={pending} onClick={onCancel}>
-        Cancel
-      </CommandButton>}
-    </FormActions>
-  </Form>;
+  return <section class="x-ui-monoform-section">
+    <h3>{title || operation.title}</h3>
+    <Form class="x-ui-monoform" onSubmit={submit} noValidate>
+      {properties.map(([name, schema]) => <Field name={name} schema={schema} value={values[name]}
+        {...(errors[name] ? { error: errors[name] } : {})} disabled={pending}
+        onChange={(value) => setValues({ ...values, [name]: value })} />)}
+      {message && <p role="alert">{message}</p>}
+      {operation.destructive && <FormConfirmation checked={confirmed} disabled={pending}
+        onChange={(event) => setConfirmed(event.currentTarget.checked)}>
+        Confirm this destructive action
+      </FormConfirmation>}
+      <FormActions>
+        <CommandButton type="submit" disabled={pending || (operation.destructive && !confirmed)}>
+          {pending ? "Working…" : operation.submitLabel}
+        </CommandButton>
+        {onCancel && <CommandButton type="button" disabled={pending} onClick={onCancel}>
+          Cancel
+        </CommandButton>}
+      </FormActions>
+    </Form>
+  </section>;
 }

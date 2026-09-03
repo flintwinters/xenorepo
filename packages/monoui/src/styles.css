@@ -117,7 +117,9 @@
     color-mix(in srgb, var(--tone-base) 25%, #282828),
     color-mix(in srgb, var(--tone-base) 18%, #1d2021));
   --console-button-border: color-mix(in srgb, var(--tone-base) 68%, #ebdbb2);
+  --console-button-border-top: color-mix(in srgb, var(--tone-base) 72%, white);
   --console-button-border-hover: color-mix(in srgb, var(--tone-base) 78%, #fbf1c7);
+  --console-button-border-top-hover: color-mix(in srgb, var(--tone-base) 82%, white);
   --console-button-shadow:
     inset 0 1px color-mix(in srgb, var(--tone-base) 30%, white),
     0 1px 2px color-mix(in srgb, var(--tone-base) 22%, black);
@@ -148,6 +150,7 @@
   color: var(--console-fg, #ebdbb2);
   background: var(--console-button-background, linear-gradient(#4a4643, #35312f));
   border: 1px solid var(--console-button-border, #c6b58f);
+  border-top-color: var(--console-button-border-top, #f0dfb8);
   border-radius: 4px;
   box-shadow: var(--console-button-shadow, inset 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.45));
   cursor: pointer;
@@ -155,6 +158,7 @@
 .x-ui-command-control:hover:not(:disabled) {
   background: var(--console-button-hover-background, linear-gradient(#55504d, #3d3936));
   border-color: var(--console-button-border-hover, #f0dfb8);
+  border-top-color: var(--console-button-border-top-hover, #fbf1c7);
   box-shadow: var(--console-button-hover-shadow, inset 0 1px rgb(255 255 255 / 0.14), 0 2px 4px rgb(0 0 0 / 0.4));
 }
 .x-ui-command-control:active:not(:disabled),
@@ -189,11 +193,19 @@
   gap: 10px;
   padding: 12px;
 }
+.x-ui-monoform-section > h3 {
+  margin: 14px 0 0;
+  padding-bottom: 4px;
+  color: #83a598;
+  border-bottom: 1px solid #504945;
+  font-size: 12px;
+}
 .x-ui-form-field {
   display: grid;
   gap: 3px;
 }
-.x-ui-form-field > .x-ui-form-control:not([type="checkbox"]) {
+.x-ui-form-field > .x-ui-form-control:not([type="checkbox"]),
+.x-ui-color-control > .x-ui-form-control {
   width: 100%;
   min-height: 28px;
   padding: 4px 6px;
@@ -201,6 +213,18 @@
   background: var(--console-bg, #1d2021);
   border: 1px solid var(--console-muted, #a89984);
 }
+.x-ui-color-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 28px;
+  gap: 5px;
+}
+.x-ui-color-preview {
+  border: 1px solid #665c54;
+  background-color: var(--preview-color, #282828);
+  background-image: linear-gradient(45deg, #504945 25%, transparent 25% 75%, #504945 75%);
+  background-size: 6px 6px;
+}
+.x-ui-color-preview[style] { background-image: none; }
 .x-ui-form-field > textarea.x-ui-form-control { min-height: 80px; }
 .x-ui-form-field small[role="alert"], .x-ui-form > [role="alert"] { color: #fb4934; }
 .x-ui-form-actions { display: flex; gap: 8px; }

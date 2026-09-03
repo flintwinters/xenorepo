@@ -94,6 +94,12 @@ class ApplicationTests(unittest.TestCase):
             "create_card", "create_column", "edit_attachment", "edit_board_details", "edit_card",
             "edit_column", "edit_comment", "set_label_color",
         })
+        label_color = next(operation for operation in operations
+            if operation["operationId"] == "set_label_color")
+        self.assertEqual(label_color["bodySchema"]["properties"]["color"], {
+            "format": "color", "pattern": "^#[0-9a-fA-F]{6}$", "title": "Label color",
+            "type": "string",
+        })
         original = self.client.request("PATCH", "/api/board", json={
             "name": "Original", "description": "Before", "default_priority": "normal",
             "background_color": "#112233", "accent_color": "#445566",

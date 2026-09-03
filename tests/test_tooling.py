@@ -526,7 +526,9 @@ frontend:
         self.assertIn(pressed_rule, compact_styles)
         self.assertIn("linear-gradient(#4a4643, #35312f)", styles)
         self.assertIn("var(--console-button-border, #c6b58f)", styles)
+        self.assertIn("var(--console-button-border-top, #f0dfb8)", styles)
         self.assertIn("var(--console-button-border-hover, #f0dfb8)", styles)
+        self.assertIn("var(--console-button-border-top-hover, #fbf1c7)", styles)
         self.assertIn("transform: translateY(1px)", styles)
         self.assertIn("linear-gradient(#242220, #181716)", styles)
         self.assertIn("inset 0 3px 4px rgb(0 0 0 / 0.65)", styles)
@@ -537,6 +539,29 @@ frontend:
         styles = (MONOUI_SOURCE / "styles.css").read_text(encoding="utf-8")
 
         self.assertNotIn(".x-ui-form-actions .x-ui-command-control", styles)
+
+    def test_monoforms_render_contract_named_sections(self) -> None:
+        components = (MONOUI_SOURCE / "monoform.tsx").read_text(encoding="utf-8")
+        styles = (MONOUI_SOURCE / "styles.css").read_text(encoding="utf-8")
+
+        self.assertIn("title?: string", components)
+        self.assertIn('<section class="x-ui-monoform-section">', components)
+        self.assertIn("<h3>{title || operation.title}</h3>", components)
+        for declaration in (
+            "margin: 14px 0 0", "padding-bottom: 4px", "color: #83a598",
+            "border-bottom: 1px solid #504945", "font-size: 12px",
+        ):
+            self.assertIn(declaration, styles)
+
+    def test_monoform_color_fields_keep_text_input_and_show_a_live_preview(self) -> None:
+        components = (MONOUI_SOURCE / "monoform.tsx").read_text(encoding="utf-8")
+        styles = (MONOUI_SOURCE / "styles.css").read_text(encoding="utf-8")
+
+        self.assertIn('format?: "color" | "date" | "date-time"', components)
+        self.assertIn('schema.format === "color" ? "text"', components)
+        self.assertIn('class="x-ui-color-preview"', components)
+        self.assertIn("/^#[0-9a-fA-F]{6}$/", components)
+        self.assertIn(".x-ui-color-preview[style] { background-image: none; }", styles)
 
     def test_chrome_command_buttons_share_their_chrome_color(self) -> None:
         styles = (MONOUI_SOURCE / "styles.css").read_text(

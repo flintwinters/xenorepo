@@ -115,11 +115,11 @@ class KanbanBoard extends Component<Record<string, never>, State> {
         onCancel={() => this.setState({ editingBoard: false })}
         onSuccess={() => { this.setState({ editingBoard: false }); void this.refresh("Board details updated"); }} />
       {knownLabels.length > 0 && <fieldset><legend>Label colors</legend>{knownLabels.map((label) =>
-        <section><h3>{label}</h3><MonoForm manifest={monoform} operationId="set_label_color"
+        <MonoForm manifest={monoform} operationId="set_label_color" title={`Label “${label}”`}
           pathValues={{ label }} initialValues={{
             color: board.label_colors[label.toLocaleLowerCase()] ?? board.accent_color,
           }} onSuccess={() => { this.setState({ editingBoard: false });
-            void this.refresh(`Label ${label} color updated`); }} /></section>)}</fieldset>}
+            void this.refresh(`Label ${label} color updated`); }} />)}</fieldset>}
     </Modal>;
   }
   private columnEditor() {

@@ -530,6 +530,7 @@ frontend:
         self.assertIn("border-top-color: var(--console-button-border-top-hover)", styles)
         self.assertIn("border-bottom-color: var(--console-button-border-hover)", styles)
         self.assertIn("display: flex; align-items: center; justify-content: center", button_rule)
+        self.assertIn("font-weight: normal", button_rule)
         self.assertIn(".x-ui-command { display: inline-block; vertical-align: middle; }", compact_styles)
         self.assertIn("transform: translateY(1px)", styles)
         self.assertIn("var(--console-button-pressed-middle) 52%", styles)
@@ -539,7 +540,6 @@ frontend:
 
     def test_form_actions_preserve_shared_command_button_styling(self) -> None:
         styles = (MONOUI_SOURCE / "styles.css").read_text(encoding="utf-8")
-
         self.assertNotIn(".x-ui-form-actions .x-ui-command-control", styles)
 
     def test_monoforms_render_contract_named_sections(self) -> None:

@@ -151,6 +151,7 @@
   min-height: 18px;
   padding: 1px 6px;
   color: var(--console-fg, #ebdbb2);
+  font-weight: normal;
   background: linear-gradient(var(--console-button-face-top) 0%,
     var(--console-button-face-middle) 52%, var(--console-button-face-bottom) 100%);
   border: 1px solid var(--console-button-border);

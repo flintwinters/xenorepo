@@ -517,20 +517,22 @@ frontend:
             "overflow: visible; }"), compact_styles)
 
     def test_console_command_buttons_reverse_their_shadow_when_pressed(self) -> None:
-        styles = (MONOUI_SOURCE / "styles.css").read_text(
-            encoding="utf-8")
+        styles = (MONOUI_SOURCE / "styles.css").read_text(encoding="utf-8")
         compact_styles = " ".join(styles.split())
-
-        pressed_rule = ('.x-ui-command-control:active:not(:disabled), '
-            '.x-ui-command-control[aria-pressed="true"]:not(:disabled)')
-        self.assertIn(pressed_rule, compact_styles)
-        self.assertIn("var(--console-button-face-middle) 45%", styles)
+        button_rule = compact_styles.split(".x-ui-command-control {", 1)[1].split("}", 1)[0]
+        self.assertIn(('.x-ui-command-control:active:not(:disabled), '
+            '.x-ui-command-control[aria-pressed="true"]:not(:disabled)'), compact_styles)
+        self.assertIn("var(--console-button-face-middle) 52%", styles)
         self.assertIn("border: 1px solid var(--console-button-border)", styles)
         self.assertIn("border-top-color: var(--console-button-border-top)", styles)
+        self.assertIn("border-bottom-color: var(--console-button-border)", styles)
         self.assertIn("border-color: var(--console-button-border-hover)", styles)
         self.assertIn("border-top-color: var(--console-button-border-top-hover)", styles)
+        self.assertIn("border-bottom-color: var(--console-button-border-hover)", styles)
+        self.assertIn("display: flex; align-items: center; justify-content: center", button_rule)
+        self.assertIn(".x-ui-command { display: inline-block; vertical-align: middle; }", compact_styles)
         self.assertIn("transform: translateY(1px)", styles)
-        self.assertIn("var(--console-button-pressed-middle) 45%", styles)
+        self.assertIn("var(--console-button-pressed-middle) 52%", styles)
         self.assertIn("inset 0 3px 4px color-mix", styles)
         self.assertIn("inset 0 -1px color-mix", styles)
         self.assertNotIn("transition:", styles)

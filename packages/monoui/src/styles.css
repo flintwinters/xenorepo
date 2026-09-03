@@ -119,11 +119,12 @@
 }
 .x-ui-command {
   display: inline-block;
+  vertical-align: middle;
 }
 .x-ui-command-control {
-  --console-button-face-top: color-mix(in srgb, var(--console-button-tint, #504945) 44%, #665c54);
+  --console-button-face-top: color-mix(in srgb, var(--console-button-tint, #504945) 44%, #7c6f64);
   --console-button-face-middle: color-mix(in srgb, var(--console-button-tint, #504945) 38%, #504945);
-  --console-button-face-bottom: color-mix(in srgb, var(--console-button-tint, #504945) 32%, #282828);
+  --console-button-face-bottom: color-mix(in srgb, var(--console-button-tint, #504945) 30%, #242424);
   --console-button-hover-top: color-mix(in srgb, var(--console-button-tint, #504945) 54%, #7c6f64);
   --console-button-hover-middle: color-mix(in srgb, var(--console-button-tint, #504945) 48%, #665c54);
   --console-button-hover-bottom: color-mix(in srgb, var(--console-button-tint, #504945) 40%, #3c3836);
@@ -143,30 +144,35 @@
   --console-button-pressed-shadow:
     inset 0 3px 4px color-mix(in srgb, var(--console-button-tint, #504945) 18%, black),
     inset 0 -1px color-mix(in srgb, var(--console-button-tint, #504945) 22%, white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   min-height: 18px;
   padding: 1px 6px;
   color: var(--console-fg, #ebdbb2);
   background: linear-gradient(var(--console-button-face-top) 0%,
-    var(--console-button-face-middle) 45%, var(--console-button-face-bottom) 100%);
+    var(--console-button-face-middle) 52%, var(--console-button-face-bottom) 100%);
   border: 1px solid var(--console-button-border);
   border-top-color: var(--console-button-border-top);
+  border-bottom-color: var(--console-button-border);
   border-radius: 4px;
   box-shadow: var(--console-button-shadow);
   cursor: pointer;
 }
 .x-ui-command-control:hover:not(:disabled) {
   background: linear-gradient(var(--console-button-hover-top) 0%,
-    var(--console-button-hover-middle) 45%, var(--console-button-hover-bottom) 100%);
+    var(--console-button-hover-middle) 52%, var(--console-button-hover-bottom) 100%);
   border-color: var(--console-button-border-hover);
   border-top-color: var(--console-button-border-top-hover);
+  border-bottom-color: var(--console-button-border-hover);
   box-shadow: var(--console-button-hover-shadow);
 }
 .x-ui-command-control:active:not(:disabled),
 .x-ui-command-control[aria-pressed="true"]:not(:disabled) {
   transform: translateY(1px);
   background: linear-gradient(var(--console-button-pressed-top) 0%,
-    var(--console-button-pressed-middle) 45%, var(--console-button-pressed-bottom) 100%);
+    var(--console-button-pressed-middle) 52%, var(--console-button-pressed-bottom) 100%);
   box-shadow: var(--console-button-pressed-shadow);
 }
 .x-ui-command-control:disabled {

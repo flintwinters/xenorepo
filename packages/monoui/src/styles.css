@@ -69,6 +69,7 @@
 }
 .x-ui-chrome {
   --console-button-tint: var(--tone-base);
+  --tone-rim: color-mix(in srgb, var(--tone-base) 55%, white);
   display: flex;
   align-items: center;
   gap: 5px;
@@ -83,23 +84,23 @@
 }
 .x-ui-tone-blue {
   --tone-base: #83a598; --tone-light: #83a598; --tone-dark: #5f7f75;
-  --tone-rim: #b7cfca; --tone-shadow: #354a44;
+  --tone-shadow: #354a44;
 }
 .x-ui-tone-green {
   --tone-base: #b8bb26; --tone-light: #b8bb26; --tone-dark: #98971a;
-  --tone-rim: #d5d87a; --tone-shadow: #57580e;
+  --tone-shadow: #57580e;
 }
 .x-ui-tone-orange {
   --tone-base: #fe8019; --tone-light: #fe8019; --tone-dark: #d65d0e;
-  --tone-rim: #ffaf66; --tone-shadow: #7a3307;
+  --tone-shadow: #7a3307;
 }
 .x-ui-tone-purple {
   --tone-base: #d3869b; --tone-light: #d3869b; --tone-dark: #b16286;
-  --tone-rim: #edb8c5; --tone-shadow: #65364c;
+  --tone-shadow: #65364c;
 }
 .x-ui-tone-neutral {
   --tone-base: #665c54; --tone-light: #665c54; --tone-dark: #3c3836;
-  --tone-rim: #928374; --tone-shadow: #282828;
+  --tone-shadow: #282828;
 }
 .x-ui-title-end {
   display: flex;

@@ -570,10 +570,10 @@ frontend:
         styles = (MONOUI_SOURCE / "styles.css").read_text(
             encoding="utf-8")
         compact_styles = " ".join(styles.split())
-
         self.assertNotIn(".x-ui-chrome .x-ui-command-control", styles)
         chrome_rule = compact_styles.split(".x-ui-chrome {", 1)[1].split("}", 1)[0]
-        self.assertIn("--console-button-tint: var(--tone-base)", chrome_rule)
+        self.assertIn(("--console-button-tint: var(--tone-base); --tone-rim: "
+            "color-mix(in srgb, var(--tone-base) 55%, white)"), chrome_rule)
         button_rule = compact_styles.split(".x-ui-command-control {", 1)[1].split("}", 1)[0]
         for property_name in (
             "face-top", "face-middle", "face-bottom", "hover-top", "hover-middle",

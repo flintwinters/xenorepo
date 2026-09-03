@@ -142,6 +142,10 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       <MonoForm manifest={monoform} operationId="edit_column" pathValues={{ column_id: column.id }}
         initialValues={column} onCancel={() => this.setState({ editingColumn: null })}
         onSuccess={() => { this.setState({ editingColumn: null }); void this.refresh("Column renamed"); }} />
+      <div class="actions"><CommandButton type="button" class="danger" onClick={() => {
+        this.setState({ editingColumn: null });
+        this.archive("column", column.id);
+      }}>ARCHIVE COLUMN</CommandButton></div>
     </Modal>;
   }
   private columnCreator() {
@@ -234,9 +238,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       titleEnd={<><CommandButton appearance="subtle"
         onClick={() => this.setState({ creatingIn: column.id })}>+ CARD</CommandButton>
       <CommandButton appearance="subtle" aria-label={`Rename ${column.name}`}
-        onClick={() => this.setState({ editingColumn: column.id })}>EDIT</CommandButton>
-      <CommandButton appearance="subtle" aria-label={`Archive ${column.name}`}
-        onClick={() => this.archive("column", column.id)}>ARCHIVE</CommandButton></>}>
+        onClick={() => this.setState({ editingColumn: column.id })}>EDIT</CommandButton></>}>
       <div class="card-list" data-column={column.id} onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => this.drop(event, column.id)}>{cards.map((card) => <article data-card-id={card.id}
           class={`card priority-${card.priority}`}

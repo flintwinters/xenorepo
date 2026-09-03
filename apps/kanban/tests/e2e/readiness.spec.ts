@@ -49,6 +49,9 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await page.getByRole("button", { name: `Rename ${queue}` }).click();
   const columnEditor = page.getByRole("dialog", { name: "EDIT COLUMN" });
   await expect(columnEditor).toBeVisible();
+  await expect(page.getByLabel(`Drag ${queue} column`)
+    .getByRole("button", { name: `Archive ${queue}` })).toHaveCount(0);
+  await expect(columnEditor.getByRole("button", { name: "ARCHIVE COLUMN" })).toBeVisible();
   await columnEditor.getByLabel("Column name").fill(renamedQueue);
   await columnEditor.getByLabel("Column color").fill("#fff");
   await columnEditor.getByRole("button", { name: "SAVE", exact: true }).click();
@@ -147,7 +150,12 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(page.locator(".activity-list")).toContainText(`Prove board ${suffix}`);
   expect(cardId && sourceId && targetId).toBeTruthy();
   expect((await page.request.delete(`/api/archive/card/${cardId}`)).ok()).toBe(true);
-  expect((await page.request.delete(`/api/archive/column/${sourceId}`)).ok()).toBe(true);
+  await page.getByRole("button", { name: "BOARD", exact: true }).click();
+  await source.getByRole("button", { name: `Rename ${renamedQueue}` }).click();
+  await page.getByRole("dialog", { name: "EDIT COLUMN" })
+    .getByRole("button", { name: "ARCHIVE COLUMN" }).click();
+  await expect(page.getByRole("status")).toHaveText("column archived");
+  await expect(source).toHaveCount(0);
   expect((await page.request.delete(`/api/archive/column/${targetId}`)).ok()).toBe(true);
   expect((await page.request.patch("/api/board", { data: {
     name: initialBoard.name, description: initialBoard.description,

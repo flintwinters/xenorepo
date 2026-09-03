@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, f
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 Text = Annotated[str, StringConstraints(strip_whitespace=True, max_length=4000)]
 Priority = Literal["low", "normal", "high", "urgent"]
-Color = Annotated[str, StringConstraints(pattern=r"^#[0-9a-fA-F]{6}$"),
+Color = Annotated[str, StringConstraints(pattern=r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"),
     Field(json_schema_extra={"format": "color"})]
 
 

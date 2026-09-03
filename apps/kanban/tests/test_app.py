@@ -97,8 +97,8 @@ class ApplicationTests(unittest.TestCase):
         label_color = next(operation for operation in operations
             if operation["operationId"] == "set_label_color")
         self.assertEqual(label_color["bodySchema"]["properties"]["color"], {
-            "format": "color", "pattern": "^#[0-9a-fA-F]{6}$", "title": "Label color",
-            "type": "string",
+            "format": "color", "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
+            "title": "Label color", "type": "string",
         })
         original = self.client.request("PATCH", "/api/board", json={
             "name": "Original", "description": "Before", "default_priority": "normal",
@@ -109,11 +109,11 @@ class ApplicationTests(unittest.TestCase):
             "name": "Focused", "description": "After", "default_priority": "urgent",
         })
         color = self.client.request("PATCH", "/api/board/label-colors/Priority",
-            json={"color": "#abcdef"})
+            json={"color": "#abc"})
         self.assertEqual((original.status_code, details.status_code, color.status_code), (200, 200, 200))
         self.assertEqual((color.json()["name"], color.json()["default_priority"]), ("Focused", "urgent"))
         self.assertEqual((color.json()["background_color"], color.json()["accent_color"],
-            color.json()["label_colors"]), ("#112233", "#445566", {"priority": "#abcdef"}))
+            color.json()["label_colors"]), ("#112233", "#445566", {"priority": "#abc"}))
 
     def test_comments_links_uploads_edits_and_recoverable_archive(self) -> None:
         column, = [self.column()]

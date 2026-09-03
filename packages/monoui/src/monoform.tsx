@@ -17,6 +17,7 @@ export interface MonoFormSchema {
   default?: unknown;
   minLength?: number;
   maxLength?: number;
+  pattern?: string;
   minimum?: number;
   maximum?: number;
   items?: MonoFormSchema;
@@ -111,6 +112,11 @@ function lengthError(label: string, field: MonoFormSchema, raw: string): string 
   return "";
 }
 
+function matchesPattern(value: string, pattern?: string): boolean {
+  if (!pattern) return true;
+  try { return new RegExp(pattern).test(value); } catch { return false; }
+}
+
 function fieldError(detail: unknown): Errors {
   if (!Array.isArray(detail)) return {};
   return Object.fromEntries(detail.flatMap((item) => {
@@ -148,7 +154,8 @@ function Field({ name, schema, value, error, disabled, onChange }: {
     const input = <FormInput {...common} type={type} value={String(value ?? "")}
       min={schema.minimum} max={schema.maximum} minLength={schema.minLength} maxLength={schema.maxLength}
       onInput={(event) => onChange(event.currentTarget.value)} />;
-    const color = /^#[0-9a-fA-F]{6}$/.test(String(value ?? "")) ? String(value) : undefined;
+    const raw = String(value ?? "");
+    const color = matchesPattern(raw, schema.pattern) ? raw : undefined;
     control = schema.format === "color" ? <span class="x-ui-color-control">
       {input}<span class="x-ui-color-preview" style={color ? `--preview-color:${color}` : undefined}
         aria-hidden="true" />

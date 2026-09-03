@@ -558,9 +558,10 @@ frontend:
         styles = (MONOUI_SOURCE / "styles.css").read_text(encoding="utf-8")
 
         self.assertIn('format?: "color" | "date" | "date-time"', components)
+        self.assertIn("pattern?: string", components)
         self.assertIn('schema.format === "color" ? "text"', components)
         self.assertIn('class="x-ui-color-preview"', components)
-        self.assertIn("/^#[0-9a-fA-F]{6}$/", components)
+        self.assertIn("matchesPattern(raw, schema.pattern)", components)
         self.assertIn(".x-ui-color-preview[style] { background-image: none; }", styles)
 
     def test_chrome_command_buttons_share_their_chrome_color(self) -> None:

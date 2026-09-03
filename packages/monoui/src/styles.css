@@ -80,11 +80,26 @@
   border-bottom: 2px solid var(--tone-shadow);
   box-shadow: 0 2px 2px #111;
 }
-.x-ui-tone-blue { --tone-light: #83a598; --tone-dark: #5f7f75; --tone-rim: #b7cfca; --tone-shadow: #354a44; }
-.x-ui-tone-green { --tone-light: #b8bb26; --tone-dark: #98971a; --tone-rim: #d5d87a; --tone-shadow: #57580e; }
-.x-ui-tone-orange { --tone-light: #fe8019; --tone-dark: #d65d0e; --tone-rim: #ffaf66; --tone-shadow: #7a3307; }
-.x-ui-tone-purple { --tone-light: #d3869b; --tone-dark: #b16286; --tone-rim: #edb8c5; --tone-shadow: #65364c; }
-.x-ui-tone-neutral { --tone-light: #665c54; --tone-dark: #3c3836; --tone-rim: #928374; --tone-shadow: #282828; }
+.x-ui-tone-blue {
+  --tone-base: #83a598; --tone-light: #83a598; --tone-dark: #5f7f75;
+  --tone-rim: #b7cfca; --tone-shadow: #354a44;
+}
+.x-ui-tone-green {
+  --tone-base: #b8bb26; --tone-light: #b8bb26; --tone-dark: #98971a;
+  --tone-rim: #d5d87a; --tone-shadow: #57580e;
+}
+.x-ui-tone-orange {
+  --tone-base: #fe8019; --tone-light: #fe8019; --tone-dark: #d65d0e;
+  --tone-rim: #ffaf66; --tone-shadow: #7a3307;
+}
+.x-ui-tone-purple {
+  --tone-base: #d3869b; --tone-light: #d3869b; --tone-dark: #b16286;
+  --tone-rim: #edb8c5; --tone-shadow: #65364c;
+}
+.x-ui-tone-neutral {
+  --tone-base: #665c54; --tone-light: #665c54; --tone-dark: #3c3836;
+  --tone-rim: #928374; --tone-shadow: #282828;
+}
 .x-ui-title-end {
   display: flex;
   align-items: center;
@@ -92,9 +107,26 @@
   margin-left: auto;
 }
 .x-ui-chrome .x-ui-command-control {
-  --console-button-background: linear-gradient(rgb(74 70 67 / 0.82), rgb(53 49 47 / 0.82));
-  --console-button-hover-background: linear-gradient(rgb(85 80 77 / 0.82), rgb(61 57 54 / 0.82));
-  --console-button-pressed-background: linear-gradient(rgb(36 34 32 / 0.82), rgb(24 23 22 / 0.82));
+  --console-button-background: linear-gradient(
+    color-mix(in srgb, var(--tone-base) 38%, #504945),
+    color-mix(in srgb, var(--tone-base) 32%, #282828));
+  --console-button-hover-background: linear-gradient(
+    color-mix(in srgb, var(--tone-base) 48%, #665c54),
+    color-mix(in srgb, var(--tone-base) 40%, #3c3836));
+  --console-button-pressed-background: linear-gradient(
+    color-mix(in srgb, var(--tone-base) 25%, #282828),
+    color-mix(in srgb, var(--tone-base) 18%, #1d2021));
+  --console-button-border: color-mix(in srgb, var(--tone-base) 68%, #ebdbb2);
+  --console-button-border-hover: color-mix(in srgb, var(--tone-base) 78%, #fbf1c7);
+  --console-button-shadow:
+    inset 0 1px color-mix(in srgb, var(--tone-base) 30%, white),
+    0 1px 2px color-mix(in srgb, var(--tone-base) 22%, black);
+  --console-button-hover-shadow:
+    inset 0 1px color-mix(in srgb, var(--tone-base) 38%, white),
+    0 2px 4px color-mix(in srgb, var(--tone-base) 20%, black);
+  --console-button-pressed-shadow:
+    inset 0 3px 4px color-mix(in srgb, var(--tone-base) 18%, black),
+    inset 0 -1px color-mix(in srgb, var(--tone-base) 22%, white);
 }
 .x-ui-pane-body {
   min-height: 0;
@@ -117,19 +149,20 @@
   background: var(--console-button-background, linear-gradient(#4a4643, #35312f));
   border: 1px solid var(--console-button-border, #c6b58f);
   border-radius: 4px;
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.45);
+  box-shadow: var(--console-button-shadow, inset 0 1px rgb(255 255 255 / 0.1), 0 1px 2px rgb(0 0 0 / 0.45));
   cursor: pointer;
 }
 .x-ui-command-control:hover:not(:disabled) {
   background: var(--console-button-hover-background, linear-gradient(#55504d, #3d3936));
   border-color: var(--console-button-border-hover, #f0dfb8);
-  box-shadow: inset 0 1px rgb(255 255 255 / 0.14), 0 2px 4px rgb(0 0 0 / 0.4);
+  box-shadow: var(--console-button-hover-shadow, inset 0 1px rgb(255 255 255 / 0.14), 0 2px 4px rgb(0 0 0 / 0.4));
 }
 .x-ui-command-control:active:not(:disabled),
 .x-ui-command-control[aria-pressed="true"]:not(:disabled) {
   transform: translateY(1px);
   background: var(--console-button-pressed-background, linear-gradient(#242220, #181716));
-  box-shadow: inset 0 3px 4px rgb(0 0 0 / 0.65), inset 0 -1px rgb(255 255 255 / 0.08);
+  box-shadow: var(--console-button-pressed-shadow,
+    inset 0 3px 4px rgb(0 0 0 / 0.65), inset 0 -1px rgb(255 255 255 / 0.08));
 }
 .x-ui-command-control:disabled {
   color: var(--console-muted, #a89984);

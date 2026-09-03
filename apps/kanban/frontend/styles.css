@@ -10,6 +10,7 @@
   background: #504945;
 }
 .column {
+  --tone-base: var(--column-color, #665c54);
   --tone-light: color-mix(in srgb, var(--column-color, #665c54) 78%, white);
   --tone-dark: color-mix(in srgb, var(--column-color, #665c54) 76%, black);
   --tone-rim: color-mix(in srgb, var(--column-color, #665c54) 62%, white);

@@ -544,21 +544,19 @@ frontend:
         compact_styles = " ".join(styles.split())
 
         self.assertIn(".x-ui-chrome .x-ui-command-control {", styles)
-        self.assertIn(
-            "--console-button-background: linear-gradient("
-            "rgb(74 70 67 / 0.82), rgb(53 49 47 / 0.82));",
-            compact_styles,
-        )
-        self.assertIn(
-            "--console-button-hover-background: linear-gradient("
-            "rgb(85 80 77 / 0.82), rgb(61 57 54 / 0.82));",
-            compact_styles,
-        )
-        self.assertIn(
-            "--console-button-pressed-background: linear-gradient("
-            "rgb(36 34 32 / 0.82), rgb(24 23 22 / 0.82));",
-            compact_styles,
-        )
+        chrome_button_rule = compact_styles.split(
+            ".x-ui-chrome .x-ui-command-control {", 1)[1].split("}", 1)[0]
+        for property_name in (
+            "background", "hover-background", "pressed-background", "border",
+            "border-hover", "shadow", "hover-shadow", "pressed-shadow",
+        ):
+            self.assertIn(f"--console-button-{property_name}:", chrome_button_rule)
+        self.assertIn("var(--tone-base)", chrome_button_rule)
+        self.assertIn("color-mix(in srgb", chrome_button_rule)
+        self.assertNotIn(" / ", chrome_button_rule)
+        for tone in ("blue", "green", "orange", "purple", "neutral"):
+            self.assertRegex(styles,
+                rf"\.x-ui-tone-{tone} \{{\s+--tone-base: #[0-9a-f]{{6}};")
 
     def test_console_command_buttons_expose_toggle_state_only_when_requested(self) -> None:
         components = (MONOUI_SOURCE / "command-button.tsx").read_text(

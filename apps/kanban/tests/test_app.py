@@ -164,8 +164,11 @@ class ApplicationTests(unittest.TestCase):
         document = definition.document_for_route("/").read_text(encoding="utf-8")
         source = Path("apps/kanban/frontend/index.tsx").read_text(encoding="utf-8")
         client = Path("apps/kanban/frontend/client.ts").read_text(encoding="utf-8")
+        color = Path("apps/kanban/frontend/color.ts").read_text(encoding="utf-8")
         self.assertIn("ARCHIVE", document)
         self.assertIn("/api/board", document)
+        for coefficient in ("0.2126", "0.7152", "0.0722"):
+            self.assertIn(coefficient, color)
         self.assertNotIn('src="', document)
         self.assertNotIn('rel="stylesheet"', document)
         self.assertIn('from "monoui";', source)

@@ -73,7 +73,7 @@
   gap: 5px;
   min-height: 18px;
   padding-inline: 5px;
-  color: var(--console-ink, #1d2021);
+  color: var(--tone-ink, var(--console-ink, #1d2021));
   font-weight: bold;
   background: linear-gradient(var(--tone-light), var(--tone-dark));
   border-top: 1px solid var(--tone-rim);

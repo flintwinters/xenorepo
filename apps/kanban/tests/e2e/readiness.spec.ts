@@ -42,10 +42,11 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   const columnEditor = page.getByRole("dialog", { name: "EDIT COLUMN" });
   await expect(columnEditor).toBeVisible();
   await columnEditor.getByLabel("Column name").fill(renamedQueue);
-  await columnEditor.getByLabel("Column color").fill("#336699");
+  await columnEditor.getByLabel("Column color").fill("#fff");
   await columnEditor.getByRole("button", { name: "SAVE", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Column renamed");
   const source = page.locator(".column").filter({ hasText: renamedQueue });
+  await expect(source.locator(".x-ui-chrome")).toHaveCSS("color", "rgb(29, 32, 33)");
   await page.getByRole("button", { name: "EDIT BOARD" }).click();
   const settings = page.getByRole("dialog", { name: "BOARD SETTINGS" });
   expect(await settings.evaluate((element) => ({
@@ -69,6 +70,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await page.getByLabel(/Labels/).fill("acceptance, durable");
   await page.getByRole("button", { name: "SAVE", exact: true }).click();
   const card = page.locator(".card").filter({ hasText: `Prove board ${suffix}` });
+  await expect(card).toHaveCSS("color", "rgb(251, 241, 199)");
   await expect(card).toContainText("@Felix");
   expect(await card.evaluate((element) => {
     const cardStyle = getComputedStyle(element), listStyle = getComputedStyle(element.parentElement!);
@@ -83,6 +85,8 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await labelColorInput.fill("#85a");
   await expect(labelColor.locator(".x-ui-color-preview")).toHaveCSS("background-color", "rgb(136, 85, 170)");
   await labelColor.getByRole("button", { name: "SAVE COLOR" }).click();
+  await expect(card.locator(".card-meta span", { hasText: "acceptance" }))
+    .toHaveCSS("color", "rgb(251, 241, 199)");
   const cardId = await card.getAttribute("data-card-id");
   const sourceId = await source.locator(".card-list").getAttribute("data-column");
   const target = page.locator(".column").filter({ hasText: doing }).locator(".card-list");

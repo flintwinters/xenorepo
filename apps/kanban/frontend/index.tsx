@@ -6,6 +6,7 @@ import {
   addComment, addLink, addUpload, loadBoard, moveCard, moveColumn, setArchived,
   type Attachment, type Card, type Column, type Comment, type KanbanView,
 } from "./client.js";
+import { coloredSurfaceStyle } from "./color.js";
 import "./styles.css";
 
 type Mode = "board" | "archive" | "activity";
@@ -214,7 +215,8 @@ class KanbanBoard extends Component<Record<string, never>, State> {
   }
   private column(column: Column) {
     const cards = this.cards(column.id);
-    return <ConsolePane class="column" style={`--column-color:${column.color}`} title={column.name}
+    return <ConsolePane class="column"
+      style={coloredSurfaceStyle("--column-color", "--tone-ink", column.color)} title={column.name}
       tone="neutral" chromeProps={{ draggable: true, "aria-label": `Drag ${column.name} column`,
         onDragStart: () => { this.draggedColumn = column.id; },
         onDragEnd: () => { this.draggedColumn = null; },
@@ -228,13 +230,17 @@ class KanbanBoard extends Component<Record<string, never>, State> {
         onClick={() => this.archive("column", column.id)}>ARCHIVE</CommandButton></>}>
       <div class="card-list" data-column={column.id} onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => this.drop(event, column.id)}>{cards.map((card) => <article data-card-id={card.id}
-          class={`card priority-${card.priority}`} style={`--card-color:${card.color}`}
+          class={`card priority-${card.priority}`}
+          style={coloredSurfaceStyle("--card-color", "--card-ink", card.color)}
           draggable onDragStart={() => { this.dragged = card.id; }} onDragEnd={() => { this.dragged = null; }}
           onClick={() => this.setState({ selected: card.id })} onKeyDown={(event) => {
             if (event.key === "Enter") this.setState({ selected: card.id });
           }} tabIndex={0}><strong>{card.title}</strong>{card.description && <p>{card.description}</p>}
-          <div class="card-meta">{card.labels.map((label) => <span style={`--label-color:${
-            this.state.view?.board.label_colors[label.toLocaleLowerCase()] ?? "#1d2021"}`}>{label}</span>)}
+          <div class="card-meta">{card.labels.map((label) => {
+            const color = this.state.view?.board.label_colors[label.toLocaleLowerCase()] ?? "#1d2021";
+            return <span style={coloredSurfaceStyle("--label-color", "--label-ink", color)}>
+              {label}</span>;
+          })}
             {card.assignee && <span>@{card.assignee}</span>}<span>{card.priority}</span></div></article>)}
       </div></ConsolePane>;
   }

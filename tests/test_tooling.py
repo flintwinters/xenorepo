@@ -524,13 +524,13 @@ frontend:
         pressed_rule = ('.x-ui-command-control:active:not(:disabled), '
             '.x-ui-command-control[aria-pressed="true"]:not(:disabled)')
         self.assertIn(pressed_rule, compact_styles)
-        self.assertIn("linear-gradient(#4a4643, #35312f)", styles)
+        self.assertIn("var(--console-button-face-middle) 45%", styles)
         self.assertIn("var(--console-button-border, #c6b58f)", styles)
         self.assertIn("var(--console-button-border-top, #f0dfb8)", styles)
         self.assertIn("var(--console-button-border-hover, #f0dfb8)", styles)
         self.assertIn("var(--console-button-border-top-hover, #fbf1c7)", styles)
         self.assertIn("transform: translateY(1px)", styles)
-        self.assertIn("linear-gradient(#242220, #181716)", styles)
+        self.assertIn("var(--console-button-pressed-middle) 45%", styles)
         self.assertIn("inset 0 3px 4px rgb(0 0 0 / 0.65)", styles)
         self.assertIn("inset 0 -1px rgb(255 255 255 / 0.08)", styles)
         self.assertNotIn("transition:", styles)
@@ -572,10 +572,13 @@ frontend:
         chrome_button_rule = compact_styles.split(
             ".x-ui-chrome .x-ui-command-control {", 1)[1].split("}", 1)[0]
         for property_name in (
-            "background", "hover-background", "pressed-background", "border",
-            "border-hover", "shadow", "hover-shadow", "pressed-shadow",
+            "face-top", "face-middle", "face-bottom", "hover-top", "hover-middle",
+            "hover-bottom", "pressed-top", "pressed-middle", "pressed-bottom", "border",
+            "border-top", "border-hover", "border-top-hover", "shadow", "hover-shadow",
+            "pressed-shadow",
         ):
             self.assertIn(f"--console-button-{property_name}:", chrome_button_rule)
+        self.assertNotIn("background:", chrome_button_rule)
         self.assertIn("var(--tone-base)", chrome_button_rule)
         self.assertIn("color-mix(in srgb", chrome_button_rule)
         self.assertNotIn(" / ", chrome_button_rule)

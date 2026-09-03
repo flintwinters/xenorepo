@@ -16,10 +16,18 @@ async function expectColumnBefore(page: Page, left: string, right: string) {
   }).toBe(true);
 }
 
-test("[acceptance] creates, edits, drags, archives, restores, and reloads durable work", async ({ page }, testInfo) => {
+test("[acceptance] creates, edits, drags, archives, restores, and reloads durable work",
+  async ({ context, page }, testInfo) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/");
   await expect(page.getByRole("status")).toHaveText("Board ready");
-  const initialBoard = (await (await page.request.get("/api/board")).json()).board;
+  const initialView = await (await page.request.get("/api/board")).json();
+  const initialBoard = initialView.board;
+  const copyButton = page.getByRole("banner").getByRole("button").first();
+  await expect(copyButton).toHaveText("COPY BOARD AS JSON");
+  await copyButton.click();
+  await expect(page.getByRole("status")).toHaveText("Board JSON copied");
+  expect(JSON.parse(await page.evaluate(() => navigator.clipboard.readText()))).toEqual(initialView);
   await page.getByRole("button", { name: "+ COLUMN" }).click();
   await expect(page.getByRole("dialog", { name: "NEW COLUMN" })).toBeVisible();
   await page.keyboard.press("Escape");

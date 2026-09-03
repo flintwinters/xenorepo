@@ -52,6 +52,15 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       message: error instanceof Error ? error.message : "Unexpected error", failed: true, busy: false,
     }));
   };
+  private copyBoard = async (): Promise<void> => {
+    if (!this.state.view) return;
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(this.state.view, null, 2));
+      this.setState({ message: "Board JSON copied", failed: false });
+    } catch {
+      this.setState({ message: "Could not copy board JSON", failed: true });
+    }
+  };
   private card(id: string | null): Card | null {
     return this.state.view?.cards.find((value) => value.id === id) ?? null;
   }
@@ -270,6 +279,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
   override render() {
     const view = this.state.view, board = view?.board;
     const header = <UtilityRail><strong class="brand">{board?.name ?? "KANBAN"}</strong>
+      <CommandButton disabled={!view} onClick={() => void this.copyBoard()}>COPY BOARD AS JSON</CommandButton>
       {board?.description && <span class="board-description">{board.description}</span>}<span class="push" />
       <CommandButton pressed={this.state.mode === "board"}
         onClick={() => this.setState({ mode: "board" })}>BOARD</CommandButton>

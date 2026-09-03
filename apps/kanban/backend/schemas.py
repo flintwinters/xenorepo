@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, HttpUrl, StringConstraints, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, field_validator
 
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
@@ -21,9 +21,19 @@ class BoardEdit(BaseModel):
     label_colors: dict[Name, Color] = {}
 
 
-class ColumnCreate(BaseModel):
+class BoardDetailsEdit(BaseModel):
     name: Name
-    color: Color = "#665c54"
+    description: Text = ""
+    default_priority: Priority = Field(default="normal", title="Default card priority")
+
+
+class LabelColorEdit(BaseModel):
+    color: Color
+
+
+class ColumnCreate(BaseModel):
+    name: Name = Field(title="Column name")
+    color: Color = Field(default="#665c54", title="Column color")
 
 
 class ColumnEdit(ColumnCreate):
@@ -69,7 +79,8 @@ class CardMove(BaseModel):
 
 
 class CommentInput(BaseModel):
-    body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
+    body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)] = Field(
+        title="Comment")
 
 
 class LinkInput(BaseModel):
@@ -78,8 +89,8 @@ class LinkInput(BaseModel):
 
 
 class AttachmentEdit(BaseModel):
-    title: Name
-    url: HttpUrl | None = None
+    title: Name = Field(title="Attachment title")
+    url: HttpUrl | None = Field(default=None, title="Web address")
 
 
 class BoardView(BaseModel):

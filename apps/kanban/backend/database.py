@@ -10,7 +10,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sess
 
 from apps.kanban.backend.schemas import (
     ActivityView, AttachmentView, BoardEdit, BoardView, CardCreate, CardEdit, CardMove, CardView,
-    ColumnView, CommentView, KanbanView,
+    BoardDetailsEdit, ColumnView, CommentView, KanbanView,
 )
 
 
@@ -208,6 +208,31 @@ class KanbanStore:
             settings.label_colors_json = json.dumps({key.casefold(): color
                 for key, color in value.label_colors.items()})
             self._activity(session, "edited", "board", board.id, f"Edited board “{board.name}”")
+            session.flush()
+            return _board(board, settings)
+
+    def edit_board_details(self, value: BoardDetailsEdit) -> BoardView:
+        with self.sessions.begin() as session:
+            board = session.scalar(select(BoardRecord))
+            assert board is not None
+            settings = session.get(BoardSettingsRecord, 1)
+            assert settings is not None
+            board.name, board.description, board.updated_at = value.name, value.description, self.now()
+            settings.default_priority = value.default_priority
+            self._activity(session, "edited", "board", board.id, f"Edited board “{board.name}”")
+            session.flush()
+            return _board(board, settings)
+
+    def set_label_color(self, label: str, color: str) -> BoardView:
+        with self.sessions.begin() as session:
+            board = session.scalar(select(BoardRecord))
+            assert board is not None
+            settings = session.get(BoardSettingsRecord, 1)
+            assert settings is not None
+            colors = json.loads(settings.label_colors_json)
+            colors[label.casefold()] = color
+            settings.label_colors_json = json.dumps(colors)
+            self._activity(session, "edited", "board", board.id, f"Changed label “{label}” color")
             session.flush()
             return _board(board, settings)
 

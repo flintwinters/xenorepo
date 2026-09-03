@@ -77,8 +77,9 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   })).toEqual({ cardMargin: "0px", cardPadding: "0px", listGap: "0px", listPadding: "0px" });
   await page.getByRole("button", { name: "EDIT BOARD" }).click();
   const palette = page.getByRole("dialog", { name: "BOARD SETTINGS" });
-  await palette.getByLabel("acceptance").fill("#8255aa");
-  await palette.getByRole("button", { name: "SAVE", exact: true }).click();
+  const labelColor = palette.locator("section").filter({ hasText: "acceptance" });
+  await labelColor.getByLabel("Color", { exact: true }).fill("#8255aa");
+  await labelColor.getByRole("button", { name: "SAVE COLOR" }).click();
   const cardId = await card.getAttribute("data-card-id");
   const sourceId = await source.locator(".card-list").getAttribute("data-column");
   const target = page.locator(".column").filter({ hasText: doing }).locator(".card-list");

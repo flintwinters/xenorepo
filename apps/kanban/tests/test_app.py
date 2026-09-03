@@ -12,6 +12,7 @@ from apps.kanban.backend.server import create_app
 from monotools.orchestration.apps import ROOT, get_app
 from monotools.orchestration.lifecycle import build_app
 from monotools.persistence.database import create_session_factory
+from monotools.runtime.monoform import monoform_manifest
 
 
 class Client:
@@ -86,6 +87,28 @@ class ApplicationTests(unittest.TestCase):
         self.assertEqual(persisted_move["column_id"], second["id"])
         self.assertGreaterEqual(len(view["activity"]), 7)
 
+    def test_modal_crud_operations_are_declared_for_monoform(self) -> None:
+        operations = monoform_manifest(self.client.application.openapi(), app="kanban",
+            title="Kanban")["operations"]
+        self.assertEqual({operation["operationId"] for operation in operations}, {
+            "create_card", "create_column", "edit_attachment", "edit_board_details", "edit_card",
+            "edit_column", "edit_comment", "set_label_color",
+        })
+        original = self.client.request("PATCH", "/api/board", json={
+            "name": "Original", "description": "Before", "default_priority": "normal",
+            "background_color": "#112233", "accent_color": "#445566",
+            "label_colors": {"Priority": "#778899"},
+        })
+        details = self.client.request("PATCH", "/api/board/details", json={
+            "name": "Focused", "description": "After", "default_priority": "urgent",
+        })
+        color = self.client.request("PATCH", "/api/board/label-colors/Priority",
+            json={"color": "#abcdef"})
+        self.assertEqual((original.status_code, details.status_code, color.status_code), (200, 200, 200))
+        self.assertEqual((color.json()["name"], color.json()["default_priority"]), ("Focused", "urgent"))
+        self.assertEqual((color.json()["background_color"], color.json()["accent_color"],
+            color.json()["label_colors"]), ("#112233", "#445566", {"priority": "#abcdef"}))
+
     def test_comments_links_uploads_edits_and_recoverable_archive(self) -> None:
         column, = [self.column()]
         card = self.card(column["id"])
@@ -141,6 +164,7 @@ class ApplicationTests(unittest.TestCase):
         self.assertNotIn('rel="stylesheet"', document)
         self.assertIn('from "monoui";', source)
         self.assertIn("Modal", source)
+        self.assertNotIn("<form onSubmit={this.save", source)
         self.assertIn('from "../data/openapi";', client)
         self.assertNotIn("window.alert", source)
         self.assertNotIn("window.confirm", source)

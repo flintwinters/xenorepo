@@ -3,10 +3,8 @@ import { CommandButton, ConsolePane, ConsoleShell, EmptyState, Modal, MonoForm, 
   UtilityRail, type MonoFormManifest } from "monoui";
 import rawManifest from "../data/monoform.json";
 import {
-  addComment, addLink, addUpload, createColumn, editAttachment, editBoard,
-  editColumn, editComment, loadBoard, moveCard, moveColumn, setArchived,
-  type Attachment, type BoardFields, type Card, type Column, type Comment,
-  type KanbanView,
+  addComment, addLink, addUpload, loadBoard, moveCard, moveColumn, setArchived,
+  type Attachment, type Card, type Column, type Comment, type KanbanView,
 } from "./client.js";
 import "./styles.css";
 
@@ -29,19 +27,6 @@ interface State {
 const active = <T extends { archived_at?: string | null }>(values: T[]): T[] =>
   values.filter((value) => !value.archived_at);
 const monoform = rawManifest as MonoFormManifest;
-const colorPresets = ["#1d2021", "#665c54", "#458588", "#689d6a", "#d79921", "#cc241d", "#b16286"];
-
-function ColorField({ label, name, value }: { label: string; name: string; value: string }) {
-  return <label class="color-field">{label}<span class="color-control">
-    <input name={name} value={value} required pattern="#[0-9a-fA-F]{6}" aria-label={label} />
-    <span class="color-presets">{colorPresets.map((color) =>
-      <CommandButton type="button" appearance="subtle" class="color-swatch"
-        style={`--swatch:${color}`} title={color}
-        aria-label={`Use ${color}`} onClick={(event) => {
-          const input = event.currentTarget.closest(".color-control")?.querySelector("input");
-          if (input) { input.value = color; input.dispatchEvent(new Event("input", { bubbles: true })); }
-        }} />)}</span></span></label>;
-}
 
 class KanbanBoard extends Component<Record<string, never>, State> {
   override state: State = { view: null, mode: "board", selected: null, creatingIn: null,
@@ -79,40 +64,6 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       for (const label of card.labels) values.set(label.toLocaleLowerCase(), label);
     return [...values.values()].sort((left, right) => left.localeCompare(right));
   }
-  private saveBoard = (event: SubmitEvent): void => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget as HTMLFormElement);
-    const label_colors = Object.fromEntries(this.knownLabels().map(
-      (label, index) => [label, String(data.get(`label_color_${index}`))],
-    ));
-    const fields: BoardFields = { name: String(data.get("name")),
-      description: String(data.get("description")),
-      default_priority: String(data.get("default_priority")) as BoardFields["default_priority"],
-      background_color: this.state.view!.board.background_color,
-      accent_color: this.state.view!.board.accent_color, label_colors };
-    this.perform("Board details updated", async () => {
-      await editBoard(fields);
-      this.setState({ editingBoard: false });
-    });
-  };
-  private saveNewColumn = (event: SubmitEvent): void => {
-    event.preventDefault();
-    const data = new FormData(event.currentTarget as HTMLFormElement);
-    this.perform("Column created", async () => {
-      await createColumn(String(data.get("name")), String(data.get("color")));
-      this.setState({ creatingColumn: false });
-    });
-  };
-  private saveColumn = (event: SubmitEvent): void => {
-    event.preventDefault();
-    const id = this.state.editingColumn;
-    if (!id) return;
-    const data = new FormData(event.currentTarget as HTMLFormElement);
-    this.perform("Column renamed", async () => {
-      await editColumn(id, String(data.get("name")), String(data.get("color")));
-      this.setState({ editingColumn: null });
-    });
-  };
   private archive = (kind: string, id: string): void => {
     if (kind === "card") this.setState({ selected: null });
     this.perform(`${kind} archived`, () => setArchived(kind, id));
@@ -154,45 +105,22 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       await addUpload(cardId, String(data.get("title")), file); form.reset();
     });
   };
-  private saveEditedComment = (event: SubmitEvent): void => {
-    event.preventDefault();
-    const id = this.state.editingComment;
-    if (!id) return;
-    const body = String(new FormData(event.currentTarget as HTMLFormElement).get("body"));
-    this.perform("Comment updated", async () => {
-      await editComment(id, body);
-      this.setState({ editingComment: null });
-    });
-  };
-  private saveEditedAttachment = (event: SubmitEvent): void => {
-    event.preventDefault();
-    const id = this.state.editingAttachment;
-    if (!id) return;
-    const data = new FormData(event.currentTarget as HTMLFormElement);
-    this.perform("Attachment updated", async () => {
-      await editAttachment(id, String(data.get("title")), String(data.get("url") || "") || undefined);
-      this.setState({ editingAttachment: null });
-    });
-  };
-
   private boardEditor() {
     const board = this.state.view?.board;
     if (!board || !this.state.editingBoard) return null;
     const knownLabels = this.knownLabels();
     return <Modal class="backdrop" contentClass="dialog" labelledBy="board-editor-title"
       onDismiss={() => this.setState({ editingBoard: false })}><h2 id="board-editor-title">BOARD SETTINGS</h2>
-      <form onSubmit={this.saveBoard}><label>Name<input name="name" required maxLength={120}
-        value={board.name} /></label><label>Description<textarea name="description" maxLength={4000}
-          value={board.description} /></label><label>Default card priority<select name="default_priority"
-            value={board.default_priority}><option value="low">Low</option><option value="normal">Normal</option>
-            <option value="high">High</option><option value="urgent">Urgent</option></select></label>
-        {knownLabels.length > 0 && <fieldset>
-          <legend>Label colors</legend>{knownLabels.map((label, index) => <ColorField label={label}
-            name={`label_color_${index}`}
-            value={board.label_colors[label.toLocaleLowerCase()] ?? board.accent_color} />)}</fieldset>}
-        <div class="actions"><CommandButton type="button"
-            onClick={() => this.setState({ editingBoard: false })}>CANCEL</CommandButton>
-          <CommandButton type="submit">SAVE</CommandButton></div></form></Modal>;
+      <MonoForm manifest={monoform} operationId="edit_board_details" initialValues={board}
+        onCancel={() => this.setState({ editingBoard: false })}
+        onSuccess={() => { this.setState({ editingBoard: false }); void this.refresh("Board details updated"); }} />
+      {knownLabels.length > 0 && <fieldset><legend>Label colors</legend>{knownLabels.map((label) =>
+        <section><h3>{label}</h3><MonoForm manifest={monoform} operationId="set_label_color"
+          pathValues={{ label }} initialValues={{
+            color: board.label_colors[label.toLocaleLowerCase()] ?? board.accent_color,
+          }} onSuccess={() => { this.setState({ editingBoard: false });
+            void this.refresh(`Label ${label} color updated`); }} /></section>)}</fieldset>}
+    </Modal>;
   }
   private columnEditor() {
     const column: Column | undefined = this.state.view?.columns.find(
@@ -201,21 +129,19 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     if (!column) return null;
     return <Modal class="backdrop" contentClass="dialog" labelledBy="column-editor-title"
       onDismiss={() => this.setState({ editingColumn: null })}><h2 id="column-editor-title">EDIT COLUMN</h2>
-      <form onSubmit={this.saveColumn}><label>Column name<input name="name" required maxLength={120}
-        value={column.name} autofocus /></label><ColorField label="Column color" name="color"
-          value={column.color} /><div class="actions"><CommandButton type="button"
-          onClick={() => this.setState({ editingColumn: null })}>CANCEL</CommandButton>
-        <CommandButton type="submit">SAVE</CommandButton></div></form></Modal>;
+      <MonoForm manifest={monoform} operationId="edit_column" pathValues={{ column_id: column.id }}
+        initialValues={column} onCancel={() => this.setState({ editingColumn: null })}
+        onSuccess={() => { this.setState({ editingColumn: null }); void this.refresh("Column renamed"); }} />
+    </Modal>;
   }
   private columnCreator() {
     if (!this.state.creatingColumn) return null;
     return <Modal class="backdrop" contentClass="dialog" labelledBy="column-creator-title"
       onDismiss={() => this.setState({ creatingColumn: false })}><h2 id="column-creator-title">NEW COLUMN</h2>
-      <form onSubmit={this.saveNewColumn}><label>Column name<input name="name" required maxLength={120}
-        autofocus /></label><ColorField label="Column color" name="color" value="#665c54" />
-        <div class="actions"><CommandButton type="button"
-          onClick={() => this.setState({ creatingColumn: false })}>CANCEL</CommandButton>
-        <CommandButton type="submit">CREATE</CommandButton></div></form></Modal>;
+      <MonoForm manifest={monoform} operationId="create_column"
+        onCancel={() => this.setState({ creatingColumn: false })}
+        onSuccess={() => { this.setState({ creatingColumn: false }); void this.refresh("Column created"); }} />
+    </Modal>;
   }
   private commentEditor() {
     const comment: Comment | undefined = this.state.view?.comments.find(
@@ -224,10 +150,10 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     if (!comment) return null;
     return <Modal class="backdrop" contentClass="dialog" labelledBy="comment-editor-title"
       onDismiss={() => this.setState({ editingComment: null })}><h2 id="comment-editor-title">EDIT COMMENT</h2>
-      <form onSubmit={this.saveEditedComment}><label>Comment<textarea name="body" required maxLength={4000}
-        value={comment.body} autofocus /></label><div class="actions"><CommandButton type="button"
-          onClick={() => this.setState({ editingComment: null })}>CANCEL</CommandButton>
-        <CommandButton type="submit">SAVE</CommandButton></div></form></Modal>;
+      <MonoForm manifest={monoform} operationId="edit_comment" pathValues={{ comment_id: comment.id }}
+        initialValues={comment} onCancel={() => this.setState({ editingComment: null })}
+        onSuccess={() => { this.setState({ editingComment: null }); void this.refresh("Comment updated"); }} />
+    </Modal>;
   }
   private attachmentEditor() {
     const attachment: Attachment | undefined = this.state.view?.attachments.find(
@@ -237,12 +163,12 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     return <Modal class="backdrop" contentClass="dialog" labelledBy="attachment-editor-title"
       onDismiss={() => this.setState({ editingAttachment: null })}>
       <h2 id="attachment-editor-title">EDIT ATTACHMENT</h2>
-      <form onSubmit={this.saveEditedAttachment}><label>Attachment title<input name="title" required
-        maxLength={120} value={attachment.title} autofocus /></label>{attachment.kind === "link" &&
-          <label>Web address<input name="url" type="url" required value={attachment.url ?? ""} /></label>}
-        <div class="actions"><CommandButton type="button"
-          onClick={() => this.setState({ editingAttachment: null })}>CANCEL</CommandButton>
-          <CommandButton type="submit">SAVE</CommandButton></div></form></Modal>;
+      <MonoForm manifest={monoform} operationId="edit_attachment"
+        pathValues={{ attachment_id: attachment.id }} initialValues={attachment}
+        onCancel={() => this.setState({ editingAttachment: null })}
+        onSuccess={() => { this.setState({ editingAttachment: null });
+          void this.refresh("Attachment updated"); }} />
+    </Modal>;
   }
   private cardEditor() {
     if (this.state.editingComment || this.state.editingAttachment) return null;

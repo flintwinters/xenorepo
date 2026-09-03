@@ -8,8 +8,9 @@ from fastapi.responses import Response
 
 from apps.kanban.backend.database import Base, KanbanError, KanbanStore
 from apps.kanban.backend.schemas import (
-    AttachmentEdit, AttachmentView, BoardEdit, BoardView, CardCreate, CardEdit, CardMove, CardView,
-    ColumnCreate, ColumnEdit, ColumnView, CommentInput, CommentView, KanbanView, LinkInput,
+    AttachmentEdit, AttachmentView, BoardDetailsEdit, BoardEdit, BoardView, CardCreate, CardEdit,
+    CardMove, CardView, ColumnCreate, ColumnEdit, ColumnView, CommentInput, CommentView, KanbanView,
+    LabelColorEdit, LinkInput,
     PositionInput,
 )
 from monotools.runtime.appkit import create_app_context
@@ -48,13 +49,31 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
         require_origin(request)
         return board.edit_board(value)
 
+    @application.patch("/api/board/details", response_model=BoardView,
+        operation_id="edit_board_details", openapi_extra=monoform_operation(
+            kind="update", entity="board", title="Board settings", submit_label="SAVE"))
+    async def edit_board_details(value: BoardDetailsEdit, request: Request) -> BoardView:
+        require_origin(request)
+        return board.edit_board_details(value)
+
+    @application.patch("/api/board/label-colors/{label}", response_model=BoardView,
+        operation_id="set_label_color", openapi_extra=monoform_operation(
+            kind="update", entity="label color", title="Label color", submit_label="SAVE COLOR"))
+    async def set_label_color(label: str, value: LabelColorEdit, request: Request) -> BoardView:
+        require_origin(request)
+        return board.set_label_color(label, value.color)
+
     @application.post("/api/columns", response_model=ColumnView,
-        status_code=status.HTTP_201_CREATED)
+        status_code=status.HTTP_201_CREATED, operation_id="create_column",
+        openapi_extra=monoform_operation(kind="create", entity="column",
+            title="New column", submit_label="CREATE"))
     async def create_column(value: ColumnCreate, request: Request) -> ColumnView:
         require_origin(request)
         return board.create_column(value.name, value.color)
 
-    @application.patch("/api/columns/{column_id}", response_model=ColumnView)
+    @application.patch("/api/columns/{column_id}", response_model=ColumnView,
+        operation_id="edit_column", openapi_extra=monoform_operation(
+            kind="update", entity="column", title="Edit column", submit_label="SAVE"))
     async def edit_column(column_id: str, value: ColumnEdit, request: Request) -> ColumnView:
         require_origin(request)
         return board.edit_column(column_id, value.name, value.color)
@@ -98,7 +117,9 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
         require_origin(request)
         return board.add_comment(card_id, value.body)
 
-    @application.patch("/api/comments/{comment_id}", response_model=CommentView)
+    @application.patch("/api/comments/{comment_id}", response_model=CommentView,
+        operation_id="edit_comment", openapi_extra=monoform_operation(
+            kind="update", entity="comment", title="Edit comment", submit_label="SAVE"))
     async def edit_comment(comment_id: str, value: CommentInput, request: Request) -> CommentView:
         require_origin(request)
         return board.edit_comment(comment_id, value.body)
@@ -132,7 +153,9 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
             destination.unlink(missing_ok=True)
             raise
 
-    @application.patch("/api/attachments/{attachment_id}", response_model=AttachmentView)
+    @application.patch("/api/attachments/{attachment_id}", response_model=AttachmentView,
+        operation_id="edit_attachment", openapi_extra=monoform_operation(
+            kind="update", entity="attachment", title="Edit attachment", submit_label="SAVE"))
     async def edit_attachment(attachment_id: str, value: AttachmentEdit,
         request: Request) -> AttachmentView:
         require_origin(request)

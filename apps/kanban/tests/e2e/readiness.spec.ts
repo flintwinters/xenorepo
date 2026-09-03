@@ -24,10 +24,21 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   const initialView = await (await page.request.get("/api/board")).json();
   const initialBoard = initialView.board;
   const copyButton = page.getByRole("banner").getByRole("button").first();
-  await expect(copyButton).toHaveText("COPY BOARD AS JSON");
+  await expect(copyButton).toHaveText("COPY JSON");
   await copyButton.click();
   await expect(page.getByRole("status")).toHaveText("Board JSON copied");
-  expect(JSON.parse(await page.evaluate(() => navigator.clipboard.readText()))).toEqual(initialView);
+  const initialCurrent = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()));
+  expect(initialCurrent.board).toEqual(initialView.board);
+  expect(initialCurrent).not.toHaveProperty("activity");
+  for (const values of [initialCurrent.columns, initialCurrent.cards, initialCurrent.comments,
+    initialCurrent.attachments]) expect(values.every(
+      (value: object) => !("archived_at" in value))).toBe(true);
+  const currentColumnIds = new Set(initialCurrent.columns.map((value: { id: string }) => value.id));
+  expect(initialCurrent.cards.every(
+    (value: { column_id: string }) => currentColumnIds.has(value.column_id))).toBe(true);
+  const currentCardIds = new Set(initialCurrent.cards.map((value: { id: string }) => value.id));
+  expect([...initialCurrent.comments, ...initialCurrent.attachments].every(
+    (value: { card_id: string }) => currentCardIds.has(value.card_id))).toBe(true);
   await page.getByRole("button", { name: "+ COLUMN" }).click();
   await expect(page.getByRole("dialog", { name: "NEW COLUMN" })).toBeVisible();
   await page.keyboard.press("Escape");
@@ -157,6 +168,13 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(page.getByRole("status")).toHaveText("column archived");
   await expect(source).toHaveCount(0);
   expect((await page.request.delete(`/api/archive/column/${targetId}`)).ok()).toBe(true);
+  await copyButton.click();
+  const current = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()));
+  expect(current).not.toHaveProperty("activity");
+  expect(current.columns.map((value: { id: string }) => value.id)).not.toContain(sourceId);
+  expect(current.cards.map((value: { id: string }) => value.id)).not.toContain(cardId);
+  expect(current.comments.some((value: { card_id: string }) => value.card_id === cardId)).toBe(false);
+  expect(current.attachments.some((value: { card_id: string }) => value.card_id === cardId)).toBe(false);
   expect((await page.request.patch("/api/board", { data: {
     name: initialBoard.name, description: initialBoard.description,
     default_priority: initialBoard.default_priority, background_color: initialBoard.background_color,

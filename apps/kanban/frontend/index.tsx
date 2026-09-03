@@ -27,6 +27,16 @@ interface State {
 
 const active = <T extends { archived_at?: string | null }>(values: T[]): T[] =>
   values.filter((value) => !value.archived_at);
+const currentEntities = <T extends { archived_at?: string | null }>(values: T[]) =>
+  active(values).map(({ archived_at: _archivedAt, ...value }) => value);
+const currentState = (view: KanbanView) => {
+  const columns = currentEntities(view.columns), columnIds = new Set(columns.map((value) => value.id));
+  const cards = currentEntities(view.cards).filter((value) => columnIds.has(value.column_id));
+  const cardIds = new Set(cards.map((value) => value.id));
+  return { board: view.board, columns, cards,
+    comments: currentEntities(view.comments).filter((value) => cardIds.has(value.card_id)),
+    attachments: currentEntities(view.attachments).filter((value) => cardIds.has(value.card_id)) };
+};
 const monoform = rawManifest as MonoFormManifest;
 
 class KanbanBoard extends Component<Record<string, never>, State> {
@@ -55,7 +65,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
   private copyBoard = async (): Promise<void> => {
     if (!this.state.view) return;
     try {
-      await navigator.clipboard.writeText(JSON.stringify(this.state.view, null, 2));
+      await navigator.clipboard.writeText(JSON.stringify(currentState(this.state.view), null, 2));
       this.setState({ message: "Board JSON copied", failed: false });
     } catch {
       this.setState({ message: "Could not copy board JSON", failed: true });
@@ -281,7 +291,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
   override render() {
     const view = this.state.view, board = view?.board;
     const header = <UtilityRail><strong class="brand">{board?.name ?? "KANBAN"}</strong>
-      <CommandButton disabled={!view} onClick={() => void this.copyBoard()}>COPY BOARD AS JSON</CommandButton>
+      <CommandButton disabled={!view} onClick={() => void this.copyBoard()}>COPY JSON</CommandButton>
       {board?.description && <span class="board-description">{board.description}</span>}<span class="push" />
       <CommandButton pressed={this.state.mode === "board"}
         onClick={() => this.setState({ mode: "board" })}>BOARD</CommandButton>

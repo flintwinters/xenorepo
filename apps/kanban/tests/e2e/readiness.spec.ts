@@ -110,10 +110,10 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
     const cardStyle = getComputedStyle(element), listStyle = getComputedStyle(element.parentElement!);
     return { cardMargin: cardStyle.margin, cardPadding: cardStyle.padding,
       borderBottom: cardStyle.borderBottomWidth, radius: cardStyle.borderRadius,
-      insetHighlight: cardStyle.boxShadow !== "none",
+      insetHighlight: cardStyle.boxShadow !== "none", lineHeight: cardStyle.lineHeight,
       listGap: listStyle.gap, listPadding: listStyle.padding };
   })).toEqual({ cardMargin: "0px", cardPadding: "0px", borderBottom: "2px", radius: "2px",
-    insetHighlight: true, listGap: "0px", listPadding: "0px" });
+    insetHighlight: true, lineHeight: "13.2px", listGap: "0px", listPadding: "0px" });
   await page.getByRole("button", { name: "EDIT BOARD" }).click();
   const palette = page.getByRole("dialog", { name: "BOARD SETTINGS" });
   const labelColor = palette.locator("section").filter({ hasText: "acceptance" });

@@ -32,8 +32,9 @@ radius. Rectangular inputs, selects, and textareas within the shared shell use t
 radius, while textareas never expose native drag resizing. Component props extend
 the corresponding Preact native
 HTML attributes, named props replace slots, and stable `x-ui-*` classes are the
-styling boundary. Console colors remain application-owned through the documented
-`--console-*` custom properties, including rail background and border overrides.
+styling boundary. Console presentation remains application-owned through the documented
+`--console-*` custom properties, including the compact `--console-line-height` typography token
+and rail background and border overrides.
 The package owns only proved console geometry and interaction treatment; app
 layout remains in external app-owned CSS. All consumers import `monoui`.
 Established catalogued controls are the default for matching semantics. The

@@ -477,8 +477,7 @@ frontend:
         )
 
     def test_console_form_entry_controls_share_font_and_subtle_corners(self) -> None:
-        styles = (MONOUI_SOURCE / "styles.css").read_text(
-            encoding="utf-8")
+        styles = (MONOUI_SOURCE / "styles.css").read_text(encoding="utf-8")
         compact_styles = " ".join(styles.split())
 
         self.assertIn(
@@ -491,6 +490,7 @@ frontend:
             ".x-ui-shell textarea { font: inherit; }",
             compact_styles,
         )
+        self.assertIn("line-height: var(--console-line-height, 1.2);", styles)
 
     def test_monoform_composes_shared_form_components(self) -> None:
         monoform = (MONOUI_SOURCE / "monoform.tsx").read_text(

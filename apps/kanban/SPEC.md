@@ -12,8 +12,8 @@ board, no accounts, no due dates, and no collaboration behavior.
 - One persistent board whose name and description can be edited.
 - User-created, named columns with explicit ordering and reversible archiving.
 - Per-column Add Card controls in column headers.
-- Cards with editable title, description, assignee text, labels, and priority.
-- Board settings for its identity and default card priority, plus individual column, card, and
+- Cards with editable title, description, assignee text, and labels.
+- Board settings for its identity, plus individual column, card, and
   label colors. The single board uses the shared application chrome rather than a custom theme.
 - Mouse drag-and-drop for ordering cards within a column and moving them between columns.
 - Editable comments, local file uploads, and web-link attachments.
@@ -46,7 +46,8 @@ names and media types remain domain metadata. Archiving an upload preserves its 
 Active card positions are dense, zero-based integers within their column, and active column
 positions follow the same invariant. A move transaction closes gaps and inserts the moved item at
 the requested position. Labels are trimmed, nonblank, unique ignoring case, and retain their first
-entered spelling. Priority is one of `low`, `normal`, `high`, or `urgent`.
+entered spelling. Workflow columns, rather than a separate priority dimension, communicate a
+card's place in the work.
 
 Every successful mutation appends an activity record in the same transaction. Activity records
 store their stable identity, event kind, subject identity and type, UTC occurrence time, and a

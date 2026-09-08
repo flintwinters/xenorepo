@@ -29,18 +29,18 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   const initialCurrent = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()));
   expect(initialCurrent).toEqual(expect.objectContaining({
     name: initialBoard.name, description: initialBoard.description,
-    default_priority: initialBoard.default_priority, background_color: initialBoard.background_color,
-    accent_color: initialBoard.accent_color, label_colors: initialBoard.label_colors,
+    background_color: initialBoard.background_color, accent_color: initialBoard.accent_color,
+    label_colors: initialBoard.label_colors,
   }));
   expect(Object.keys(initialCurrent)).toEqual([
-    "name", "description", "default_priority", "background_color", "accent_color", "label_colors",
+    "name", "description", "background_color", "accent_color", "label_colors",
     "columns", "cards", "comments", "attachments",
   ]);
   expect(initialCurrent).not.toHaveProperty("board");
   expect(initialCurrent.columns.every((value: object) =>
     Object.keys(value).join() === "id,name,color")).toBe(true);
   expect(initialCurrent.cards.every((value: object) => Object.keys(value).join() ===
-    "id,column_id,title,description,assignee,labels,priority,color")).toBe(true);
+    "id,column_id,title,description,assignee,labels,color")).toBe(true);
   expect(initialCurrent.comments.every((value: object) =>
     Object.keys(value).join() === "card_id,body")).toBe(true);
   expect(initialCurrent.attachments.every((value: object) => Object.keys(value).join() ===
@@ -90,7 +90,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   }))).toEqual({ modalRadius: "4px", resize: "none", textareaRadius: "4px" });
   await expect(settings.getByLabel("Board background")).toHaveCount(0);
   await expect(settings.getByLabel("Accent color")).toHaveCount(0);
-  await settings.getByLabel("Default card priority").selectOption("urgent");
+  await expect(settings.getByLabel("Priority")).toHaveCount(0);
   await settings.getByRole("button", { name: "SAVE", exact: true }).click();
   await expect(page.getByRole("banner").locator(".x-ui-rail"))
     .toHaveCSS("border-bottom-color", "rgb(16, 17, 18)");
@@ -99,7 +99,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await page.getByLabel("Title").fill(`Prove board ${suffix}`);
   await page.getByLabel("Description").fill("A persisted acceptance card");
   await page.getByLabel("Assignee").fill("Felix");
-  await expect(page.getByLabel("Priority")).toHaveValue("urgent");
+  await expect(page.getByLabel("Priority")).toHaveCount(0);
   await page.getByLabel("Color", { exact: true }).fill("#41395c");
   await page.getByLabel(/Labels/).fill("acceptance, durable");
   await page.getByRole("button", { name: "SAVE", exact: true }).click();
@@ -107,7 +107,6 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(card).toHaveCSS("color", "rgb(251, 241, 199)");
   await expect(card).toContainText("@Felix");
   await expect(card.locator(".card-chrome strong")).toHaveText(`Prove board ${suffix}`);
-  await expect(card.locator(".card-chrome .card-priority")).toHaveText("urgent");
   expect(await card.evaluate((element) => {
     const cardStyle = getComputedStyle(element), chromeStyle = getComputedStyle(element.querySelector(".card-chrome")!),
       listStyle = getComputedStyle(element.parentElement!);
@@ -125,10 +124,8 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(card).toHaveCSS("outline-color", "rgb(250, 189, 47)");
   await expect(card).toHaveCSS("outline-offset", "-1px");
   await card.click();
-  await page.getByLabel("Priority").selectOption("normal");
-  await page.getByRole("button", { name: "SAVE", exact: true }).click();
-  await expect(card.locator(".card-priority")).toHaveCount(0);
-  await expect(card).not.toContainText("normal");
+  await expect(page.getByLabel("Priority")).toHaveCount(0);
+  await page.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("button", { name: "EDIT BOARD" }).click();
   const palette = page.getByRole("dialog", { name: "BOARD SETTINGS" });
   const labelColor = palette.locator("section").filter({ hasText: "acceptance" });
@@ -229,8 +226,8 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(page.getByRole("banner")).toContainText(initialBoard.name);
   expect((await page.request.patch("/api/board", { data: {
     name: initialBoard.name, description: initialBoard.description,
-    default_priority: initialBoard.default_priority, background_color: initialBoard.background_color,
-    accent_color: initialBoard.accent_color, label_colors: initialBoard.label_colors,
+    background_color: initialBoard.background_color, accent_color: initialBoard.accent_color,
+    label_colors: initialBoard.label_colors,
   } })).ok()).toBe(true);
 });
 
@@ -245,7 +242,6 @@ test("[visual] populated single-board workflow", async ({ page }) => {
     await page.getByLabel("Title").fill("Outline launch");
     await page.getByLabel("Description").fill("Turn the release goal into a concrete plan");
     await page.getByLabel("Assignee").fill("Felix");
-    await page.getByLabel("Priority").selectOption("high");
     await page.getByLabel(/Labels/).fill("planning, release");
     await page.getByRole("button", { name: "SAVE", exact: true }).click();
   }

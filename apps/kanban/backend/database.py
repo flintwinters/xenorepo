@@ -39,7 +39,8 @@ class BoardSettingsRecord(Base):
     __tablename__ = "kanban_board_settings"
     __table_args__ = (CheckConstraint("id = 1", name="single_board_settings"),)
     id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
-    default_priority: Mapped[str] = mapped_column(String(10), default="normal")
+    # Retained only so installations created by older releases remain writable.
+    legacy_priority: Mapped[str] = mapped_column("default_priority", String(10), default="normal")
     background_color: Mapped[str] = mapped_column(String(7), default="#1d2021")
     accent_color: Mapped[str] = mapped_column(String(7), default="#fabd2f")
     column_colors_json: Mapped[str] = mapped_column(Text, default="{}")
@@ -67,7 +68,8 @@ class CardRecord(Base):
     description: Mapped[str] = mapped_column(Text, default="")
     assignee: Mapped[str] = mapped_column(String(120), default="")
     labels_json: Mapped[str] = mapped_column(Text, default="[]")
-    priority: Mapped[str] = mapped_column(String(10), default="normal")
+    # Retained only so installations created by older releases remain writable.
+    legacy_priority: Mapped[str] = mapped_column("priority", String(10), default="normal")
     position: Mapped[int] = mapped_column(Integer)
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
@@ -112,7 +114,7 @@ class ActivityRecord(Base):
 def _board(value: BoardRecord, settings: BoardSettingsRecord) -> BoardView:
     return BoardView(id=value.id, name=value.name, description=value.description,
         created_at=value.created_at, updated_at=value.updated_at,
-        default_priority=settings.default_priority, background_color=settings.background_color,
+        background_color=settings.background_color,
         accent_color=settings.accent_color, label_colors=json.loads(settings.label_colors_json))
 
 
@@ -124,7 +126,7 @@ def _column(value: ColumnRecord, colors: dict[str, str]) -> ColumnView:
 def _card(value: CardRecord, colors: dict[str, str]) -> CardView:
     return CardView(id=value.id, column_id=value.column_id, title=value.title,
         description=value.description, assignee=value.assignee, labels=json.loads(value.labels_json),
-        priority=value.priority, position=value.position, archived_at=value.archived_at,
+        position=value.position, archived_at=value.archived_at,
         created_at=value.created_at, updated_at=value.updated_at,
         color=colors.get(value.id, "#32302f"))
 
@@ -203,7 +205,6 @@ class KanbanStore:
             settings = session.get(BoardSettingsRecord, 1)
             assert settings is not None
             board.name, board.description, board.updated_at = value.name, value.description, self.now()
-            settings.default_priority = value.default_priority
             settings.background_color, settings.accent_color = value.background_color, value.accent_color
             settings.label_colors_json = json.dumps({key.casefold(): color
                 for key, color in value.label_colors.items()})
@@ -238,7 +239,6 @@ class KanbanStore:
             session.execute(delete(model))
         session.flush()
         board.name, board.description, board.updated_at = value.name, value.description, self.now()
-        settings.default_priority = value.default_priority
         settings.background_color, settings.accent_color = value.background_color, value.accent_color
         settings.label_colors_json = json.dumps({key.casefold(): color
             for key, color in value.label_colors.items()})
@@ -271,7 +271,7 @@ class KanbanStore:
             identity = identities[source.id]
             session.add(CardRecord(id=identity, column_id=column_id, title=source.title,
                 description=source.description, assignee=source.assignee,
-                labels_json=json.dumps(source.labels), priority=source.priority, position=position,
+                labels_json=json.dumps(source.labels), legacy_priority="normal", position=position,
                 archived_at=None, created_at=instant, updated_at=instant))
             colors[identity] = source.color
         return identities
@@ -304,7 +304,6 @@ class KanbanStore:
             settings = session.get(BoardSettingsRecord, 1)
             assert settings is not None
             board.name, board.description, board.updated_at = value.name, value.description, self.now()
-            settings.default_priority = value.default_priority
             self._activity(session, "edited", "board", board.id, f"Edited board “{board.name}”")
             session.flush()
             return _board(board, settings)
@@ -380,7 +379,7 @@ class KanbanStore:
             instant = self.now()
             record = CardRecord(id=str(uuid4()), column_id=value.column_id, title=value.title,
                 description=value.description, assignee=value.assignee,
-                labels_json=json.dumps(value.labels), priority=value.priority, position=position,
+                labels_json=json.dumps(value.labels), legacy_priority="normal", position=position,
                 archived_at=None, created_at=instant, updated_at=instant)
             session.add(record)
             colors = self._set_color(session, "card", record.id, value.color)
@@ -393,7 +392,7 @@ class KanbanStore:
             record = self._required(session, CardRecord, identity, "Card")
             record.title, record.description = value.title, value.description
             record.assignee, record.labels_json = value.assignee, json.dumps(value.labels)
-            record.priority, record.updated_at = value.priority, self.now()
+            record.updated_at = self.now()
             colors = self._set_color(session, "card", identity, value.color)
             self._activity(session, "edited", "card", identity, f"Edited card “{record.title}”")
             session.flush()

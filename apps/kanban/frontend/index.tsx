@@ -33,12 +33,12 @@ const currentState = (view: KanbanView) => {
   const columns = active(view.columns).map(({ id, name, color }) => ({ id, name, color }));
   const columnIds = new Set(columns.map((value) => value.id));
   const cards = active(view.cards).filter((value) => columnIds.has(value.column_id)).map(
-    ({ id, column_id, title, description, assignee, labels, priority, color }) =>
-      ({ id, column_id, title, description, assignee, labels, priority, color }),
+    ({ id, column_id, title, description, assignee, labels, color }) =>
+      ({ id, column_id, title, description, assignee, labels, color }),
   );
   const cardIds = new Set(cards.map((value) => value.id));
-  const { name, description, default_priority, background_color, accent_color, label_colors } = view.board;
-  return { name, description, default_priority, background_color, accent_color, label_colors, columns, cards,
+  const { name, description, background_color, accent_color, label_colors } = view.board;
+  return { name, description, background_color, accent_color, label_colors, columns, cards,
     comments: active(view.comments).filter((value) => cardIds.has(value.card_id)).map(
       ({ card_id, body }) => ({ card_id, body })),
     attachments: active(view.attachments).filter((value) => cardIds.has(value.card_id)).map(
@@ -245,8 +245,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     if (this.state.editingComment || this.state.editingAttachment) return null;
     const card = this.card(this.state.selected);
     if (!card && !this.state.creatingIn) return null;
-    const value = card ?? { title: "", description: "", assignee: "", labels: [],
-      priority: this.state.view?.board.default_priority ?? "normal", color: "#32302f" };
+    const value = card ?? { title: "", description: "", assignee: "", labels: [], color: "#32302f" };
     const comments = active(this.state.view?.comments ?? []).filter((item) => item.card_id === card?.id);
     const attachments = active(this.state.view?.attachments ?? []).filter((item) => item.card_id === card?.id);
     const activity = card ? this.cardActivity(card.id) : [];
@@ -314,7 +313,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
             return <span style={coloredSurfaceStyle("--label-color", "--label-ink", color)}>
               {label}</span>;
           })}
-            {card.priority !== "normal" && <span class="card-priority">{card.priority}</span>}</span>} />
+          </span>} />
           {card.description && <p>{card.description}</p>}
           {card.assignee && <div class="card-meta"><span>@{card.assignee}</span></div>}</article>)}
       </div></ConsolePane>;

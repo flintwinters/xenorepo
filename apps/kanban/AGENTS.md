@@ -24,3 +24,5 @@ status, box-within-box composition, and other decorative AI conventions.
 - Keep copy and atomic append/replace import aligned as one explicit, flat current-state contract.
 - Keep each card's visible timestamped log derived from the immutable activity stream, including
   activity for its comments and attachments; do not create a competing history authority.
+- Keep workflow state singular: columns communicate where work stands, with no parallel card
+  priority field or tag.

@@ -56,13 +56,13 @@ class ApplicationTests(unittest.TestCase):
     def card(self, column_id: str, title: str = "Write tests") -> dict:
         response = self.client.request("POST", "/api/cards", json={"column_id": column_id,
             "title": title, "description": "Prove persistence", "assignee": "Felix",
-            "labels": ["Quality", "quality", "Backend"], "priority": "high"})
+            "labels": ["Quality", "quality", "Backend"]})
         self.assertEqual(response.status_code, 201)
         return response.json()
 
     def test_board_column_card_ordering_and_restart_persist(self) -> None:
         board = self.client.request("PATCH", "/api/board",
-            json={"name": "Ship it", "description": "One honest board", "default_priority": "urgent",
+            json={"name": "Ship it", "description": "One honest board",
                 "background_color": "#112233", "accent_color": "#44aa88",
                 "label_colors": {"Quality": "#335577"}})
         first = self.client.request("POST", "/api/columns",
@@ -78,14 +78,19 @@ class ApplicationTests(unittest.TestCase):
         restarted = Client(create_app(store=KanbanStore(self.sessions), uploads=self.uploads))
         view = restarted.request("GET", "/api/board").json()
         self.assertEqual(view["board"]["name"], "Ship it")
-        self.assertEqual((view["board"]["default_priority"], view["board"]["background_color"],
-            view["board"]["label_colors"]), ("urgent", "#112233", {"quality": "#335577"}))
+        self.assertEqual((view["board"]["background_color"], view["board"]["label_colors"]),
+            ("#112233", {"quality": "#335577"}))
         self.assertEqual(next(value for value in view["columns"]
             if value["id"] == first["id"])["color"], "#445566")
         self.assertEqual([value["name"] for value in view["columns"][:2]], ["Doing", "Queue"])
         persisted_move = next(value for value in view["cards"] if value["id"] == two["id"])
         self.assertEqual(persisted_move["column_id"], second["id"])
         self.assertGreaterEqual(len(view["activity"]), 7)
+        stale_card = self.client.request("POST", "/api/cards", json={"column_id": first["id"],
+            "title": "Stale client", "priority": "urgent"})
+        stale_board = self.client.request("PATCH", "/api/board", json={
+            "name": "Stale client", "default_priority": "urgent"})
+        self.assertEqual((stale_card.status_code, stale_board.status_code), (422, 422))
 
     def test_modal_crud_operations_are_declared_for_monoform(self) -> None:
         operations = monoform_manifest(self.client.application.openapi(), app="kanban",
@@ -101,19 +106,19 @@ class ApplicationTests(unittest.TestCase):
             "title": "Label color", "type": "string",
         })
         original = self.client.request("PATCH", "/api/board", json={
-            "name": "Original", "description": "Before", "default_priority": "normal",
+            "name": "Original", "description": "Before",
             "background_color": "#112233", "accent_color": "#445566",
-            "label_colors": {"Priority": "#778899"},
+            "label_colors": {"Quality": "#778899"},
         })
         details = self.client.request("PATCH", "/api/board/details", json={
-            "name": "Focused", "description": "After", "default_priority": "urgent",
+            "name": "Focused", "description": "After",
         })
-        color = self.client.request("PATCH", "/api/board/label-colors/Priority",
+        color = self.client.request("PATCH", "/api/board/label-colors/Quality",
             json={"color": "#abc"})
         self.assertEqual((original.status_code, details.status_code, color.status_code), (200, 200, 200))
-        self.assertEqual((color.json()["name"], color.json()["default_priority"]), ("Focused", "urgent"))
+        self.assertEqual(color.json()["name"], "Focused")
         self.assertEqual((color.json()["background_color"], color.json()["accent_color"],
-            color.json()["label_colors"]), ("#112233", "#445566", {"priority": "#abc"}))
+            color.json()["label_colors"]), ("#112233", "#445566", {"quality": "#abc"}))
 
     def test_comments_links_uploads_edits_and_recoverable_archive(self) -> None:
         column, = [self.column()]
@@ -190,13 +195,13 @@ class ApplicationTests(unittest.TestCase):
         existing = self.column("Existing")
         self.card(existing["id"], "Keep me")
         document = {
-            "name": "Imported", "description": "Migration", "default_priority": "urgent",
+            "name": "Imported", "description": "Migration",
             "background_color": "#112233", "accent_color": "#445566",
             "label_colors": {"Legacy": "#778899"},
             "columns": [{"id": "legacy-column", "name": "Legacy", "color": "#abcdef"}],
             "cards": [{"id": "legacy-card", "column_id": "legacy-column", "title": "Moved",
                 "description": "Old work", "assignee": "Felix", "labels": ["Legacy"],
-                "priority": "high", "color": "#123456"}],
+                "color": "#123456"}],
             "comments": [{"card_id": "legacy-card", "body": "Old note"}],
             "attachments": [{"card_id": "legacy-card", "kind": "link", "title": "Source",
                 "url": "https://example.com/legacy", "original_name": None, "media_type": None}],
@@ -220,8 +225,8 @@ class ApplicationTests(unittest.TestCase):
         self.assertEqual(len(self.client.request("GET", "/api/board").json()["columns"]), 2)
         self.assertEqual(self.client.request("POST", "/api/import/replace", json=document).status_code, 200)
         view = self.client.request("GET", "/api/board").json()
-        self.assertEqual((view["board"]["name"], view["board"]["default_priority"],
-            view["board"]["label_colors"]), ("Imported", "urgent", {"legacy": "#778899"}))
+        self.assertEqual((view["board"]["name"], view["board"]["label_colors"]),
+            ("Imported", {"legacy": "#778899"}))
         self.assertEqual([value["name"] for value in view["columns"]], ["Legacy"])
         self.assertEqual([value["title"] for value in view["cards"]], ["Moved"])
         self.assertEqual(len(view["activity"]), 1)

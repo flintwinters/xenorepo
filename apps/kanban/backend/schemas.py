@@ -8,24 +8,23 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, f
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
 Text = Annotated[str, StringConstraints(strip_whitespace=True, max_length=4000)]
-Priority = Literal["low", "normal", "high", "urgent"]
 Color = Annotated[str, StringConstraints(pattern=r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$"),
     Field(json_schema_extra={"format": "color"})]
 
 
 class BoardEdit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     name: Name
     description: Text = ""
-    default_priority: Priority = "normal"
     background_color: Color = "#1d2021"
     accent_color: Color = "#fabd2f"
     label_colors: dict[Name, Color] = {}
 
 
 class BoardDetailsEdit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     name: Name
     description: Text = ""
-    default_priority: Priority = Field(default="normal", title="Default card priority")
 
 
 class LabelColorEdit(BaseModel):
@@ -46,11 +45,11 @@ class PositionInput(BaseModel):
 
 
 class CardFields(BaseModel):
+    model_config = ConfigDict(extra="forbid")
     title: Name
     description: Text = ""
     assignee: Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)] = ""
     labels: list[Name] = []
-    priority: Priority = "normal"
     color: Color = "#32302f"
 
     @field_validator("labels")
@@ -100,7 +99,6 @@ class BoardView(BaseModel):
     description: str
     created_at: datetime
     updated_at: datetime
-    default_priority: Priority
     background_color: Color
     accent_color: Color
     label_colors: dict[str, Color]
@@ -121,7 +119,6 @@ class CardView(BaseModel):
     description: str
     assignee: str
     labels: list[str]
-    priority: Priority
     position: int
     archived_at: datetime | None
     created_at: datetime

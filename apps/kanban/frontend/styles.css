@@ -112,6 +112,13 @@
   gap: 10px; padding: 7px; border-bottom: 1px solid #504945;
 }
 .activity-list time { color: #a89984; }
+.item-log ol { list-style: none; margin: 0; padding: 0; }
+.item-log li {
+  display: grid; grid-template-columns: minmax(150px, auto) minmax(0, 1fr);
+  gap: 8px; padding: 5px 0; border-bottom: 1px solid #3c3836;
+}
+.item-log time, .empty-log { color: #a89984; }
+.empty-log { margin: 7px 0 0; }
 @media (max-width: 720px) {
   .kanban-shell > header .x-ui-rail { flex-wrap: wrap; white-space: normal; padding-block: 4px; }
   .board-description { display: none; }
@@ -119,7 +126,7 @@
   .field-row, .compact-form, .compact-form:has(input[type="file"]) { grid-template-columns: 1fr; }
   .row { flex-wrap: wrap; }
   .row p, .row a { flex-basis: 100%; }
-  .activity-list li { grid-template-columns: 1fr; gap: 2px; }
+  .activity-list li, .item-log li { grid-template-columns: 1fr; gap: 2px; }
   .archive-row { grid-template-columns: 70px minmax(0, 1fr); }
   .archive-row .x-ui-command { grid-column: 2; }
 }

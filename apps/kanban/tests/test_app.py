@@ -176,6 +176,8 @@ class ApplicationTests(unittest.TestCase):
             self.assertIn(coefficient, color)
         self.assertIn('from "monoui";', source)
         self.assertIn("Modal", source)
+        self.assertIn("ITEM LOG", source)
+        self.assertIn("dateTime={item.occurred_at}", source)
         self.assertNotIn("<form onSubmit={this.save", source)
         self.assertIn('from "../data/openapi";', client)
         self.assertNotIn("window.alert", source)

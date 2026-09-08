@@ -93,6 +93,13 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       for (const label of card.labels) values.set(label.toLocaleLowerCase(), label);
     return [...values.values()].sort((left, right) => left.localeCompare(right));
   }
+  private cardActivity(cardId: string) {
+    const subjectIds = new Set([cardId,
+      ...(this.state.view?.comments ?? []).filter((item) => item.card_id === cardId).map((item) => item.id),
+      ...(this.state.view?.attachments ?? []).filter((item) => item.card_id === cardId).map((item) => item.id),
+    ]);
+    return (this.state.view?.activity ?? []).filter((item) => subjectIds.has(item.subject_id));
+  }
   private archive = (kind: string, id: string): void => {
     if (kind === "card") this.setState({ selected: null });
     this.perform(`${kind} archived`, () => setArchived(kind, id));
@@ -242,6 +249,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       priority: this.state.view?.board.default_priority ?? "normal", color: "#32302f" };
     const comments = active(this.state.view?.comments ?? []).filter((item) => item.card_id === card?.id);
     const attachments = active(this.state.view?.attachments ?? []).filter((item) => item.card_id === card?.id);
+    const activity = card ? this.cardActivity(card.id) : [];
     return <Modal class="backdrop" contentClass="dialog card-dialog" labelledBy="card-editor-title"
       onDismiss={() => this.setState({ selected: null, creatingIn: null })}>
       <h2 id="card-editor-title">{card ? "CARD DETAILS" : "NEW CARD"}</h2>
@@ -274,7 +282,10 @@ class KanbanBoard extends Component<Record<string, never>, State> {
             onSubmit={(event) => this.saveUpload(event, card.id)}>
         <input name="title" required placeholder="File title" aria-label="File title" /><input name="file"
           type="file" required aria-label="Choose file" /><CommandButton type="submit">UPLOAD</CommandButton>
-      </form></section></div>}</Modal>;
+      </form></section><section class="item-log"><h3>ITEM LOG</h3>{activity.length > 0 ? <ol>
+        {activity.map((item) => <li><time dateTime={item.occurred_at}>
+          {new Date(item.occurred_at).toLocaleString()}</time><span>{item.summary}</span></li>)}</ol> :
+        <p class="empty-log">No activity recorded.</p>}</section></div>}</Modal>;
   }
   private column(column: Column) {
     const cards = this.cards(column.id);

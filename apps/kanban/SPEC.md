@@ -19,6 +19,8 @@ board, no accounts, no due dates, and no collaboration behavior.
 - Editable comments, local file uploads, and web-link attachments.
 - Reversible archiving for the board's columns, cards, comments, and attachments.
 - An immutable activity history that records creation, edits, moves, archive, and restore actions.
+- Each card exposes its timestamped item log, including its own activity and the activity of its
+  comments and attachments.
 - Stable UUID identities, UTC audit timestamps, deterministic ordering, explicit validation, and
   visible API failures.
 - A readable JSON clipboard document of current work: board settings at the root and flat,

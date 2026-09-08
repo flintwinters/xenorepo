@@ -160,6 +160,10 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await page.getByLabel("Comment").fill("The drag persisted");
   await page.getByRole("button", { name: "ADD", exact: true }).click();
   await expect(page.getByText("The drag persisted")).toBeVisible();
+  const itemLog = page.locator(".item-log");
+  await expect(itemLog).toContainText(`Moved card “Prove board ${suffix}”`);
+  await expect(itemLog).toContainText(`Commented on “Prove board ${suffix}”`);
+  await expect(itemLog.locator("time").first()).toHaveAttribute("datetime", /.+/);
   await page.locator(".row").filter({ hasText: "The drag persisted" })
     .getByRole("button", { name: "EDIT" }).click();
   const commentEditor = page.getByRole("dialog", { name: "EDIT COMMENT" });

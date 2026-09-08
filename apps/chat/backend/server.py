@@ -14,7 +14,7 @@ from monotools.runtime.realtime import (
     bounded_text,
     websocket_origin_allowed,
 )
-from monotools.runtime.application import create_application
+from monotools.runtime.application import create_local_application
 
 
 DIRECTORY = Path(__file__).parent
@@ -86,7 +86,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
         database_url=database_url, prepare=_migrate_legacy)
     repository = ChatRepository(context.require_sessions(), context.clock.now)
     hub = ConnectionHub()
-    application = create_application("chat")
+    application = create_local_application(__file__)
 
     @application.get("/api/messages")
     def messages() -> list[dict[str, int | str]]:

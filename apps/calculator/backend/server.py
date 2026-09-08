@@ -6,7 +6,7 @@ from fastapi import HTTPException, Request
 from pydantic import BaseModel, ConfigDict
 
 from monotools.runtime.http import enforce_same_origin
-from monotools.runtime.application import create_application
+from monotools.runtime.application import create_local_application
 from monotools.runtime.monoform import monoform_operation
 
 
@@ -53,7 +53,7 @@ def calculate(value: Calculation) -> CalculationResult:
     )
 
 
-app = create_application("calculator")
+app = create_local_application(__file__)
 
 
 @app.post("/api/calculate", response_model=CalculationResult, operation_id="calculate",

@@ -20,6 +20,9 @@ _APP_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 _ROUTE_PATH = re.compile(r"^/[A-Za-z0-9._~!$&'()*+,;=:@%/-]*$")
 _RESERVED_ROUTES = frozenset({"/agent/tools", "/health"})
 _FRONTEND_FORMATS = frozenset({"preact", "monoform"})
+_PROOF_KINDS = frozenset({"acceptance", "visual"})
+_VIEWPORTS = frozenset({"wide-viewport-chromium", "narrow-viewport-chromium"})
+_INPUT_MODALITIES = frozenset({"keyboard", "mouse", "touch"})
 
 
 class AppDefinitionError(ValueError):
@@ -65,6 +68,17 @@ class FrontendArtifact:
 
 
 @dataclass(frozen=True)
+class TestDefinition:
+    """App-owned suites and evidence required by the shared lifecycle."""
+
+    python_suite: Path
+    browser_suite: Path
+    proof_kinds: frozenset[str]
+    viewports: frozenset[str] = _VIEWPORTS
+    input_modalities: frozenset[str] = frozenset()
+
+
+@dataclass(frozen=True)
 class AppDefinition:
     name: str
     title: str
@@ -74,6 +88,7 @@ class AppDefinition:
     routes: tuple[tuple[str, str], ...]
     capabilities: frozenset[str]
     imports: tuple[str, ...] = ()
+    testing: TestDefinition | None = None
 
     @property
     def specification(self) -> Path:
@@ -144,6 +159,13 @@ def _relative_path(value: object, path: Path, label: str) -> Path:
     return Path(*candidate.parts)
 
 
+def _test_path(value: object, path: Path, label: str) -> Path:
+    candidate = _relative_path(value, path, label)
+    if not candidate.parts or candidate.parts[0] != "tests":
+        raise AppDefinitionError(f"{_display(path)} {label} must be beneath tests/")
+    return candidate
+
+
 def _imports(value: object, path: Path) -> tuple[str, ...]:
     if not isinstance(value, list) or not all(isinstance(item, str) and item for item in value):
         raise AppDefinitionError(f"{_display(path)} imports must be a list of non-empty strings")
@@ -156,6 +178,41 @@ def _imports(value: object, path: Path) -> tuple[str, ...]:
             f"{', '.join(unsupported)}"
         )
     return tuple(value)
+
+
+def _string_set(value: object, path: Path, label: str, allowed: frozenset[str],
+    ) -> frozenset[str]:
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
+        raise AppDefinitionError(f"{_display(path)} {label} must be a list of strings")
+    if len(value) != len(set(value)) or value != sorted(value):
+        raise AppDefinitionError(f"{_display(path)} {label} must be unique and sorted")
+    unsupported = set(value) - allowed
+    if unsupported:
+        raise AppDefinitionError(
+            f"{_display(path)} {label} has unsupported values: {', '.join(sorted(unsupported))}"
+        )
+    return frozenset(value)
+
+
+def _testing(value: object, path: Path) -> TestDefinition:
+    testing = _mapping(value, path, "testing")
+    _only_keys(testing, frozenset({"python", "browser"}), path, "testing")
+    python_suite = _test_path(testing.get("python"), path, "testing.python")
+    browser = _mapping(testing.get("browser"), path, "testing.browser")
+    _only_keys(browser, frozenset({"suite", "proofs", "viewports", "input_modalities"}),
+        path, "testing.browser")
+    browser_suite = _test_path(browser.get("suite"), path, "testing.browser.suite")
+    proof_kinds = _string_set(browser.get("proofs"), path, "testing.browser.proofs",
+        _PROOF_KINDS)
+    if not proof_kinds:
+        raise AppDefinitionError(f"{_display(path)} testing.browser.proofs must not be empty")
+    viewports = _string_set(browser.get("viewports", sorted(_VIEWPORTS)), path,
+        "testing.browser.viewports", _VIEWPORTS)
+    if not viewports:
+        raise AppDefinitionError(f"{_display(path)} testing.browser.viewports must not be empty")
+    modalities = _string_set(browser.get("input_modalities", []), path,
+        "testing.browser.input_modalities", _INPUT_MODALITIES)
+    return TestDefinition(python_suite, browser_suite, proof_kinds, viewports, modalities)
 
 
 def _is_shared_import(name: str) -> bool:
@@ -194,20 +251,34 @@ def _artifact(name: str, raw: object, path: Path) -> FrontendArtifact:
     operations = tuple(raw_operations)
     _validate_artifact_format(format_name, source, operations, path)
     output = _relative_path(item.get("output"), path, f"{label}.output")
+    _validate_artifact_output(output, path)
+    return FrontendArtifact(name, format_name, source, output, operations)
+
+
+def _validate_artifact_output(output: Path, path: Path) -> None:
     if output.suffix != ".html":
         raise AppDefinitionError(f"{_display(path)} frontend artifact output must end in .html")
-    return FrontendArtifact(name, format_name, source, output, operations)
 
 
 def _validate_artifact_format(format_name: str, source: Path | None, operations: tuple[str, ...],
     path: Path) -> None:
-    if format_name == "preact" and (source is None or source.suffix != ".tsx"):
+    if format_name == "preact":
+        _validate_preact_artifact(source, operations, path)
+    else:
+        _validate_monoform_artifact(source, operations, path)
+
+
+def _validate_preact_artifact(source: Path | None, operations: tuple[str, ...], path: Path) -> None:
+    if source is None or source.suffix != ".tsx":
         raise AppDefinitionError(f"{_display(path)} preact frontend artifact source must end in .tsx")
-    if format_name == "preact" and operations:
+    if operations:
         raise AppDefinitionError(f"{_display(path)} preact frontend artifact forbids operations")
-    if format_name == "monoform" and source is not None:
+
+
+def _validate_monoform_artifact(source: Path | None, operations: tuple[str, ...], path: Path) -> None:
+    if source is not None:
         raise AppDefinitionError(f"{_display(path)} monoform frontend artifact forbids source")
-    if format_name == "monoform" and (not operations or len(set(operations)) != len(operations)):
+    if not operations or len(set(operations)) != len(operations):
         raise AppDefinitionError(f"{_display(path)} monoform frontend artifact requires unique operations")
 
 
@@ -277,7 +348,8 @@ def load_app(directory: Path) -> AppDefinition:
     if not metadata_path.is_file():
         raise AppDefinitionError(f"missing metadata: {_display(metadata_path)}")
     data = _load_yaml(metadata_path)
-    _only_keys(data, frozenset({"name", "title", "module", "capabilities", "imports", "frontend"}), metadata_path,
+    _only_keys(data, frozenset({"name", "title", "module", "capabilities", "imports",
+        "frontend", "testing"}), metadata_path,
         "document")
     name = _string(data.get("name"), metadata_path, "name")
     validate_app_name(name)
@@ -300,7 +372,9 @@ def load_app(directory: Path) -> AppDefinition:
             f"{_display(metadata_path)} has unsupported capabilities: {', '.join(sorted(unsupported))}"
         )
     imports = _imports(data.get("imports", []), metadata_path)
-    return AppDefinition(name, title, directory, module, artifacts, routes, capabilities, imports)
+    testing = _testing(data.get("testing"), metadata_path)
+    return AppDefinition(name, title, directory, module, artifacts, routes, capabilities, imports,
+        testing)
 
 
 def discover_apps() -> tuple[AppDefinition, ...]:

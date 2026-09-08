@@ -94,21 +94,18 @@ def _fail(error: Exception) -> None:
     raise typer.Exit(1)
 
 
-def create_app_manager(manage_file: str | Path, tests: str | Path,
-    ui_suite: str | Path | None = None, include_serve: bool = True,
-    *, proof_kinds: frozenset[str] = frozenset({"acceptance"}),
-    viewports: frozenset[str] = frozenset({"wide-viewport-chromium", "narrow-viewport-chromium"}),
-    input_modalities: frozenset[str] = frozenset()) -> ApplicationManager:
+def create_app_manager(manage_file: str | Path, *,
+    include_serve: bool = True) -> ApplicationManager:
     """Create the standard lifecycle CLI for one metadata-declared application."""
     definition = resolve_local_app(manage_file)
+    if definition.testing is None:
+        raise AppDefinitionError(f"{definition.name} does not declare testing metadata")
+    testing = definition.testing
     workspace = _workspace_for(definition)
-    test_suite = _owned_path(definition, tests, kind="Python suite")
-    browser_path = (_owned_path(definition, ui_suite, kind="browser suite")
-        if ui_suite is not None else None)
-    if definition.specification.is_file() and browser_path is None:
-        raise AppDefinitionError(
-            f"{definition.name} has a product specification but no app-owned browser suite"
-        )
+    test_suite = _owned_path(definition, testing.python_suite, kind="Python suite")
+    browser_path = _owned_path(definition, testing.browser_suite, kind="browser suite")
+    browser_suite = BrowserSuite(browser_path, testing.proof_kinds, testing.viewports,
+        testing.input_modalities)
     app = create_cli(f"Build, validate, test, and run {definition.title}.")
 
     @app.command()
@@ -139,7 +136,7 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
         """Run this application's curated Python suite."""
         try:
             with activated_environment(workspace, definition.directory):
-                result = run_test_suite(workspace, test_suite)
+                result = run_test_suite(workspace, test_suite, allow_empty=True)
         except EnvironmentConfigurationError as error:
             _fail(error)
         if result:
@@ -152,19 +149,16 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
         update_snapshots: bool = typer.Option(False, "--update-snapshots",
             help="Replace app-owned visual baselines with verified current output.")) -> None:
         """Run universal journeys and any app-owned browser suite."""
-        declared = (BrowserSuite(browser_path, proof_kinds, viewports, input_modalities)
-            if browser_path is not None else None)
         try:
             with activated_environment(workspace, definition.directory):
-                artifacts = run_ui_check(definition, workspace, declared, evidence=evidence,
+                artifacts = run_ui_check(definition, workspace, browser_suite, evidence=evidence,
                     update_snapshots=update_snapshots)
         except (EnvironmentConfigurationError, LifecycleError) as error:
             _fail(error)
         matrix = "wide/narrow route smoke"
-        if declared:
-            matrix += "; app-owned " + "/".join(sorted(declared.proof_kinds))
-        if declared and declared.input_modalities:
-            matrix += "; trusted " + "/".join(sorted(declared.input_modalities))
+        matrix += "; app-owned " + "/".join(sorted(browser_suite.proof_kinds))
+        if browser_suite.input_modalities:
+            matrix += "; trusted " + "/".join(sorted(browser_suite.input_modalities))
         console.print(f"[bold green]{matrix}[/] {definition.name} ({artifacts})")
 
     @app.command("aesthetic-check")
@@ -173,8 +167,7 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
         try:
             with activated_environment(workspace, definition.directory):
                 artifacts = run_ui_check(definition, workspace,
-                    BrowserSuite(browser_path, proof_kinds, viewports, input_modalities)
-                    if browser_path is not None else None)
+                    browser_suite)
                 report = review_aesthetics(definition, artifacts / "aesthetic-screenshots",
                     artifacts / "aesthetic-review.json")
         except (EnvironmentConfigurationError, LifecycleError) as error:
@@ -220,6 +213,5 @@ def create_app_manager(manage_file: str | Path, tests: str | Path,
         app=app,
         definition=definition,
         python_suite=PythonSuite(test_suite),
-        browser_suite=(BrowserSuite(browser_path, proof_kinds, viewports, input_modalities)
-            if browser_path is not None else None),
+        browser_suite=browser_suite,
     )

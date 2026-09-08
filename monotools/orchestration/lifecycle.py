@@ -274,10 +274,24 @@ def _validate_runtime_contract(definition: AppDefinition, module: object) -> Non
 
 
 def validate_dist(definition: AppDefinition) -> None:
-    expected = [artifact.output for artifact in definition.artifacts]
-    missing = [str(name) for name in expected if not (definition.dist_directory / name).is_file()]
+    expected = [(artifact, definition.dist_directory / artifact.output)
+        for artifact in definition.artifacts]
+    missing = [str(artifact.output) for artifact, path in expected if not path.is_file()]
     if missing:
         raise LifecycleError(f"build did not produce: {', '.join(missing)}")
+    for artifact, path in expected:
+        document = path.read_text(encoding="utf-8")
+        external = re.search(
+            r"<script\b(?=[^>]*\bsrc\s*=)|"
+            r"<link\b(?=[^>]*\brel\s*=\s*['\"]stylesheet['\"])(?=[^>]*\bhref\s*=)",
+            document,
+            re.IGNORECASE,
+        )
+        marker = f'<meta name="xenorepo-artifact" content="{escape(str(artifact.output))}">'
+        if external:
+            raise LifecycleError(f"{artifact.output} references an external script or stylesheet")
+        if marker not in document:
+            raise LifecycleError(f"{artifact.output} is missing its artifact identity marker")
 
 
 def collect_app_status(definition: AppDefinition) -> dict[str, bool]:
@@ -292,14 +306,14 @@ def collect_app_status(definition: AppDefinition) -> dict[str, bool]:
     }
 
 
-def run_test_suite(directory: Path, suite: Path) -> int:
-    """Run one unittest suite and return its process status."""
+def run_test_suite(directory: Path, suite: Path, *, allow_empty: bool = False) -> int:
+    """Run one unittest suite, optionally accepting no app-owned Python tests."""
     completed = subprocess.run(
         [sys.executable, "-m", "unittest", "discover", "-s", str(suite), "-v"],
         cwd=directory,
         check=False,
     )
-    return completed.returncode
+    return 0 if allow_empty and completed.returncode == 5 else completed.returncode
 
 
 def serve_app(definition: AppDefinition, workspace: Path, *, host: str = "127.0.0.1",

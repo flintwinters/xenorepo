@@ -14,7 +14,7 @@ from apps.kanban.backend.schemas import (
     PositionInput,
 )
 from monotools.runtime.appkit import create_app_context
-from monotools.runtime.application import create_application
+from monotools.runtime.application import create_local_application
 from monotools.runtime.http import domain_error_handler, enforce_same_origin
 from monotools.runtime.monoform import monoform_operation
 
@@ -31,7 +31,7 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
         default_database=DEFAULT_DATABASE, environment_key="KANBAN_DATABASE_URL",
         database_url=database_url)
     board = store or KanbanStore(context.require_sessions(), now=context.clock.now)
-    application = create_application("kanban")
+    application = create_local_application(__file__)
     application.state.kanban = board
     application.add_exception_handler(KanbanError, domain_error_handler(statuses={
         "conflict": 409, "forbidden": 403, "missing": 404, "validation": 422,

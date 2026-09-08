@@ -17,7 +17,7 @@ from monotools.orchestration.apps import discover_apps
 from monotools.orchestration.services import ServiceError, ServiceSupervisor
 from monotools.runtime.appkit import create_app_context
 from monotools.runtime.http import enforce_same_origin
-from monotools.runtime.application import create_application
+from monotools.runtime.application import create_local_application
 
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -35,7 +35,7 @@ def create_app(database_url: str | None = None, repository: SnapshotRepository |
         default_database=DEFAULT_DATABASE, environment_key="XENOVIEW_DATABASE_URL",
         database_url=database_url)
     snapshots = repository or SnapshotRepository(context.require_sessions(), clock=context.clock.now)
-    application = create_application("xenoview")
+    application = create_local_application(__file__)
     application.state.snapshots = snapshots
     services = supervisor or ServiceSupervisor(discover_apps(), root)
     application.state.services = services

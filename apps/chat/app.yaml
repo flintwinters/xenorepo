@@ -13,6 +13,11 @@ imports:
   - monotools.runtime.http
   - monotools.runtime.realtime
   - "monoui"
+testing:
+  python: tests
+  browser:
+    suite: tests/e2e/chat.spec.js
+    proofs: [acceptance, visual]
 frontend:
   artifacts:
     index:

@@ -165,7 +165,7 @@ class CockpitTests(unittest.TestCase):
         self.assertEqual(overview["additionalProperties"], False)
         self.assertIn("test_breakdown", overview["required"])
 
-    def test_build_is_self_contained_typed_preact_client(self) -> None:
+    def test_frontend_preserves_the_typed_cockpit_contract(self) -> None:
         document = Path("apps/xenoview/dist/index.html").read_text(encoding="utf-8")
         source = Path("apps/xenoview/frontend/index.tsx").read_text(encoding="utf-8")
         client = Path("apps/xenoview/frontend/client.ts").read_text(encoding="utf-8")

@@ -1,17 +1,16 @@
 # Universal monoapp code reuse review
 
-Source review, 2026-09-08. This review includes only opportunities that apply to
-every active monoapp. `LIBRARIES.md` remains authoritative for adopted contracts
-and extraction policy.
+Source review implemented 2026-09-08. This review includes only changes that
+apply to every active monoapp. `LIBRARIES.md` remains authoritative for adopted
+contracts and extraction policy.
 
 ## Scope and conclusion
 
 All eight active monoapps have a root `manage.py`, an `app.yaml`, a FastAPI
 runtime created by Monotools, a Python suite, and an app-owned browser suite.
-Only two remaining implementation patterns are duplicated across that complete
-set: lifecycle declaration in each manager and runtime identity binding in each
-server. A third opportunity is to remove app-owned tests of platform invariants
-after the central checks prove them for every app.
+The migration places lifecycle declarations in metadata, binds each runtime to
+its owning definition, and makes central validation own universal artifact
+assertions.
 
 Frontend HTTP clients, database fixtures, form controls, realtime code, and
 domain error handling are excluded. They have multiple consumers, but they do
@@ -29,7 +28,7 @@ as the suite filename, visual-proof requirement, and trusted input modalities.
 The scaffold reproduces the same wrapper in
 `monotools/templates/monoapp/manage.py.template`.
 
-Proposal: add typed lifecycle-test metadata to `app.yaml` and let
+Implementation: typed lifecycle-test metadata in `app.yaml` lets
 `create_app_manager(__file__)` resolve the standard Python suite, browser suite,
 proof kinds, viewports, and input modalities from the local definition. Keep a
 narrow explicit override API only if an independently deployed monoapp needs it.
@@ -60,11 +59,11 @@ Simple apps assign the result directly; richer apps make the same call inside a
 side already has the analogous local-resolution contract:
 `resolve_local_app(manage_file)` loads the definition beside `manage.py`.
 
-Proposal: add a generic local runtime constructor that accepts `__file__`, walks
-from `backend/server.py` to the owning `app.yaml`, and delegates to the existing
-application assembly. For example, `create_local_application(__file__)` should
-return exactly what `create_application(name)` returns today. Migrate every
-server and the scaffold template. Keep name-based construction as a lower-level
+Implementation: a generic local runtime constructor accepts `__file__`, resolves
+the owning `app.yaml` from `backend/server.py`, and delegates to the existing
+application assembly. `create_local_application(__file__)` returns exactly what
+`create_application(name)` returns. Every server and the scaffold template use
+the local constructor. Name-based construction remains a lower-level
 API where central orchestration legitimately starts an app by metadata identity.
 
 This removes the repeated identity string and makes the filesystem ownership
@@ -90,15 +89,14 @@ Evidence: every app receives health, agent-tool metadata, document routes,
 build validation, self-contained artifact validation, wide/narrow route smoke,
 and lifecycle commands from Monotools. These are platform contracts implemented
 by `monotools/runtime/application.py`, lifecycle orchestration, and the universal
-browser suite. Scaffolded app tests nevertheless begin with an app-owned test of
-self-contained frontend output in
-`monotools/templates/monoapp/tests/test_app.py.template`, and some mature suites
-retain variants of that platform assertion.
+browser suite. Before this migration, the scaffold and several mature app suites
+repeated self-contained frontend assertions already enforced by those central
+paths.
 
-Proposal: make central tests and root `check` the exhaustive owner of invariants
-that apply identically to every discovered monoapp. Remove those assertions from
-the scaffold and app suites only after the central checks demonstrate that each
-discovered definition is included. App suites should retain domain contracts,
+Implementation: central tests and root `check` own invariants that apply
+identically to every discovered monoapp. The scaffold and app suites no longer
+repeat those assertions, and central checks demonstrate that each discovered
+definition is included. App suites retain domain contracts,
 custom build behavior, and product-specific accessibility or visual evidence.
 
 This reuses the existing validation path and prevents platform rules from

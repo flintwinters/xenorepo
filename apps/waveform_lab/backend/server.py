@@ -1,6 +1,6 @@
 """Single FastAPI runtime for Waveform Lab."""
 
-from monotools.runtime.application import create_application
+from monotools.runtime.application import create_local_application
 
 
-app = create_application("waveform_lab")
+app = create_local_application(__file__)

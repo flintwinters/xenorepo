@@ -12,7 +12,7 @@ from apps.mailing_list.backend.providers import SANDBOX_SECRET, SandboxGateway, 
 from monotools.integrations.commerce import PaymentGateway
 from monotools.runtime.appkit import create_app_context
 from monotools.runtime.http import domain_error_handler, enforce_same_origin
-from monotools.runtime.application import create_application
+from monotools.runtime.application import create_local_application
 
 
 DIRECTORY = Path(__file__).parent.parent
@@ -55,7 +55,7 @@ def create_app(database_url: str | None = None, gateway: PaymentGateway | None =
         database_url=database_url)
     payment_gateway = gateway or configured_gateway()
     repository = MailingListRepository(context.require_sessions(), payment_gateway, context.clock.now)
-    application = create_application("mailing_list")
+    application = create_local_application(__file__)
     application.add_exception_handler(DomainError, domain_error_handler(statuses={
         "forbidden": 403, "missing": 404,
     }))

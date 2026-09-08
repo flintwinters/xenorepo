@@ -19,8 +19,6 @@ from monotools.orchestration.watch import frontend_inputs, watch_frontend
 
 
 MONOUI_SOURCE = ROOT / "packages" / "monoui" / "src"
-
-
 class RepositoryAppTests(unittest.TestCase):
     def fixture_definition(self, directory: Path, *, name: str = "sample-lab") -> AppDefinition:
         return AppDefinition(
@@ -111,11 +109,11 @@ class RepositoryAppTests(unittest.TestCase):
             self.assertIn("Ready", document)
             self.assertNotIn('script src=', document)
             self.assertNotIn('rel="stylesheet"', document)
-
     def test_preact_metadata_requires_a_tsx_entry(self) -> None:
         base = """name: fixture
 title: Fixture
 module: apps.fixture.backend.server
+testing: {python: tests, browser: {suite: tests/e2e/readiness.spec.ts, proofs: [acceptance]}}
 frontend:
   artifacts:
     index:
@@ -135,12 +133,12 @@ frontend:
             (directory / "app.yaml").write_text(base.replace("index.tsx", "index.ts"), encoding="utf-8")
             with self.assertRaisesRegex(AppDefinitionError, "preact.*must end in .tsx"):
                 load_app(directory)
-
     def test_monoform_metadata_forbids_source_and_requires_allowlist(self) -> None:
         base = """name: fixture
 title: Fixture
 module: apps.fixture.backend.server
 capabilities: [monoform]
+testing: {python: tests, browser: {suite: tests/e2e/readiness.spec.ts, proofs: [acceptance]}}
 frontend:
   artifacts:
     forms:
@@ -317,6 +315,7 @@ frontend:
         base = """name: fixture
 title: Fixture
 module: apps.fixture.backend.server
+testing: {python: tests, browser: {suite: tests/e2e/readiness.spec.ts, proofs: [acceptance]}}
 frontend:
   artifacts:
     index:
@@ -358,6 +357,7 @@ frontend:
         metadata = """name: fixture
 title: Fixture
 module: apps.fixture.backend.server
+testing: {python: tests, browser: {suite: tests/e2e/readiness.spec.ts, proofs: [acceptance]}}
 frontend:
   artifacts:
     index:

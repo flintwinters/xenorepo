@@ -12,14 +12,17 @@ cockpit presents the same documentation without maintaining a parallel catalog.
 ## App contract
 
 Each app declares its name, title, importable FastAPI module, capabilities,
-cross-boundary production imports, and frontend artifacts in `app.yaml`. The
+cross-boundary production imports, lifecycle test suites, required browser
+evidence, and frontend artifacts in `app.yaml`. The
 import list is the agent-visible inventory of `monotools.*` modules and shared
 `@xenorepo/*` packages used by app-owned production source; validation rejects
 drift between that declaration and source. Artifact source, output, and format are
 independent facts; routes map server-owned URL paths to logical artifact names.
 `python manage.py check` discovers every definition, validates its source
 contract, imports its service, builds its browser documents, and validates the
-resulting `dist/` directory. The service owns `/health`, the API-only OpenAPI
+resulting self-contained `dist/` directory. Each `backend/server.py` binds its
+runtime to this local definition with `create_local_application(__file__)`, so
+app identity is never repeated in production source. The service owns `/health`, the API-only OpenAPI
 registry at `/agent/tools`, its declared document routes, and its domain routes.
 The lifecycle rejects agent operations without unique operation identifiers,
 constrained parameter and request schemas, or typed success responses. Bodyless
@@ -73,10 +76,14 @@ frontend work.
 
 ## Required verification
 
-All recurring checks run through `manage.py`. Every app manager exports a typed
-`ApplicationManager` whose Python suite and optional browser suite live beneath
-that app's `tests/` directory. `python manage.py test` runs the platform suite,
+All recurring checks run through `manage.py`. Every identical leaf adapter calls
+`create_app_manager(__file__)` and exports a typed `ApplicationManager`; its
+Python suite, browser suite, proof kinds, viewports, and trusted input modalities
+come from `app.yaml` and live beneath that app's `tests/` directory.
+`python manage.py test` runs the platform suite,
 every app suite exactly once, and Monotools' trusted-input browser canaries.
+An app with no Python-owned behavior may have an empty Python suite; platform
+and browser suites remain mandatory and empty platform suites still fail.
 `python manage.py verify` composes repository checks, all tests, and the complete
 browser inventory.
 
@@ -84,7 +91,8 @@ browser inventory.
 
 `uv run manage.py monoapp create NAME --title TITLE` renders the canonical
 FastAPI, Preact, metadata, specification, agent-context, ignore, and app-owned
-test skeleton. Replace the generated product placeholders and acceptance
+acceptance skeleton. Universal build and delivery assertions remain in Monotools;
+replace the generated product placeholders and acceptance
 journey; the template is structure, not a product specification.
 
 `uv run manage.py monoapp delete NAME` permanently removes the

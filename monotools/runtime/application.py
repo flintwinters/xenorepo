@@ -9,7 +9,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 
-from monotools.orchestration.apps import get_app
+from monotools.orchestration.apps import AppDefinition, AppDefinitionError, get_app, load_app
 
 AGENT_TOOLS_ROUTE = "/agent/tools"
 
@@ -33,9 +33,7 @@ def _document_endpoint(document: Path):
     return serve_document
 
 
-def create_application(app_name: str) -> FastAPI:
-    """Create an app with platform health and metadata-declared documents."""
-    definition = get_app(app_name)
+def _create_application(definition: AppDefinition) -> FastAPI:
     application = FastAPI(title=definition.title)
 
     @application.get("/health")
@@ -51,3 +49,25 @@ def create_application(app_name: str) -> FastAPI:
         endpoint.__name__ = f"document_{artifact_name}"
         application.add_api_route(route, endpoint, methods=["GET"], response_class=FileResponse)
     return application
+
+
+def create_application(app_name: str) -> FastAPI:
+    """Create an application selected by central metadata identity."""
+    return _create_application(get_app(app_name))
+
+
+def create_local_application(module_file: str | Path) -> FastAPI:
+    """Create the application owned by an exact ``backend/server.py`` module."""
+    source = Path(module_file).resolve()
+    backend = source.parent
+    if source.name != "server.py" or backend.name != "backend":
+        raise AppDefinitionError(
+            f"local application module must be an app-owned backend/server.py: {source}"
+        )
+    definition = load_app(backend.parent)
+    expected = definition.backend_directory / "server.py"
+    if source != expected.resolve():
+        raise AppDefinitionError(
+            f"local application module does not match {definition.module}: {source}"
+        )
+    return _create_application(definition)

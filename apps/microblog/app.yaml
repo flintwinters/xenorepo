@@ -11,6 +11,11 @@ imports:
   - monotools.runtime.application
   - monotools.runtime.http
   - "monoui"
+testing:
+  python: tests
+  browser:
+    suite: tests/e2e/feed.spec.ts
+    proofs: [acceptance, visual]
 frontend:
   artifacts:
     index:

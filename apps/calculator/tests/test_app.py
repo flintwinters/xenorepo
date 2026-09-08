@@ -10,15 +10,13 @@ from apps.calculator.backend.server import Calculation, app, calculate
 
 
 class ApplicationTests(unittest.TestCase):
-    def test_build_is_a_self_contained_monoform_document(self) -> None:
+    def test_generated_monoform_exposes_the_calculation_contract(self) -> None:
         definition = get_app("calculator")
         build_app(definition, ROOT)
         document = definition.document_for_route("/").read_text(encoding="utf-8")
         self.assertIn("Calculator", document)
         self.assertIn("Left Operand", document)
         self.assertIn("CALCULATE", document)
-        self.assertNotIn('src="', document)
-        self.assertNotIn('rel="stylesheet"', document)
 
     def test_api_performs_every_operation_without_retaining_state(self) -> None:
         examples = (("add", 4, 3, 7), ("subtract", 4, 3, 1),

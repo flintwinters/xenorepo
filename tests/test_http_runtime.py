@@ -21,7 +21,11 @@ from monotools.runtime.http import (
     same_origin_allowed,
     set_session_cookie,
 )
-from monotools.runtime.application import AGENT_TOOLS_ROUTE, create_application
+from monotools.runtime.application import (
+    AGENT_TOOLS_ROUTE, create_application, create_local_application,
+)
+from monotools.orchestration.apps import AppDefinitionError
+from monotools.provisioning.scaffolding import scaffold_app
 from monotools.runtime.openapi import OpenAPIContractError, validate_api_openapi_schema
 from tests.support import synthetic_app_definition
 
@@ -83,6 +87,9 @@ class HttpPlatformTests(unittest.TestCase):
 
 
 class RuntimePlatformTests(unittest.TestCase):
+    def local_app(self, temporary: str) -> Path:
+        return scaffold_app(Path(temporary) / "apps", "fixture", "Fixture")
+
     def test_runtime_exposes_health_and_metadata_declared_documents(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="runtime-") as temporary:
             definition = synthetic_app_definition(Path(temporary))
@@ -112,6 +119,31 @@ class RuntimePlatformTests(unittest.TestCase):
         self.assertEqual(set(registry["paths"]), {"/api/widgets/{widget_id}"})
         self.assertEqual(registry["info"]["title"], definition.title)
         self.assertNotIn(AGENT_TOOLS_ROUTE, application.openapi()["paths"])
+
+    def test_local_runtime_binds_the_exact_owning_server_definition(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="local-runtime-") as temporary:
+            directory = self.local_app(temporary)
+            server = directory / "backend/server.py"
+            application = create_local_application(server)
+            alias = directory / "backend/server-alias.py"
+            alias.symlink_to(server.name)
+            self.addCleanup(alias.unlink, missing_ok=True)
+            linked_application = create_local_application(alias)
+
+        self.assertEqual(application.title, "Fixture")
+        self.assertEqual(linked_application.title, "Fixture")
+
+    def test_local_runtime_rejects_unowned_and_mismatched_modules(self) -> None:
+        with self.assertRaisesRegex(AppDefinitionError, "backend/server.py"):
+            create_local_application(ROOT / "tests/not-a-server.py")
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="local-runtime-") as temporary:
+            directory = self.local_app(temporary)
+            metadata = directory / "app.yaml"
+            contents = metadata.read_text(encoding="utf-8")
+            metadata.write_text(contents.replace("apps.fixture.backend.server",
+                "apps.fixture.backend.other"), encoding="utf-8")
+            with self.assertRaisesRegex(AppDefinitionError, "module must be"):
+                create_local_application(directory / "backend/server.py")
 
     def test_openapi_contract_accepts_constrained_inputs_and_outputs(self) -> None:
         schema = {"paths": {"/api/widgets/{widget_id}": {"post": {

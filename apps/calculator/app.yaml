@@ -8,6 +8,11 @@ imports:
   - monotools.runtime.application
   - monotools.runtime.http
   - monotools.runtime.monoform
+testing:
+  python: tests
+  browser:
+    suite: tests/e2e/readiness.spec.ts
+    proofs: [acceptance, visual]
 frontend:
   artifacts:
     index:

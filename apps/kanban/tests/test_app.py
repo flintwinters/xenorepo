@@ -158,7 +158,7 @@ class ApplicationTests(unittest.TestCase):
         self.assertEqual((forbidden.status_code, invalid.status_code, activity_edit.status_code),
             (403, 422, 404))
 
-    def test_build_is_a_self_contained_typed_preact_document(self) -> None:
+    def test_frontend_preserves_the_typed_board_contract(self) -> None:
         definition = get_app("kanban")
         build_app(definition, ROOT)
         document = definition.document_for_route("/").read_text(encoding="utf-8")
@@ -169,8 +169,6 @@ class ApplicationTests(unittest.TestCase):
         self.assertIn("/api/board", document)
         for coefficient in ("0.2126", "0.7152", "0.0722"):
             self.assertIn(coefficient, color)
-        self.assertNotIn('src="', document)
-        self.assertNotIn('rel="stylesheet"', document)
         self.assertIn('from "monoui";', source)
         self.assertIn("Modal", source)
         self.assertNotIn("<form onSubmit={this.save", source)

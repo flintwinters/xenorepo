@@ -5,6 +5,11 @@ imports:
   - monotools.orchestration.management
   - monotools.runtime.application
   - "monoui"
+testing:
+  python: tests
+  browser:
+    suite: tests/e2e/readiness.spec.ts
+    proofs: [acceptance]
 frontend:
   artifacts:
     index:

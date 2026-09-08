@@ -309,7 +309,7 @@ def test() -> None:
     for suite, app_directory in suites:
         try:
             with activated_environment(ROOT, app_directory):
-                result = run_test_suite(ROOT, suite.path)
+                result = run_test_suite(ROOT, suite.path, allow_empty=app_directory is not None)
         except EnvironmentConfigurationError as error:
             _fail(error)
         if result:

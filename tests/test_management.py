@@ -48,6 +48,11 @@ class ManagementTests(unittest.TestCase):
             f"""name: {name}
 title: {name.title()}
 module: apps.{name}.backend.server
+testing:
+  python: tests
+  browser:
+    suite: tests/e2e/readiness.spec.ts
+    proofs: [acceptance]
 frontend:
   artifacts:
     index:
@@ -67,10 +72,16 @@ frontend:
         name = directory.name
         (directory / "frontend").mkdir(parents=True)
         (directory / "backend").mkdir()
+        suite = f"tests/{ui_suite or 'browser.spec.js'}"
         (directory / "app.yaml").write_text(
             f"""name: {name}
 title: Fixture
 module: apps.{name}.backend.server
+testing:
+  python: tests
+  browser:
+    suite: {suite}
+    proofs: [acceptance]
 frontend:
   artifacts:
     index:
@@ -85,10 +96,7 @@ frontend:
         manage_file = directory / "manage.py"
         manage_file.touch()
         (directory / "tests").mkdir()
-        if ui_suite is not None:
-            ui_suite = f"tests/{ui_suite}"
-        manager = create_app_manager(manage_file, tests="tests", ui_suite=ui_suite,
-            include_serve=include_serve)
+        manager = create_app_manager(manage_file, include_serve=include_serve)
         return manager.app, manage_file
 
     def test_plain_cli_has_no_repository_or_fastapi_requirements(self) -> None:
@@ -255,6 +263,8 @@ frontend:
             for _, manager in repository_manager.MANAGERS]
         self.assertEqual([call.args for call in run.call_args_list],
             [(ROOT, suite) for suite in expected])
+        self.assertEqual([call.kwargs for call in run.call_args_list],
+            [{"allow_empty": False}, *({"allow_empty": True} for _ in repository_manager.MANAGERS)])
         self.assertEqual(len(expected), len(set(expected)))
         browser.assert_called_once_with(ROOT)
 
@@ -335,9 +345,13 @@ frontend:
     def test_manager_rejects_absolute_escaping_and_non_test_suite_paths(self) -> None:
         _, manage_file = self._manager()
         for path in (ROOT / "tests", "../tests", "frontend"):
-            with self.subTest(path=path), self.assertRaisesRegex(
-                    AppDefinitionError, "app-owned|beneath tests"):
-                create_app_manager(manage_file, tests=path)
+            metadata = (manage_file.parent / "app.yaml").read_text(encoding="utf-8")
+            changed = metadata.replace("python: tests", f"python: {path}")
+            (manage_file.parent / "app.yaml").write_text(changed, encoding="utf-8")
+            with self.subTest(path=path), self.assertRaisesRegex(AppDefinitionError,
+                    "normalized relative path|beneath tests"):
+                create_app_manager(manage_file)
+            (manage_file.parent / "app.yaml").write_text(metadata, encoding="utf-8")
 
     def test_scaffolder_creates_a_complete_valid_app_without_overwriting(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="scaffold-") as temporary:
@@ -356,7 +370,7 @@ frontend:
             self.assertNotIn("padding:", styles.split(".workspace p", 1)[0])
             self.assertTrue((directory / "tests/e2e/readiness.spec.ts").is_file())
             server = (directory / "backend/server.py").read_text(encoding="utf-8")
-            self.assertIn("create_application", server)
+            self.assertIn("create_local_application", server)
             readme = (directory / "README.md").read_text(encoding="utf-8")
             self.assertEqual(readme.splitlines()[2],
                 "[Xenorepo on GitHub](https://github.com/flintwinters/xenorepo)")
@@ -510,19 +524,18 @@ frontend:
         self.assertIn("git submodule add", "\n".join(commands))
         self.assertTrue(commands[-1].startswith("git commit -m"))
 
-    def test_specified_app_requires_an_owned_product_browser_journey(self) -> None:
-        _, manage_file = self._manager()
-        (manage_file.parent / "SPEC.md").write_text(
-            "# Product\n\nA shippable journey.\n", encoding="utf-8"
-        )
+    def test_manager_uses_only_metadata_declared_suites_and_proofs(self) -> None:
+        _, manage_file = self._manager(ui_suite="product.spec.js")
+        metadata = (manage_file.parent / "app.yaml").read_text(encoding="utf-8")
+        metadata = metadata.replace("proofs: [acceptance]", "proofs: [acceptance, visual]")
+        (manage_file.parent / "app.yaml").write_text(metadata, encoding="utf-8")
 
-        with self.assertRaisesRegex(AppDefinitionError, "no app-owned browser suite"):
-            create_app_manager(manage_file, tests="tests")
+        manager = create_app_manager(manage_file)
 
-        manager = create_app_manager(
-            manage_file, tests="tests", ui_suite="tests/product.spec.js"
-        )
-        self.assertEqual(manager.browser_suite.path, manage_file.parent / "tests/product.spec.js")
+        self.assertEqual(manager.python_suite.path, manage_file.parent / "tests")
+        self.assertEqual(manager.browser_suite.path,
+            manage_file.parent / "tests/product.spec.js")
+        self.assertEqual(manager.browser_suite.proof_kinds, frozenset({"acceptance", "visual"}))
 
     def test_root_and_mounted_managers_are_working_directory_independent(self) -> None:
         original = Path.cwd()

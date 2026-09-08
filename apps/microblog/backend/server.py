@@ -22,7 +22,7 @@ from monotools.runtime.http import (
     resolve_cookie_principal,
     set_session_cookie,
 )
-from monotools.runtime.application import create_application
+from monotools.runtime.application import create_local_application
 
 
 DIRECTORY = Path(__file__).parent
@@ -78,7 +78,7 @@ def create_app(database_url: str | None = None) -> FastAPI:
         database_url=database_url)
     repository = MicroblogRepository(context.require_sessions(), context.clock.now)
     changes = ChangeFeed()
-    application = create_application("microblog")
+    application = create_local_application(__file__)
 
     def current_account(request: Request) -> object | None:
         return resolve_cookie_principal(request, COOKIE, repository.account_for_token)

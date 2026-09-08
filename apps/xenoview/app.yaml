@@ -12,6 +12,12 @@ imports:
   - monotools.runtime.application
   - monotools.runtime.http
   - "monoui"
+testing:
+  python: tests
+  browser:
+    suite: tests/e2e/cockpit.spec.ts
+    proofs: [acceptance, visual]
+    input_modalities: [mouse]
 frontend:
   artifacts:
     index:

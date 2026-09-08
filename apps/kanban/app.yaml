@@ -11,6 +11,11 @@ imports:
   - monotools.runtime.http
   - monotools.runtime.monoform
   - "monoui"
+testing:
+  python: tests
+  browser:
+    suite: tests/e2e/readiness.spec.ts
+    proofs: [acceptance]
 frontend:
   artifacts:
     index:

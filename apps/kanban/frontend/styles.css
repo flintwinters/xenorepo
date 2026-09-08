@@ -27,8 +27,11 @@
 .column .x-ui-command-control { overflow: hidden; text-overflow: ellipsis; }
 .card-list { display: grid; align-content: start; min-height: 100%; gap: 0; padding: 0; background: #202223; }
 .card {
-  margin: 0; padding: 0; color: var(--card-ink, #fbf1c7); border-left: 3px solid #83a598;
-  background: var(--card-color, #32302f); cursor: grab;
+  margin: 0; padding: 0; color: var(--card-ink, #fbf1c7);
+  border: 1px solid color-mix(in srgb, var(--card-color, #32302f) 68%, white);
+  border-bottom: 2px solid color-mix(in srgb, var(--card-color, #32302f) 58%, black);
+  border-left: 3px solid #83a598; border-radius: 2px;
+  background: var(--card-color, #32302f); box-shadow: inset 0 1px rgb(255 255 255 / 8%); cursor: grab;
 }
 .card:hover, .card:focus-visible { background: #3c3836; outline: 1px solid #fabd2f; outline-offset: 1px; }
 .card.priority-low { border-left-color: #928374; }

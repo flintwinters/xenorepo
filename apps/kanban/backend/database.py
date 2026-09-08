@@ -174,9 +174,11 @@ class KanbanStore:
         for card in session.scalars(select(CardRecord)).all():
             body = card.legacy_description.strip()
             identity = str(uuid5(NAMESPACE_URL, f"kanban:description:{card.id}"))
-            if body and session.get(LogRecord, identity) is None:
+            migrated = session.get(LogRecord, identity)
+            if body and migrated is None:
                 session.add(LogRecord(id=identity, card_id=card.id, body=body, created_at=epoch))
-            card.legacy_description = ""
+            elif not body and migrated is not None:
+                card.legacy_description = migrated.body
         for comment in session.scalars(select(LegacyCommentRecord)).all():
             identity = str(uuid5(NAMESPACE_URL, f"kanban:comment:{comment.id}"))
             if session.get(LogRecord, identity) is None:

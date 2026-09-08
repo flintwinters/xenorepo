@@ -116,6 +116,8 @@ class ApplicationTests(unittest.TestCase):
         ])
         with self.sessions() as session:
             self.assertEqual(len(session.query(LegacyCommentRecord).all()), 0)
+            self.assertEqual(session.get(CardRecord, card["id"]).legacy_description,
+                "Original description")
 
     def test_modal_crud_operations_are_declared_for_monoform(self) -> None:
         operations = monoform_manifest(self.client.application.openapi(), app="kanban",

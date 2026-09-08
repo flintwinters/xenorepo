@@ -1,5 +1,5 @@
 import { Component, render } from "preact";
-import { CommandButton, ConsolePane, ConsoleShell, EmptyState, Modal, MonoForm, StatusRail,
+import { CommandButton, ConsoleChrome, ConsolePane, ConsoleShell, EmptyState, Modal, MonoForm, StatusRail,
   UtilityRail, type MonoFormManifest } from "monoui";
 import rawManifest from "../data/monoform.json";
 import {
@@ -291,18 +291,20 @@ class KanbanBoard extends Component<Record<string, never>, State> {
         onClick={() => this.setState({ editingColumn: column.id })}>EDIT</CommandButton></>}>
       <div class="card-list" data-column={column.id} onDragOver={(event) => event.preventDefault()}
         onDrop={(event) => this.drop(event, column.id)}>{cards.map((card) => <article data-card-id={card.id}
-          class={`card priority-${card.priority}`}
+          class="card"
           style={coloredSurfaceStyle("--card-color", "--card-ink", card.color)}
           draggable onDragStart={() => { this.dragged = card.id; }} onDragEnd={() => { this.dragged = null; }}
           onClick={() => this.setState({ selected: card.id })} onKeyDown={(event) => {
             if (event.key === "Enter") this.setState({ selected: card.id });
-          }} tabIndex={0}><strong>{card.title}</strong>{card.description && <p>{card.description}</p>}
-          <div class="card-meta">{card.labels.map((label) => {
+          }} tabIndex={0}><ConsoleChrome class="card-chrome" title={<strong>{card.title}</strong>}
+            titleEnd={<span class="card-badges">{card.labels.map((label) => {
             const color = this.state.view?.board.label_colors[label.toLocaleLowerCase()] ?? "#1d2021";
             return <span style={coloredSurfaceStyle("--label-color", "--label-ink", color)}>
               {label}</span>;
           })}
-            {card.assignee && <span>@{card.assignee}</span>}<span>{card.priority}</span></div></article>)}
+            {card.priority !== "normal" && <span class="card-priority">{card.priority}</span>}</span>} />
+          {card.description && <p>{card.description}</p>}
+          {card.assignee && <div class="card-meta"><span>@{card.assignee}</span></div>}</article>)}
       </div></ConsolePane>;
   }
   private board() {

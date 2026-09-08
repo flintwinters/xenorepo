@@ -106,14 +106,24 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   const card = page.locator(".card").filter({ hasText: `Prove board ${suffix}` });
   await expect(card).toHaveCSS("color", "rgb(251, 241, 199)");
   await expect(card).toContainText("@Felix");
+  await expect(card.locator(".card-chrome strong")).toHaveText(`Prove board ${suffix}`);
+  await expect(card.locator(".card-chrome .card-priority")).toHaveText("urgent");
   expect(await card.evaluate((element) => {
-    const cardStyle = getComputedStyle(element), listStyle = getComputedStyle(element.parentElement!);
+    const cardStyle = getComputedStyle(element), chromeStyle = getComputedStyle(element.querySelector(".card-chrome")!),
+      listStyle = getComputedStyle(element.parentElement!);
     return { cardMargin: cardStyle.margin, cardPadding: cardStyle.padding,
-      borderBottom: cardStyle.borderBottomWidth, radius: cardStyle.borderRadius,
+      borderBottom: cardStyle.borderBottomWidth, borderLeft: cardStyle.borderLeftWidth,
+      chromeBackground: chromeStyle.backgroundImage, radius: cardStyle.borderRadius,
       insetHighlight: cardStyle.boxShadow !== "none", lineHeight: cardStyle.lineHeight,
       listGap: listStyle.gap, listPadding: listStyle.padding };
-  })).toEqual({ cardMargin: "0px", cardPadding: "0px", borderBottom: "2px", radius: "2px",
-    insetHighlight: true, lineHeight: "13.2px", listGap: "0px", listPadding: "0px" });
+  })).toEqual({ cardMargin: "0px", cardPadding: "0px", borderBottom: "2px", borderLeft: "1px",
+    chromeBackground: expect.stringContaining("linear-gradient"), radius: "2px", insetHighlight: true,
+    lineHeight: "13.2px", listGap: "0px", listPadding: "0px" });
+  await card.click();
+  await page.getByLabel("Priority").selectOption("normal");
+  await page.getByRole("button", { name: "SAVE", exact: true }).click();
+  await expect(card.locator(".card-priority")).toHaveCount(0);
+  await expect(card).not.toContainText("normal");
   await page.getByRole("button", { name: "EDIT BOARD" }).click();
   const palette = page.getByRole("dialog", { name: "BOARD SETTINGS" });
   const labelColor = palette.locator("section").filter({ hasText: "acceptance" });
@@ -122,7 +132,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await labelColorInput.fill("#85a");
   await expect(labelColor.locator(".x-ui-color-preview")).toHaveCSS("background-color", "rgb(136, 85, 170)");
   await labelColor.getByRole("button", { name: "SAVE COLOR" }).click();
-  await expect(card.locator(".card-meta span", { hasText: "acceptance" }))
+  await expect(card.locator(".card-badges > span", { hasText: "acceptance" }).filter({ hasText: /^acceptance$/ }))
     .toHaveCSS("color", "rgb(251, 241, 199)");
   const cardId = await card.getAttribute("data-card-id");
   const sourceId = await source.locator(".card-list").getAttribute("data-column");

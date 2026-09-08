@@ -19,8 +19,8 @@ contracts; `monotools.orchestration` must not depend on provisioning policy.
 
 ## MonoUI contract
 
-The typed `ConsoleShell`, `UtilityRail`, `StatusRail`, `ConsolePane`, and
-`CommandButton` components each have nine independent consumers. Typed `Form`,
+The typed `ConsoleShell`, `UtilityRail`, `StatusRail`, `ConsoleChrome`, `ConsolePane`, and
+`CommandButton` console family is proven by nine independent consumers. Typed `Form`,
 `FormField`, `FormInput`, `FormSelect`, `FormTextarea`, `FormConfirmation`, and
 `FormActions` primitives own form structure and presentation for the independent
 MonoForm consumers. `EmptyState`
@@ -32,7 +32,8 @@ radius. Rectangular inputs, selects, and textareas within the shared shell use t
 radius, while textareas never expose native drag resizing. Component props extend
 the corresponding Preact native
 HTML attributes, named props replace slots, and stable `x-ui-*` classes are the
-styling boundary. Console presentation remains application-owned through the documented
+styling boundary. `ConsoleChrome` is the shared title/title-end bar used by panes and directly by
+smaller app-owned surfaces that need the same chrome without pane layout. Console presentation remains application-owned through the documented
 `--console-*` custom properties, including the compact `--console-line-height` typography token
 and rail background and border overrides.
 The package owns only proved console geometry and interaction treatment; app

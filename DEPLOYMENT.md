@@ -1,167 +1,146 @@
-# Portable deployment membrane
+# Deployment-independent runtime boundary
 
-Status: architectural proposal; no deployment commands or adapters exist yet.
+Status: revised architectural proposal; no new runtime contract is implemented.
 
-## Outcome and boundary
+## Guiding decision
 
-Build a monoapp once as an immutable OCI image and deploy that same release to
-ECS on Fargate or a compatible self-hosted target. Compatibility means satisfying
-a versioned workload contract and passing its conformance checks, not merely
-being able to start a container. Portability does not imply equal availability,
-capacity, cost, or automatic migration of live data between providers.
+Neither a monoapp nor Xenorepo/Monotools knows how it is deployed. Deployment
+belongs to an external operator that consumes an ordinary runnable artifact.
+Adding, changing or removing a deployment system requires no changes here.
 
-The membrane belongs in Monotools orchestration, between application intent and
-target execution. Apps declare what they require; adapters implement deployment
-on a target. AWS resource identifiers and host topology never enter app code.
+The membrane is the application's execution boundary: process behavior,
+configuration, service protocols and observable health. It is not a deployment
+API in Monotools. Monotools may build, validate and document that boundary;
+it does not select targets, negotiate their capabilities or manage deployments.
 
 ```text
-AppDefinition + immutable release + deployment intent + target bindings
-                              |
-                  validation and deployment plan
-                              |
-              target adapter: ECS/Fargate or self-hosted
-                              |
-                 observed state and rollout evidence
+Monoapp + Monotools -> runnable artifact and runtime contract
+                                      |
+                             external operator
+                                      |
+                    chosen execution environment
+
+Running app <- ordinary configuration and service connections
 ```
 
-Reuse `AppDefinition`, lifecycle builds and evidence, environment resolution,
-FastAPI construction, and SQLAlchemy configuration. Extend their authoritative
-contracts instead of creating a second app inventory or configuration loader.
-Generic deployment belongs under `monotools/orchestration/`; repository-specific
-target composition belongs under `monotools/provisioning/`, following
-`LIBRARIES.md`. Runtime app imports must not pull in deployment SDKs.
+The external operator may use Fargate, a self-hosted system or a future mechanism.
+These are examples of consumers, not targets enumerated by Xenorepo. The app
+does not register with a deployment service or call back into an operator SDK.
+The runtime must work when its operator is unavailable.
 
-## Four separate contracts
+## What crosses the boundary
 
-| Contract | Owns | Does not own |
+| Surface | Application responsibility | Environment responsibility |
 | --- | --- | --- |
-| Workload requirements | HTTP port, probes, shutdown behavior, configuration schema, logical dependencies, writable scratch, concurrency constraints | Cloud resource names, desired production capacity |
-| Release | Image digest, OS/architecture, app and Monotools revisions, contract version, build evidence, migration entrypoint and schema compatibility | Secrets, environment-specific endpoints |
-| Deployment intent | Release selection, replicas, resource budget, domain, rollout policy | Scheduler implementation |
-| Target bindings and capabilities | Dependency endpoints, secret references, ingress, identity, capacity and supported guarantees | Application domain behavior |
+| Artifact | Reproducible code, built frontend, pinned dependencies and documented entrypoint | Obtain and execute a compatible artifact |
+| Process | Listen on a configurable address/port, handle termination, expose meaningful exit status | Start, supervise, stop and resource the process |
+| Configuration | Define and validate required values | Supply values and secrets at execution time |
+| Dependencies | Use explicit service protocols and supported semantics | Supply reachable services satisfying those semantics |
+| Health | Report liveness and bounded readiness accurately | Decide routing, restart and rollout actions |
+| State | Identify durable state, scratch use, schema and concurrency constraints | Preserve data and arrange compatible storage, backup and placement |
+| Diagnostics | Emit useful, secret-free logs and runtime signals | Collect, retain and present them |
 
-The existing app YAML remains authoritative for application requirements; a
-release captures the validated requirements for that build. Target configuration
-binds logical dependencies to concrete resources. Validate requested guarantees
-against target capabilities before mutation. Reject unsupported combinations or
-show explicit resource rounding in the plan; never silently weaken semantics.
+Reuse existing app metadata, build routines, environment configuration,
+FastAPI construction and SQLAlchemy configuration as the authoritative sources.
+Expose required runtime facts from those sources rather than creating a second
+deployment manifest. Ordinary documentation is sufficient until an independent
+consumer demonstrates a need for machine-readable metadata.
 
-## Small initial runtime profile
+OCI is a useful standard packaging option, not the definition of the membrane.
+A direct process and a container can satisfy the same execution contract.
+Packaging must preserve existing module resolution and include the required
+Monotools version without requiring a live Xenorepo checkout or control plane.
+An external operator may wrap the artifact in its preferred packaging.
 
-- One Linux OCI image containing FastAPI, compiled frontend artifacts, app
-  metadata, and its pinned Monotools dependency. Preserve the package layout
-  required by existing local entrypoints without shipping unrelated apps.
-- One HTTP listener; ingress provides TLS, correct host/scheme forwarding and
-  WebSocket support when required. Trust forwarded headers only from configured
-  proxies; public origin configuration must preserve existing origin checks.
-- Configuration is validated at startup. Bind logical secrets through the
-  existing environment keys initially; do not bake dotenv files into images or
-  include resolved secret values in plans, logs, or deployment evidence.
-- Non-root execution, read-only application files, declared ephemeral scratch,
-  stdout/stderr logs, bounded startup and graceful SIGTERM shutdown.
-- Separate liveness from readiness. Readiness checks required dependencies and
-  compatible schema with bounded probes; dependency failure should withdraw
-  traffic without causing an endless liveness restart loop.
-- Durable facts live outside the container. PostgreSQL is the proposed baseline
-  for portable durable deployment. SQLite remains a local development option;
-  a future persistent-volume profile must state its single-writer, placement,
-  backup and recovery constraints explicitly.
-- Start with one process and one replica unless the app proves otherwise.
-  Process-local realtime registries require an explicit replacement policy;
-  even a one-replica rolling update can temporarily create two active processes.
-  Such apps initially require stop/start replacement with declared downtime.
-  Multi-replica delivery needs a separately proven shared transport contract.
+## Dynamic binding
 
-Database, blob storage, mail and other integrations are dependency contracts,
-not methods on a giant hosting interface. Add bindings only for demonstrated
-requirements. Hosting portability and dependency portability are separate:
-moving compute while retaining an AWS-only dependency does not prove complete
-self-hostability. Do not invent generic storage or queue APIs in advance.
+The app names a dependency by its function and speaks its protocol. The
+environment supplies its address and credentials at execution time. For
+example, an existing database URL can point at a managed database or a database
+on a private server without the app knowing who operates it. Rebinding normally
+takes effect on process restart; hot reconfiguration is a separate requirement.
 
-## Adapter and lifecycle responsibilities
+Do not select implementations using a provider name, deployment-mode flag,
+cloud metadata probe or target capability handshake. Configuration describes
+the resource the app uses, not how that resource was provisioned. The external
+operator decides whether the available resources can satisfy the contract.
 
-Use a small conceptual adapter surface: inspect capabilities and observed state,
-plan, apply an identified operation, observe it, and retrieve diagnostics.
-Rollback selects a previous compatible release through the same plan/apply path.
-Retirement is an explicit planned operation with durable resources retained by
-default. These are proposed responsibilities, not settled Python signatures.
+Protocol compatibility includes behavior: transactions, delivery guarantees,
+locking and durability must actually match. A generic-looking URL cannot make
+different semantics interchangeable. New dependency abstractions still require
+independent consumers under `LIBRARIES.md`; do not invent universal storage,
+queue or hosting interfaces in anticipation of future needs.
 
-Monotools owns release identity, compatibility rules, deployment intent,
-operation records, normalized status, deadlines, and acceptance evidence.
-The target owns process supervision and its native rollout mechanisms; Monotools
-must not build a competing scheduler. Provision shared networks, hosts, databases
-and ingress separately, then bind them into application deployments. Adapters
-may manage clearly owned service resources without owning the entire account.
+Configuration injection may be backed by any secret store; the app receives
+values through its ordinary configuration boundary. HTTP ingress may be
+implemented anywhere; the app sees HTTP/WebSocket traffic and explicitly trusted
+proxy information. Infrastructure identity and topology stay outside.
 
-An operation records target/app identity, desired generation, release digest,
-plan fingerprint, resource ownership and observed provider identifiers in a
-durable operator store. Serialize conflicting operations per app/target. Refuse
-stale plans and reconcile after interruptions; an API timeout means unknown
-outcome until observation resolves it. Retries must not duplicate resources.
-Report partial progress, last-known state, uncertainty and recovery commands.
+## Current runtime gaps
 
-A rollout progresses through validation, dependency checks, a serialized
-migration job when required, candidate startup, readiness, traffic activation,
-and a bounded stabilization period. Unsupported safe overlap requires an
-explicit downtime plan. Deployment success requires evidence from the actual
-ingress path, not merely a successful scheduler request.
+- `runtime/application.py` returns unconditional success from `/health`.
+  Separate process liveness from readiness to serve requests, including required
+  dependencies and schema compatibility. These meanings apply in every runtime.
+- `persistence/database.py` creates schema during session-factory construction.
+  Define repeatable, serialized schema preparation and a compatibility check
+  independently of server startup. An external operator chooses when to invoke
+  preparation; app/Monotools persistence code owns its correctness and evidence.
+- `runtime/realtime.py` keeps socket registrations in process memory. Document
+  that independent processes do not share delivery. An operator must respect
+  that constraint, including replacement overlap. Add distributed delivery only
+  when a product requires it, not because a host can start multiple replicas.
+- Durable data must survive process replacement. Preserve the existing database
+  configuration boundary. SQLite and PostgreSQL have different operating
+  constraints; document and verify supported behavior without choosing a
+  database according to deployment provider.
 
-App-owned migrations run from the release image with database-level exclusion
-and a version ledger. Reuse migration primitives where their semantics fit;
-current startup `create_all` and prepare callbacks are not proof of production
-migration safety. Old and new schema compatibility must permit the selected
-rollout and rollback. Destructive migrations need a separate recovery plan;
-switching an image never promises to undo data changes.
+These are runtime correctness obligations, not reasons for apps to know about
+replica schedulers, migration jobs, persistent-volume classes or load balancers.
 
-## First proof and acceptance
+## Ownership and proof
 
-Implement two adapters alongside the contract: ECS/Fargate and a single Linux
-host with an OCI engine, native supervision and a TLS reverse proxy. Choose the
-host engine after inspecting the intended host. Do not require Kubernetes;
-additional schedulers should only need adapters. Prefer established native
-declarative mechanisms where they satisfy the operation/recovery contract.
+Deployment plans, provider adapters, resource provisioning, image registries,
+replica counts, routing policy, rollout decisions, operation journals, rollback
+and disaster recovery belong to the external operator. Do not add those to
+`monotools/orchestration/` or `monotools/provisioning/`. This proposal does not
+require creating a new operator framework; existing deployment tools may suffice.
 
-Prove the same image on both targets with two independent apps: a durable CRUD
-app and a realtime app. Initially bind existing PostgreSQL resources. Exercise
-fresh deploy, repeated apply, missing configuration, incompatible capabilities,
-dependency outage, failed readiness, interrupted apply, process/host restart,
-schema failure, compatible rollback, and retirement without data deletion.
-Verify durable records, actual public routing, secret redaction, connection
-recovery and any declared downtime. Separately rehearse database backup/restore
-and provider transfer before claiming complete operational portability.
+Xenorepo verifies the artifact's runtime behavior through root `manage.py`, using
+routinized Python checks with Rich/Typer and visible ignored per-app `data/`.
+Cover missing configuration, unavailable dependencies, startup, termination,
+schema compatibility and documented concurrency behavior. Tests consume ordinary
+processes, endpoints and configuration; they do not import deployment adapters.
+Keep domain acceptance in app-owned suites and shared checks generic.
 
-Routinize Python-driven conformance and integration checks through root
-`manage.py` with Rich/Typer, using visible ignored per-app `data/` artifacts.
-Live target checks require configured infrastructure and must report untested
-targets explicitly. Integrate offline contract checks into `verify`; run the
-full verification checkpoint for implementation changes. Existing central
-tests remain generic and app-owned tests supply product acceptance behavior.
-Catalog the shared contract in `LIBRARIES.md` when it is implemented and adopted.
+The external operator separately verifies provisioning, rollout interruption,
+ingress, recovery and preservation of data. It can invoke the same portable
+acceptance checks against a supplied endpoint. Backend-specific suites and
+credentials live with that operator, outside Xenorepo. Runtime verification
+here must not require a cloud account or knowledge of available target types.
 
-## Evidence, assumptions and alternatives
+Prove the boundary using two independent apps, including durable CRUD and
+realtime, operated externally on Fargate and a self-hosted environment. For
+compatible container environments, use the same image digest. Compare actual
+application behavior, including dependency failure and connection recovery.
+This is evidence for the boundary, not a supported-target registry in Monotools.
 
-Repository evidence: `AppDefinition` already owns metadata;
-`runtime/application.py` serves built artifacts but `/health` is unconditional;
-`persistence/database.py` performs schema creation during factory construction;
-`runtime/realtime.py` holds connections in memory. No Fargate adapter was found
-in Monotools. These establish reuse opportunities and readiness/concurrency gaps.
+## Assumptions and reversal test
 
-AWS documents Fargate-specific task constraints and ECS service supervision in
-[task definition differences](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/fargate-tasks-services.html)
-and [ECS services](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/ecs_services.html).
-Those mechanisms belong behind the adapter, not in portable workload metadata.
+Evidence: existing FastAPI, environment and SQLAlchemy boundaries already hide
+much of the execution environment. The runtime gaps above concern semantics
+that an operator must be able to rely on regardless of deployment method.
 
-Inaction leaves deployment conventions unproved. A Fargate-shaped wrapper would
-export AWS assumptions; a universal infrastructure language would add speculative
-surface area. The smallest adequate intervention is the limited runtime profile,
-explicit capabilities and two concrete implementations.
+Weakest assumption: the first apps' dependencies can be supplied with equivalent
+semantics in both environments. Provider-specific integrations may need their
+own independently justified boundaries. Moving execution does not move live
+data or establish recovery guarantees automatically.
 
-Weakest assumption: a single HTTP service with external durable dependencies
-covers the first production workloads. Background work, large local files, or
-distributed realtime requirements may require additional profiles.
+Inaction leaves implicit runtime assumptions. An internal provider-adapter layer
+would make deployment a Monotools responsibility. The smallest intervention is
+to make existing runtime obligations explicit and testable, and let external
+operators consume them.
 
-Reversal test: switch only deployment intent and target bindings, deploy the
-same release digest, and pass the same applicable acceptance checks. If app code
-or build output must change for the provider, the membrane is leaking. A data
-transfer remains a separately planned operation, not a side effect of switching
-the target.
+Reversal test: introduce an entirely new deployment method without modifying
+monoapps, Monotools, Xenorepo configuration, or their verification infrastructure.
+The external operator binds suitable resources and runs the existing artifact.
+If this requires teaching Xenorepo the new method, the boundary has failed.

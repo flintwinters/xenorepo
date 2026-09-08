@@ -62,10 +62,14 @@ the orchestration library.
 - Keep source files under 600 lines and cyclomatic complexity at most 8. Do not
   hide project state or put exposition in UI elements.
 
+- Apps and Xenorepo/Monotools remain deployment-independent. External operators
+  consume runnable artifacts and runtime contracts; deployment methods and
+  provider adapters stay outside this repository.
+
 ## 3. Current tasks
 
-- Prove the proposed portable deployment membrane in `DEPLOYMENT.md` against
-  Fargate and self-hosting before treating its contracts as implemented.
+- Make the runtime boundary proposed in `DEPLOYMENT.md` explicit and testable
+  without introducing deployment knowledge into apps or Monotools.
 - Preserve Preact-only gates and app-owned wide/narrow visual checks; generate
   baselines locally without versioning them.
 - Keep MonoForm a secure CRUD default, never authorization or a replacement for

@@ -62,9 +62,9 @@ the orchestration library.
 - Keep source files under 600 lines and cyclomatic complexity at most 8. Do not
   hide project state or put exposition in UI elements.
 
-- Apps and Xenorepo/Monotools remain deployment-independent. External operators
-  consume runnable artifacts and runtime contracts; deployment methods and
-  provider adapters stay outside this repository.
+- Apps and Monotools remain deployment-independent. Xenoview manages deployments
+  through a generic external operator protocol; deployment methods, provider
+  adapters and infrastructure execution stay outside this repository.
 
 ## 3. Current tasks
 

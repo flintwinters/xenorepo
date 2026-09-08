@@ -14,6 +14,7 @@ The product succeeds when an owner can answer, within a minute: how large is the
 - A bounded, interactively collapsible repository tree showing directories and relevant files with byte and line totals, excluding generated, private, and runtime-heavy directories. Every app and maintained end-to-end test subtree remains measurable but starts collapsed.
 - Visible measurement time, repository revision, dirty state, exclusions, failures, and definitions so the dashboard cannot imply false precision.
 - A local monoapp overview with live health, deterministic URLs, and start/stop controls that reuse Monotools lifecycle rules and stop only Xenoview-owned processes.
+- A deployment overview backed by a configured external operator protocol, with environment and deployment status, immutable release selection, reviewable plans, asynchronous operation progress, rollback when offered, and explicit recovery information. Xenoview contains no provider-specific implementation or vocabulary.
 
 ## Scorecard definitions
 
@@ -38,6 +39,7 @@ FastAPI serves a Preact client and three read-only views backed by one determini
 - `GET /api/tree` returns a bounded hierarchical repository projection.
 - `GET /api/monoapps` reports local runtime state; same-origin `POST` transitions start and stop a named monoapp.
 - `GET /api/repository-history` derives absolute app line trajectories plus commit, app, and language changes from Git without mutation. `GET /api/history` returns optional saved metric baselines; `POST /api/snapshots` records one after same-origin validation.
+- `GET /api/deployments` projects resources and available actions from the configured external controller. Deployment mutations first create a reviewable plan, then apply its exact unexpired identifier and fingerprint. `GET /api/deployment-operations/{id}` reports durable asynchronous progress, diagnostics, and recovery actions. Exact request schemas are decided during the deployment walking-skeleton design.
 
 SQLite stores snapshots in `data/xenoview.db`; `XENOVIEW_DATABASE_URL` may select another SQLAlchemy database. Scans never write to source control or execute repository code. Results use a short process-local cache invalidated by the explicit snapshot operation.
 
@@ -49,4 +51,4 @@ Automated acceptance covers deterministic exclusions and ordering, line/byte agg
 
 ## Deferred scope
 
-Live filesystem watching, remote Git providers, submodule-internal history aggregation, CI ingestion, commit authorship, historical source-tree reconstruction, semantic code quality scoring, runtime telemetry, task management, source editing, arbitrary filesystem browsing, and predictive forecasts are deferred. The cockpit owns product presentation and snapshot persistence; generic measurements should move into Monotools only after another consumer proves a stable shared contract.
+Live filesystem watching, remote Git providers, submodule-internal history aggregation, CI ingestion, commit authorship, historical source-tree reconstruction, semantic code quality scoring, general runtime telemetry, task management, source editing, arbitrary filesystem browsing, and predictive forecasts are deferred. Provider adapters, infrastructure credentials, deployment execution and provider-specific recovery remain outside Xenoview and Xenorepo. The cockpit owns product presentation, operator-protocol integration and snapshot persistence; generic measurements should move into Monotools only after another consumer proves a stable shared contract.

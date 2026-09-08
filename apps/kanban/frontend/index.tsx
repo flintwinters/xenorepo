@@ -32,11 +32,11 @@ const currentState = (view: KanbanView) => {
   const columns = active(view.columns).map(({ id, name, color }) => ({ id, name, color }));
   const columnIds = new Set(columns.map((value) => value.id));
   const cards = active(view.cards).filter((value) => columnIds.has(value.column_id)).map(
-    ({ id, column_id, title, labels }) => ({ id, column_id, title, labels }),
+    ({ id, column_id, title, tags }) => ({ id, column_id, title, tags }),
   );
   const cardIds = new Set(cards.map((value) => value.id));
-  const { name, description, background_color, accent_color, label_colors } = view.board;
-  return { name, description, background_color, accent_color, label_colors, columns, cards,
+  const { name, description, background_color, accent_color, tag_colors } = view.board;
+  return { name, description, background_color, accent_color, tag_colors, columns, cards,
     logs: view.logs.filter((value) => cardIds.has(value.card_id)).map(
       ({ card_id, body, created_at }) => ({ card_id, body, created_at })),
     attachments: active(view.attachments).filter((value) => cardIds.has(value.card_id)).map(
@@ -89,10 +89,10 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     return (this.state.view?.logs ?? []).filter((item) => item.card_id === cardId)
       .sort((left, right) => left.created_at.localeCompare(right.created_at));
   }
-  private knownLabels(): string[] {
+  private knownTags(): string[] {
     const values = new Map<string, string>();
     for (const card of this.state.view?.cards ?? [])
-      for (const label of card.labels) values.set(label.toLocaleLowerCase(), label);
+      for (const tag of card.tags) values.set(tag.toLocaleLowerCase(), tag);
     return [...values.values()].sort((left, right) => left.localeCompare(right));
   }
   private archive = (kind: string, id: string): void => {
@@ -164,18 +164,18 @@ class KanbanBoard extends Component<Record<string, never>, State> {
   private boardEditor() {
     const board = this.state.view?.board;
     if (!board || !this.state.editingBoard) return null;
-    const knownLabels = this.knownLabels();
+    const knownTags = this.knownTags();
     return <Modal class="backdrop" contentClass="dialog" labelledBy="board-editor-title"
       onDismiss={() => this.setState({ editingBoard: false })}><h2 id="board-editor-title">BOARD SETTINGS</h2>
       <MonoForm manifest={monoform} operationId="edit_board_details" initialValues={board}
         onCancel={() => this.setState({ editingBoard: false })}
         onSuccess={() => { this.setState({ editingBoard: false }); void this.refresh("Board details updated"); }} />
-      {knownLabels.length > 0 && <fieldset><legend>Label colors</legend>{knownLabels.map((label) =>
-        <MonoForm manifest={monoform} operationId="set_label_color" title={`Label “${label}”`}
-          pathValues={{ label }} initialValues={{
-            color: board.label_colors[label.toLocaleLowerCase()] ?? board.accent_color,
+      {knownTags.length > 0 && <fieldset><legend>Tag colors</legend>{knownTags.map((tag) =>
+        <MonoForm manifest={monoform} operationId="set_tag_color" title={`Tag “${tag}”`}
+          pathValues={{ tag }} initialValues={{
+            color: board.tag_colors[tag.toLocaleLowerCase()] ?? board.accent_color,
           }} onSuccess={() => { this.setState({ editingBoard: false });
-            void this.refresh(`Label ${label} color updated`); }} />)}</fieldset>}
+            void this.refresh(`Tag ${tag} color updated`); }} />)}</fieldset>}
     </Modal>;
   }
   private columnEditor() {
@@ -253,7 +253,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     if (this.state.editingAttachment) return null;
     const card = this.card(this.state.selected);
     if (!card && !this.state.creatingIn) return null;
-    const value = card ?? { title: "", labels: [] };
+    const value = card ?? { title: "", tags: [] };
     const logs = card ? this.cardLogs(card.id) : [];
     const attachments = active(this.state.view?.attachments ?? []).filter((item) => item.card_id === card?.id);
     return <Modal class="backdrop" contentClass="dialog card-dialog" labelledBy="card-editor-title"
@@ -310,10 +310,10 @@ class KanbanBoard extends Component<Record<string, never>, State> {
           ><ConsoleChrome appearance="subtle" class="card-chrome" draggable
             onDragStart={() => { this.dragged = card.id; }} onDragEnd={() => { this.dragged = null; }}
             title={<strong>{card.title}</strong>}
-            titleEnd={<><span class="card-badges">{card.labels.map((label) => {
-            const color = this.state.view?.board.label_colors[label.toLocaleLowerCase()] ?? "#1d2021";
-            return <span style={coloredSurfaceStyle("--label-color", "--label-ink", color)}>
-              {label}</span>;
+            titleEnd={<><span class="card-badges">{card.tags.map((tag) => {
+            const color = this.state.view?.board.tag_colors[tag.toLocaleLowerCase()] ?? "#1d2021";
+            return <span style={coloredSurfaceStyle("--tag-color", "--tag-ink", color)}>
+              {tag}</span>;
           })}
           </span><CommandButton appearance="link" class="card-edit" aria-label={`Edit ${card.title}`}
             onClick={() => this.setState({ selected: card.id })}>EDIT</CommandButton></>} />

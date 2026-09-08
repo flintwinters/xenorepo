@@ -30,17 +30,17 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   expect(initialCurrent).toEqual(expect.objectContaining({
     name: initialBoard.name, description: initialBoard.description,
     background_color: initialBoard.background_color, accent_color: initialBoard.accent_color,
-    label_colors: initialBoard.label_colors,
+    tag_colors: initialBoard.tag_colors,
   }));
   expect(Object.keys(initialCurrent)).toEqual([
-    "name", "description", "background_color", "accent_color", "label_colors",
+    "name", "description", "background_color", "accent_color", "tag_colors",
     "columns", "cards", "logs", "attachments",
   ]);
   expect(initialCurrent).not.toHaveProperty("board");
   expect(initialCurrent.columns.every((value: object) =>
     Object.keys(value).join() === "id,name,color")).toBe(true);
   expect(initialCurrent.cards.every((value: object) => Object.keys(value).join() ===
-    "id,column_id,title,labels")).toBe(true);
+    "id,column_id,title,tags")).toBe(true);
   expect(initialCurrent.logs.every((value: object) =>
     Object.keys(value).join() === "card_id,body,created_at")).toBe(true);
   expect(initialCurrent.attachments.every((value: object) => Object.keys(value).join() ===
@@ -101,7 +101,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(page.getByLabel("Assignee")).toHaveCount(0);
   await expect(page.getByLabel("Priority")).toHaveCount(0);
   await expect(page.getByLabel("Color", { exact: true })).toHaveCount(0);
-  await page.getByLabel(/Labels/).fill("acceptance, durable");
+  await page.getByLabel(/Tags/).fill("acceptance, durable");
   await page.getByRole("button", { name: "SAVE", exact: true }).click();
   const card = page.locator(".card").filter({ hasText: `Prove board ${suffix}` });
   expect(await card.evaluate((element) => ({
@@ -132,12 +132,12 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await page.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("button", { name: "EDIT BOARD" }).click();
   const palette = page.getByRole("dialog", { name: "BOARD SETTINGS" });
-  const labelColor = palette.locator("section").filter({ hasText: "acceptance" });
-  await expect(labelColor.getByRole("heading", { name: "Label “acceptance”" })).toBeVisible();
-  const labelColorInput = labelColor.getByLabel("Label color", { exact: true });
-  await labelColorInput.fill("#85a");
-  await expect(labelColor.locator(".x-ui-color-preview")).toHaveCSS("background-color", "rgb(136, 85, 170)");
-  await labelColor.getByRole("button", { name: "SAVE COLOR" }).click();
+  const tagColor = palette.locator("section").filter({ hasText: "acceptance" });
+  await expect(tagColor.getByRole("heading", { name: "Tag “acceptance”" })).toBeVisible();
+  const tagColorInput = tagColor.getByLabel("Tag color", { exact: true });
+  await tagColorInput.fill("#85a");
+  await expect(tagColor.locator(".x-ui-color-preview")).toHaveCSS("background-color", "rgb(136, 85, 170)");
+  await tagColor.getByRole("button", { name: "SAVE COLOR" }).click();
   await expect(card.locator(".card-badges > span", { hasText: "acceptance" }).filter({ hasText: /^acceptance$/ }))
     .toHaveCSS("color", "rgb(251, 241, 199)");
   const cardId = await card.getAttribute("data-card-id");
@@ -229,7 +229,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   expect((await page.request.patch("/api/board", { data: {
     name: initialBoard.name, description: initialBoard.description,
     background_color: initialBoard.background_color, accent_color: initialBoard.accent_color,
-    label_colors: initialBoard.label_colors,
+    tag_colors: initialBoard.tag_colors,
   } })).ok()).toBe(true);
 });
 
@@ -244,7 +244,7 @@ test("[visual] populated single-board workflow", async ({ page }) => {
     await page.getByLabel("Title").fill("Outline launch");
     await expect(page.getByLabel("Description")).toHaveCount(0);
     await expect(page.getByLabel("Assignee")).toHaveCount(0);
-    await page.getByLabel(/Labels/).fill("planning, release");
+    await page.getByLabel(/Tags/).fill("planning, release");
     await page.getByRole("button", { name: "SAVE", exact: true }).click();
   }
   await expect(page.locator(".card").filter({ hasText: "Outline launch" })).toBeVisible();

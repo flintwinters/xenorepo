@@ -55,7 +55,7 @@ class ApplicationTests(unittest.TestCase):
 
     def card(self, column_id: str, title: str = "Write tests") -> dict:
         response = self.client.request("POST", "/api/cards", json={"column_id": column_id,
-            "title": title, "labels": ["Quality", "quality", "Backend"]})
+            "title": title, "tags": ["Quality", "quality", "Backend"]})
         self.assertEqual(response.status_code, 201)
         return response.json()
 
@@ -63,12 +63,12 @@ class ApplicationTests(unittest.TestCase):
         board = self.client.request("PATCH", "/api/board",
             json={"name": "Ship it", "description": "One honest board",
                 "background_color": "#112233", "accent_color": "#44aa88",
-                "label_colors": {"Quality": "#335577"}})
+                "tag_colors": {"Quality": "#335577"}})
         first = self.client.request("POST", "/api/columns",
             json={"name": "Queue", "color": "#445566"}).json()
         second = self.column("Doing")
         one, two = self.card(first["id"], "One"), self.card(first["id"], "Two")
-        self.assertEqual(one["labels"], ["Quality", "Backend"])
+        self.assertEqual(one["tags"], ["Quality", "Backend"])
         moved = self.client.request("PUT", f"/api/cards/{two['id']}/position",
             json={"column_id": second["id"], "position": 0})
         reordered = self.client.request("PUT", f"/api/columns/{second['id']}/position",
@@ -77,7 +77,7 @@ class ApplicationTests(unittest.TestCase):
         restarted = Client(create_app(store=KanbanStore(self.sessions), uploads=self.uploads))
         view = restarted.request("GET", "/api/board").json()
         self.assertEqual(view["board"]["name"], "Ship it")
-        self.assertEqual((view["board"]["background_color"], view["board"]["label_colors"]),
+        self.assertEqual((view["board"]["background_color"], view["board"]["tag_colors"]),
             ("#112233", {"quality": "#335577"}))
         self.assertEqual(next(value for value in view["columns"]
             if value["id"] == first["id"])["color"], "#445566")
@@ -124,28 +124,28 @@ class ApplicationTests(unittest.TestCase):
             title="Kanban")["operations"]
         self.assertEqual({operation["operationId"] for operation in operations}, {
             "create_card", "create_column", "edit_attachment", "edit_board_details", "edit_card",
-            "edit_column", "set_label_color",
+            "edit_column", "set_tag_color",
         })
-        label_color = next(operation for operation in operations
-            if operation["operationId"] == "set_label_color")
-        self.assertEqual(label_color["bodySchema"]["properties"]["color"], {
+        tag_color = next(operation for operation in operations
+            if operation["operationId"] == "set_tag_color")
+        self.assertEqual(tag_color["bodySchema"]["properties"]["color"], {
             "format": "color", "pattern": "^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$",
-            "title": "Label color", "type": "string",
+            "title": "Tag color", "type": "string",
         })
         original = self.client.request("PATCH", "/api/board", json={
             "name": "Original", "description": "Before",
             "background_color": "#112233", "accent_color": "#445566",
-            "label_colors": {"Quality": "#778899"},
+            "tag_colors": {"Quality": "#778899"},
         })
         details = self.client.request("PATCH", "/api/board/details", json={
             "name": "Focused", "description": "After",
         })
-        color = self.client.request("PATCH", "/api/board/label-colors/Quality",
+        color = self.client.request("PATCH", "/api/board/tag-colors/Quality",
             json={"color": "#abc"})
         self.assertEqual((original.status_code, details.status_code, color.status_code), (200, 200, 200))
         self.assertEqual(color.json()["name"], "Focused")
         self.assertEqual((color.json()["background_color"], color.json()["accent_color"],
-            color.json()["label_colors"]), ("#112233", "#445566", {"quality": "#abc"}))
+            color.json()["tag_colors"]), ("#112233", "#445566", {"quality": "#abc"}))
 
     def test_logs_links_uploads_edits_and_recoverable_archive(self) -> None:
         column, = [self.column()]
@@ -222,10 +222,10 @@ class ApplicationTests(unittest.TestCase):
         document = {
             "name": "Imported", "description": "Migration",
             "background_color": "#112233", "accent_color": "#445566",
-            "label_colors": {"Legacy": "#778899"},
+            "tag_colors": {"Legacy": "#778899"},
             "columns": [{"id": "legacy-column", "name": "Legacy", "color": "#abcdef"}],
             "cards": [{"id": "legacy-card", "column_id": "legacy-column", "title": "Moved",
-                "labels": ["Legacy"]}],
+                "tags": ["Legacy"]}],
             "logs": [{"card_id": "legacy-card", "body": "Old work",
                 "created_at": "1970-01-01T00:00:00Z"}],
             "attachments": [{"card_id": "legacy-card", "kind": "link", "title": "Source",
@@ -250,7 +250,7 @@ class ApplicationTests(unittest.TestCase):
         self.assertEqual(len(self.client.request("GET", "/api/board").json()["columns"]), 2)
         self.assertEqual(self.client.request("POST", "/api/import/replace", json=document).status_code, 200)
         view = self.client.request("GET", "/api/board").json()
-        self.assertEqual((view["board"]["name"], view["board"]["label_colors"]),
+        self.assertEqual((view["board"]["name"], view["board"]["tag_colors"]),
             ("Imported", {"legacy": "#778899"}))
         self.assertEqual([value["name"] for value in view["columns"]], ["Legacy"])
         self.assertEqual([value["title"] for value in view["cards"]], ["Moved"])

@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, field_validator, model_validator
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, field_validator, model_validator
 
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
@@ -18,7 +18,8 @@ class BoardEdit(BaseModel):
     description: Text = ""
     background_color: Color = "#1d2021"
     accent_color: Color = "#fabd2f"
-    label_colors: dict[Name, Color] = {}
+    tag_colors: dict[Name, Color] = Field(default_factory=dict,
+        validation_alias=AliasChoices("tag_colors", "label_colors"))
 
 
 class BoardDetailsEdit(BaseModel):
@@ -27,8 +28,8 @@ class BoardDetailsEdit(BaseModel):
     description: Text = ""
 
 
-class LabelColorEdit(BaseModel):
-    color: Color = Field(title="Label color")
+class TagColorEdit(BaseModel):
+    color: Color = Field(title="Tag color")
 
 
 class ColumnCreate(BaseModel):
@@ -47,11 +48,11 @@ class PositionInput(BaseModel):
 class CardFields(BaseModel):
     model_config = ConfigDict(extra="forbid")
     title: Name
-    labels: list[Name] = []
+    tags: list[Name] = Field(default_factory=list, validation_alias=AliasChoices("tags", "labels"))
 
-    @field_validator("labels")
+    @field_validator("tags")
     @classmethod
-    def unique_labels(cls, values: list[str]) -> list[str]:
+    def unique_tags(cls, values: list[str]) -> list[str]:
         result: list[str] = []
         seen: set[str] = set()
         for value in values:
@@ -98,7 +99,7 @@ class BoardView(BaseModel):
     updated_at: datetime
     background_color: Color
     accent_color: Color
-    label_colors: dict[str, Color]
+    tag_colors: dict[str, Color]
 
 
 class ColumnView(BaseModel):
@@ -113,7 +114,7 @@ class CardView(BaseModel):
     id: str
     column_id: str
     title: str
-    labels: list[str]
+    tags: list[str]
     position: int
     archived_at: datetime | None
     created_at: datetime

@@ -46,7 +46,8 @@ class BoardSettingsRecord(Base):
     column_colors_json: Mapped[str] = mapped_column(Text, default="{}")
     # Retained only so installations created by older releases remain writable.
     legacy_card_colors_json: Mapped[str] = mapped_column("card_colors_json", Text, default="{}")
-    label_colors_json: Mapped[str] = mapped_column(Text, default="{}")
+    # Retain the physical column name so existing installations preserve tag colors.
+    tag_colors_json: Mapped[str] = mapped_column("label_colors_json", Text, default="{}")
 
 
 class ColumnRecord(Base):
@@ -70,7 +71,8 @@ class CardRecord(Base):
     legacy_description: Mapped[str] = mapped_column("description", Text, default="")
     # Retained only so installations created by older releases remain writable.
     legacy_assignee: Mapped[str] = mapped_column("assignee", String(120), default="")
-    labels_json: Mapped[str] = mapped_column(Text, default="[]")
+    # Retain the physical column name so existing installations preserve card tags.
+    tags_json: Mapped[str] = mapped_column("labels_json", Text, default="[]")
     # Retained only so installations created by older releases remain writable.
     legacy_priority: Mapped[str] = mapped_column("priority", String(10), default="normal")
     position: Mapped[int] = mapped_column(Integer)
@@ -127,7 +129,7 @@ def _board(value: BoardRecord, settings: BoardSettingsRecord) -> BoardView:
     return BoardView(id=value.id, name=value.name, description=value.description,
         created_at=value.created_at, updated_at=value.updated_at,
         background_color=settings.background_color,
-        accent_color=settings.accent_color, label_colors=json.loads(settings.label_colors_json))
+        accent_color=settings.accent_color, tag_colors=json.loads(settings.tag_colors_json))
 
 
 def _column(value: ColumnRecord, colors: dict[str, str]) -> ColumnView:
@@ -137,7 +139,7 @@ def _column(value: ColumnRecord, colors: dict[str, str]) -> ColumnView:
 
 def _card(value: CardRecord) -> CardView:
     return CardView(id=value.id, column_id=value.column_id, title=value.title,
-        labels=json.loads(value.labels_json),
+        tags=json.loads(value.tags_json),
         position=value.position, archived_at=value.archived_at,
         created_at=value.created_at, updated_at=value.updated_at)
 
@@ -231,8 +233,8 @@ class KanbanStore:
             assert settings is not None
             board.name, board.description, board.updated_at = value.name, value.description, self.now()
             settings.background_color, settings.accent_color = value.background_color, value.accent_color
-            settings.label_colors_json = json.dumps({key.casefold(): color
-                for key, color in value.label_colors.items()})
+            settings.tag_colors_json = json.dumps({key.casefold(): color
+                for key, color in value.tag_colors.items()})
             self._activity(session, "edited", "board", board.id, f"Edited board “{board.name}”")
             session.flush()
             return _board(board, settings)
@@ -264,8 +266,8 @@ class KanbanStore:
         session.flush()
         board.name, board.description, board.updated_at = value.name, value.description, self.now()
         settings.background_color, settings.accent_color = value.background_color, value.accent_color
-        settings.label_colors_json = json.dumps({key.casefold(): color
-            for key, color in value.label_colors.items()})
+        settings.tag_colors_json = json.dumps({key.casefold(): color
+            for key, color in value.tag_colors.items()})
 
     @staticmethod
     def _active_column_count(session: Session) -> int:
@@ -295,7 +297,7 @@ class KanbanStore:
             identity = identities[source.id]
             session.add(CardRecord(id=identity, column_id=column_id, title=source.title,
                 legacy_description="", legacy_assignee="",
-                labels_json=json.dumps(source.labels), legacy_priority="normal", position=position,
+                tags_json=json.dumps(source.tags), legacy_priority="normal", position=position,
                 archived_at=None, created_at=instant, updated_at=instant))
         return identities
 
@@ -330,16 +332,16 @@ class KanbanStore:
             session.flush()
             return _board(board, settings)
 
-    def set_label_color(self, label: str, color: str) -> BoardView:
+    def set_tag_color(self, tag: str, color: str) -> BoardView:
         with self.sessions.begin() as session:
             board = session.scalar(select(BoardRecord))
             assert board is not None
             settings = session.get(BoardSettingsRecord, 1)
             assert settings is not None
-            colors = json.loads(settings.label_colors_json)
-            colors[label.casefold()] = color
-            settings.label_colors_json = json.dumps(colors)
-            self._activity(session, "edited", "board", board.id, f"Changed label “{label}” color")
+            colors = json.loads(settings.tag_colors_json)
+            colors[tag.casefold()] = color
+            settings.tag_colors_json = json.dumps(colors)
+            self._activity(session, "edited", "board", board.id, f"Changed tag “{tag}” color")
             session.flush()
             return _board(board, settings)
 
@@ -400,7 +402,7 @@ class KanbanStore:
             instant = self.now()
             record = CardRecord(id=str(uuid4()), column_id=value.column_id, title=value.title,
                 legacy_description="", legacy_assignee="",
-                labels_json=json.dumps(value.labels), legacy_priority="normal", position=position,
+                tags_json=json.dumps(value.tags), legacy_priority="normal", position=position,
                 archived_at=None, created_at=instant, updated_at=instant)
             session.add(record)
             self._activity(session, "created", "card", record.id, f"Created card “{record.title}”")
@@ -411,7 +413,7 @@ class KanbanStore:
         with self.sessions.begin() as session:
             record = self._required(session, CardRecord, identity, "Card")
             record.title = value.title
-            record.labels_json = json.dumps(value.labels)
+            record.tags_json = json.dumps(value.tags)
             record.updated_at = self.now()
             self._activity(session, "edited", "card", identity, f"Edited card “{record.title}”")
             session.flush()

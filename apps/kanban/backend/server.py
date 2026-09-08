@@ -10,7 +10,7 @@ from apps.kanban.backend.database import Base, KanbanError, KanbanStore
 from apps.kanban.backend.schemas import (
     AttachmentEdit, AttachmentView, BoardDetailsEdit, BoardEdit, BoardImport, BoardView, CardCreate, CardEdit,
     CardMove, CardView, ColumnCreate, ColumnEdit, ColumnView, KanbanView,
-    ImportResult, LabelColorEdit, LinkInput, LogInput, LogView,
+    ImportResult, TagColorEdit, LinkInput, LogInput, LogView,
     PositionInput,
 )
 from monotools.runtime.appkit import create_app_context
@@ -63,12 +63,12 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
         require_origin(request)
         return board.edit_board_details(value)
 
-    @application.patch("/api/board/label-colors/{label}", response_model=BoardView,
-        operation_id="set_label_color", openapi_extra=monoform_operation(
-            kind="update", entity="label color", title="Label color", submit_label="SAVE COLOR"))
-    async def set_label_color(label: str, value: LabelColorEdit, request: Request) -> BoardView:
+    @application.patch("/api/board/tag-colors/{tag}", response_model=BoardView,
+        operation_id="set_tag_color", openapi_extra=monoform_operation(
+            kind="update", entity="tag color", title="Tag color", submit_label="SAVE COLOR"))
+    async def set_tag_color(tag: str, value: TagColorEdit, request: Request) -> BoardView:
         require_origin(request)
-        return board.set_label_color(label, value.color)
+        return board.set_tag_color(tag, value.color)
 
     @application.post("/api/columns", response_model=ColumnView,
         status_code=status.HTTP_201_CREATED, operation_id="create_column",

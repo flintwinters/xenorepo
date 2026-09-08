@@ -55,7 +55,7 @@
 .card-chrome > .x-ui-title-end { min-width: 0; flex: 1 1 auto; margin-left: 0; }
 .card-badges { display: flex; min-width: 0; flex: 0 1 auto; flex-wrap: wrap; gap: 2px; }
 .card-badges > span {
-  padding: 1px 4px; color: var(--label-ink, #fbf1c7); background: var(--label-color, #1d2021);
+  padding: 1px 4px; color: var(--tag-ink, #fbf1c7); background: var(--tag-color, #1d2021);
 }
 .card-edit { margin-left: auto; }
 .card-log { display: grid; gap: 2px; padding: 3px 4px; border-top: 1px solid rgb(0 0 0 / 22%); }

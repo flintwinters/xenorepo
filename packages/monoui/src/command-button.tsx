@@ -3,7 +3,7 @@ import type { JSX } from "preact";
 
 export interface CommandButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
   pressed?: boolean;
-  appearance?: "default" | "subtle";
+  appearance?: "default" | "subtle" | "link";
 }
 
 const classes = (...values: Array<string | undefined>): string => values.filter(Boolean).join(" ");
@@ -12,6 +12,7 @@ export function CommandButton({ pressed, appearance = "default", class: classNam
   children, ...props }: CommandButtonProps) {
   return <span class={classes("x-ui-command", `x-ui-command-${appearance}`,
     className as string | undefined)}>
+    {appearance === "link" && <span class="x-ui-command-link-size" aria-hidden="true">{children}</span>}
     <button class="x-ui-command-control" {...(pressed === undefined ? {} : { "aria-pressed": pressed })}
       {...props}>{children}</button>
   </span>;

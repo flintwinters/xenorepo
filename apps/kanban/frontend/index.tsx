@@ -290,7 +290,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
             return <span style={coloredSurfaceStyle("--label-color", "--label-ink", color)}>
               {label}</span>;
           })}
-          </span><CommandButton appearance="subtle" class="card-edit" aria-label={`Edit ${card.title}`}
+          </span><CommandButton appearance="link" class="card-edit" aria-label={`Edit ${card.title}`}
             onClick={() => this.setState({ selected: card.id })}>EDIT</CommandButton></>} />
           {latestLog && <div class="card-log"><time dateTime={latestLog.created_at}>
             {new Date(latestLog.created_at).toLocaleString()}</time><span>{latestLog.body}</span></div>}

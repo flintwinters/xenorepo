@@ -52,18 +52,12 @@
 }
 .card-chrome:active { cursor: grabbing; }
 .card-chrome > span:first-child { min-width: 0; flex: 0 1 auto; }
-.card-chrome > .x-ui-title-end { min-width: 0; flex: 0 1 auto; margin-left: 0; }
+.card-chrome > .x-ui-title-end { min-width: 0; flex: 1 1 auto; margin-left: 0; }
 .card-badges { display: flex; min-width: 0; flex: 0 1 auto; flex-wrap: wrap; gap: 2px; }
 .card-badges > span {
   padding: 1px 4px; color: var(--label-ink, #fbf1c7); background: var(--label-color, #1d2021);
 }
-.card-edit .x-ui-command-control {
-  min-width: 28px; min-height: 28px; padding: 0 2px; color: inherit; text-decoration: underline;
-  background: transparent; border: 0; box-shadow: none;
-}
-.card-edit .x-ui-command-control:hover, .card-edit .x-ui-command-control:focus-visible {
-  color: #fabd2f; background: transparent; outline: 0;
-}
+.card-edit { margin-left: auto; }
 .card-log { display: grid; gap: 2px; padding: 3px 4px; border-top: 1px solid rgb(0 0 0 / 22%); }
 .card-log time { color: #a89984; font-size: 9px; }
 .card-log span { overflow-wrap: anywhere; white-space: pre-line; }

@@ -13,16 +13,6 @@ configuration, service protocols and observable health. It is not a deployment
 API in Monotools. Monotools may build, validate and document that boundary;
 it does not select targets, negotiate their capabilities or manage deployments.
 
-```text
-Monoapp + Monotools -> runnable artifact and runtime contract
-                                      |
-                             external operator
-                                      |
-                    chosen execution environment
-
-Running app <- ordinary configuration and service connections
-```
-
 The external operator may use Fargate, a self-hosted system or a future mechanism.
 These are examples of consumers, not targets enumerated by Xenorepo. The app
 does not register with a deployment service or call back into an operator SDK.
@@ -34,12 +24,34 @@ adapters or execute provider tools. Xenoview therefore knows that deployments,
 releases and operations exist, while remaining ignorant of how any deployment
 is implemented.
 
-```text
-Xenoview ---- operator protocol ---- external deployment controller
-                                             |
-                                provider-specific implementation
-                                             |
-                                  running monoapp artifact
+```mermaid
+flowchart LR
+    subgraph Repository["Xenorepo"]
+        Source["Monoapp source"]
+        Build["Monotools build and validation"]
+        View["Xenoview"]
+        Source --> Build
+    end
+
+    Artifact["Runnable artifact<br/>+ runtime contract"]
+
+    subgraph Operator["External deployment system"]
+        Controller["Operator protocol controller"]
+        Backend["Provider implementation"]
+        Controller --> Backend
+    end
+
+    subgraph Runtime["Selected execution environment"]
+        Process["Running monoapp process"]
+        Services["Configured services<br/>and durable state"]
+        Services -->|"ordinary protocols"| Process
+    end
+
+    Build -->|"publishes"| Artifact
+    View <-->|"plans, operations, status"| Controller
+    Artifact -.->|"selected release"| Controller
+    Backend -->|"starts and supervises"| Process
+    Artifact -.->|"executed as"| Process
 ```
 
 This distinction is deliberate: deployment is Xenoview product behavior, not a

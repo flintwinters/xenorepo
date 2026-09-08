@@ -104,8 +104,11 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await page.getByLabel(/Labels/).fill("acceptance, durable");
   await page.getByRole("button", { name: "SAVE", exact: true }).click();
   const card = page.locator(".card").filter({ hasText: `Prove board ${suffix}` });
-  await expect(card).toHaveCSS("background-color", "rgb(255, 255, 255)");
-  await expect(card).toHaveCSS("color", "rgb(29, 32, 33)");
+  expect(await card.evaluate((element) => ({
+    card: getComputedStyle(element).backgroundColor,
+    column: getComputedStyle(element).getPropertyValue("--column-color").trim(),
+  }))).toEqual({ card: expect.stringContaining("color(srgb"), column: "#fff" });
+  await expect(card).toHaveCSS("color", "rgb(235, 219, 178)");
   await expect(card.locator(".card-chrome strong")).toHaveText(`Prove board ${suffix}`);
   expect(await card.evaluate((element) => {
     const cardStyle = getComputedStyle(element), chromeStyle = getComputedStyle(element.querySelector(".card-chrome")!),

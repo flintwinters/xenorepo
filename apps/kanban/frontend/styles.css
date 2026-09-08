@@ -27,14 +27,15 @@
 .column .x-ui-command-control { overflow: hidden; text-overflow: ellipsis; }
 .card-list { display: grid; align-content: start; min-height: 100%; gap: 0; padding: 0; background: #202223; }
 .card {
-  margin: 0; padding: 0; color: var(--tone-ink, #fbf1c7); line-height: 1.1;
-  border: 1px solid color-mix(in srgb, var(--column-color, #665c54) 68%, white);
-  border-bottom: 2px solid color-mix(in srgb, var(--column-color, #665c54) 58%, black);
+  margin: 0; padding: 0; color: #ebdbb2; line-height: 1.1;
+  border: 1px solid color-mix(in srgb, var(--column-color, #665c54) 36%, #928374);
+  border-bottom: 2px solid color-mix(in srgb, var(--column-color, #665c54) 32%, black);
   border-radius: 2px;
-  background: var(--column-color, #665c54); box-shadow: inset 0 1px rgb(255 255 255 / 8%); cursor: grab;
+  background: color-mix(in srgb, var(--column-color, #665c54) 24%, #1d2021);
+  box-shadow: inset 0 1px rgb(255 255 255 / 5%); cursor: grab;
 }
 .card:hover, .card:focus-visible {
-  background: color-mix(in srgb, var(--column-color, #665c54) 86%, white);
+  background: color-mix(in srgb, var(--column-color, #665c54) 34%, #1d2021);
   outline: 1px solid #fabd2f; outline-offset: -1px;
 }
 .card strong, .card p { display: block; margin: 0; overflow-wrap: anywhere; }
@@ -51,7 +52,7 @@
   padding: 1px 4px; color: var(--label-ink, #fbf1c7); background: var(--label-color, #1d2021);
 }
 .card-log { display: grid; gap: 2px; padding: 3px 4px; border-top: 1px solid rgb(0 0 0 / 22%); }
-.card-log time { color: inherit; font-size: 9px; opacity: .7; }
+.card-log time { color: #a89984; font-size: 9px; }
 .card-log span { overflow-wrap: anywhere; white-space: pre-line; }
 .backdrop {
   position: fixed; z-index: 10; inset: 0; display: grid; place-items: center;

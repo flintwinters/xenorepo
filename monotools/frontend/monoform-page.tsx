@@ -12,11 +12,16 @@ function GeneratedForms() {
     setOutcome(`${result.operationId} completed (${result.status}).${data}`);
   };
   const header = <UtilityRail><strong>{MONOFORM_MANIFEST.application.title}</strong></UtilityRail>;
-  return <ConsoleShell header={header}>
-    <div><div class="x-ui-monoform-result" role="status">{outcome}</div>
+  return <ConsoleShell class="x-ui-monoform-page" header={header}>
+    <div class="x-ui-monoform-workspace">
       {MONOFORM_MANIFEST.operations.map((operation) =>
-        <ConsolePane title={operation.title} contentHeight>
-          <MonoForm manifest={MONOFORM_MANIFEST} operationId={operation.operationId} onSuccess={report} />
+        <ConsolePane key={operation.operationId} title={operation.title} contentHeight>
+          <div class="x-ui-monoform-result-surface">
+            <strong>Result</strong>
+            <div class="x-ui-monoform-result" role="status">{outcome}</div>
+          </div>
+          <MonoForm manifest={MONOFORM_MANIFEST} operationId={operation.operationId}
+            showTitle={false} onSuccess={report} />
         </ConsolePane>)}
     </div>
   </ConsoleShell>;

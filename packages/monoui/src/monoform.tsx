@@ -62,6 +62,7 @@ export interface MonoFormProps {
   manifest: MonoFormManifest;
   operationId: string;
   title?: string;
+  showTitle?: boolean;
   pathValues?: Record<string, string | number>;
   initialValues?: Record<string, unknown>;
   onSuccess?: (result: MonoFormResult) => void;
@@ -218,7 +219,7 @@ function submissionErrors(operation: MonoFormOperation, pathValues: Record<strin
   return errors;
 }
 
-export function MonoForm({ manifest, operationId, title, pathValues = {}, initialValues = {},
+export function MonoForm({ manifest, operationId, title, showTitle = true, pathValues = {}, initialValues = {},
   onSuccess, onCancel }: MonoFormProps) {
   const operation = manifest.schemaVersion === 1
     ? manifest.operations.find((candidate) => candidate.operationId === operationId) : undefined;
@@ -245,7 +246,7 @@ export function MonoForm({ manifest, operationId, title, pathValues = {}, initia
     if (outcome.result) onSuccess?.(outcome.result);
   };
   return <section class="x-ui-monoform-section">
-    <h3>{title || operation.title}</h3>
+    {showTitle && <h3>{title || operation.title}</h3>}
     <Form class="x-ui-monoform" onSubmit={submit} noValidate>
       {properties.map(([name, schema]) => <Field name={name} schema={schema} value={values[name]}
         {...(errors[name] ? { error: errors[name] } : {})} disabled={pending}

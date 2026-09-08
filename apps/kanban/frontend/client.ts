@@ -9,11 +9,13 @@ export type Comment = components["schemas"]["CommentView"];
 export type Attachment = components["schemas"]["AttachmentView"];
 export type CardFields = components["schemas"]["CardEdit"];
 export type BoardFields = components["schemas"]["BoardEdit"];
+export type BoardImport = components["schemas"]["BoardImport"];
 
 function result<T>(data: T | undefined, error: unknown): T {
   if (error) {
-    const body = error as { error?: string; detail?: unknown };
-    throw new Error(body.error ?? (typeof body.detail === "string" ? body.detail : "Request failed"));
+    const body = error as { error?: string; detail?: string | Array<{ msg?: string }> };
+    const validation = Array.isArray(body.detail) ? body.detail.find((value) => value.msg)?.msg : undefined;
+    throw new Error(body.error ?? (typeof body.detail === "string" ? body.detail : validation ?? "Request failed"));
   }
   if (data === undefined) throw new Error("Request returned no data");
   return data;
@@ -22,6 +24,12 @@ function result<T>(data: T | undefined, error: unknown): T {
 export async function loadBoard(): Promise<KanbanView> {
   const { data, error } = await api.GET("/api/board");
   return result(data, error);
+}
+export async function importBoard(mode: "append" | "replace", document: BoardImport): Promise<void> {
+  const { error } = await api.POST("/api/import/{mode}", {
+    params: { path: { mode } }, body: document,
+  });
+  if (error) result(undefined, error);
 }
 export async function editBoard(fields: BoardFields): Promise<void> {
   const { error } = await api.PATCH("/api/board", { body: fields });

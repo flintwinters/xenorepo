@@ -8,9 +8,9 @@ from fastapi.responses import Response
 
 from apps.kanban.backend.database import Base, KanbanError, KanbanStore
 from apps.kanban.backend.schemas import (
-    AttachmentEdit, AttachmentView, BoardDetailsEdit, BoardEdit, BoardView, CardCreate, CardEdit,
+    AttachmentEdit, AttachmentView, BoardDetailsEdit, BoardEdit, BoardImport, BoardView, CardCreate, CardEdit,
     CardMove, CardView, ColumnCreate, ColumnEdit, ColumnView, CommentInput, CommentView, KanbanView,
-    LabelColorEdit, LinkInput,
+    ImportResult, LabelColorEdit, LinkInput,
     PositionInput,
 )
 from monotools.runtime.appkit import create_app_context
@@ -48,6 +48,13 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
     async def edit_board(value: BoardEdit, request: Request) -> BoardView:
         require_origin(request)
         return board.edit_board(value)
+
+    @application.post("/api/import/{mode}", response_model=ImportResult)
+    async def import_board(mode: str, value: BoardImport, request: Request) -> ImportResult:
+        require_origin(request)
+        if mode not in {"append", "replace"}:
+            raise KanbanError("Import mode must be append or replace")
+        return board.import_board(value, replace=mode == "replace")
 
     @application.patch("/api/board/details", response_model=BoardView,
         operation_id="edit_board_details", openapi_extra=monoform_operation(

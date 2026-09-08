@@ -3,7 +3,7 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, field_validator, model_validator
 
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
@@ -167,3 +167,77 @@ class KanbanView(BaseModel):
     comments: list[CommentView]
     attachments: list[AttachmentView]
     activity: list[ActivityView]
+
+
+class ImportColumn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    id: Name
+    name: Name
+    color: Color
+
+
+class ImportCard(CardFields):
+    model_config = ConfigDict(extra="forbid")
+    id: Name
+    column_id: Name
+
+
+class ImportComment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    card_id: Name
+    body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
+
+
+class ImportAttachment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    card_id: Name
+    kind: Literal["link", "upload"]
+    title: Name
+    url: HttpUrl | None
+    original_name: str | None
+    media_type: str | None
+
+    @model_validator(mode="after")
+    def importable_link(self) -> "ImportAttachment":
+        if self.kind == "upload":
+            raise ValueError("upload attachments cannot be imported without file content")
+        if self.url is None:
+            raise ValueError("link attachments require a URL")
+        return self
+
+
+def _require_unique(values: list[str], label: str) -> None:
+    if len(values) != len(set(values)):
+        raise ValueError(f"{label} IDs must be unique")
+
+
+def _require_known(values: set[str], known: set[str], label: str) -> None:
+    if missing := values - known:
+        raise ValueError(f"{label} reference unknown parents: {', '.join(sorted(missing))}")
+
+
+class BoardImport(BoardEdit):
+    model_config = ConfigDict(extra="forbid")
+    columns: list[ImportColumn]
+    cards: list[ImportCard]
+    comments: list[ImportComment]
+    attachments: list[ImportAttachment]
+
+    @model_validator(mode="after")
+    def valid_relationships(self) -> "BoardImport":
+        column_ids = [value.id for value in self.columns]
+        card_ids = [value.id for value in self.cards]
+        _require_unique(column_ids, "column")
+        _require_unique(card_ids, "card")
+        _require_known({value.column_id for value in self.cards}, set(column_ids), "cards")
+        _require_known({value.card_id for value in [*self.comments, *self.attachments]},
+            set(card_ids), "children")
+        return self
+
+
+class ImportResult(BaseModel):
+    mode: Literal["append", "replace"]
+    columns: int
+    cards: int
+    comments: int
+    attachments: int

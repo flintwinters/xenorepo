@@ -3,7 +3,8 @@ import { CommandButton, ConsolePane, ConsoleShell, EmptyState, Modal, MonoForm, 
   UtilityRail, type MonoFormManifest } from "monoui";
 import rawManifest from "../data/monoform.json";
 import {
-  addComment, addLink, addUpload, loadBoard, moveCard, moveColumn, setArchived,
+  addComment, addLink, addUpload, importBoard, loadBoard, moveCard, moveColumn, setArchived,
+  type BoardImport,
   type Attachment, type Card, type Column, type Comment, type KanbanView,
 } from "./client.js";
 import { coloredSurfaceStyle } from "./color.js";
@@ -16,6 +17,7 @@ interface State {
   selected: string | null;
   creatingIn: string | null;
   creatingColumn: boolean;
+  importing: boolean;
   editingBoard: boolean;
   editingColumn: string | null;
   editingComment: string | null;
@@ -48,7 +50,7 @@ const monoform = rawManifest as MonoFormManifest;
 
 class KanbanBoard extends Component<Record<string, never>, State> {
   override state: State = { view: null, mode: "board", selected: null, creatingIn: null,
-    creatingColumn: false, editingBoard: false, editingColumn: null, editingComment: null,
+    creatingColumn: false, importing: false, editingBoard: false, editingColumn: null, editingComment: null,
     editingAttachment: null, message: "Loading board…", failed: false, busy: false };
   private dragged: string | null = null;
   private draggedColumn: string | null = null;
@@ -174,6 +176,37 @@ class KanbanBoard extends Component<Record<string, never>, State> {
         onSuccess={() => { this.setState({ creatingColumn: false }); void this.refresh("Column created"); }} />
     </Modal>;
   }
+  private importDialog() {
+    if (!this.state.importing) return null;
+    const busy = this.state.busy;
+    return <Modal class="backdrop" contentClass="dialog" labelledBy="import-title"
+      onDismiss={() => { if (!busy) this.setState({ importing: false }); }}><h2 id="import-title">IMPORT JSON</h2>
+      <form onSubmit={(event) => this.importJson(event)}><label>Import mode<select name="mode" disabled={busy}>
+        <option value="append">Append to this board</option>
+        <option value="replace">Replace all board content</option>
+      </select></label><label>JSON file<input name="file" type="file" accept="application/json,.json"
+        required disabled={busy} /></label><p>Replace removes current and archived work.
+        Import is atomic and cannot be undone.</p>
+      <div class="actions"><CommandButton type="submit" disabled={busy}>IMPORT</CommandButton>
+        <CommandButton type="button" appearance="subtle" disabled={busy}
+          onClick={() => this.setState({ importing: false })}>CANCEL</CommandButton></div></form></Modal>;
+  }
+  private importJson = async (event: SubmitEvent): Promise<void> => {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget as HTMLFormElement);
+    const file = data.get("file"), mode = data.get("mode") === "replace" ? "replace" : "append";
+    if (!(file instanceof File)) return;
+    this.setState({ busy: true });
+    try {
+      const document = JSON.parse(await file.text()) as BoardImport;
+      await importBoard(mode, document);
+      this.setState({ importing: false });
+      await this.refresh(`${mode === "replace" ? "Replaced" : "Appended"} board JSON`);
+    } catch (error) {
+      this.setState({ message: error instanceof Error ? error.message : "Invalid import JSON",
+        failed: true, busy: false });
+    }
+  };
   private commentEditor() {
     const comment: Comment | undefined = this.state.view?.comments.find(
       (value) => value.id === this.state.editingComment,
@@ -299,6 +332,8 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const view = this.state.view, board = view?.board;
     const header = <UtilityRail><strong class="brand">{board?.name ?? "KANBAN"}</strong>
       <CommandButton disabled={!view} onClick={() => void this.copyBoard()}>COPY JSON</CommandButton>
+      <CommandButton disabled={!view || this.state.busy}
+        onClick={() => this.setState({ importing: true })}>IMPORT JSON</CommandButton>
       {board?.description && <span class="board-description">{board.description}</span>}<span class="push" />
       <CommandButton pressed={this.state.mode === "board"}
         onClick={() => this.setState({ mode: "board" })}>BOARD</CommandButton>
@@ -315,7 +350,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       {!view ? <EmptyState heading="LOADING BOARD" /> : this.state.mode === "board" ? this.board() :
         this.state.mode === "archive" ? this.archiveView() : this.activityView()}</div>
       {this.boardEditor()}{this.columnCreator()}{this.columnEditor()}{this.commentEditor()}
-      {this.attachmentEditor()}{this.cardEditor()}</ConsoleShell>;
+      {this.attachmentEditor()}{this.cardEditor()}{this.importDialog()}</ConsoleShell>;
   }
 }
 

@@ -179,6 +179,52 @@ class ApplicationTests(unittest.TestCase):
         self.assertNotIn('type="color"', source)
         self.assertNotIn("<button", source)
 
+    def test_append_and_replace_import_are_atomic_and_remap_relationships(self) -> None:
+        existing = self.column("Existing")
+        self.card(existing["id"], "Keep me")
+        document = {
+            "name": "Imported", "description": "Migration", "default_priority": "urgent",
+            "background_color": "#112233", "accent_color": "#445566",
+            "label_colors": {"Legacy": "#778899"},
+            "columns": [{"id": "legacy-column", "name": "Legacy", "color": "#abcdef"}],
+            "cards": [{"id": "legacy-card", "column_id": "legacy-column", "title": "Moved",
+                "description": "Old work", "assignee": "Felix", "labels": ["Legacy"],
+                "priority": "high", "color": "#123456"}],
+            "comments": [{"card_id": "legacy-card", "body": "Old note"}],
+            "attachments": [{"card_id": "legacy-card", "kind": "link", "title": "Source",
+                "url": "https://example.com/legacy", "original_name": None, "media_type": None}],
+        }
+        appended = self.client.request("POST", "/api/import/append", json=document)
+        self.assertEqual(appended.json(), {"mode": "append", "columns": 1, "cards": 1,
+            "comments": 1, "attachments": 1})
+        view = self.client.request("GET", "/api/board").json()
+        self.assertEqual(view["board"]["name"], "My board")
+        self.assertEqual([value["name"] for value in view["columns"]], ["Existing", "Legacy"])
+        imported_column = next(value for value in view["columns"] if value["name"] == "Legacy")
+        imported_card = next(value for value in view["cards"] if value["title"] == "Moved")
+        self.assertNotEqual((imported_column["id"], imported_card["id"]),
+            ("legacy-column", "legacy-card"))
+        self.assertEqual(imported_card["column_id"], imported_column["id"])
+        self.assertEqual(view["comments"][0]["card_id"], imported_card["id"])
+        self.assertEqual(view["attachments"][0]["card_id"], imported_card["id"])
+
+        invalid = {**document, "cards": [{**document["cards"][0], "column_id": "missing"}]}
+        self.assertEqual(self.client.request("POST", "/api/import/replace", json=invalid).status_code, 422)
+        self.assertEqual(len(self.client.request("GET", "/api/board").json()["columns"]), 2)
+        self.assertEqual(self.client.request("POST", "/api/import/replace", json=document).status_code, 200)
+        view = self.client.request("GET", "/api/board").json()
+        self.assertEqual((view["board"]["name"], view["board"]["default_priority"],
+            view["board"]["label_colors"]), ("Imported", "urgent", {"legacy": "#778899"}))
+        self.assertEqual([value["name"] for value in view["columns"]], ["Legacy"])
+        self.assertEqual([value["title"] for value in view["cards"]], ["Moved"])
+        self.assertEqual(len(view["activity"]), 1)
+        upload = {**document, "attachments": [{**document["attachments"][0],
+            "kind": "upload", "url": None, "original_name": "lost.txt", "media_type": "text/plain"}]}
+        self.assertEqual(self.client.request("POST", "/api/import/append", json=upload).status_code, 422)
+        foreign = self.client.request("POST", "/api/import/append", json=document,
+            headers={"Origin": "https://foreign.test"})
+        self.assertEqual(foreign.status_code, 403)
+
 
 if __name__ == "__main__":
     unittest.main()

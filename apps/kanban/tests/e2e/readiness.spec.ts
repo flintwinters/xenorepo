@@ -187,6 +187,24 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   expect(current.cards.map((value: { id: string }) => value.id)).not.toContain(cardId);
   expect(current.comments.some((value: { card_id: string }) => value.card_id === cardId)).toBe(false);
   expect(current.attachments.some((value: { card_id: string }) => value.card_id === cardId)).toBe(false);
+  await page.getByRole("button", { name: "IMPORT JSON" }).click();
+  const importDialog = page.getByRole("dialog", { name: "IMPORT JSON" });
+  await importDialog.getByLabel("Import mode").selectOption("replace");
+  await importDialog.getByLabel("JSON file").setInputFiles({
+    name: "board.json", mimeType: "application/json", buffer: Buffer.from(JSON.stringify(initialCurrent)),
+  });
+  await importDialog.getByRole("button", { name: "IMPORT", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Replaced board JSON");
+  await page.getByRole("button", { name: "IMPORT JSON" }).click();
+  const appendDialog = page.getByRole("dialog", { name: "IMPORT JSON" });
+  await expect(appendDialog.getByLabel("Import mode")).toHaveValue("append");
+  await appendDialog.getByLabel("JSON file").setInputFiles({ name: "empty.json",
+    mimeType: "application/json", buffer: Buffer.from(JSON.stringify({
+      ...initialCurrent, name: "Ignored append settings", columns: [], cards: [], comments: [], attachments: [],
+    })) });
+  await appendDialog.getByRole("button", { name: "IMPORT", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Appended board JSON");
+  await expect(page.getByRole("banner")).toContainText(initialBoard.name);
   expect((await page.request.patch("/api/board", { data: {
     name: initialBoard.name, description: initialBoard.description,
     default_priority: initialBoard.default_priority, background_color: initialBoard.background_color,

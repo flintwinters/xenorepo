@@ -21,3 +21,4 @@ status, box-within-box composition, and other decorative AI conventions.
   `SPEC.md`.
 - Preserve the deterministic populated wide/narrow baselines and the horizontal workflow structure
   on small screens.
+- Keep copy and atomic append/replace import aligned as one explicit, flat current-state contract.

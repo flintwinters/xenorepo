@@ -25,6 +25,9 @@ board, no accounts, no due dates, and no collaboration behavior.
   ordered arrays for active columns, cards, comments, and attachment metadata. The document omits
   archived work, activity history, timestamps, positions already expressed by array order, and
   entity identifiers that are not needed for relationships.
+- Atomic JSON import supports appending work without changing board settings or replacing all board
+  content and settings. Imports validate the complete document and its relationships before
+  mutation, remap external identities, preserve array order, and reject uploads without file bytes.
 
 ## Walking skeleton
 

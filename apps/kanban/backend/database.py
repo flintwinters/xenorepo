@@ -1,16 +1,16 @@
 """Durable single-board Kanban domain model and transactional operations."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 import json
 from typing import Callable
 from uuid import uuid4
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, select
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, delete, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from apps.kanban.backend.schemas import (
     ActivityView, AttachmentView, BoardEdit, BoardView, CardCreate, CardEdit, CardMove, CardView,
-    BoardDetailsEdit, ColumnView, CommentView, KanbanView,
+    BoardDetailsEdit, BoardImport, ColumnView, CommentView, ImportResult, KanbanView,
 )
 
 
@@ -210,6 +210,92 @@ class KanbanStore:
             self._activity(session, "edited", "board", board.id, f"Edited board “{board.name}”")
             session.flush()
             return _board(board, settings)
+
+    def import_board(self, value: BoardImport, replace: bool) -> ImportResult:
+        """Import one validated relational document in a single transaction."""
+        with self.sessions.begin() as session:
+            board = session.scalar(select(BoardRecord))
+            settings = session.get(BoardSettingsRecord, 1)
+            assert board is not None and settings is not None
+            if replace:
+                self._replace_import_state(session, board, settings, value)
+            column_offset = 0 if replace else self._active_column_count(session)
+            instant = self.now()
+            column_colors = {} if replace else json.loads(settings.column_colors_json)
+            card_colors = {} if replace else json.loads(settings.card_colors_json)
+            column_ids = self._import_columns(session, value, instant, column_offset, column_colors)
+            session.flush()
+            card_ids = self._import_cards(session, value, instant, column_ids, card_colors)
+            session.flush()
+            self._import_children(session, value, instant, card_ids)
+            settings.column_colors_json = json.dumps(column_colors)
+            settings.card_colors_json = json.dumps(card_colors)
+            return self._record_import(session, board.id, value, replace)
+
+    def _replace_import_state(self, session: Session, board: BoardRecord,
+        settings: BoardSettingsRecord, value: BoardImport) -> None:
+        for model in (AttachmentRecord, CommentRecord, CardRecord, ColumnRecord, ActivityRecord):
+            session.execute(delete(model))
+        session.flush()
+        board.name, board.description, board.updated_at = value.name, value.description, self.now()
+        settings.default_priority = value.default_priority
+        settings.background_color, settings.accent_color = value.background_color, value.accent_color
+        settings.label_colors_json = json.dumps({key.casefold(): color
+            for key, color in value.label_colors.items()})
+
+    @staticmethod
+    def _active_column_count(session: Session) -> int:
+        return len(session.scalars(select(ColumnRecord).where(
+            ColumnRecord.archived_at.is_(None))).all())
+
+    @staticmethod
+    def _import_columns(session: Session, value: BoardImport, instant: datetime,
+        offset: int, colors: dict[str, str]) -> dict[str, str]:
+        identities = {source.id: str(uuid4()) for source in value.columns}
+        for position, source in enumerate(value.columns, start=offset):
+            identity = identities[source.id]
+            session.add(ColumnRecord(id=identity, name=source.name, position=position,
+                archived_at=None, created_at=instant, updated_at=instant))
+            colors[identity] = source.color
+        return identities
+
+    @staticmethod
+    def _import_cards(session: Session, value: BoardImport, instant: datetime,
+        column_ids: dict[str, str], colors: dict[str, str]) -> dict[str, str]:
+        identities = {source.id: str(uuid4()) for source in value.cards}
+        positions: dict[str, int] = {}
+        for source in value.cards:
+            column_id = column_ids[source.column_id]
+            position = positions.get(column_id, 0)
+            positions[column_id] = position + 1
+            identity = identities[source.id]
+            session.add(CardRecord(id=identity, column_id=column_id, title=source.title,
+                description=source.description, assignee=source.assignee,
+                labels_json=json.dumps(source.labels), priority=source.priority, position=position,
+                archived_at=None, created_at=instant, updated_at=instant))
+            colors[identity] = source.color
+        return identities
+
+    @staticmethod
+    def _import_children(session: Session, value: BoardImport, instant: datetime,
+        card_ids: dict[str, str]) -> None:
+        for order, source in enumerate(value.comments):
+            created_at = instant + timedelta(microseconds=order)
+            session.add(CommentRecord(id=str(uuid4()), card_id=card_ids[source.card_id],
+                body=source.body, archived_at=None, created_at=created_at, updated_at=created_at))
+        for order, source in enumerate(value.attachments):
+            session.add(AttachmentRecord(id=str(uuid4()), card_id=card_ids[source.card_id],
+                kind="link", title=source.title, url=str(source.url), storage_name=None,
+                original_name=None, media_type=None, archived_at=None,
+                created_at=instant + timedelta(microseconds=order)))
+
+    def _record_import(self, session: Session, board_id: str,
+        value: BoardImport, replace: bool) -> ImportResult:
+        mode = "replace" if replace else "append"
+        self._activity(session, "imported", "board", board_id,
+            f"{mode.title()} imported {len(value.cards)} cards")
+        return ImportResult(mode=mode, columns=len(value.columns), cards=len(value.cards),
+            comments=len(value.comments), attachments=len(value.attachments))
 
     def edit_board_details(self, value: BoardDetailsEdit) -> BoardView:
         with self.sessions.begin() as session:

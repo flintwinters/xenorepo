@@ -296,7 +296,8 @@ class KanbanBoard extends Component<Record<string, never>, State> {
           draggable onDragStart={() => { this.dragged = card.id; }} onDragEnd={() => { this.dragged = null; }}
           onClick={() => this.setState({ selected: card.id })} onKeyDown={(event) => {
             if (event.key === "Enter") this.setState({ selected: card.id });
-          }} tabIndex={0}><ConsoleChrome class="card-chrome" title={<strong>{card.title}</strong>}
+          }} tabIndex={0}><ConsoleChrome appearance="subtle" class="card-chrome"
+            title={<strong>{card.title}</strong>}
             titleEnd={<span class="card-badges">{card.labels.map((label) => {
             const color = this.state.view?.board.label_colors[label.toLocaleLowerCase()] ?? "#1d2021";
             return <span style={coloredSurfaceStyle("--label-color", "--label-ink", color)}>

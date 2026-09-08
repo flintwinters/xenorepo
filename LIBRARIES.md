@@ -33,7 +33,8 @@ radius, while textareas never expose native drag resizing. Component props exten
 the corresponding Preact native
 HTML attributes, named props replace slots, and stable `x-ui-*` classes are the
 styling boundary. `ConsoleChrome` is the shared title/title-end bar used by panes and directly by
-smaller app-owned surfaces that need the same chrome without pane layout. Console presentation remains application-owned through the documented
+smaller app-owned surfaces that need the same chrome without pane layout. Its `subtle` appearance
+reduces contrast, border depth, and shadow for repeated or subordinate surfaces. Console presentation remains application-owned through the documented
 `--console-*` custom properties, including the compact `--console-line-height` typography token
 and rail background and border overrides.
 The package owns only proved console geometry and interaction treatment; app

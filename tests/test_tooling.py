@@ -457,9 +457,9 @@ frontend:
 
     def test_console_panes_accept_typed_chrome_interactions(self) -> None:
         components = (MONOUI_SOURCE / "index.tsx").read_text(encoding="utf-8")
-
         self.assertIn("chromeProps?: JSX.HTMLAttributes<HTMLDivElement>", components)
         self.assertIn("export function ConsoleChrome", components)
+        self.assertIn('appearance?: "default" | "subtle"', components)
         self.assertIn('<ConsoleChrome title={title} titleEnd={titleEnd} {...chromeProps} />', components)
 
     def test_console_workspace_owns_flush_hairline_panel_layout(self) -> None:

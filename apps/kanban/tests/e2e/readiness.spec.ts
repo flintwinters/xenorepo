@@ -113,11 +113,13 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
       listStyle = getComputedStyle(element.parentElement!);
     return { cardMargin: cardStyle.margin, cardPadding: cardStyle.padding,
       borderBottom: cardStyle.borderBottomWidth, borderLeft: cardStyle.borderLeftWidth,
-      chromeBackground: chromeStyle.backgroundImage, radius: cardStyle.borderRadius,
+      chromeBackground: chromeStyle.backgroundImage, chromeBorderBottom: chromeStyle.borderBottomWidth,
+      chromeShadow: chromeStyle.boxShadow, radius: cardStyle.borderRadius,
       insetHighlight: cardStyle.boxShadow !== "none", lineHeight: cardStyle.lineHeight,
       listGap: listStyle.gap, listPadding: listStyle.padding };
   })).toEqual({ cardMargin: "0px", cardPadding: "0px", borderBottom: "2px", borderLeft: "1px",
-    chromeBackground: expect.stringContaining("linear-gradient"), radius: "2px", insetHighlight: true,
+    chromeBackground: expect.stringContaining("linear-gradient"), chromeBorderBottom: "1px",
+    chromeShadow: "rgba(0, 0, 0, 0.25) 0px 1px 1px 0px", radius: "2px", insetHighlight: true,
     lineHeight: "13.2px", listGap: "0px", listPadding: "0px" });
   await card.hover();
   await expect(card).toHaveCSS("outline-color", "rgb(250, 189, 47)");

@@ -83,6 +83,14 @@
   border-bottom: 2px solid var(--tone-shadow);
   box-shadow: 0 2px 2px #111;
 }
+.x-ui-chrome-subtle {
+  --tone-light: color-mix(in srgb, var(--tone-base) 94%, white);
+  --tone-dark: color-mix(in srgb, var(--tone-base) 92%, black);
+  --tone-rim: color-mix(in srgb, var(--tone-base) 82%, white);
+  --tone-shadow: color-mix(in srgb, var(--tone-base) 80%, black);
+  border-bottom-width: 1px;
+  box-shadow: 0 1px 1px rgb(0 0 0 / 25%);
+}
 .x-ui-tone-blue {
   --tone-base: #83a598; --tone-light: #83a598; --tone-dark: #5f7f75;
   --tone-shadow: #354a44;

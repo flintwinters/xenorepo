@@ -49,10 +49,13 @@ interface PaneProps extends Omit<JSX.HTMLAttributes<HTMLElement>, "title"> {
 interface ChromeProps extends Omit<DivProps, "title"> {
   title: ComponentChildren;
   titleEnd?: ComponentChildren;
+  appearance?: "default" | "subtle";
 }
 
-export function ConsoleChrome({ title, titleEnd, class: className, ...props }: ChromeProps) {
-  return <div class={classes("x-ui-chrome", className as string | undefined)} {...props}>
+export function ConsoleChrome({ title, titleEnd, appearance = "default", class: className,
+  ...props }: ChromeProps) {
+  return <div class={classes("x-ui-chrome", appearance === "subtle" ? "x-ui-chrome-subtle" : undefined,
+    className as string | undefined)} {...props}>
     <span>{title}</span><span class="x-ui-title-end">{titleEnd}</span>
   </div>;
 }

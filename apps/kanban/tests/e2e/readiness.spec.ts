@@ -119,6 +119,9 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   })).toEqual({ cardMargin: "0px", cardPadding: "0px", borderBottom: "2px", borderLeft: "1px",
     chromeBackground: expect.stringContaining("linear-gradient"), radius: "2px", insetHighlight: true,
     lineHeight: "13.2px", listGap: "0px", listPadding: "0px" });
+  await card.hover();
+  await expect(card).toHaveCSS("outline-color", "rgb(250, 189, 47)");
+  await expect(card).toHaveCSS("outline-offset", "-1px");
   await card.click();
   await page.getByLabel("Priority").selectOption("normal");
   await page.getByRole("button", { name: "SAVE", exact: true }).click();

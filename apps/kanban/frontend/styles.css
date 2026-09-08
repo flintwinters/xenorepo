@@ -33,7 +33,7 @@
   border-radius: 2px;
   background: var(--card-color, #32302f); box-shadow: inset 0 1px rgb(255 255 255 / 8%); cursor: grab;
 }
-.card:hover, .card:focus-visible { background: #3c3836; outline: 1px solid #fabd2f; outline-offset: 1px; }
+.card:hover, .card:focus-visible { background: #3c3836; outline: 1px solid #fabd2f; outline-offset: -1px; }
 .card strong, .card p { display: block; margin: 0; overflow-wrap: anywhere; }
 .card p { padding: 2px 4px 0; color: inherit; white-space: pre-line; }
 .card-chrome {

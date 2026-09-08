@@ -64,6 +64,8 @@ the orchestration library.
 
 ## 3. Current tasks
 
+- Prove the proposed portable deployment membrane in `DEPLOYMENT.md` against
+  Fargate and self-hosting before treating its contracts as implemented.
 - Preserve Preact-only gates and app-owned wide/narrow visual checks; generate
   baselines locally without versioning them.
 - Keep MonoForm a secure CRUD default, never authorization or a replacement for

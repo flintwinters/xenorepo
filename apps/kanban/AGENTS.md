@@ -23,7 +23,10 @@ status, box-within-box composition, and other decorative AI conventions.
   on small screens.
 - Keep copy and atomic append/replace import aligned as one explicit, flat current-state contract.
 - Keep card logs append-only and distinct from the system activity stream. Migrate every legacy
-  card description exactly once to an epoch-dated log entry.
+  card description exactly once to an epoch-dated log entry and every legacy comment once at its
+  original timestamp; logs are the sole user-authored card narrative.
 - Keep workflow state singular: columns communicate where work stands, with no parallel card
   priority field or tag.
 - Keep cards focused on work rather than ownership; there is no assignee field or tag.
+- Keep card presentation subordinate to workflow: cards inherit their owning column's theme and
+  have no independent color setting.

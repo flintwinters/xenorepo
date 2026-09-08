@@ -34,24 +34,22 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   }));
   expect(Object.keys(initialCurrent)).toEqual([
     "name", "description", "background_color", "accent_color", "label_colors",
-    "columns", "cards", "logs", "comments", "attachments",
+    "columns", "cards", "logs", "attachments",
   ]);
   expect(initialCurrent).not.toHaveProperty("board");
   expect(initialCurrent.columns.every((value: object) =>
     Object.keys(value).join() === "id,name,color")).toBe(true);
   expect(initialCurrent.cards.every((value: object) => Object.keys(value).join() ===
-    "id,column_id,title,labels,color")).toBe(true);
+    "id,column_id,title,labels")).toBe(true);
   expect(initialCurrent.logs.every((value: object) =>
     Object.keys(value).join() === "card_id,body,created_at")).toBe(true);
-  expect(initialCurrent.comments.every((value: object) =>
-    Object.keys(value).join() === "card_id,body")).toBe(true);
   expect(initialCurrent.attachments.every((value: object) => Object.keys(value).join() ===
     "card_id,kind,title,url,original_name,media_type")).toBe(true);
   const currentColumnIds = new Set(initialCurrent.columns.map((value: { id: string }) => value.id));
   expect(initialCurrent.cards.every(
     (value: { column_id: string }) => currentColumnIds.has(value.column_id))).toBe(true);
   const currentCardIds = new Set(initialCurrent.cards.map((value: { id: string }) => value.id));
-  expect([...initialCurrent.logs, ...initialCurrent.comments, ...initialCurrent.attachments].every(
+  expect([...initialCurrent.logs, ...initialCurrent.attachments].every(
     (value: { card_id: string }) => currentCardIds.has(value.card_id))).toBe(true);
   await page.getByRole("button", { name: "+ COLUMN" }).click();
   await expect(page.getByRole("dialog", { name: "NEW COLUMN" })).toBeVisible();
@@ -102,11 +100,12 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(page.getByLabel("Description")).toHaveCount(0);
   await expect(page.getByLabel("Assignee")).toHaveCount(0);
   await expect(page.getByLabel("Priority")).toHaveCount(0);
-  await page.getByLabel("Color", { exact: true }).fill("#41395c");
+  await expect(page.getByLabel("Color", { exact: true })).toHaveCount(0);
   await page.getByLabel(/Labels/).fill("acceptance, durable");
   await page.getByRole("button", { name: "SAVE", exact: true }).click();
   const card = page.locator(".card").filter({ hasText: `Prove board ${suffix}` });
-  await expect(card).toHaveCSS("color", "rgb(251, 241, 199)");
+  await expect(card).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(card).toHaveCSS("color", "rgb(29, 32, 33)");
   await expect(card.locator(".card-chrome strong")).toHaveText(`Prove board ${suffix}`);
   expect(await card.evaluate((element) => {
     const cardStyle = getComputedStyle(element), chromeStyle = getComputedStyle(element.querySelector(".card-chrome")!),
@@ -154,21 +153,15 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(page.getByRole("status")).toHaveText(
     testInfo.project.name === "wide-viewport-chromium" ? "Card moved" : "Board ready",
   );
-  await target.locator(".card").filter({ hasText: `Prove board ${suffix}` }).click();
+  const movedCard = target.locator(".card").filter({ hasText: `Prove board ${suffix}` });
+  expect(await movedCard.evaluate((element) =>
+    getComputedStyle(element).getPropertyValue("--column-color").trim())).toBe("#665c54");
+  await movedCard.click();
   await page.getByLabel("Log entry").fill("A persisted acceptance log");
   await page.getByRole("button", { name: "ADD LOG" }).click();
   const itemLog = page.locator(".item-log");
   await expect(itemLog).toContainText("A persisted acceptance log");
   await expect(itemLog.locator("time").first()).toHaveAttribute("datetime", /.+/);
-  await page.getByLabel("Comment").fill("The drag persisted");
-  await page.getByRole("button", { name: "ADD", exact: true }).click();
-  await expect(page.getByText("The drag persisted")).toBeVisible();
-  await page.locator(".row").filter({ hasText: "The drag persisted" })
-    .getByRole("button", { name: "EDIT" }).click();
-  const commentEditor = page.getByRole("dialog", { name: "EDIT COMMENT" });
-  await commentEditor.getByLabel("Comment").fill("The drag and edit persisted");
-  await commentEditor.getByRole("button", { name: "SAVE", exact: true }).click();
-  await expect(page.getByText("The drag and edit persisted")).toBeVisible();
   await page.getByLabel("Link title").fill("Reference");
   await page.getByLabel("Web address").fill("https://example.com/kanban");
   await page.getByRole("button", { name: "ADD LINK" }).click();
@@ -206,7 +199,6 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   expect(current).not.toHaveProperty("board");
   expect(current.columns.map((value: { id: string }) => value.id)).not.toContain(sourceId);
   expect(current.cards.map((value: { id: string }) => value.id)).not.toContain(cardId);
-  expect(current.comments.some((value: { card_id: string }) => value.card_id === cardId)).toBe(false);
   expect(current.attachments.some((value: { card_id: string }) => value.card_id === cardId)).toBe(false);
   await page.getByRole("button", { name: "IMPORT JSON" }).click();
   const importDialog = page.getByRole("dialog", { name: "IMPORT JSON" });
@@ -221,7 +213,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(appendDialog.getByLabel("Import mode")).toHaveValue("append");
   await appendDialog.getByLabel("JSON file").setInputFiles({ name: "empty.json",
     mimeType: "application/json", buffer: Buffer.from(JSON.stringify({
-      ...initialCurrent, name: "Ignored append settings", columns: [], cards: [], logs: [], comments: [],
+      ...initialCurrent, name: "Ignored append settings", columns: [], cards: [], logs: [],
       attachments: [],
     })) });
   await appendDialog.getByRole("button", { name: "IMPORT", exact: true }).click();

@@ -5,7 +5,6 @@ const api = createClient<paths>();
 export type KanbanView = components["schemas"]["KanbanView"];
 export type Card = components["schemas"]["CardView"];
 export type Column = components["schemas"]["ColumnView"];
-export type Comment = components["schemas"]["CommentView"];
 export type Log = components["schemas"]["LogView"];
 export type Attachment = components["schemas"]["AttachmentView"];
 export type CardFields = components["schemas"]["CardEdit"];
@@ -73,18 +72,6 @@ export async function moveCard(id: string, column_id: string, position: number):
 export async function addLog(card_id: string, body: string): Promise<void> {
   const { error } = await api.POST("/api/cards/{card_id}/logs", {
     params: { path: { card_id } }, body: { body },
-  });
-  if (error) result(undefined, error);
-}
-export async function addComment(card_id: string, body: string): Promise<void> {
-  const { error } = await api.POST("/api/cards/{card_id}/comments", {
-    params: { path: { card_id } }, body: { body },
-  });
-  if (error) result(undefined, error);
-}
-export async function editComment(id: string, body: string): Promise<void> {
-  const { error } = await api.PATCH("/api/comments/{comment_id}", {
-    params: { path: { comment_id: id } }, body: { body },
   });
   if (error) result(undefined, error);
 }

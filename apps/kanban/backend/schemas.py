@@ -48,7 +48,6 @@ class CardFields(BaseModel):
     model_config = ConfigDict(extra="forbid")
     title: Name
     labels: list[Name] = []
-    color: Color = "#32302f"
 
     @field_validator("labels")
     @classmethod
@@ -74,11 +73,6 @@ class CardEdit(CardFields):
 class CardMove(BaseModel):
     column_id: str
     position: int
-
-
-class CommentInput(BaseModel):
-    body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)] = Field(
-        title="Comment")
 
 
 class LogInput(BaseModel):
@@ -124,16 +118,6 @@ class CardView(BaseModel):
     archived_at: datetime | None
     created_at: datetime
     updated_at: datetime
-    color: Color
-
-
-class CommentView(BaseModel):
-    id: str
-    card_id: str
-    body: str
-    archived_at: datetime | None
-    created_at: datetime
-    updated_at: datetime
 
 
 class LogView(BaseModel):
@@ -171,7 +155,6 @@ class KanbanView(BaseModel):
     columns: list[ColumnView]
     cards: list[CardView]
     logs: list[LogView]
-    comments: list[CommentView]
     attachments: list[AttachmentView]
     activity: list[ActivityView]
 
@@ -189,13 +172,10 @@ class ImportCard(CardFields):
     column_id: Name
 
 
-class ImportComment(BaseModel):
+class ImportLog(BaseModel):
     model_config = ConfigDict(extra="forbid")
     card_id: Name
     body: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=4000)]
-
-
-class ImportLog(ImportComment):
     created_at: datetime
 
 
@@ -232,7 +212,6 @@ class BoardImport(BoardEdit):
     columns: list[ImportColumn]
     cards: list[ImportCard]
     logs: list[ImportLog]
-    comments: list[ImportComment]
     attachments: list[ImportAttachment]
 
     @model_validator(mode="after")
@@ -242,7 +221,7 @@ class BoardImport(BoardEdit):
         _require_unique(column_ids, "column")
         _require_unique(card_ids, "card")
         _require_known({value.column_id for value in self.cards}, set(column_ids), "cards")
-        _require_known({value.card_id for value in [*self.logs, *self.comments, *self.attachments]},
+        _require_known({value.card_id for value in [*self.logs, *self.attachments]},
             set(card_ids), "children")
         return self
 
@@ -252,5 +231,4 @@ class ImportResult(BaseModel):
     columns: int
     cards: int
     logs: int
-    comments: int
     attachments: int

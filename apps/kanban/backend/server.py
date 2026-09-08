@@ -9,7 +9,7 @@ from fastapi.responses import Response
 from apps.kanban.backend.database import Base, KanbanError, KanbanStore
 from apps.kanban.backend.schemas import (
     AttachmentEdit, AttachmentView, BoardDetailsEdit, BoardEdit, BoardImport, BoardView, CardCreate, CardEdit,
-    CardMove, CardView, ColumnCreate, ColumnEdit, ColumnView, CommentInput, CommentView, KanbanView,
+    CardMove, CardView, ColumnCreate, ColumnEdit, ColumnView, KanbanView,
     ImportResult, LabelColorEdit, LinkInput, LogInput, LogView,
     PositionInput,
 )
@@ -123,19 +123,6 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
     async def add_log(card_id: str, value: LogInput, request: Request) -> LogView:
         require_origin(request)
         return board.add_log(card_id, value.body)
-
-    @application.post("/api/cards/{card_id}/comments", response_model=CommentView,
-        status_code=status.HTTP_201_CREATED)
-    async def add_comment(card_id: str, value: CommentInput, request: Request) -> CommentView:
-        require_origin(request)
-        return board.add_comment(card_id, value.body)
-
-    @application.patch("/api/comments/{comment_id}", response_model=CommentView,
-        operation_id="edit_comment", openapi_extra=monoform_operation(
-            kind="update", entity="comment", title="Edit comment", submit_label="SAVE"))
-    async def edit_comment(comment_id: str, value: CommentInput, request: Request) -> CommentView:
-        require_origin(request)
-        return board.edit_comment(comment_id, value.body)
 
     @application.post("/api/cards/{card_id}/links", response_model=AttachmentView,
         status_code=status.HTTP_201_CREATED)

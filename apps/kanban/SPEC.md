@@ -13,18 +13,19 @@ board, no accounts, no due dates, and no collaboration behavior.
 - User-created, named columns with explicit ordering and reversible archiving.
 - Per-column Add Card controls in column headers.
 - Cards with editable titles, labels, and append-only timestamped log entries.
-- Board settings for its identity, plus individual column, card, and
+- Board settings for its identity, plus individual column and
   label colors. The single board uses the shared application chrome rather than a custom theme.
+- Cards inherit their owning column's color theme.
 - Mouse drag-and-drop for ordering cards within a column and moving them between columns.
-- Editable comments, local file uploads, and web-link attachments.
-- Reversible archiving for the board's columns, cards, comments, and attachments.
+- Local file uploads and web-link attachments.
+- Reversible archiving for the board's columns, cards, and attachments.
 - An immutable activity history that records creation, edits, moves, archive, and restore actions.
 - Each card exposes its timestamped item log. Descriptions from installations predating the log
   are migrated once as log entries at the Unix epoch.
 - Stable UUID identities, UTC audit timestamps, deterministic ordering, explicit validation, and
   visible API failures.
 - A readable JSON clipboard document of current work: board settings at the root and flat,
-  ordered arrays for active columns, cards, logs, comments, and attachment metadata. The document omits
+  ordered arrays for active columns, cards, logs, and attachment metadata. The document omits
   archived work, activity history, non-log timestamps, positions already expressed by array order, and
   entity identifiers that are not needed for relationships.
 - Atomic JSON import supports appending work without changing board settings or replacing all board
@@ -35,8 +36,8 @@ board, no accounts, no due dates, and no collaboration behavior.
 
 The first shippable slice opens the one board and presents its active columns and cards. A user can
 rename the board, create and reorder columns, create a card and append a log entry, drag it within and
-between columns, add and edit comments, attach both a local file and a web link, and inspect the
-resulting immutable history. An archive view restores any archived column, card, comment, or
+between columns, append timestamped logs, attach both a local file and a web link, and inspect the
+resulting immutable history. An archive view restores any archived column, card, or
 attachment. SQLite is the default durable store at `data/kanban.db`;
 `KANBAN_DATABASE_URL` can select another SQLAlchemy database.
 
@@ -58,13 +59,13 @@ rejected.
 ## Real-world pilot and acceptance
 
 Use the running application to manage at least eight real tasks across at least three custom
-columns. Populate labels, timestamped logs, comments, one web link, and one local upload.
+columns. Populate labels, timestamped logs, one web link, and one local upload.
 Reorder two tasks, move tasks through the workflow by dragging, edit stored content, archive and
 restore each recoverable entity type, restart both service and browser, and confirm the board,
 ordering, uploaded file, archive state, and immutable activity history remain exact.
 
 Automated acceptance covers initial board creation, all edit paths, column and card ordering,
-cross-column moves, cascading column archive and restoration, comment and attachment lifecycles,
+cross-column moves, cascading column archive and restoration, attachment lifecycles,
 upload containment, link validation, activity immutability, invalid and missing identities,
 same-origin mutation enforcement, restart persistence, strict modular TypeScript compilation,
 self-contained FastAPI delivery, and populated wide/narrow browser journeys with real drag input.

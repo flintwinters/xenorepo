@@ -27,19 +27,22 @@
 .column .x-ui-command-control { overflow: hidden; text-overflow: ellipsis; }
 .card-list { display: grid; align-content: start; min-height: 100%; gap: 0; padding: 0; background: #202223; }
 .card {
-  margin: 0; padding: 0; color: var(--card-ink, #fbf1c7); line-height: 1.1;
-  border: 1px solid color-mix(in srgb, var(--card-color, #32302f) 68%, white);
-  border-bottom: 2px solid color-mix(in srgb, var(--card-color, #32302f) 58%, black);
+  margin: 0; padding: 0; color: var(--tone-ink, #fbf1c7); line-height: 1.1;
+  border: 1px solid color-mix(in srgb, var(--column-color, #665c54) 68%, white);
+  border-bottom: 2px solid color-mix(in srgb, var(--column-color, #665c54) 58%, black);
   border-radius: 2px;
-  background: var(--card-color, #32302f); box-shadow: inset 0 1px rgb(255 255 255 / 8%); cursor: grab;
+  background: var(--column-color, #665c54); box-shadow: inset 0 1px rgb(255 255 255 / 8%); cursor: grab;
 }
-.card:hover, .card:focus-visible { background: #3c3836; outline: 1px solid #fabd2f; outline-offset: -1px; }
+.card:hover, .card:focus-visible {
+  background: color-mix(in srgb, var(--column-color, #665c54) 86%, white);
+  outline: 1px solid #fabd2f; outline-offset: -1px;
+}
 .card strong, .card p { display: block; margin: 0; overflow-wrap: anywhere; }
 .card p { padding: 2px 4px 0; color: inherit; white-space: pre-line; }
 .card-chrome {
-  --tone-base: var(--card-color, #32302f);
+  --tone-base: var(--column-color, #665c54);
   min-height: 17px; padding-inline: 4px; gap: 2px 4px; flex-wrap: wrap;
-  align-content: center; color: var(--card-ink, #fbf1c7);
+  align-content: center; color: var(--tone-ink, #fbf1c7);
 }
 .card-chrome > span:first-child { min-width: 0; flex: 0 1 auto; }
 .card-chrome > .x-ui-title-end { min-width: 0; flex: 0 1 auto; margin-left: 0; }

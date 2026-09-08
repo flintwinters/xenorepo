@@ -104,7 +104,32 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     if (!this.dragged) return;
     const id = this.dragged, position = this.cards(columnId).length;
     this.dragged = null;
-    this.perform("Card moved", () => moveCard(id, columnId, position));
+    this.moveCardImmediately(id, columnId, position);
+  };
+  private moveCardImmediately = (id: string, columnId: string, requestedPosition: number): void => {
+    const view = this.state.view, moving = view?.cards.find((card) => card.id === id);
+    if (!view || !moving) return;
+    const source = this.cards(moving.column_id).filter((card) => card.id !== id);
+    const target = moving.column_id === columnId ? source : this.cards(columnId);
+    const position = Math.min(Math.max(requestedPosition, 0), target.length);
+    target.splice(position, 0, moving);
+    const positions = new Map<string, { column_id: string; position: number }>();
+    source.forEach((card, index) => positions.set(card.id, { column_id: moving.column_id, position: index }));
+    target.forEach((card, index) => positions.set(card.id, { column_id: columnId, position: index }));
+    this.setState({ view: { ...view, cards: view.cards.map((card) => {
+      const moved = positions.get(card.id);
+      return moved ? { ...card, ...moved } : card;
+    }) }, message: "Card moved", failed: false });
+    void moveCard(id, columnId, position).catch(async (error) => {
+      try {
+        const restored = await loadBoard();
+        this.setState({ view: restored, message: error instanceof Error ? error.message : "Card move failed",
+          failed: true });
+      } catch (refreshError) {
+        this.setState({ message: refreshError instanceof Error ? refreshError.message : "Card move failed",
+          failed: true });
+      }
+    });
   };
   private dropColumn = (event: DragEvent, target: Column): void => {
     event.preventDefault();

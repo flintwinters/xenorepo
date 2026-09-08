@@ -48,8 +48,9 @@ entered spelling. Priority is one of `low`, `normal`, `high`, or `urgent`.
 
 Every successful mutation appends an activity record in the same transaction. Activity records
 store their stable identity, event kind, subject identity and type, UTC occurrence time, and a
-concise factual summary. They cannot be edited or archived. Restoring a child whose parent remains
-archived is rejected, and a column can only be archived when all of its cards are already archived.
+concise factual summary. They cannot be edited or archived. Archiving a column archives every
+active card it contains in the same transaction. Restoring a child whose parent remains archived is
+rejected.
 
 ## Real-world pilot and acceptance
 
@@ -60,7 +61,7 @@ restore each recoverable entity type, restart both service and browser, and conf
 ordering, uploaded file, archive state, and immutable activity history remain exact.
 
 Automated acceptance covers initial board creation, all edit paths, column and card ordering,
-cross-column moves, archive preconditions and restoration, comment and attachment lifecycles,
+cross-column moves, cascading column archive and restoration, comment and attachment lifecycles,
 upload containment, link validation, activity immutability, invalid and missing identities,
 same-origin mutation enforcement, restart persistence, strict modular TypeScript compilation,
 self-contained FastAPI delivery, and populated wide/narrow browser journeys with real drag input.

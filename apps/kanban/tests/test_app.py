@@ -140,17 +140,22 @@ class ApplicationTests(unittest.TestCase):
         self.assertIsNone(next(value for value in view["attachments"]
             if value["id"] == link["id"])["archived_at"])
 
-    def test_archive_parent_rules_validation_origin_and_activity_immutability(self) -> None:
+    def test_archiving_a_column_cascades_to_cards_and_preserves_parent_rules(self) -> None:
         column, = [self.column()]
         card = self.card(column["id"])
-        blocked = self.client.request("DELETE", f"/api/archive/column/{column['id']}")
-        self.assertEqual(blocked.status_code, 409)
-        self.assertEqual(self.client.request("DELETE",
-            f"/api/archive/card/{card['id']}").status_code, 204)
         self.assertEqual(self.client.request("DELETE",
             f"/api/archive/column/{column['id']}").status_code, 204)
+        view = self.client.request("GET", "/api/board").json()
+        archived_card = next(value for value in view["cards"] if value["id"] == card["id"])
+        self.assertIsNotNone(archived_card["archived_at"])
+        self.assertIn(f"Archived card “{card['title']}” with column “{column['name']}”",
+            [item["summary"] for item in view["activity"]])
         restore_child = self.client.request("POST", f"/api/archive/card/{card['id']}/restore")
         self.assertEqual(restore_child.status_code, 409)
+        self.assertEqual(self.client.request("POST",
+            f"/api/archive/column/{column['id']}/restore").status_code, 204)
+        self.assertEqual(self.client.request("POST",
+            f"/api/archive/card/{card['id']}/restore").status_code, 204)
         forbidden = self.client.request("POST", "/api/columns",
             headers={"Origin": "https://foreign.test"}, json={"name": "Foreign"})
         invalid = self.client.request("POST", "/api/columns", json={"name": " "})

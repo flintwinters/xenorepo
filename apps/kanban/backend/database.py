@@ -436,6 +436,8 @@ class KanbanStore:
         with self.sessions.begin() as session:
             record = self._required(session, model, identity, kind.title())
             self._validate_archive(session, kind, record, restore)
+            if kind == "column" and not restore:
+                self._archive_column_cards(session, record)
             record.archived_at = None if restore else self.now()
             self._compact_after_archive(session, kind, record)
             action = "restored" if restore else "archived"
@@ -445,8 +447,6 @@ class KanbanStore:
     def _validate_archive(self, session: Session, kind: str, record, restore: bool) -> None:
         if restore:
             self._validate_restore(session, kind, record)
-        elif kind == "column":
-            self._validate_column_archive(session, record)
 
     def _validate_restore(self, session: Session, kind: str, record) -> None:
         if kind == "card":
@@ -462,9 +462,11 @@ class KanbanStore:
         if parent.archived_at:
             raise KanbanError(message, "conflict")
 
-    def _validate_column_archive(self, session: Session, record: ColumnRecord) -> None:
-        if self._active_cards(session, record.id):
-            raise KanbanError("Archive every card in the column first", "conflict")
+    def _archive_column_cards(self, session: Session, column: ColumnRecord) -> None:
+        for card in self._active_cards(session, column.id):
+            card.archived_at = self.now()
+            self._activity(session, "archived", "card", card.id,
+                f"Archived card “{card.title}” with column “{column.name}”")
 
     def _compact_after_archive(self, session: Session, kind: str, record) -> None:
         if kind == "card":

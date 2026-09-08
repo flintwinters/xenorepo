@@ -1,127 +1,128 @@
-# Code reuse review
+# Universal monoapp code reuse review
 
-Source review, 2026-09-08. Recommendations only; no runtime changes. The existing
-calendar submodule has local changes; its references describe the working tree.
-`LIBRARIES.md` remains authoritative for adopted contracts and extraction policy.
+Source review, 2026-09-08. This review includes only opportunities that apply to
+every active monoapp. `LIBRARIES.md` remains authoritative for adopted contracts
+and extraction policy.
 
-## Prioritized opportunities
+## Scope and conclusion
 
-### 1. Share frontend HTTP outcome handling
+All eight active monoapps have a root `manage.py`, an `app.yaml`, a FastAPI
+runtime created by Monotools, a Python suite, and an app-owned browser suite.
+Only two remaining implementation patterns are duplicated across that complete
+set: lifecycle declaration in each manager and runtime identity binding in each
+server. A third opportunity is to remove app-owned tests of platform invariants
+after the central checks prove them for every app.
 
-Evidence: `result` in `apps/calendar/frontend/client.ts:10`,
-`apps/kanban/frontend/client.ts:13`, and `apps/xenoview/frontend/client.ts:13`
-is identical. `value` in `apps/microblog/frontend/client.ts:11` implements the
-same logic with different fallback copy. These helpers cast unknown errors to
-an envelope and distinguish missing data from successful values. Mailing list's
-`errorMessage` (`apps/mailing_list/frontend/client.ts:23`) already checks runtime
-types and understands validation arrays; MonoForm's `failureOutcome`
-(`packages/monoui/src/monoform.tsx:188`) adds field-level presentation.
+Frontend HTTP clients, database fixtures, form controls, realtime code, and
+domain error handling are excluded. They have multiple consumers, but they do
+not apply to every monoapp. Root command selection is also excluded because it
+belongs to Xenorepo composition rather than monoapps.
 
-Proposal: extract a narrow, typed frontend transport contract under `packages/`
-for decoding unknown error envelopes and requiring response data. Keep generated
-OpenAPI clients, API paths, field mapping, and product copy with their owners.
-Keep successful bodyless operations explicit instead of passing `undefined` to a
-data-required helper. Reuse the established `openapi-fetch` integration rather
-than creating another HTTP client. Register the contract before adoption.
+## 1. Make lifecycle suites declarative metadata
 
-Benefit: one place to fix malformed envelopes and validation-message handling
-across at least four independent clients. Start with the three exact copies;
-extend to other consumers only where their error precedence is compatible.
-Weakest assumption: consumers want the same error interpretation. Reject or
-narrow the extraction if it needs app identities or workflow-specific branches.
-Verify false/zero/null data, absent data, bodyless success, malformed envelopes,
-validation arrays, and network failures through root-managed contract tests and
-the affected app journeys. Do not silently alter MonoForm's field errors.
+Evidence: every `apps/*/manage.py` imports `create_app_manager`, calls it with
+`__file__`, declares `tests="tests"`, declares one browser-suite path and proof
+kinds, exports `manager.app`, and invokes that app under `__main__`. The current
+shared implementation in `monotools/orchestration/management.py` already owns
+all command behavior. The per-app files differ only in declaration values such
+as the suite filename, visual-proof requirement, and trusted input modalities.
+The scaffold reproduces the same wrapper in
+`monotools/templates/monoapp/manage.py.template`.
 
-### 2. Reuse the existing Preact bundler for MonoForm artifacts
+Proposal: add typed lifecycle-test metadata to `app.yaml` and let
+`create_app_manager(__file__)` resolve the standard Python suite, browser suite,
+proof kinds, viewports, and input modalities from the local definition. Keep a
+narrow explicit override API only if an independently deployed monoapp needs it.
+The leaf `manage.py` remains the sole Python entrypoint, but becomes the same
+stable adapter for every app.
 
-Evidence: `monotools/node/build-preact.mjs:9` and
-`monotools/node/build-monoform.mjs:8` duplicate the mount bootstrap, esbuild
-configuration, JS/CSS output selection, directory creation, and writes.
-`buildPageEntry` is already exported. MonoForm's meaningful differences are
-manifest allowlisting and the compile-time `MONOFORM_MANIFEST` definition.
+This removes duplicated authoritative knowledge: proof requirements currently
+live in Python while application capabilities, artifacts, and routes live in
+YAML. It also makes suite validation available during metadata loading without
+executing an app manager module.
 
-Proposal: extend the existing bundling function with a narrow compile-time
-definitions option and let MonoForm call it after selecting its manifest.
-Keep manifest validation and operation selection in the MonoForm wrapper.
-Avoid a general build framework or freely overridable compiler policy.
+Weakest assumption: lifecycle evidence is part of application metadata rather
+than executable manager policy. Reject the move if suite declaration needs
+runtime computation; no current consumer does. The reversal test is simple:
+the old explicit arguments can be restored without changing suite files or
+command behavior.
 
-Benefit: target, JSX, minification, CSS handling, and self-contained output
-remain one platform decision. Weakest assumption: both artifact formats should
-retain identical bundling policy; split only a demonstrated independent concern.
-Use existing tooling tests, especially
-`tests/test_tooling.py:169`, to preserve allowlisting and atomic final artifacts;
-cover Preact output and absent CSS through the root test routine.
+Validate metadata rejection for missing, absolute, escaping, malformed, and
+incompatible suite declarations. Exercise every leaf command and root discovery,
+then finish with `uv run manage.py verify`.
 
-### 3. Centralize the repeated ASGI test client
+## 2. Bind a runtime to its local definition instead of repeating its name
 
-Evidence: `Client` in `apps/calendar/tests/test_app.py:16`,
-`apps/kanban/tests/test_app.py:18`, and `apps/xenoview/tests/test_app.py:20`
-differs only in its base URL. Each wraps an HTTPX ASGI transport in a fresh async
-client and uses `asyncio.run` to expose a synchronous request method.
+Evidence: every `apps/*/backend/server.py` calls
+`monotools.runtime.application.create_application` with its own static app name.
+Simple apps assign the result directly; richer apps make the same call inside a
+`create_app` factory before adding domain routes and dependencies. The manager
+side already has the analogous local-resolution contract:
+`resolve_local_app(manage_file)` loads the definition beside `manage.py`.
 
-Proposal: supply one generic, typed test-support adapter with explicit application
-and base URL inputs through Monotools. `tests/support.py` already provides central
-async test helpers, but monoapps should not acquire a dependency on Xenorepo's
-private test suite, especially after submodule promotion. Evaluate existing
-FastAPI/HTTPX facilities first; preserve current behavior if adopting a standard
-client would change lifecycle or cookie semantics.
+Proposal: add a generic local runtime constructor that accepts `__file__`, walks
+from `backend/server.py` to the owning `app.yaml`, and delegates to the existing
+application assembly. For example, `create_local_application(__file__)` should
+return exactly what `create_application(name)` returns today. Migrate every
+server and the scaffold template. Keep name-based construction as a lower-level
+API where central orchestration legitimately starts an app by metadata identity.
 
-Benefit: fixes to transport cleanup and exception handling reach all three suites.
-Weakest assumption: request-scoped clients are intentional. Specify cookie and
-ASGI lifespan behavior before adoption; keep persistent-session clients distinct
-if needed. Characterize request forwarding, raised application errors, and cleanup
-in the root-managed platform suite, retaining domain assertions in each app.
-Do not combine the apps' different database, upload, and restart fixtures into
-an inheritance hierarchy merely because their setup methods look similar.
+This removes the repeated identity string and makes the filesystem ownership
+boundary authoritative. Renaming or moving a monoapp can no longer leave a
+server silently bound to another definition. The implementation should reuse
+the existing definition loader rather than introduce another YAML parser or app
+registry.
 
-### 4. Adopt existing form primitives in bespoke workflows
+Weakest assumption: production server modules remain beneath their monoapp
+directory, which is already an architectural invariant. Reject upward search
+that can cross into another app or the repository root without finding the
+immediate owning definition. The reversal test is replacing the local call with
+the explicit name; domain factories and routes remain unchanged.
 
-Evidence: raw forms and controls appear in
-`apps/mailing_list/frontend/index.tsx:164`,
-`apps/microblog/frontend/index.tsx:204` and `:310`, and
-`apps/chat/frontend/room.tsx:207`. The catalog already establishes `Form`,
-`FormField`, `FormInput`, and `FormTextarea` in
-`packages/monoui/src/form-controls.tsx` as native-attribute-compatible controls.
+Validate direct and factory-based servers, missing metadata, a malformed
+definition, a path outside a monoapp, symlinks, and a mismatch between module
+location and declared module. Run the central application tests and every app
+suite through the root entrypoint.
 
-Proposal: incrementally replace matching structural controls with these existing
-components. Keep checkout, authentication, publishing, and chat submission logic
-app-owned. This is component adoption, not a reason to convert these workflows
-to MonoForm or introduce a shared submission state machine.
+## 3. Keep universal platform assertions in central validation
 
-Benefit: shared markup and control treatment evolve together without new public
-abstractions. Weakest assumption: shared field geometry fits each design. Retain
-local structures where adapting them would require workflow flags in MonoUI.
-Verify labels, focus, keyboard submission, disabled states, and app-owned wide
-and narrow visuals through root-managed browser checks.
+Evidence: every app receives health, agent-tool metadata, document routes,
+build validation, self-contained artifact validation, wide/narrow route smoke,
+and lifecycle commands from Monotools. These are platform contracts implemented
+by `monotools/runtime/application.py`, lifecycle orchestration, and the universal
+browser suite. Scaffolded app tests nevertheless begin with an app-owned test of
+self-contained frontend output in
+`monotools/templates/monoapp/tests/test_app.py.template`, and some mature suites
+retain variants of that platform assertion.
 
-### 5. Centralize root command app selection
+Proposal: make central tests and root `check` the exhaustive owner of invariants
+that apply identically to every discovered monoapp. Remove those assertions from
+the scaffold and app suites only after the central checks demonstrate that each
+discovered definition is included. App suites should retain domain contracts,
+custom build behavior, and product-specific accessibility or visual evidence.
 
-Evidence: `ui_check`, `ui_hygiene`, and `aesthetic_check` in `manage.py` repeat
-optional-name filtering against `MANAGERS` and the same unknown-app diagnostic.
-The first and third return manager pairs; hygiene needs only each definition.
+This reuses the existing validation path and prevents platform rules from
+drifting into slightly different app-owned assertions. It is a deletion and
+ownership correction, not a new test base class or shared assertion library.
 
-Proposal: add one root-local selection helper returning definition/manager pairs;
-hygiene can ignore the manager. Keep this in repository composition rather than
-making Monotools own Xenorepo's inventory. Existing environment activation and
-command execution responsibilities need no new abstraction for this change.
+Weakest assumption: root validation is always part of the supported verification
+workflow, including independently versioned submodules. Preserve a small
+standalone platform-contract suite exposed by Monotools if a monoapp must verify
+outside Xenorepo. The reversal test is restoring the generated smoke test without
+changing application code.
 
-Benefit: all-app selection and unknown-name behavior have one implementation.
-Weakest assumption: these commands intentionally share selection semantics.
-Keep distinct selectors if future commands admit planned or uninitialized apps.
-Use the root-managed CLI tests for all apps, one known app, unknown names, and an
-empty inventory; preserve diagnostics and exit status.
+Before deletion, prove discovery coverage, failure attribution, malformed and
+missing artifacts, external script and stylesheet references, health behavior,
+and both configured viewports. Finish with `uv run manage.py verify`.
 
-## Execution boundary
+## Recommended order
 
-Start with bundling and CLI selection for small, reversible changes, then HTTP
-outcomes and test support. Adopt form primitives per app with visual evidence.
-For each extraction, retain product tests and introduce central tests only for
-the shared contract; finish implementation checkpoints with
-`uv run manage.py verify`. Revert an extraction if supporting its consumers
-requires app policy inside the shared layer.
+Implement local runtime binding first because it is narrow and removes a real
+identity mismatch state. Move manager declarations to typed metadata second;
+this changes the application-definition contract and should be done atomically
+with templates and all consumers. Consolidate universal tests last, after the
+first two contracts have central coverage.
 
-Keep domain stores, complete ORM tables, realtime protocols, routes, and workflow
-state local. Existing database factories, HTTP server helpers, realtime primitives,
-MonoUI, and MonoForm already cover substantial reuse; similar names or syntax
-alone do not justify another abstraction.
+Do not create a universal frontend, persistence, transport, or domain layer.
+There is no implementation boundary in those areas shared by all current
+monoapps, and forcing one would couple independently changing products.

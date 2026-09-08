@@ -173,6 +173,8 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await attachmentEditor.getByRole("button", { name: "SAVE", exact: true }).click();
   await expect(page.getByRole("link", { name: "Edited reference" })).toBeVisible();
   await page.getByRole("button", { name: "Cancel" }).click();
+  await expect(movedCard.locator(".card-log")).toContainText("A persisted acceptance log");
+  await expect(movedCard.locator(".card-log time")).toHaveAttribute("datetime", /.+/);
   await page.reload();
   await expect(target.locator(".card").filter({ hasText: `Prove board ${suffix}` })).toBeVisible();
   await target.locator(".card").filter({ hasText: `Prove board ${suffix}` }).click();

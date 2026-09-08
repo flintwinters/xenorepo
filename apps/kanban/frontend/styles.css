@@ -50,6 +50,9 @@
 .card-badges > span {
   padding: 1px 4px; color: var(--label-ink, #fbf1c7); background: var(--label-color, #1d2021);
 }
+.card-log { display: grid; gap: 2px; padding: 3px 4px; border-top: 1px solid rgb(0 0 0 / 22%); }
+.card-log time { color: inherit; font-size: 9px; opacity: .7; }
+.card-log span { overflow-wrap: anywhere; white-space: pre-line; }
 .backdrop {
   position: fixed; z-index: 10; inset: 0; display: grid; place-items: center;
   padding: 16px; background: #000b;

@@ -20,7 +20,8 @@ board, no accounts, no due dates, and no collaboration behavior.
 - Local file uploads and web-link attachments.
 - Reversible archiving for the board's columns, cards, and attachments.
 - An immutable activity history that records creation, edits, moves, archive, and restore actions.
-- Each card exposes its timestamped item log. Descriptions from installations predating the log
+- Each card displays its latest timestamped log entry and exposes its complete item log in its details.
+  Descriptions from installations predating the log
   are migrated once as log entries at the Unix epoch.
 - Stable UUID identities, UTC audit timestamps, deterministic ordering, explicit validation, and
   visible API failures.

@@ -26,6 +26,7 @@ status, box-within-box composition, and other decorative AI conventions.
   card description exactly once to an epoch-dated log entry and every legacy comment once at its
   original timestamp; logs are the sole user-authored card narrative. Retain legacy descriptions
   as hidden recovery evidence until a formal migration lifecycle can remove their columns safely.
+- Render the latest log on each board card and the complete ordered log in card details.
 - Keep workflow state singular: columns communicate where work stands, with no parallel card
   priority field or tag.
 - Keep cards focused on work rather than ownership; there is no assignee field or tag.

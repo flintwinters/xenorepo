@@ -85,6 +85,10 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     return active(this.state.view?.cards ?? []).filter((value) => value.column_id === columnId)
       .sort((a, b) => a.position - b.position);
   }
+  private cardLogs(cardId: string) {
+    return (this.state.view?.logs ?? []).filter((item) => item.card_id === cardId)
+      .sort((left, right) => left.created_at.localeCompare(right.created_at));
+  }
   private knownLabels(): string[] {
     const values = new Map<string, string>();
     for (const card of this.state.view?.cards ?? [])
@@ -225,7 +229,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const card = this.card(this.state.selected);
     if (!card && !this.state.creatingIn) return null;
     const value = card ?? { title: "", labels: [] };
-    const logs = (this.state.view?.logs ?? []).filter((item) => item.card_id === card?.id);
+    const logs = card ? this.cardLogs(card.id) : [];
     const attachments = active(this.state.view?.attachments ?? []).filter((item) => item.card_id === card?.id);
     return <Modal class="backdrop" contentClass="dialog card-dialog" labelledBy="card-editor-title"
       onDismiss={() => this.setState({ selected: null, creatingIn: null })}>
@@ -274,7 +278,9 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       <CommandButton appearance="subtle" aria-label={`Rename ${column.name}`}
         onClick={() => this.setState({ editingColumn: column.id })}>EDIT</CommandButton></>}>
       <div class="card-list" data-column={column.id} onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => this.drop(event, column.id)}>{cards.map((card) => <article data-card-id={card.id}
+        onDrop={(event) => this.drop(event, column.id)}>{cards.map((card) => {
+        const latestLog = this.cardLogs(card.id).at(-1);
+        return <article data-card-id={card.id}
           class="card"
           draggable onDragStart={() => { this.dragged = card.id; }} onDragEnd={() => { this.dragged = null; }}
           onClick={() => this.setState({ selected: card.id })} onKeyDown={(event) => {
@@ -287,7 +293,10 @@ class KanbanBoard extends Component<Record<string, never>, State> {
               {label}</span>;
           })}
           </span>} />
-          </article>)}
+          {latestLog && <div class="card-log"><time dateTime={latestLog.created_at}>
+            {new Date(latestLog.created_at).toLocaleString()}</time><span>{latestLog.body}</span></div>}
+          </article>;
+      })}
       </div></ConsolePane>;
   }
   private board() {

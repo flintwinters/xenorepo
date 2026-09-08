@@ -3,27 +3,27 @@
 ## 1. Guiding motivation
 
 Monotools is the primary product; monoapps prove its planning, creation,
-lifecycle, validation, and maintenance workflows. Optimize for coherence,
-determinism, reusable automation, short feedback loops, and actionable failures.
+lifecycle, validation, and maintenance. Optimize for coherence, determinism,
+reusable automation, short feedback loops, and actionable failures.
 Promote recurring operations and protections into Monotools.
 
-Before implementation, review the system outcome, actors, responsibilities,
-invariants, states, dependencies, adjacent behavior, and lifecycle. Compare
-inaction, existing mechanisms, and the simplest adequate intervention by
-coherence, reversibility, blast radius, and maintenance. Cover malformed,
-unavailable, repeated, interrupted, and recovery states. Reject misplaced
-responsibility, exposed implementation accidents, invalid intermediate states,
-and lost recovery. State the evidence, weakest assumption, and reversal test.
+Before implementation, review the outcome, responsibilities, invariants, states,
+dependencies, and lifecycle. Compare inaction, existing mechanisms, and the
+simplest adequate intervention by coherence, reversibility, blast radius, and
+maintenance. Cover malformed, unavailable, repeated, interrupted, and recovery
+states. Reject misplaced responsibility, invalid intermediate states, and lost
+recovery. State the evidence, weakest assumption, and reversal test.
 
-The **monorepo** is this repository, a **monoapp** is one app, and **Monotools**
-is the orchestration library.
+Here, **monorepo** means this repository, **monoapp** an app, and **Monotools**
+the orchestration library.
 
 ## 2. Architecture and invariants
 
-- Root `manage.py` is the sole routine entrypoint, exposing Typer/Rich commands
-  for every app and recurring workflow.
-- Monoapps declare typed metadata and capabilities; Monotools owns discovery,
-  scaffolding, lifecycle, build, validation, tests, and status reporting.
+- Root `manage.py` is the sole routine entrypoint for every recurring workflow.
+- Monoapps declare typed metadata, capabilities, and lifecycle evidence. Their
+  managers and runtimes resolve the owning definition from local entrypoints;
+  Monotools owns discovery, scaffolding, lifecycle, build, validation, universal
+  platform tests, and status reporting.
 - Monotools uses documented, recursively discovered `orchestration`, `runtime`,
   `persistence`, and `integrations` packages.
 - Treat every public and control-plane boundary as a product contract.
@@ -64,15 +64,14 @@ is the orchestration library.
 
 ## 3. Current tasks
 
-- Preserve Preact-only architecture gates and deterministic app-owned wide/narrow
-  visual checks; generate their image baselines locally without versioning them.
-- Keep MonoForm a narrow secure CRUD default, not an authorization layer or a
-  substitute for app-owned workflows and server-side invariants.
+- Preserve Preact-only gates and app-owned wide/narrow visual checks; generate
+  baselines locally without versioning them.
+- Keep MonoForm a secure CRUD default, never authorization or a replacement for
+  app-owned workflows and server invariants.
 - Enforce the dependency direction `monoapp -> generic Monotools contract`,
   with no static monoapp identity or product policy in central code or tests.
 - Admit shared code only after independent consumers prove a generic boundary;
   keep `LIBRARIES.md` authoritative for contracts and extraction policy.
-- Keep the active checkpoint and next action concise in `PREACT_MIGRATION.md`.
-- Create monoapps from the Monotools template and promote mature apps to
-  independently versioned GitHub submodules without weakening their verified
-  dependency on the enclosing Xenorepo platform.
+- Keep `PREACT_MIGRATION.md` concise and current.
+- Create from the Monotools template and promote mature apps to versioned GitHub
+  submodules without weakening their verified Xenorepo dependency.

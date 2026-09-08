@@ -48,19 +48,27 @@ function valueOptions(field: string, kind: ModuleKind | null, context: Completio
   const parameter = kind ? moduleDefinition(kind).parameters[field] : undefined;
   return parameter?.values?.map((label: string) => ({ label, type: "enum", detail: parameter.description })) ?? [];
 }
+function topLevelOptions(context: CompletionContext, prefix: string, from: number,
+  lineFrom: number): CompletionResult | null {
+  if (prefix.startsWith(" ") || !/^(?:preset)?[\w -]*$/.test(prefix)) return null;
+  return { from: prefix.startsWith("preset") ? lineFrom : from, options: presetOptions(context),
+    validFor: /^(?:preset)?[\w /-]*$/, filter: false };
+}
+function parameterOptions(kind: ModuleKind | null): Completion[] {
+  if (!kind) return [];
+  return Object.entries(MODULE_REGISTRY[kind].parameters).map(([label, definition]) =>
+    ({ label, apply: `${label}: `, type: "property", detail: definition.range
+      ? `${definition.description} (${definition.range[0]}–${definition.range[1]})` : definition.description }));
+}
 function completions(context: CompletionContext): CompletionResult | null {
   const word = context.matchBefore(/[\w/-]*/); if (!word) return null;
   const line = context.state.doc.lineAt(context.pos); const prefix = line.text.slice(0, context.pos - line.from);
-  if (!prefix.startsWith(" ") && /^(?:preset)?[\w -]*$/.test(prefix))
-    return { from: prefix.startsWith("preset") ? line.from : word.from, options: presetOptions(context),
-      validFor: /^(?:preset)?[\w /-]*$/, filter: false };
+  const topLevel = topLevelOptions(context, prefix, word.from, line.from);
+  if (topLevel) return topLevel;
   if (!context.explicit && word.from === word.to) return null;
   const kind = nearestKind(context); const field = prefix.match(/(?:^|\s)([\w-]+):\s*[\w.-]*$/)?.[1];
   if (field) return { from: word.from, options: valueOptions(field, kind, context), validFor: /^[\w.-]*$/ };
   if (!/^\s*(?:-\s*)?[\w-]*$/.test(prefix)) return null;
-  const parameters: Completion[] = kind ? Object.entries(MODULE_REGISTRY[kind].parameters).map(([label, definition]) =>
-    ({ label, apply: `${label}: `, type: "property", detail: definition.range
-      ? `${definition.description} (${definition.range[0]}–${definition.range[1]})` : definition.description })) : [];
-  return { from: word.from, options: [...parameters, ...keys], validFor: /^[\w-]*$/ };
+  return { from: word.from, options: [...parameterOptions(kind), ...keys], validFor: /^[\w-]*$/ };
 }
 export const synthYamlCompletion = autocompletion({ override: [completions], activateOnTyping: true });

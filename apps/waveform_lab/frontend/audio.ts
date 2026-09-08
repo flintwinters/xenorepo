@@ -84,6 +84,71 @@ export class SynthEngine {
     return node;
   }
 
+  private voiceOutputs(context: BaseAudioContext, instrument: Instrument,
+    runtimes: Map<string, RuntimeModule>, now: number, gate: number, release: number
+  ): { outputs: Map<string, AudioNode>; nodes: AudioNode[] } {
+    const outputs = new Map<string, AudioNode>(); const nodes: AudioNode[] = [];
+    for (const module of instrument.modules) {
+      const output = runtimes.get(module.id)?.output;
+      if (!output) continue;
+      if (!(["oscillator", "noise"] as string[]).includes(module.kind)) {
+        outputs.set(module.id, output); continue;
+      }
+      const voiceGate = context.createGain(); voiceGate.gain.setValueAtTime(0, now);
+      voiceGate.gain.linearRampToValueAtTime(1, now + 0.003);
+      voiceGate.gain.setValueAtTime(1, now + gate + release);
+      voiceGate.gain.linearRampToValueAtTime(0, now + gate + release + 0.003);
+      output.connect(voiceGate); outputs.set(module.id, voiceGate); nodes.push(voiceGate);
+    }
+    return { outputs, nodes };
+  }
+
+  private connectAudio(instrument: Instrument, runtimes: Map<string, RuntimeModule>,
+    outputs: Map<string, AudioNode>): void {
+    for (const edge of instrument.connections.filter((item) => (item.type ?? "audio") === "audio")) {
+      const from = outputs.get(edge.from); const to = runtimes.get(edge.to)?.input;
+      if (from && to) from.connect(to);
+    }
+  }
+
+  private modulationNode(context: BaseAudioContext, edge: Instrument["connections"][number],
+    runtimes: Map<string, RuntimeModule>, modules: Map<string, Instrument["modules"][number]>
+  ): AudioNode | null {
+    const source = runtimes.get(edge.from)?.control;
+    const target = edge.target ? runtimes.get(edge.to)?.targets[edge.target] : undefined;
+    const targetModule = modules.get(edge.to);
+    const parameter = targetModule && edge.target
+      ? moduleDefinition(targetModule.kind).parameters[edge.target] : undefined;
+    if (!source || !target || !parameter?.range) return null;
+    const depth = context.createGain();
+    depth.gain.value = edge.amount ?? (parameter.range[1] - parameter.range[0]) * 0.2;
+    source.connect(depth).connect(target);
+    return depth;
+  }
+
+  private connectModulation(context: BaseAudioContext, instrument: Instrument,
+    runtimes: Map<string, RuntimeModule>, modules: Map<string, Instrument["modules"][number]>
+  ): AudioNode[] {
+    return instrument.connections.filter((edge) => edge.type === "modulation")
+      .map((edge) => this.modulationNode(context, edge, runtimes, modules))
+      .filter((node): node is AudioNode => node !== null);
+  }
+
+  private scheduleSources(sources: AudioScheduledSourceNode[], now: number, cleanupAt: number): void {
+    for (const source of sources) {
+      try { source.start(now); source.stop(cleanupAt); } catch { /* Invalid source is silent. */ }
+    }
+  }
+
+  private retainVoice(context: BaseAudioContext, sources: AudioScheduledSourceNode[],
+    nodes: AudioNode[], cleanupAt: number): void {
+    const cleanupTimer = window.setTimeout(() => {
+      const voice = [...this.voices].find((candidate) => candidate.cleanupTimer === cleanupTimer);
+      if (voice) { this.disposeVoice(voice); this.voices.delete(voice); }
+    }, Math.max(0, (cleanupAt - context.currentTime) * 1000));
+    this.voices.add({ sources, nodes, cleanupTimer });
+  }
+
   private play(context: BaseAudioContext, master: AudioNode, midi: number, instrument: Instrument,
     bpm: number, chordSize: number, now: number, dispose: boolean, caches = this.caches): void {
     const gate = Math.max(0.025, Math.min(0.18, 60 / bpm / 4 * 0.68));
@@ -94,47 +159,18 @@ export class SynthEngine {
 
     const envelopes = instrument.modules.filter((module) => module.kind === "envelope" && !module.bypass);
     const release = Math.max(0.02, ...envelopes.map((module) => Number(module.parameters.release)));
-    const effectiveOutputs = new Map<string, AudioNode>(); const extraNodes: AudioNode[] = [];
-    for (const module of instrument.modules) {
-      const output = runtimes.get(module.id)?.output; if (!output) continue;
-      if (module.kind !== "oscillator" && module.kind !== "noise") {
-        effectiveOutputs.set(module.id, output); continue;
-      }
-      const voiceGate = context.createGain(); voiceGate.gain.setValueAtTime(0, now);
-      voiceGate.gain.linearRampToValueAtTime(1, now + 0.003);
-      voiceGate.gain.setValueAtTime(1, now + gate + release);
-      voiceGate.gain.linearRampToValueAtTime(0, now + gate + release + 0.003);
-      output.connect(voiceGate); effectiveOutputs.set(module.id, voiceGate); extraNodes.push(voiceGate);
-    }
-    for (const edge of instrument.connections.filter((item) => (item.type ?? "audio") === "audio")) {
-      const from = effectiveOutputs.get(edge.from); const to = runtimes.get(edge.to)?.input;
-      if (from && to) from.connect(to);
-    }
-    for (const edge of instrument.connections.filter((item) => item.type === "modulation")) {
-      const source = runtimes.get(edge.from)?.control; const target = edge.target
-        ? runtimes.get(edge.to)?.targets[edge.target] : undefined; const targetModule = modules.get(edge.to);
-      const parameter = targetModule && edge.target
-        ? moduleDefinition(targetModule.kind).parameters[edge.target] : undefined;
-      if (!source || !target || !parameter?.range) continue;
-      const depth = context.createGain();
-      depth.gain.value = edge.amount ?? (parameter.range[1] - parameter.range[0]) * 0.2;
-      source.connect(depth).connect(target); extraNodes.push(depth);
-    }
+    const voice = this.voiceOutputs(context, instrument, runtimes, now, gate, release);
+    this.connectAudio(instrument, runtimes, voice.outputs);
+    const extraNodes = [...voice.nodes, ...this.connectModulation(context, instrument, runtimes, modules)];
     for (const module of instrument.modules.filter((item) => item.kind === "output"))
       runtimes.get(module.id)?.output?.connect(master);
 
     const all = [...runtimes.values()]; const sources = all.flatMap((item) => item.sources);
     const nodes = [...all.flatMap((item) => item.nodes), ...extraNodes]; const signalEnd = now + gate + release;
     const tail = Math.max(0.03, ...all.map((item) => item.tail)); const cleanupAt = signalEnd + tail + 0.02;
-    for (const source of sources) {
-      try { source.start(now); source.stop(cleanupAt); } catch { /* Invalid source is silent. */ }
-    }
+    this.scheduleSources(sources, now, cleanupAt);
     if (!dispose) return;
-    const cleanupTimer = window.setTimeout(() => {
-      const voice = [...this.voices].find((candidate) => candidate.cleanupTimer === cleanupTimer);
-      if (voice) { this.disposeVoice(voice); this.voices.delete(voice); }
-    }, Math.max(0, (cleanupAt - context.currentTime) * 1000));
-    this.voices.add({ sources, nodes, cleanupTimer });
+    this.retainVoice(context, sources, nodes, cleanupAt);
   }
 
   private disposeVoice(voice: VoiceRuntime): void {

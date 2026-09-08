@@ -50,7 +50,7 @@ export function encodeSynth(state: LabState): string {
   return stringify(instrumentMapOf(state.instruments), { lineWidth: 0 });
 }
 
-export function applySynth(source: string, current: LabState): LabState {
+function parseSynth(source: string): Record<string, unknown> {
   let parsed: unknown;
   try { parsed = parse(source); } catch (error) {
     throw new Error(error instanceof Error ? error.message : "YAML could not be parsed.");
@@ -59,9 +59,13 @@ export function applySynth(source: string, current: LabState): LabState {
     throw new Error("The document must map instrument names to their setup.");
   if ("version" in parsed || "loop" in parsed)
     throw new Error("Instrument names cannot be 'version' or 'loop'.");
+  return parsed as Record<string, unknown>;
+}
+
+export function applySynth(source: string, current: LabState): LabState {
   const candidate = validatedState({
     version: STATE_VERSION,
-    ...parsed,
+    ...parseSynth(source),
     loop: { bpm: current.bpm, volume: current.volume, notes: current.notes },
   });
   if (!candidate) throw new Error("Synth YAML violates the module, connection, or waveform contract.");

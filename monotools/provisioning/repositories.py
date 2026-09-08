@@ -73,13 +73,11 @@ def uninitialized_app_submodules(workspace: Path) -> tuple[Path, ...]:
         if not (path / ".git").exists())
 
 
-def delete_app(workspace: Path, name: str) -> AppDeletion:
-    """Remove one local monoapp and every host-repository registration it owns."""
+def _deletion_target(workspace: Path, name: str) -> tuple[str, Path, Path, bool]:
     try:
         valid_name = validate_app_name(name)
     except AppDefinitionError as error:
         raise RepositoryError(str(error)) from error
-    workspace = workspace.resolve()
     relative = Path("apps") / valid_name
     directory = workspace / relative
     submodule = directory in declared_app_submodules(workspace)
@@ -89,24 +87,19 @@ def delete_app(workspace: Path, name: str) -> AppDeletion:
         raise RepositoryError(
             f"unknown monoapp {valid_name!r}; available: {', '.join(available) or 'none'}"
         )
-    tracked = "" if submodule else _git(workspace, "ls-files", "--", str(relative))
-    if not submodule and not tracked:
-        raise RepositoryError(
-            f"{valid_name} is not versioned; commit it before deletion so the deletion can be reverted"
-        )
-    if submodule:
-        _git(workspace, "submodule", "deinit", "-f", "--", str(relative))
-        _git(workspace, "rm", "-f", "--", str(relative))
-        module_metadata = workspace / ".git" / "modules" / relative
-        if module_metadata.exists():
-            shutil.rmtree(module_metadata)
-        mode = "submodule"
-    else:
-        _git(workspace, "rm", "-r", "-f", "--", str(relative))
-        mode = "monolith"
-    if directory.exists():
-        shutil.rmtree(directory)
-    subject = f"Delete {valid_name} monoapp"
+    return valid_name, relative, directory, submodule
+
+
+def _remove_submodule(workspace: Path, relative: Path) -> None:
+    _git(workspace, "submodule", "deinit", "-f", "--", str(relative))
+    _git(workspace, "rm", "-f", "--", str(relative))
+    module_metadata = workspace / ".git" / "modules" / relative
+    if module_metadata.exists():
+        shutil.rmtree(module_metadata)
+
+
+def _commit_deletion(workspace: Path, name: str, relative: Path, submodule: bool) -> str:
+    subject = f"Delete {name} monoapp"
     body = (
         f"Remove the complete local {relative} application boundary, including its source, "
         "specification, tests, management commands, and repository registration."
@@ -115,7 +108,27 @@ def delete_app(workspace: Path, name: str) -> AppDeletion:
     if submodule:
         pathspecs.insert(0, ".gitmodules")
     _git(workspace, "commit", "--only", "-m", subject, "-m", body, "--", *pathspecs)
-    revision = _git(workspace, "rev-parse", "--short", "HEAD")
+    return _git(workspace, "rev-parse", "--short", "HEAD")
+
+
+def delete_app(workspace: Path, name: str) -> AppDeletion:
+    """Remove one local monoapp and every host-repository registration it owns."""
+    workspace = workspace.resolve()
+    valid_name, relative, directory, submodule = _deletion_target(workspace, name)
+    tracked = "" if submodule else _git(workspace, "ls-files", "--", str(relative))
+    if not submodule and not tracked:
+        raise RepositoryError(
+            f"{valid_name} is not versioned; commit it before deletion so the deletion can be reverted"
+        )
+    if submodule:
+        _remove_submodule(workspace, relative)
+        mode = "submodule"
+    else:
+        _git(workspace, "rm", "-r", "-f", "--", str(relative))
+        mode = "monolith"
+    if directory.exists():
+        shutil.rmtree(directory)
+    revision = _commit_deletion(workspace, valid_name, relative, submodule)
     return AppDeletion(valid_name, mode, relative, revision)
 
 

@@ -12,20 +12,20 @@ board, no accounts, no due dates, and no collaboration behavior.
 - One persistent board whose name and description can be edited.
 - User-created, named columns with explicit ordering and reversible archiving.
 - Per-column Add Card controls in column headers.
-- Cards with editable title, description, assignee text, and labels.
+- Cards with editable title, assignee text, labels, and append-only timestamped log entries.
 - Board settings for its identity, plus individual column, card, and
   label colors. The single board uses the shared application chrome rather than a custom theme.
 - Mouse drag-and-drop for ordering cards within a column and moving them between columns.
 - Editable comments, local file uploads, and web-link attachments.
 - Reversible archiving for the board's columns, cards, comments, and attachments.
 - An immutable activity history that records creation, edits, moves, archive, and restore actions.
-- Each card exposes its timestamped item log, including its own activity and the activity of its
-  comments and attachments.
+- Each card exposes its timestamped item log. Descriptions from installations predating the log
+  are migrated once as log entries at the Unix epoch.
 - Stable UUID identities, UTC audit timestamps, deterministic ordering, explicit validation, and
   visible API failures.
 - A readable JSON clipboard document of current work: board settings at the root and flat,
-  ordered arrays for active columns, cards, comments, and attachment metadata. The document omits
-  archived work, activity history, timestamps, positions already expressed by array order, and
+  ordered arrays for active columns, cards, logs, comments, and attachment metadata. The document omits
+  archived work, activity history, non-log timestamps, positions already expressed by array order, and
   entity identifiers that are not needed for relationships.
 - Atomic JSON import supports appending work without changing board settings or replacing all board
   content and settings. Imports validate the complete document and its relationships before
@@ -34,7 +34,7 @@ board, no accounts, no due dates, and no collaboration behavior.
 ## Walking skeleton
 
 The first shippable slice opens the one board and presents its active columns and cards. A user can
-rename the board, create and reorder columns, create a fully described card, drag it within and
+rename the board, create and reorder columns, create a card and append a log entry, drag it within and
 between columns, add and edit comments, attach both a local file and a web link, and inspect the
 resulting immutable history. An archive view restores any archived column, card, comment, or
 attachment. SQLite is the default durable store at `data/kanban.db`;

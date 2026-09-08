@@ -10,7 +10,7 @@ from apps.kanban.backend.database import Base, KanbanError, KanbanStore
 from apps.kanban.backend.schemas import (
     AttachmentEdit, AttachmentView, BoardDetailsEdit, BoardEdit, BoardImport, BoardView, CardCreate, CardEdit,
     CardMove, CardView, ColumnCreate, ColumnEdit, ColumnView, CommentInput, CommentView, KanbanView,
-    ImportResult, LabelColorEdit, LinkInput,
+    ImportResult, LabelColorEdit, LinkInput, LogInput, LogView,
     PositionInput,
 )
 from monotools.runtime.appkit import create_app_context
@@ -117,6 +117,12 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
     async def move_card(card_id: str, value: CardMove, request: Request) -> CardView:
         require_origin(request)
         return board.move_card(card_id, value)
+
+    @application.post("/api/cards/{card_id}/logs", response_model=LogView,
+        status_code=status.HTTP_201_CREATED)
+    async def add_log(card_id: str, value: LogInput, request: Request) -> LogView:
+        require_origin(request)
+        return board.add_log(card_id, value.body)
 
     @application.post("/api/cards/{card_id}/comments", response_model=CommentView,
         status_code=status.HTTP_201_CREATED)

@@ -7,7 +7,7 @@ import unittest
 
 import httpx
 
-from apps.kanban.backend.database import Base, KanbanStore
+from apps.kanban.backend.database import Base, CardRecord, KanbanStore
 from apps.kanban.backend.server import create_app
 from monotools.orchestration.apps import ROOT, get_app
 from monotools.orchestration.lifecycle import build_app
@@ -55,7 +55,7 @@ class ApplicationTests(unittest.TestCase):
 
     def card(self, column_id: str, title: str = "Write tests") -> dict:
         response = self.client.request("POST", "/api/cards", json={"column_id": column_id,
-            "title": title, "description": "Prove persistence", "assignee": "Felix",
+            "title": title, "assignee": "Felix",
             "labels": ["Quality", "quality", "Backend"]})
         self.assertEqual(response.status_code, 201)
         return response.json()
@@ -91,6 +91,21 @@ class ApplicationTests(unittest.TestCase):
         stale_board = self.client.request("PATCH", "/api/board", json={
             "name": "Stale client", "default_priority": "urgent"})
         self.assertEqual((stale_card.status_code, stale_board.status_code), (422, 422))
+
+    def test_legacy_descriptions_migrate_once_to_epoch_logs(self) -> None:
+        column = self.column()
+        card = self.card(column["id"])
+        with self.sessions.begin() as session:
+            session.get(CardRecord, card["id"]).legacy_description = "Original description"
+        KanbanStore(self.sessions)
+        KanbanStore(self.sessions)
+        view = self.client.request("GET", "/api/board").json()
+        self.assertNotIn("description", next(value for value in view["cards"]
+            if value["id"] == card["id"]))
+        migrated = [value for value in view["logs"] if value["card_id"] == card["id"]]
+        self.assertEqual(len(migrated), 1)
+        self.assertEqual((migrated[0]["body"], migrated[0]["created_at"]),
+            ("Original description", "1970-01-01T00:00:00"))
 
     def test_modal_crud_operations_are_declared_for_monoform(self) -> None:
         operations = monoform_manifest(self.client.application.openapi(), app="kanban",
@@ -182,7 +197,7 @@ class ApplicationTests(unittest.TestCase):
         self.assertIn('from "monoui";', source)
         self.assertIn("Modal", source)
         self.assertIn("ITEM LOG", source)
-        self.assertIn("dateTime={item.occurred_at}", source)
+        self.assertIn("dateTime={item.created_at}", source)
         self.assertNotIn("<form onSubmit={this.save", source)
         self.assertIn('from "../data/openapi";', client)
         self.assertNotIn("window.alert", source)
@@ -200,15 +215,16 @@ class ApplicationTests(unittest.TestCase):
             "label_colors": {"Legacy": "#778899"},
             "columns": [{"id": "legacy-column", "name": "Legacy", "color": "#abcdef"}],
             "cards": [{"id": "legacy-card", "column_id": "legacy-column", "title": "Moved",
-                "description": "Old work", "assignee": "Felix", "labels": ["Legacy"],
-                "color": "#123456"}],
+                "assignee": "Felix", "labels": ["Legacy"], "color": "#123456"}],
+            "logs": [{"card_id": "legacy-card", "body": "Old work",
+                "created_at": "1970-01-01T00:00:00Z"}],
             "comments": [{"card_id": "legacy-card", "body": "Old note"}],
             "attachments": [{"card_id": "legacy-card", "kind": "link", "title": "Source",
                 "url": "https://example.com/legacy", "original_name": None, "media_type": None}],
         }
         appended = self.client.request("POST", "/api/import/append", json=document)
         self.assertEqual(appended.json(), {"mode": "append", "columns": 1, "cards": 1,
-            "comments": 1, "attachments": 1})
+            "logs": 1, "comments": 1, "attachments": 1})
         view = self.client.request("GET", "/api/board").json()
         self.assertEqual(view["board"]["name"], "My board")
         self.assertEqual([value["name"] for value in view["columns"]], ["Existing", "Legacy"])
@@ -217,6 +233,7 @@ class ApplicationTests(unittest.TestCase):
         self.assertNotEqual((imported_column["id"], imported_card["id"]),
             ("legacy-column", "legacy-card"))
         self.assertEqual(imported_card["column_id"], imported_column["id"])
+        self.assertEqual(view["logs"][0]["card_id"], imported_card["id"])
         self.assertEqual(view["comments"][0]["card_id"], imported_card["id"])
         self.assertEqual(view["attachments"][0]["card_id"], imported_card["id"])
 

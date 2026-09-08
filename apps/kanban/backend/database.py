@@ -3,14 +3,14 @@
 from datetime import UTC, datetime, timedelta
 import json
 from typing import Callable
-from uuid import uuid4
+from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, delete, select
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from apps.kanban.backend.schemas import (
     ActivityView, AttachmentView, BoardEdit, BoardView, CardCreate, CardEdit, CardMove, CardView,
-    BoardDetailsEdit, BoardImport, ColumnView, CommentView, ImportResult, KanbanView,
+    BoardDetailsEdit, BoardImport, ColumnView, CommentView, ImportResult, KanbanView, LogView,
 )
 
 
@@ -65,7 +65,8 @@ class CardRecord(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     column_id: Mapped[str] = mapped_column(ForeignKey("kanban_columns.id"), index=True)
     title: Mapped[str] = mapped_column(String(120))
-    description: Mapped[str] = mapped_column(Text, default="")
+    # Retained only to migrate descriptions created by older releases.
+    legacy_description: Mapped[str] = mapped_column("description", Text, default="")
     assignee: Mapped[str] = mapped_column(String(120), default="")
     labels_json: Mapped[str] = mapped_column(Text, default="[]")
     # Retained only so installations created by older releases remain writable.
@@ -84,6 +85,15 @@ class CommentRecord(Base):
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class LogRecord(Base):
+    __tablename__ = "kanban_logs"
+    __table_args__ = (Index("card_log_order", "card_id", "created_at", "id"),)
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    card_id: Mapped[str] = mapped_column(ForeignKey("kanban_cards.id"), index=True)
+    body: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class AttachmentRecord(Base):
@@ -125,7 +135,7 @@ def _column(value: ColumnRecord, colors: dict[str, str]) -> ColumnView:
 
 def _card(value: CardRecord, colors: dict[str, str]) -> CardView:
     return CardView(id=value.id, column_id=value.column_id, title=value.title,
-        description=value.description, assignee=value.assignee, labels=json.loads(value.labels_json),
+        assignee=value.assignee, labels=json.loads(value.labels_json),
         position=value.position, archived_at=value.archived_at,
         created_at=value.created_at, updated_at=value.updated_at,
         color=colors.get(value.id, "#32302f"))
@@ -159,6 +169,17 @@ class KanbanStore:
                 self._activity(session, "created", "board", board.id, "Created board “My board”")
             if session.get(BoardSettingsRecord, 1) is None:
                 session.add(BoardSettingsRecord(id=1))
+            self._migrate_descriptions(session)
+
+    @staticmethod
+    def _migrate_descriptions(session: Session) -> None:
+        epoch = datetime(1970, 1, 1, tzinfo=UTC)
+        for card in session.scalars(select(CardRecord)).all():
+            body = card.legacy_description.strip()
+            identity = str(uuid5(NAMESPACE_URL, f"kanban:description:{card.id}"))
+            if body and session.get(LogRecord, identity) is None:
+                session.add(LogRecord(id=identity, card_id=card.id, body=body, created_at=epoch))
+            card.legacy_description = ""
 
     def _activity(self, session: Session, kind: str, subject_type: str,
         subject_id: str, summary: str) -> None:
@@ -187,6 +208,8 @@ class KanbanStore:
                 CardRecord.position, CardRecord.id)).all()
             comments = session.scalars(select(CommentRecord).order_by(
                 CommentRecord.created_at, CommentRecord.id)).all()
+            logs = session.scalars(select(LogRecord).order_by(
+                LogRecord.created_at, LogRecord.id)).all()
             attachments = session.scalars(select(AttachmentRecord).order_by(
                 AttachmentRecord.created_at, AttachmentRecord.id)).all()
             activity = session.scalars(select(ActivityRecord).order_by(
@@ -194,6 +217,7 @@ class KanbanStore:
             return KanbanView(board=_board(board, settings),
                 columns=[_column(value, column_colors) for value in columns],
                 cards=[_card(value, card_colors) for value in cards],
+                logs=[LogView.model_validate(value) for value in logs],
                 comments=[_comment(value) for value in comments],
                 attachments=[_attachment(value) for value in attachments],
                 activity=[ActivityView.model_validate(value) for value in activity])
@@ -235,7 +259,7 @@ class KanbanStore:
 
     def _replace_import_state(self, session: Session, board: BoardRecord,
         settings: BoardSettingsRecord, value: BoardImport) -> None:
-        for model in (AttachmentRecord, CommentRecord, CardRecord, ColumnRecord, ActivityRecord):
+        for model in (AttachmentRecord, CommentRecord, LogRecord, CardRecord, ColumnRecord, ActivityRecord):
             session.execute(delete(model))
         session.flush()
         board.name, board.description, board.updated_at = value.name, value.description, self.now()
@@ -270,7 +294,7 @@ class KanbanStore:
             positions[column_id] = position + 1
             identity = identities[source.id]
             session.add(CardRecord(id=identity, column_id=column_id, title=source.title,
-                description=source.description, assignee=source.assignee,
+                legacy_description="", assignee=source.assignee,
                 labels_json=json.dumps(source.labels), legacy_priority="normal", position=position,
                 archived_at=None, created_at=instant, updated_at=instant))
             colors[identity] = source.color
@@ -279,6 +303,9 @@ class KanbanStore:
     @staticmethod
     def _import_children(session: Session, value: BoardImport, instant: datetime,
         card_ids: dict[str, str]) -> None:
+        for source in value.logs:
+            session.add(LogRecord(id=str(uuid4()), card_id=card_ids[source.card_id],
+                body=source.body, created_at=source.created_at))
         for order, source in enumerate(value.comments):
             created_at = instant + timedelta(microseconds=order)
             session.add(CommentRecord(id=str(uuid4()), card_id=card_ids[source.card_id],
@@ -295,7 +322,7 @@ class KanbanStore:
         self._activity(session, "imported", "board", board_id,
             f"{mode.title()} imported {len(value.cards)} cards")
         return ImportResult(mode=mode, columns=len(value.columns), cards=len(value.cards),
-            comments=len(value.comments), attachments=len(value.attachments))
+            logs=len(value.logs), comments=len(value.comments), attachments=len(value.attachments))
 
     def edit_board_details(self, value: BoardDetailsEdit) -> BoardView:
         with self.sessions.begin() as session:
@@ -378,7 +405,7 @@ class KanbanStore:
             position = len(self._active_cards(session, value.column_id))
             instant = self.now()
             record = CardRecord(id=str(uuid4()), column_id=value.column_id, title=value.title,
-                description=value.description, assignee=value.assignee,
+                legacy_description="", assignee=value.assignee,
                 labels_json=json.dumps(value.labels), legacy_priority="normal", position=position,
                 archived_at=None, created_at=instant, updated_at=instant)
             session.add(record)
@@ -390,7 +417,7 @@ class KanbanStore:
     def edit_card(self, identity: str, value: CardEdit) -> CardView:
         with self.sessions.begin() as session:
             record = self._required(session, CardRecord, identity, "Card")
-            record.title, record.description = value.title, value.description
+            record.title = value.title
             record.assignee, record.labels_json = value.assignee, json.dumps(value.labels)
             record.updated_at = self.now()
             colors = self._set_color(session, "card", identity, value.color)
@@ -489,6 +516,17 @@ class KanbanStore:
             self._activity(session, "created", "comment", record.id, f"Commented on “{card.title}”")
             session.flush()
             return _comment(record)
+
+    def add_log(self, card_id: str, body: str) -> LogView:
+        with self.sessions.begin() as session:
+            card = self._required(session, CardRecord, card_id, "Card")
+            if card.archived_at:
+                raise KanbanError("Cannot log work on an archived card", "conflict")
+            record = LogRecord(id=str(uuid4()), card_id=card_id, body=body, created_at=self.now())
+            session.add(record)
+            self._activity(session, "created", "log", record.id, f"Logged work on “{card.title}”")
+            session.flush()
+            return LogView.model_validate(record)
 
     def edit_comment(self, identity: str, body: str) -> CommentView:
         with self.sessions.begin() as session:

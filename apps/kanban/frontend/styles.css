@@ -118,11 +118,12 @@
 }
 .item-log time, .empty-log { color: #a89984; }
 .empty-log { margin: 7px 0 0; }
+.log-form { grid-template-columns: minmax(0, 1fr) auto; }
 @media (max-width: 720px) {
   .kanban-shell > header .x-ui-rail { flex-wrap: wrap; white-space: normal; padding-block: 4px; }
   .board-description { display: none; }
   .push { flex: 1; }
-  .field-row, .compact-form, .compact-form:has(input[type="file"]) { grid-template-columns: 1fr; }
+  .field-row, .compact-form, .compact-form:has(input[type="file"]), .log-form { grid-template-columns: 1fr; }
   .row { flex-wrap: wrap; }
   .row p, .row a { flex-basis: 100%; }
   .activity-list li, .item-log li { grid-template-columns: 1fr; gap: 2px; }

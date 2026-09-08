@@ -34,13 +34,15 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   }));
   expect(Object.keys(initialCurrent)).toEqual([
     "name", "description", "background_color", "accent_color", "label_colors",
-    "columns", "cards", "comments", "attachments",
+    "columns", "cards", "logs", "comments", "attachments",
   ]);
   expect(initialCurrent).not.toHaveProperty("board");
   expect(initialCurrent.columns.every((value: object) =>
     Object.keys(value).join() === "id,name,color")).toBe(true);
   expect(initialCurrent.cards.every((value: object) => Object.keys(value).join() ===
-    "id,column_id,title,description,assignee,labels,color")).toBe(true);
+    "id,column_id,title,assignee,labels,color")).toBe(true);
+  expect(initialCurrent.logs.every((value: object) =>
+    Object.keys(value).join() === "card_id,body,created_at")).toBe(true);
   expect(initialCurrent.comments.every((value: object) =>
     Object.keys(value).join() === "card_id,body")).toBe(true);
   expect(initialCurrent.attachments.every((value: object) => Object.keys(value).join() ===
@@ -49,7 +51,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   expect(initialCurrent.cards.every(
     (value: { column_id: string }) => currentColumnIds.has(value.column_id))).toBe(true);
   const currentCardIds = new Set(initialCurrent.cards.map((value: { id: string }) => value.id));
-  expect([...initialCurrent.comments, ...initialCurrent.attachments].every(
+  expect([...initialCurrent.logs, ...initialCurrent.comments, ...initialCurrent.attachments].every(
     (value: { card_id: string }) => currentCardIds.has(value.card_id))).toBe(true);
   await page.getByRole("button", { name: "+ COLUMN" }).click();
   await expect(page.getByRole("dialog", { name: "NEW COLUMN" })).toBeVisible();
@@ -97,7 +99,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(page.locator(".workspace")).toHaveCSS("background-color", "rgb(29, 32, 33)");
   await source.getByRole("button", { name: "+ CARD" }).click();
   await page.getByLabel("Title").fill(`Prove board ${suffix}`);
-  await page.getByLabel("Description").fill("A persisted acceptance card");
+  await expect(page.getByLabel("Description")).toHaveCount(0);
   await page.getByLabel("Assignee").fill("Felix");
   await expect(page.getByLabel("Priority")).toHaveCount(0);
   await page.getByLabel("Color", { exact: true }).fill("#41395c");
@@ -154,13 +156,14 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
     testInfo.project.name === "wide-viewport-chromium" ? "Card moved" : "Board ready",
   );
   await target.locator(".card").filter({ hasText: `Prove board ${suffix}` }).click();
+  await page.getByLabel("Log entry").fill("A persisted acceptance log");
+  await page.getByRole("button", { name: "ADD LOG" }).click();
+  const itemLog = page.locator(".item-log");
+  await expect(itemLog).toContainText("A persisted acceptance log");
+  await expect(itemLog.locator("time").first()).toHaveAttribute("datetime", /.+/);
   await page.getByLabel("Comment").fill("The drag persisted");
   await page.getByRole("button", { name: "ADD", exact: true }).click();
   await expect(page.getByText("The drag persisted")).toBeVisible();
-  const itemLog = page.locator(".item-log");
-  await expect(itemLog).toContainText(`Moved card “Prove board ${suffix}”`);
-  await expect(itemLog).toContainText(`Commented on “Prove board ${suffix}”`);
-  await expect(itemLog.locator("time").first()).toHaveAttribute("datetime", /.+/);
   await page.locator(".row").filter({ hasText: "The drag persisted" })
     .getByRole("button", { name: "EDIT" }).click();
   const commentEditor = page.getByRole("dialog", { name: "EDIT COMMENT" });
@@ -219,7 +222,8 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(appendDialog.getByLabel("Import mode")).toHaveValue("append");
   await appendDialog.getByLabel("JSON file").setInputFiles({ name: "empty.json",
     mimeType: "application/json", buffer: Buffer.from(JSON.stringify({
-      ...initialCurrent, name: "Ignored append settings", columns: [], cards: [], comments: [], attachments: [],
+      ...initialCurrent, name: "Ignored append settings", columns: [], cards: [], logs: [], comments: [],
+      attachments: [],
     })) });
   await appendDialog.getByRole("button", { name: "IMPORT", exact: true }).click();
   await expect(page.getByRole("status")).toHaveText("Appended board JSON");
@@ -240,7 +244,7 @@ test("[visual] populated single-board workflow", async ({ page }) => {
     await createColumn(page, "Complete");
     await page.locator(".column").filter({ hasText: "Ideas" }).getByRole("button", { name: "+ CARD" }).click();
     await page.getByLabel("Title").fill("Outline launch");
-    await page.getByLabel("Description").fill("Turn the release goal into a concrete plan");
+    await expect(page.getByLabel("Description")).toHaveCount(0);
     await page.getByLabel("Assignee").fill("Felix");
     await page.getByLabel(/Labels/).fill("planning, release");
     await page.getByRole("button", { name: "SAVE", exact: true }).click();

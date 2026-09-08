@@ -22,7 +22,7 @@ status, box-within-box composition, and other decorative AI conventions.
 - Preserve the deterministic populated wide/narrow baselines and the horizontal workflow structure
   on small screens.
 - Keep copy and atomic append/replace import aligned as one explicit, flat current-state contract.
-- Keep each card's visible timestamped log derived from the immutable activity stream, including
-  activity for its comments and attachments; do not create a competing history authority.
+- Keep card logs append-only and distinct from the system activity stream. Migrate every legacy
+  card description exactly once to an epoch-dated log entry.
 - Keep workflow state singular: columns communicate where work stands, with no parallel card
   priority field or tag.

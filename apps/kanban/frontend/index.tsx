@@ -3,7 +3,7 @@ import { CommandButton, ConsoleChrome, ConsolePane, ConsoleShell, EmptyState, Mo
   UtilityRail, type MonoFormManifest } from "monoui";
 import rawManifest from "../data/monoform.json";
 import {
-  addComment, addLink, addUpload, importBoard, loadBoard, moveCard, moveColumn, setArchived,
+  addComment, addLink, addLog, addUpload, importBoard, loadBoard, moveCard, moveColumn, setArchived,
   type BoardImport,
   type Attachment, type Card, type Column, type Comment, type KanbanView,
 } from "./client.js";
@@ -33,12 +33,14 @@ const currentState = (view: KanbanView) => {
   const columns = active(view.columns).map(({ id, name, color }) => ({ id, name, color }));
   const columnIds = new Set(columns.map((value) => value.id));
   const cards = active(view.cards).filter((value) => columnIds.has(value.column_id)).map(
-    ({ id, column_id, title, description, assignee, labels, color }) =>
-      ({ id, column_id, title, description, assignee, labels, color }),
+    ({ id, column_id, title, assignee, labels, color }) =>
+      ({ id, column_id, title, assignee, labels, color }),
   );
   const cardIds = new Set(cards.map((value) => value.id));
   const { name, description, background_color, accent_color, label_colors } = view.board;
   return { name, description, background_color, accent_color, label_colors, columns, cards,
+    logs: view.logs.filter((value) => cardIds.has(value.card_id)).map(
+      ({ card_id, body, created_at }) => ({ card_id, body, created_at })),
     comments: active(view.comments).filter((value) => cardIds.has(value.card_id)).map(
       ({ card_id, body }) => ({ card_id, body })),
     attachments: active(view.attachments).filter((value) => cardIds.has(value.card_id)).map(
@@ -93,13 +95,6 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       for (const label of card.labels) values.set(label.toLocaleLowerCase(), label);
     return [...values.values()].sort((left, right) => left.localeCompare(right));
   }
-  private cardActivity(cardId: string) {
-    const subjectIds = new Set([cardId,
-      ...(this.state.view?.comments ?? []).filter((item) => item.card_id === cardId).map((item) => item.id),
-      ...(this.state.view?.attachments ?? []).filter((item) => item.card_id === cardId).map((item) => item.id),
-    ]);
-    return (this.state.view?.activity ?? []).filter((item) => subjectIds.has(item.subject_id));
-  }
   private archive = (kind: string, id: string): void => {
     if (kind === "card") this.setState({ selected: null });
     this.perform(`${kind} archived`, () => setArchived(kind, id));
@@ -124,6 +119,11 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     event.preventDefault();
     const form = event.currentTarget as HTMLFormElement, body = String(new FormData(form).get("body"));
     this.perform("Comment added", async () => { await addComment(cardId, body); form.reset(); });
+  };
+  private saveLog = (event: SubmitEvent, cardId: string): void => {
+    event.preventDefault();
+    const form = event.currentTarget as HTMLFormElement, body = String(new FormData(form).get("body"));
+    this.perform("Log entry added", async () => { await addLog(cardId, body); form.reset(); });
   };
   private saveLink = (event: SubmitEvent, cardId: string): void => {
     event.preventDefault();
@@ -245,10 +245,10 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     if (this.state.editingComment || this.state.editingAttachment) return null;
     const card = this.card(this.state.selected);
     if (!card && !this.state.creatingIn) return null;
-    const value = card ?? { title: "", description: "", assignee: "", labels: [], color: "#32302f" };
+    const value = card ?? { title: "", assignee: "", labels: [], color: "#32302f" };
+    const logs = (this.state.view?.logs ?? []).filter((item) => item.card_id === card?.id);
     const comments = active(this.state.view?.comments ?? []).filter((item) => item.card_id === card?.id);
     const attachments = active(this.state.view?.attachments ?? []).filter((item) => item.card_id === card?.id);
-    const activity = card ? this.cardActivity(card.id) : [];
     return <Modal class="backdrop" contentClass="dialog card-dialog" labelledBy="card-editor-title"
       onDismiss={() => this.setState({ selected: null, creatingIn: null })}>
       <h2 id="card-editor-title">{card ? "CARD DETAILS" : "NEW CARD"}</h2>
@@ -261,7 +261,13 @@ class KanbanBoard extends Component<Record<string, never>, State> {
           void this.refresh(card ? "Card updated" : "Card created");
         }} />{card && <div class="actions"><CommandButton type="button" class="danger"
           onClick={() => this.archive("card", card.id)}>ARCHIVE</CommandButton></div>}</div>
-      {card && <div class="card-extras"><section><h3>COMMENTS</h3>{comments.map((item) => <div class="row">
+      {card && <div class="card-extras"><section class="item-log"><h3>ITEM LOG</h3>{logs.length > 0 ? <ol>
+        {logs.map((item) => <li><time dateTime={item.created_at}>
+          {new Date(item.created_at).toLocaleString()}</time><span>{item.body}</span></li>)}</ol> :
+        <p class="empty-log">No log entries.</p>}<form class="compact-form log-form"
+          onSubmit={(event) => this.saveLog(event, card.id)}><input name="body" required maxLength={4000}
+            placeholder="Record progress" aria-label="Log entry" /><CommandButton type="submit">
+            ADD LOG</CommandButton></form></section><section><h3>COMMENTS</h3>{comments.map((item) => <div class="row">
         <p>{item.body}</p><CommandButton appearance="subtle"
           onClick={() => this.setState({ editingComment: item.id })}>EDIT</CommandButton>
         <CommandButton appearance="subtle" onClick={() => this.archive("comment", item.id)}>
@@ -281,10 +287,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
             onSubmit={(event) => this.saveUpload(event, card.id)}>
         <input name="title" required placeholder="File title" aria-label="File title" /><input name="file"
           type="file" required aria-label="Choose file" /><CommandButton type="submit">UPLOAD</CommandButton>
-      </form></section><section class="item-log"><h3>ITEM LOG</h3>{activity.length > 0 ? <ol>
-        {activity.map((item) => <li><time dateTime={item.occurred_at}>
-          {new Date(item.occurred_at).toLocaleString()}</time><span>{item.summary}</span></li>)}</ol> :
-        <p class="empty-log">No activity recorded.</p>}</section></div>}</Modal>;
+      </form></section></div>}</Modal>;
   }
   private column(column: Column) {
     const cards = this.cards(column.id);
@@ -314,7 +317,6 @@ class KanbanBoard extends Component<Record<string, never>, State> {
               {label}</span>;
           })}
           </span>} />
-          {card.description && <p>{card.description}</p>}
           {card.assignee && <div class="card-meta"><span>@{card.assignee}</span></div>}</article>)}
       </div></ConsolePane>;
   }

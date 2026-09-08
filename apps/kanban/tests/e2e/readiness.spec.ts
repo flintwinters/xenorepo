@@ -40,7 +40,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   expect(initialCurrent.columns.every((value: object) =>
     Object.keys(value).join() === "id,name,color")).toBe(true);
   expect(initialCurrent.cards.every((value: object) => Object.keys(value).join() ===
-    "id,column_id,title,assignee,labels,color")).toBe(true);
+    "id,column_id,title,labels,color")).toBe(true);
   expect(initialCurrent.logs.every((value: object) =>
     Object.keys(value).join() === "card_id,body,created_at")).toBe(true);
   expect(initialCurrent.comments.every((value: object) =>
@@ -100,14 +100,13 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await source.getByRole("button", { name: "+ CARD" }).click();
   await page.getByLabel("Title").fill(`Prove board ${suffix}`);
   await expect(page.getByLabel("Description")).toHaveCount(0);
-  await page.getByLabel("Assignee").fill("Felix");
+  await expect(page.getByLabel("Assignee")).toHaveCount(0);
   await expect(page.getByLabel("Priority")).toHaveCount(0);
   await page.getByLabel("Color", { exact: true }).fill("#41395c");
   await page.getByLabel(/Labels/).fill("acceptance, durable");
   await page.getByRole("button", { name: "SAVE", exact: true }).click();
   const card = page.locator(".card").filter({ hasText: `Prove board ${suffix}` });
   await expect(card).toHaveCSS("color", "rgb(251, 241, 199)");
-  await expect(card).toContainText("@Felix");
   await expect(card.locator(".card-chrome strong")).toHaveText(`Prove board ${suffix}`);
   expect(await card.evaluate((element) => {
     const cardStyle = getComputedStyle(element), chromeStyle = getComputedStyle(element.querySelector(".card-chrome")!),
@@ -245,7 +244,7 @@ test("[visual] populated single-board workflow", async ({ page }) => {
     await page.locator(".column").filter({ hasText: "Ideas" }).getByRole("button", { name: "+ CARD" }).click();
     await page.getByLabel("Title").fill("Outline launch");
     await expect(page.getByLabel("Description")).toHaveCount(0);
-    await page.getByLabel("Assignee").fill("Felix");
+    await expect(page.getByLabel("Assignee")).toHaveCount(0);
     await page.getByLabel(/Labels/).fill("planning, release");
     await page.getByRole("button", { name: "SAVE", exact: true }).click();
   }

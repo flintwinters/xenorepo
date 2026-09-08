@@ -67,7 +67,8 @@ class CardRecord(Base):
     title: Mapped[str] = mapped_column(String(120))
     # Retained only to migrate descriptions created by older releases.
     legacy_description: Mapped[str] = mapped_column("description", Text, default="")
-    assignee: Mapped[str] = mapped_column(String(120), default="")
+    # Retained only so installations created by older releases remain writable.
+    legacy_assignee: Mapped[str] = mapped_column("assignee", String(120), default="")
     labels_json: Mapped[str] = mapped_column(Text, default="[]")
     # Retained only so installations created by older releases remain writable.
     legacy_priority: Mapped[str] = mapped_column("priority", String(10), default="normal")
@@ -135,7 +136,7 @@ def _column(value: ColumnRecord, colors: dict[str, str]) -> ColumnView:
 
 def _card(value: CardRecord, colors: dict[str, str]) -> CardView:
     return CardView(id=value.id, column_id=value.column_id, title=value.title,
-        assignee=value.assignee, labels=json.loads(value.labels_json),
+        labels=json.loads(value.labels_json),
         position=value.position, archived_at=value.archived_at,
         created_at=value.created_at, updated_at=value.updated_at,
         color=colors.get(value.id, "#32302f"))
@@ -294,7 +295,7 @@ class KanbanStore:
             positions[column_id] = position + 1
             identity = identities[source.id]
             session.add(CardRecord(id=identity, column_id=column_id, title=source.title,
-                legacy_description="", assignee=source.assignee,
+                legacy_description="", legacy_assignee="",
                 labels_json=json.dumps(source.labels), legacy_priority="normal", position=position,
                 archived_at=None, created_at=instant, updated_at=instant))
             colors[identity] = source.color
@@ -405,7 +406,7 @@ class KanbanStore:
             position = len(self._active_cards(session, value.column_id))
             instant = self.now()
             record = CardRecord(id=str(uuid4()), column_id=value.column_id, title=value.title,
-                legacy_description="", assignee=value.assignee,
+                legacy_description="", legacy_assignee="",
                 labels_json=json.dumps(value.labels), legacy_priority="normal", position=position,
                 archived_at=None, created_at=instant, updated_at=instant)
             session.add(record)
@@ -418,7 +419,7 @@ class KanbanStore:
         with self.sessions.begin() as session:
             record = self._required(session, CardRecord, identity, "Card")
             record.title = value.title
-            record.assignee, record.labels_json = value.assignee, json.dumps(value.labels)
+            record.labels_json = json.dumps(value.labels)
             record.updated_at = self.now()
             colors = self._set_color(session, "card", identity, value.color)
             self._activity(session, "edited", "card", identity, f"Edited card “{record.title}”")

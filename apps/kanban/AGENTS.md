@@ -26,3 +26,4 @@ status, box-within-box composition, and other decorative AI conventions.
   card description exactly once to an epoch-dated log entry.
 - Keep workflow state singular: columns communicate where work stands, with no parallel card
   priority field or tag.
+- Keep cards focused on work rather than ownership; there is no assignee field or tag.

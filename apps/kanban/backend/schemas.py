@@ -47,7 +47,6 @@ class PositionInput(BaseModel):
 class CardFields(BaseModel):
     model_config = ConfigDict(extra="forbid")
     title: Name
-    assignee: Annotated[str, StringConstraints(strip_whitespace=True, max_length=120)] = ""
     labels: list[Name] = []
     color: Color = "#32302f"
 
@@ -120,7 +119,6 @@ class CardView(BaseModel):
     id: str
     column_id: str
     title: str
-    assignee: str
     labels: list[str]
     position: int
     archived_at: datetime | None

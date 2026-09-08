@@ -33,8 +33,7 @@ const currentState = (view: KanbanView) => {
   const columns = active(view.columns).map(({ id, name, color }) => ({ id, name, color }));
   const columnIds = new Set(columns.map((value) => value.id));
   const cards = active(view.cards).filter((value) => columnIds.has(value.column_id)).map(
-    ({ id, column_id, title, assignee, labels, color }) =>
-      ({ id, column_id, title, assignee, labels, color }),
+    ({ id, column_id, title, labels, color }) => ({ id, column_id, title, labels, color }),
   );
   const cardIds = new Set(cards.map((value) => value.id));
   const { name, description, background_color, accent_color, label_colors } = view.board;
@@ -245,7 +244,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     if (this.state.editingComment || this.state.editingAttachment) return null;
     const card = this.card(this.state.selected);
     if (!card && !this.state.creatingIn) return null;
-    const value = card ?? { title: "", assignee: "", labels: [], color: "#32302f" };
+    const value = card ?? { title: "", labels: [], color: "#32302f" };
     const logs = (this.state.view?.logs ?? []).filter((item) => item.card_id === card?.id);
     const comments = active(this.state.view?.comments ?? []).filter((item) => item.card_id === card?.id);
     const attachments = active(this.state.view?.attachments ?? []).filter((item) => item.card_id === card?.id);
@@ -317,7 +316,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
               {label}</span>;
           })}
           </span>} />
-          {card.assignee && <div class="card-meta"><span>@{card.assignee}</span></div>}</article>)}
+          </article>)}
       </div></ConsolePane>;
   }
   private board() {

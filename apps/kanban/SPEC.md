@@ -12,7 +12,7 @@ board, no accounts, no due dates, and no collaboration behavior.
 - One persistent board whose name and description can be edited.
 - User-created, named columns with explicit ordering and reversible archiving.
 - Per-column Add Card controls in column headers.
-- Cards with editable title, assignee text, labels, and append-only timestamped log entries.
+- Cards with editable titles, labels, and append-only timestamped log entries.
 - Board settings for its identity, plus individual column, card, and
   label colors. The single board uses the shared application chrome rather than a custom theme.
 - Mouse drag-and-drop for ordering cards within a column and moving them between columns.
@@ -58,7 +58,7 @@ rejected.
 ## Real-world pilot and acceptance
 
 Use the running application to manage at least eight real tasks across at least three custom
-columns. Populate priorities, labels, assignee text, comments, one web link, and one local upload.
+columns. Populate labels, timestamped logs, comments, one web link, and one local upload.
 Reorder two tasks, move tasks through the workflow by dragging, edit stored content, archive and
 restore each recoverable entity type, restart both service and browser, and confirm the board,
 ordering, uploaded file, archive state, and immutable activity history remain exact.

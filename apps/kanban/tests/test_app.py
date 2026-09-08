@@ -55,8 +55,7 @@ class ApplicationTests(unittest.TestCase):
 
     def card(self, column_id: str, title: str = "Write tests") -> dict:
         response = self.client.request("POST", "/api/cards", json={"column_id": column_id,
-            "title": title, "assignee": "Felix",
-            "labels": ["Quality", "quality", "Backend"]})
+            "title": title, "labels": ["Quality", "quality", "Backend"]})
         self.assertEqual(response.status_code, 201)
         return response.json()
 
@@ -88,9 +87,12 @@ class ApplicationTests(unittest.TestCase):
         self.assertGreaterEqual(len(view["activity"]), 7)
         stale_card = self.client.request("POST", "/api/cards", json={"column_id": first["id"],
             "title": "Stale client", "priority": "urgent"})
+        stale_assignee = self.client.request("POST", "/api/cards", json={"column_id": first["id"],
+            "title": "Stale client", "assignee": "Nobody"})
         stale_board = self.client.request("PATCH", "/api/board", json={
             "name": "Stale client", "default_priority": "urgent"})
-        self.assertEqual((stale_card.status_code, stale_board.status_code), (422, 422))
+        self.assertEqual((stale_card.status_code, stale_assignee.status_code, stale_board.status_code),
+            (422, 422, 422))
 
     def test_legacy_descriptions_migrate_once_to_epoch_logs(self) -> None:
         column = self.column()
@@ -215,7 +217,7 @@ class ApplicationTests(unittest.TestCase):
             "label_colors": {"Legacy": "#778899"},
             "columns": [{"id": "legacy-column", "name": "Legacy", "color": "#abcdef"}],
             "cards": [{"id": "legacy-card", "column_id": "legacy-column", "title": "Moved",
-                "assignee": "Felix", "labels": ["Legacy"], "color": "#123456"}],
+                "labels": ["Legacy"], "color": "#123456"}],
             "logs": [{"card_id": "legacy-card", "body": "Old work",
                 "created_at": "1970-01-01T00:00:00Z"}],
             "comments": [{"card_id": "legacy-card", "body": "Old note"}],

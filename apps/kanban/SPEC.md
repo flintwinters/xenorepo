@@ -21,6 +21,10 @@ board, no accounts, no due dates, and no collaboration behavior.
 - An immutable activity history that records creation, edits, moves, archive, and restore actions.
 - Stable UUID identities, UTC audit timestamps, deterministic ordering, explicit validation, and
   visible API failures.
+- A readable JSON clipboard document of current work: board settings at the root and flat,
+  ordered arrays for active columns, cards, comments, and attachment metadata. The document omits
+  archived work, activity history, timestamps, positions already expressed by array order, and
+  entity identifiers that are not needed for relationships.
 
 ## Walking skeleton
 

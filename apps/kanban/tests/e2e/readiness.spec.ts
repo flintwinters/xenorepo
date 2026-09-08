@@ -21,18 +21,30 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await context.grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.goto("/");
   await expect(page.getByRole("status")).toHaveText("Board ready");
-  const initialView = await (await page.request.get("/api/board")).json();
-  const initialBoard = initialView.board;
+  const initialBoard = (await (await page.request.get("/api/board")).json()).board;
   const copyButton = page.getByRole("banner").getByRole("button").first();
   await expect(copyButton).toHaveText("COPY JSON");
   await copyButton.click();
   await expect(page.getByRole("status")).toHaveText("Board JSON copied");
   const initialCurrent = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()));
-  expect(initialCurrent.board).toEqual(initialView.board);
-  expect(initialCurrent).not.toHaveProperty("activity");
-  for (const values of [initialCurrent.columns, initialCurrent.cards, initialCurrent.comments,
-    initialCurrent.attachments]) expect(values.every(
-      (value: object) => !("archived_at" in value))).toBe(true);
+  expect(initialCurrent).toEqual(expect.objectContaining({
+    name: initialBoard.name, description: initialBoard.description,
+    default_priority: initialBoard.default_priority, background_color: initialBoard.background_color,
+    accent_color: initialBoard.accent_color, label_colors: initialBoard.label_colors,
+  }));
+  expect(Object.keys(initialCurrent)).toEqual([
+    "name", "description", "default_priority", "background_color", "accent_color", "label_colors",
+    "columns", "cards", "comments", "attachments",
+  ]);
+  expect(initialCurrent).not.toHaveProperty("board");
+  expect(initialCurrent.columns.every((value: object) =>
+    Object.keys(value).join() === "id,name,color")).toBe(true);
+  expect(initialCurrent.cards.every((value: object) => Object.keys(value).join() ===
+    "id,column_id,title,description,assignee,labels,priority,color")).toBe(true);
+  expect(initialCurrent.comments.every((value: object) =>
+    Object.keys(value).join() === "card_id,body")).toBe(true);
+  expect(initialCurrent.attachments.every((value: object) => Object.keys(value).join() ===
+    "card_id,kind,title,url,original_name,media_type")).toBe(true);
   const currentColumnIds = new Set(initialCurrent.columns.map((value: { id: string }) => value.id));
   expect(initialCurrent.cards.every(
     (value: { column_id: string }) => currentColumnIds.has(value.column_id))).toBe(true);
@@ -170,7 +182,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   expect((await page.request.delete(`/api/archive/column/${targetId}`)).ok()).toBe(true);
   await copyButton.click();
   const current = JSON.parse(await page.evaluate(() => navigator.clipboard.readText()));
-  expect(current).not.toHaveProperty("activity");
+  expect(current).not.toHaveProperty("board");
   expect(current.columns.map((value: { id: string }) => value.id)).not.toContain(sourceId);
   expect(current.cards.map((value: { id: string }) => value.id)).not.toContain(cardId);
   expect(current.comments.some((value: { card_id: string }) => value.card_id === cardId)).toBe(false);

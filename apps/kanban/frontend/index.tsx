@@ -27,15 +27,22 @@ interface State {
 
 const active = <T extends { archived_at?: string | null }>(values: T[]): T[] =>
   values.filter((value) => !value.archived_at);
-const currentEntities = <T extends { archived_at?: string | null }>(values: T[]) =>
-  active(values).map(({ archived_at: _archivedAt, ...value }) => value);
 const currentState = (view: KanbanView) => {
-  const columns = currentEntities(view.columns), columnIds = new Set(columns.map((value) => value.id));
-  const cards = currentEntities(view.cards).filter((value) => columnIds.has(value.column_id));
+  const columns = active(view.columns).map(({ id, name, color }) => ({ id, name, color }));
+  const columnIds = new Set(columns.map((value) => value.id));
+  const cards = active(view.cards).filter((value) => columnIds.has(value.column_id)).map(
+    ({ id, column_id, title, description, assignee, labels, priority, color }) =>
+      ({ id, column_id, title, description, assignee, labels, priority, color }),
+  );
   const cardIds = new Set(cards.map((value) => value.id));
-  return { board: view.board, columns, cards,
-    comments: currentEntities(view.comments).filter((value) => cardIds.has(value.card_id)),
-    attachments: currentEntities(view.attachments).filter((value) => cardIds.has(value.card_id)) };
+  const { name, description, default_priority, background_color, accent_color, label_colors } = view.board;
+  return { name, description, default_priority, background_color, accent_color, label_colors, columns, cards,
+    comments: active(view.comments).filter((value) => cardIds.has(value.card_id)).map(
+      ({ card_id, body }) => ({ card_id, body })),
+    attachments: active(view.attachments).filter((value) => cardIds.has(value.card_id)).map(
+      ({ card_id, kind, title, url, original_name, media_type }) =>
+        ({ card_id, kind, title, url, original_name, media_type })),
+  };
 };
 const monoform = rawManifest as MonoFormManifest;
 

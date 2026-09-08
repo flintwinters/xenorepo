@@ -282,17 +282,16 @@ class KanbanBoard extends Component<Record<string, never>, State> {
         const latestLog = this.cardLogs(card.id).at(-1);
         return <article data-card-id={card.id}
           class="card"
-          draggable onDragStart={() => { this.dragged = card.id; }} onDragEnd={() => { this.dragged = null; }}
-          onClick={() => this.setState({ selected: card.id })} onKeyDown={(event) => {
-            if (event.key === "Enter") this.setState({ selected: card.id });
-          }} tabIndex={0}><ConsoleChrome appearance="subtle" class="card-chrome"
+          ><ConsoleChrome appearance="subtle" class="card-chrome" draggable
+            onDragStart={() => { this.dragged = card.id; }} onDragEnd={() => { this.dragged = null; }}
             title={<strong>{card.title}</strong>}
-            titleEnd={<span class="card-badges">{card.labels.map((label) => {
+            titleEnd={<><span class="card-badges">{card.labels.map((label) => {
             const color = this.state.view?.board.label_colors[label.toLocaleLowerCase()] ?? "#1d2021";
             return <span style={coloredSurfaceStyle("--label-color", "--label-ink", color)}>
               {label}</span>;
           })}
-          </span>} />
+          </span><CommandButton appearance="subtle" class="card-edit" aria-label={`Edit ${card.title}`}
+            onClick={() => this.setState({ selected: card.id })}>EDIT</CommandButton></>} />
           {latestLog && <div class="card-log"><time dateTime={latestLog.created_at}>
             {new Date(latestLog.created_at).toLocaleString()}</time><span>{latestLog.body}</span></div>}
           </article>;

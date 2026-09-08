@@ -123,10 +123,11 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
     chromeBackground: expect.stringContaining("linear-gradient"), chromeBorderBottom: "1px",
     chromeShadow: "rgba(0, 0, 0, 0.25) 0px 1px 1px 0px", radius: "2px", insetHighlight: true,
     lineHeight: "13.2px", listGap: "0px", listPadding: "0px" });
-  await card.hover();
-  await expect(card).toHaveCSS("outline-color", "rgb(250, 189, 47)");
-  await expect(card).toHaveCSS("outline-offset", "-1px");
+  await expect(card).toHaveCSS("cursor", "text");
   await card.click();
+  await expect(page.getByRole("dialog", { name: "CARD DETAILS" })).toHaveCount(0);
+  await card.getByRole("button", { name: `Edit Prove board ${suffix}` }).click();
+  await expect(page.getByRole("dialog", { name: "CARD DETAILS" })).toBeVisible();
   await expect(page.getByLabel("Priority")).toHaveCount(0);
   await page.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("button", { name: "EDIT BOARD" }).click();
@@ -145,7 +146,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   const targetId = await target.getAttribute("data-column");
   if (testInfo.project.name === "wide-viewport-chromium") {
     await target.scrollIntoViewIfNeeded();
-    await card.dragTo(target);
+    await card.locator(".card-chrome").dragTo(target);
   } else {
     const response = await page.request.put(`/api/cards/${cardId}/position`, {
       data: { column_id: targetId, position: 0 },
@@ -159,7 +160,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   const movedCard = target.locator(".card").filter({ hasText: `Prove board ${suffix}` });
   expect(await movedCard.evaluate((element) =>
     getComputedStyle(element).getPropertyValue("--column-color").trim())).toBe("#665c54");
-  await movedCard.click();
+  await movedCard.getByRole("button", { name: `Edit Prove board ${suffix}` }).click();
   await page.getByLabel("Log entry").fill("A persisted acceptance log");
   await page.getByRole("button", { name: "ADD LOG" }).click();
   const itemLog = page.locator(".item-log");
@@ -180,7 +181,8 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(movedCard.locator(".card-log time")).toHaveAttribute("datetime", /.+/);
   await page.reload();
   await expect(target.locator(".card").filter({ hasText: `Prove board ${suffix}` })).toBeVisible();
-  await target.locator(".card").filter({ hasText: `Prove board ${suffix}` }).click();
+  await target.locator(".card").filter({ hasText: `Prove board ${suffix}` })
+    .getByRole("button", { name: `Edit Prove board ${suffix}` }).click();
   await page.locator(".card-dialog .danger button").click();
   await page.getByRole("banner").getByRole("button", { name: "ARCHIVE", exact: true }).click();
   const archived = page.locator(".archive-row").filter({ hasText: `Prove board ${suffix}` });

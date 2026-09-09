@@ -387,18 +387,15 @@ class KanbanBoard extends Component<Record<string, never>, State> {
   }
   private tagsView() {
     const cards = active(this.state.view?.cards ?? []);
-    const tags = (this.state.view?.tags ?? []).filter((tag) => tag.kind === "tag");
-    const groups = tags.map((tag) => ({ tag, cards: cards.filter((card) => card.tags.some(
-      (value) => value.toLocaleLowerCase() === tag.name.toLocaleLowerCase())) }));
-    const untagged = cards.filter((card) => card.tags.length === 0);
-    return <div class="board tags-board">{groups.map(({ tag, cards: tagged }) => <ConsolePane
-      class="column tag-column" data-tag={tag.name} title={tag.name} tone="neutral"
-      style={coloredSurfaceStyle("--column-color", "--tone-ink", tag.color)}>
-      <div class="card-list">{tagged.length ? tagged.map((card) => this.cardItem(card, false)) :
-        <span class="empty-tags">No items</span>}</div></ConsolePane>)}
-      <ConsolePane class="column tag-column" data-tag="" title="UNTAGGED" tone="neutral">
-        <div class="card-list">{untagged.length ? untagged.map((card) => this.cardItem(card, false)) :
-          <span class="empty-tags">No items</span>}</div></ConsolePane></div>;
+    const count = (tag: Tag): number => tag.kind === "board" ? cards.length : cards.filter((card) =>
+      card.tags.some((value) => value.toLocaleLowerCase() === tag.name.toLocaleLowerCase())).length;
+    return <ConsolePane class="tag-catalog" title="TAGS" tone="neutral"><table>
+      <thead><tr><th scope="col">NAME</th><th scope="col">TYPE</th><th scope="col">COLOR</th>
+        <th scope="col">ASSIGNMENTS</th></tr></thead><tbody>{(this.state.view?.tags ?? []).map((tag) =>
+        <tr data-tag={tag.name}><th scope="row">{tag.name}</th><td>{tag.kind === "board" ? "BOARD" : "TAG"}</td>
+          <td><span class="tag-color" style={coloredSurfaceStyle("--tag-color", "--tag-ink", tag.color)}>
+            {tag.color.toUpperCase()}</span></td><td>{count(tag)}</td></tr>)}</tbody>
+    </table></ConsolePane>;
   }
   private archiveView() {
     const view = this.state.view!;

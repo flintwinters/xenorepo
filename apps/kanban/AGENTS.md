@@ -34,6 +34,7 @@ status, box-within-box composition, and other decorative AI conventions.
   have no independent color setting.
 - Treat board membership and ordinary classification as one tag concept with two subtypes. A card
   belongs to exactly one board tag, while ordinary tags are reusable and many-valued. The Boards
-  and Tags views are projections over the same cards, never separate copies of work.
+  and Tags views are projections over the same model, never separate copies of work. Keep item
+  content out of the Tags view; it is a catalog and metadata view only.
 - Keep the ordinary-tag catalog durable even when a tag has no assigned cards. Card details expose
   only ordinary tags for assignment; board membership is never edited as an ordinary tag.

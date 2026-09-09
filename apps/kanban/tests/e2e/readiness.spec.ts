@@ -147,8 +147,11 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(card.locator(".card-badges > span", { hasText: "acceptance" }).filter({ hasText: /^acceptance$/ }))
     .toHaveCSS("color", "rgb(251, 241, 199)");
   await page.getByRole("button", { name: "TAGS", exact: true }).click();
-  await expect(page.locator('.tag-column[data-tag="acceptance"]')
-    .getByText(`Prove board ${suffix}`, { exact: true })).toBeVisible();
+  const acceptanceTag = page.locator('tr[data-tag="acceptance"]');
+  await expect(acceptanceTag).toContainText("TAG");
+  await expect(acceptanceTag).toContainText("1");
+  await expect(page.locator(".tag-catalog .card")).toHaveCount(0);
+  await expect(page.getByText(`Prove board ${suffix}`, { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "BOARDS", exact: true }).click();
   const cardId = await card.getAttribute("data-card-id");
   const sourceId = await source.locator(".card-list").getAttribute("data-column");

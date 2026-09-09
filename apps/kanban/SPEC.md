@@ -16,8 +16,8 @@ board, no accounts, no due dates, and no collaboration behavior.
 - Board settings for its identity, plus individual column and
   tag colors. The single board uses the shared application chrome rather than a custom theme.
 - Cards inherit their owning column's color theme.
-- Parallel Boards and Tags views over the same card records. Boards preserve the ordered workflow;
-  Tags group cards by every ordinary tag and include an untagged group.
+- Parallel Boards and Tags views over the same durable model. Boards show the ordered item workflow;
+  Tags show only catalog metadata—including subtype, color, and assignment count—and never item content.
 - A durable tag catalog with an exclusive board-tag subtype. Every card belongs to the current
   board tag and cannot receive another board tag as an ordinary tag.
 - Card details show available and assigned ordinary tags as drag-and-drop groups; dropping into the

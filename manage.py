@@ -34,7 +34,7 @@ from monotools.provisioning.audit import AuditReport, audit_workspace
 from monotools.provisioning.management import attach_repository_commands
 from monotools.provisioning.repositories import (
     RepositoryError, delete_app, inspect_app_repository, promote_to_submodule,
-    uninitialized_app_submodules,
+    protect_upstream_remote, uninitialized_app_submodules,
 )
 from monotools.provisioning.scaffolding import ScaffoldError, scaffold_app
 
@@ -291,6 +291,10 @@ def fork_monoapp_workspace(name: str = typer.Argument(...)) -> None:
     if selected is None:
         _fail(f"unknown managed monoapp {name!r}")
     promote = _confirm_workspace_promotion(selected)
+    try:
+        upstream = protect_upstream_remote(ROOT)
+    except RepositoryError as error:
+        _fail(error)
     _offer_workspace_focus(selected)
     if promote:
         try:
@@ -300,6 +304,8 @@ def fork_monoapp_workspace(name: str = typer.Argument(...)) -> None:
             _fail(error)
     console.print("[bold green]App workspace ready[/]")
     console.print(f"Working tree: {selected.directory}")
+    if upstream:
+        console.print(f"Source remote: upstream -> {upstream} (push disabled)")
 
 
 @app.command()

@@ -45,7 +45,9 @@ The mounted `apps/<app>` directory is that repository's working tree; no duplica
 workspace is created. The compatibility command `monoapp fork-workspace <app>` offers
 to remove all other clean monoapps from the current Xenorepo, offers promotion when
 needed, and reports the same in-place working tree. It refuses to remove an app with
-uncommitted work.
+uncommitted work. It renames the source Xenorepo's `origin` remote to `upstream` and
+assigns it a disabled push URL, retaining fetch access without risking an accidental
+push. The eventual hosted fork can be configured separately as `origin`.
 
 See [AGENTS.md](AGENTS.md) for the project architecture and invariants, and
 [LIBRARIES.md](LIBRARIES.md) for shared-library boundaries.

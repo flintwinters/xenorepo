@@ -19,6 +19,8 @@ class WorkspaceFocusTests(unittest.TestCase):
         with patch("manage.inspect_app_repository", return_value=state), \
              patch("manage._promote_monoapp", side_effect=lambda *_args, **_kwargs:
                 mutations.append("promote")) as promote, \
+             patch("manage.protect_upstream_remote",
+                return_value="git@github.com:flintwinters/xenorepo.git") as protect, \
              patch("manage._offer_workspace_focus", side_effect=lambda *_:
                 mutations.append("focus")) as focus:
             result = CliRunner().invoke(manage.app,
@@ -27,22 +29,26 @@ class WorkspaceFocusTests(unittest.TestCase):
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn("not promoted. Promote it for direct work", result.output)
         focus.assert_called_once_with(selected)
+        protect.assert_called_once_with(ROOT)
         promote.assert_called_once_with(selected,
             repository_directory=ROOT / "data" / "repositories" / selected.name)
         self.assertEqual(mutations, ["focus", "promote"])
         self.assertIn(f"Working tree: {selected.directory}", result.output)
+        self.assertIn("Source remote: upstream", result.output)
 
     def test_declined_promotion_causes_no_workspace_mutation(self) -> None:
         selected = manage.MANAGERS[0][0]
         state = AppRepositoryState("monolith", True, None, "current")
         with patch("manage.inspect_app_repository", return_value=state), \
              patch("manage._offer_workspace_focus") as focus, \
+             patch("manage.protect_upstream_remote") as protect, \
              patch("manage._promote_monoapp") as promote:
             result = CliRunner().invoke(manage.app,
                 ["monoapp", "fork-workspace", selected.name], input="n\n")
 
         self.assertEqual(result.exit_code, 1, result.output)
         focus.assert_not_called()
+        protect.assert_not_called()
         promote.assert_not_called()
 
     def test_focus_requires_every_other_app_to_be_clean_before_removal(self) -> None:

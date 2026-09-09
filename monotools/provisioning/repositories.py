@@ -23,6 +23,9 @@ class RepositoryError(RuntimeError):
     """Raised when repository state makes a requested transition unsafe or ambiguous."""
 
 
+UPSTREAM_PUSH_DISABLED_URL = "disabled://xenorepo-upstream-push-prohibited"
+
+
 @dataclass(frozen=True)
 class AppRepositoryState:
     """One app's current Git ownership and local modification state."""
@@ -168,10 +171,25 @@ def inspect_app_repository(definition: AppDefinition, workspace: Path) -> AppRep
     return AppRepositoryState(mode, not dirty, remote, revision)
 
 
-def _optional_remote(directory: Path) -> str | None:
-    completed = subprocess.run(["git", "remote", "get-url", "origin"], cwd=directory,
+def _optional_remote(directory: Path, name: str = "origin") -> str | None:
+    completed = subprocess.run(["git", "remote", "get-url", name], cwd=directory,
         check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     return completed.stdout.strip() if completed.returncode == 0 else None
+
+
+def protect_upstream_remote(workspace: Path) -> str | None:
+    """Retain the source remote for fetching while making accidental pushes impossible."""
+    origin = _optional_remote(workspace)
+    upstream = _optional_remote(workspace, "upstream")
+    if origin and upstream and origin == upstream:
+        _git(workspace, "remote", "remove", "origin")
+    elif origin and not upstream:
+        _git(workspace, "remote", "rename", "origin", "upstream")
+        upstream = origin
+    if upstream:
+        _git(workspace, "remote", "set-url", "--push", "upstream",
+            UPSTREAM_PUSH_DISABLED_URL)
+    return upstream
 
 
 def _validate_local_repository_target(workspace: Path, repository_directory: Path) -> None:

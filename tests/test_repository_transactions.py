@@ -8,7 +8,10 @@ import unittest
 from unittest.mock import patch
 
 import manage
-from monotools.provisioning.repositories import inspect_app_repository, promote_to_submodule
+from monotools.provisioning.repositories import (
+    UPSTREAM_PUSH_DISABLED_URL, inspect_app_repository, promote_to_submodule,
+    protect_upstream_remote,
+)
 from monotools.provisioning.scaffolding import scaffold_app
 
 
@@ -57,3 +60,26 @@ class RepositoryTransactionTests(unittest.TestCase):
         self.assertTrue((self.definition.directory / ".git").is_file())
         self.assertTrue(self.backing.is_dir())
         self.assertEqual(self.git(self.definition.directory, "status", "--porcelain"), "")
+
+    def test_source_remote_is_fetchable_as_upstream_but_cannot_be_pushed(self) -> None:
+        source = "git@github.com:flintwinters/xenorepo.git"
+        self.git(self.workspace, "remote", "add", "origin", source)
+
+        self.assertEqual(protect_upstream_remote(self.workspace), source)
+
+        self.assertEqual(self.git(self.workspace, "remote", "get-url", "upstream"), source)
+        self.assertEqual(self.git(self.workspace, "remote", "get-url", "--push", "upstream"),
+            UPSTREAM_PUSH_DISABLED_URL)
+        self.assertNotIn("origin", self.git(self.workspace, "remote").splitlines())
+
+    def test_protecting_upstream_preserves_a_later_fork_origin(self) -> None:
+        source = "git@github.com:flintwinters/xenorepo.git"
+        fork = "git@github.com:owner/helpie-xenorepo.git"
+        self.git(self.workspace, "remote", "add", "upstream", source)
+        self.git(self.workspace, "remote", "add", "origin", fork)
+
+        self.assertEqual(protect_upstream_remote(self.workspace), source)
+
+        self.assertEqual(self.git(self.workspace, "remote", "get-url", "origin"), fork)
+        self.assertEqual(self.git(self.workspace, "remote", "get-url", "--push", "upstream"),
+            UPSTREAM_PUSH_DISABLED_URL)

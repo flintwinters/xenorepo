@@ -46,5 +46,12 @@ it as the monoapp submodule. Configure and push an external remote manually when
 `fork-workspace` offers this local promotion when needed, removes the focused clone's
 inherited Xenorepo `origin`, and verifies it. Path options override sibling defaults.
 
+Forking checks destination conflicts before promotion and copies the app from its
+mounted checkout, even when its original local repository has moved. It builds in
+a sibling `*-pending-*` directory, then verifies at the final path so generated
+environments have correct paths. Failed attempts move back to a recovery directory and report its
+path; the same command can be retried. Existing destinations are preserved: choose
+another `--directory` when an older attempt already occupies the requested path.
+
 See [AGENTS.md](AGENTS.md) for the project architecture and invariants, and
 [LIBRARIES.md](LIBRARIES.md) for shared-library boundaries.

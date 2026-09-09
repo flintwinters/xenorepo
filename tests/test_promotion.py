@@ -56,7 +56,6 @@ class PromotionTests(unittest.TestCase):
 
         self.assertEqual(promoted, repository)
         commands = [" ".join(arguments) for arguments, _ in calls]
-        self.assertIn(f"git add -f -- apps/{definition.name}/README.md", commands)
         self.assertIn(f"git add -A -- apps/{definition.name}", commands)
         snapshot = next(i for i, item in enumerate(commands) if "git commit -m Prepare" in item)
         split_index = next(i for i, item in enumerate(commands) if "subtree split" in item)

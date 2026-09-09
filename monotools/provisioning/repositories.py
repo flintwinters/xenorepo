@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import shutil
 import subprocess
+from tempfile import mkdtemp
 from typing import TYPE_CHECKING
 
 from monotools.orchestration.apps import AppDefinitionError, validate_app_name
@@ -207,13 +208,20 @@ def _require_promoted_app(definition: AppDefinition, workspace: Path) -> Path:
 def _focused_preflight(definition: AppDefinition, workspace: Path,
     destination: Path) -> tuple[Path, str]:
     _require_git()
-    if destination == workspace or destination.is_relative_to(workspace):
-        raise RepositoryError("focused workspace destination must be outside the source Xenorepo")
+    validate_fork_destination(workspace, destination)
     relative = _require_promoted_app(definition, workspace)
-    if destination.exists():
-        raise RepositoryError(f"refusing to overwrite existing destination: {destination}")
     branch = _git(workspace, "symbolic-ref", "--quiet", "--short", "HEAD")
     return relative, branch
+
+
+def validate_fork_destination(workspace: Path, destination: Path) -> None:
+    """Reject destination conflicts before any source promotion or clone mutation."""
+    if destination.is_symlink() or destination.exists():
+        raise RepositoryError(f"destination already exists: {destination}; preserve it and "
+            "choose a new path with --directory")
+    workspace, destination = workspace.resolve(), destination.resolve()
+    if destination.is_relative_to(workspace):
+        raise RepositoryError("focused workspace destination must be outside the source Xenorepo")
 
 
 def _tracked_app_names(workspace: Path) -> tuple[str, ...]:
@@ -230,22 +238,46 @@ def _tracked_app_names(workspace: Path) -> tuple[str, ...]:
 def fork_focused_workspace(definition: AppDefinition, workspace: Path, *, destination: Path,
     verify: Callable[[Path], None]) -> FocusedWorkspace:
     """Create and verify a focused workspace with no remote Xenorepo dependency."""
+    validate_fork_destination(workspace, destination)
     workspace, destination = workspace.resolve(), destination.resolve()
     relative, branch = _focused_preflight(definition, workspace, destination)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    candidate = Path(mkdtemp(prefix=f"{destination.name}-pending-", dir=destination.parent))
+    installed = False
+    try:
+        _populate_focused_workspace(definition, workspace, candidate, relative, branch)
+        validate_fork_destination(workspace, destination)
+        candidate.rename(destination)
+        installed = True
+        verify(destination)
+        revision = _git(destination, "rev-parse", "--short", "HEAD")
+    except Exception as error:
+        if installed:
+            try:
+                destination.rename(candidate)
+            except OSError as recovery_error:
+                raise RepositoryError(f"fork failed: {error}; workspace retained at {destination}; "
+                    f"could not move it to recovery directory: {recovery_error}") from error
+        raise RepositoryError(f"fork failed: {error}; recovery workspace retained at {candidate}; "
+            "retry with an available destination") from error
+    return FocusedWorkspace(destination, revision)
+
+
+def _populate_focused_workspace(definition: AppDefinition, workspace: Path,
+    destination: Path, relative: Path, branch: str) -> None:
+    """Copy the pinned app from its mounted checkout, independent of its old origin."""
     _git(workspace, "clone", "--no-recurse-submodules", "--branch", branch,
         str(workspace), str(destination))
+    _git(destination, "config", f"submodule.{definition.name}.url", str(definition.directory))
     _git(destination, "-c", "protocol.file.allow=always", "submodule", "update", "--init",
         "--", str(relative))
     for name in _tracked_app_names(destination):
         if name != definition.name:
             _git(destination, "rm", "-r", "-f", "--", str(Path("apps") / name))
-    _git(destination, "commit", "-m", f"Create focused {definition.title} workspace",
+    _git(destination, "commit", "--allow-empty", "-m", f"Create focused {definition.title} workspace",
         "-m", "Retain the shared Xenorepo platform and the selected promoted monoapp while "
         "removing unrelated application sources and submodule registrations.")
     _git(destination, "remote", "remove", "origin")
-    verify(destination)
-    revision = _git(destination, "rev-parse", "--short", "HEAD")
-    return FocusedWorkspace(destination, revision)
 
 
 def _validate_local_repository_target(workspace: Path, repository_directory: Path) -> None:

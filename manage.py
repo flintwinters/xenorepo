@@ -34,7 +34,7 @@ from monotools.provisioning.audit import AuditReport, audit_workspace
 from monotools.provisioning.management import attach_repository_commands
 from monotools.provisioning.repositories import (
     RepositoryError, delete_app, fork_focused_workspace, inspect_app_repository,
-    promote_to_submodule, uninitialized_app_submodules,
+    promote_to_submodule, uninitialized_app_submodules, validate_fork_destination,
 )
 from monotools.provisioning.scaffolding import ScaffoldError, scaffold_app
 
@@ -278,6 +278,10 @@ def fork_monoapp_workspace(name: str = typer.Argument(...),
     if selected is None:
         _fail(f"unknown managed monoapp {name!r}")
     destination = directory or ROOT.parent / f"{name}-workspace"
+    try:
+        validate_fork_destination(ROOT, destination)
+    except RepositoryError as error:
+        _fail(error)
     _promote_before_forking(selected)
 
     try:
@@ -417,8 +421,14 @@ def check() -> None:
 
 
 @app.command()
-def test() -> None:
+def test(pattern: str | None = typer.Option(None, "--pattern",
+    help="Run matching platform test files only, for focused diagnostics.")) -> None:
     """Run the fast Python platform and application regression suites exactly once."""
+    if isinstance(pattern, str):
+        result = run_test_suite(ROOT, ROOT / "tests", pattern=pattern)
+        if result:
+            raise typer.Exit(result)
+        return
     suites = ((PythonSuite(ROOT / "tests"), None),
         *((manager.python_suite, definition.directory) for definition, manager in MANAGERS))
     for suite, app_directory in suites:

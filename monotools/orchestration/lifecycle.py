@@ -306,10 +306,11 @@ def collect_app_status(definition: AppDefinition) -> dict[str, bool]:
     }
 
 
-def run_test_suite(directory: Path, suite: Path, *, allow_empty: bool = False) -> int:
+def run_test_suite(directory: Path, suite: Path, *, allow_empty: bool = False,
+    pattern: str = "test*.py") -> int:
     """Run one unittest suite, optionally accepting no app-owned Python tests."""
     completed = subprocess.run(
-        [sys.executable, "-m", "unittest", "discover", "-s", str(suite), "-v"],
+        [sys.executable, "-m", "unittest", "discover", "-s", str(suite), "-p", pattern, "-v"],
         cwd=directory,
         check=False,
     )

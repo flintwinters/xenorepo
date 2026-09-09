@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from monotools.orchestration.apps import ROOT
 from monotools.provisioning.repositories import (
-    AppRepositoryState, FocusedWorkspace, _require_promoted_app,
+    AppRepositoryState, FocusedWorkspace, RepositoryError, _require_promoted_app,
     fork_focused_workspace,
 )
 import manage as repository_manager
@@ -59,7 +59,7 @@ class WorkspaceForkTests(unittest.TestCase):
             def git(_cwd: Path, *arguments: str) -> str:
                 events.append("git " + " ".join(arguments))
                 if arguments[0] == "clone":
-                    destination.mkdir()
+                    pass
                 responses = {
                     ("symbolic-ref", "--quiet", "--short", "HEAD"): "main",
                     ("ls-tree", "-d", "--name-only", "HEAD:apps"):

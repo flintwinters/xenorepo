@@ -69,6 +69,7 @@ class WorkspaceFocusTests(unittest.TestCase):
             _git(workspace, "config", "user.email", "tests@example.test")
             _git(workspace, "config", "user.name", "Tests")
             (workspace / "apps").mkdir()
+            (workspace / "apps" / "__init__.py").write_text("", encoding="utf-8")
             for name in ("primary_app", "loaded_app"):
                 directory = workspace / "apps" / name
                 directory.mkdir()

@@ -110,12 +110,12 @@ def uninitialized_app_submodules(workspace: Path) -> tuple[Path, ...]:
 
 def _versioned_app_names(workspace: Path) -> set[str]:
     """Read app identities from HEAD without requiring their working trees."""
-    output = _git(workspace, "ls-tree", "-r", "--name-only", "HEAD", "--", "apps")
+    output = _git(workspace, "ls-tree", "HEAD:apps")
     names: set[str] = set()
     for line in output.splitlines():
-        path = Path(line)
-        if path.parts[:1] == ("apps",) and len(path.parts) >= 2:
-            names.add(path.parts[1])
+        metadata, separator, name = line.partition("\t")
+        if separator and metadata.split()[1:2] in (["tree"], ["commit"]):
+            names.add(name)
     return names
 
 

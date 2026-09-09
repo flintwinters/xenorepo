@@ -6,7 +6,6 @@ contract: promoted apps remain deliberate consumers of their enclosing Xenorepo.
 
 from __future__ import annotations
 
-from collections.abc import Callable
 from configparser import ConfigParser
 from dataclasses import dataclass
 from pathlib import Path
@@ -47,7 +46,7 @@ class AppDeletion:
 
 @dataclass(frozen=True)
 class FocusedWorkspace:
-    """A verified Xenorepo derivative detached from its source repository."""
+    """A Xenorepo derivative detached from its source repository."""
 
     path: Path
     revision: str
@@ -235,31 +234,23 @@ def _tracked_app_names(workspace: Path) -> tuple[str, ...]:
     return names
 
 
-def fork_focused_workspace(definition: AppDefinition, workspace: Path, *, destination: Path,
-    verify: Callable[[Path], None]) -> FocusedWorkspace:
-    """Create and verify a focused workspace with no remote Xenorepo dependency."""
+def fork_focused_workspace(definition: AppDefinition, workspace: Path, *,
+    destination: Path) -> FocusedWorkspace:
+    """Create a focused workspace with no remote Xenorepo dependency."""
     validate_fork_destination(workspace, destination)
     workspace, destination = workspace.resolve(), destination.resolve()
     relative, branch = _focused_preflight(definition, workspace, destination)
     destination.parent.mkdir(parents=True, exist_ok=True)
     candidate = Path(mkdtemp(prefix=f"{destination.name}-pending-", dir=destination.parent))
-    installed = False
     try:
         _populate_focused_workspace(definition, workspace, candidate, relative, branch)
+        revision = _git(candidate, "rev-parse", "--short", "HEAD")
         validate_fork_destination(workspace, destination)
         candidate.rename(destination)
-        installed = True
-        verify(destination)
-        revision = _git(destination, "rev-parse", "--short", "HEAD")
     except Exception as error:
-        if installed:
-            try:
-                destination.rename(candidate)
-            except OSError as recovery_error:
-                raise RepositoryError(f"fork failed: {error}; workspace retained at {destination}; "
-                    f"could not move it to recovery directory: {recovery_error}") from error
-        raise RepositoryError(f"fork failed: {error}; recovery workspace retained at {candidate}; "
-            "retry with an available destination") from error
+        if candidate.exists():
+            shutil.rmtree(candidate)
+        raise RepositoryError(f"fork failed: {error}; no workspace was created") from error
     return FocusedWorkspace(destination, revision)
 
 

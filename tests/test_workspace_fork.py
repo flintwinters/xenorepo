@@ -2,37 +2,18 @@
 
 from dataclasses import replace
 from pathlib import Path
-from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
 
 from monotools.orchestration.apps import ROOT
 from monotools.provisioning.repositories import (
-    AppRepositoryState, FocusedWorkspace, RepositoryError, _require_promoted_app,
-    fork_focused_workspace,
+    AppRepositoryState, FocusedWorkspace, _require_promoted_app, fork_focused_workspace,
 )
 import manage as repository_manager
 
 
 class WorkspaceForkTests(unittest.TestCase):
-    def test_focused_verification_captures_success_noise(self) -> None:
-        completed = CompletedProcess([], 0, stdout="verbose successful tool output")
-        with patch("manage.subprocess.run", return_value=completed) as run:
-            repository_manager._verify_focused_workspace(ROOT, aesthetic_review=False)
-
-        self.assertEqual(len(run.call_args_list), 3)
-        self.assertEqual([call.args[0][-1] for call in run.call_args_list],
-            ["--no-submodules", "verify", "ui-check"])
-        self.assertTrue(all(call.kwargs["stdout"] is repository_manager.subprocess.PIPE
-            for call in run.call_args_list))
-
-    def test_focused_verification_retains_failure_diagnostics(self) -> None:
-        completed = CompletedProcess([], 1, stdout="actionable failure")
-        with patch("manage.subprocess.run", return_value=completed), \
-             self.assertRaisesRegex(RepositoryError, "actionable failure"):
-            repository_manager._verify_focused_workspace(ROOT, aesthetic_review=False)
-
     def test_fork_preflight_cleans_only_known_untracked_generator_residue(self) -> None:
         source = repository_manager.MANAGERS[0][0]
         dirty = AppRepositoryState("submodule", False, "remote", "current")
@@ -46,7 +27,7 @@ class WorkspaceForkTests(unittest.TestCase):
         git.assert_called_once_with(source.directory, "clean", "-fd", "--",
             "data/monoform.json", "data/monoform-build")
 
-    def test_focused_workspace_is_detached_before_verification(self) -> None:
+    def test_focused_workspace_is_detached(self) -> None:
         source_definition = repository_manager.MANAGERS[0][0]
         events: list[str] = []
         with TemporaryDirectory(dir=ROOT / "tests", prefix="focused-parent-") as temporary:
@@ -68,10 +49,6 @@ class WorkspaceForkTests(unittest.TestCase):
                 }
                 return responses.get(arguments, "")
 
-            def verify(path: Path) -> None:
-                self.assertEqual(path, destination)
-                events.append("verify")
-
             state = AppRepositoryState("submodule", True,
                 "git@github.com:owner/app.git", "current")
             with patch("monotools.provisioning.repositories.shutil.which",
@@ -79,15 +56,13 @@ class WorkspaceForkTests(unittest.TestCase):
                  patch("monotools.provisioning.repositories.inspect_app_repository",
                     return_value=state), \
                  patch("monotools.provisioning.repositories._git", side_effect=git):
-                focused = fork_focused_workspace(definition, workspace, destination=destination,
-                    verify=verify)
+                focused = fork_focused_workspace(definition, workspace, destination=destination)
 
         self.assertIsInstance(focused, FocusedWorkspace)
         self.assertEqual(focused.revision, "abc1234")
         self.assertIn("git rm -r -f -- apps/unrelated", events)
         self.assertNotIn(f"git rm -r -f -- apps/{definition.name}", events)
         self.assertIn("git remote remove origin", events)
-        self.assertLess(events.index("git remote remove origin"), events.index("verify"))
         self.assertFalse(any(event.startswith("gh ") for event in events))
 
 

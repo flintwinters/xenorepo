@@ -112,7 +112,7 @@ is configured manually later. Promotion requires a clean Xenorepo index, records
 pending app changes in a path-scoped snapshot commit, extracts app-only history, mounts
 the local repository at the same path as a submodule, and commits Xenorepo's gitlink.
 It deliberately performs no dependency restoration or product validation; those belong
-to the explicit `verify`, `release`, and completed focused-workspace gates. Fresh
+to the explicit `verify` and `release` gates. Fresh
 checkouts initialize declared app submodules through `uv run manage.py bootstrap`.
 
 A promoted monoapp is independently versioned but deliberately not standalone:

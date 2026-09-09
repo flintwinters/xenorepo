@@ -53,7 +53,7 @@ def _source_candidates(workspace: Path) -> tuple[Path, ...]:
         if (root := workspace / directory).is_dir()
         for path in root.rglob("*")
         if path.suffix in SOURCE_SUFFIXES
-        and not SOURCE_EXCLUDED_DIRECTORIES.intersection(path.parts)
+        and not SOURCE_EXCLUDED_DIRECTORIES.intersection(path.relative_to(root).parts)
     ]
     candidates.extend(path for path in workspace.glob("*") if path.suffix in SOURCE_SUFFIXES)
     return tuple(sorted(candidates))

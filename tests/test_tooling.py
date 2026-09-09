@@ -58,7 +58,7 @@ class RepositoryAppTests(unittest.TestCase):
 
     def test_source_line_validation_covers_programs_and_stylesheets(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="source-lines-") as temporary:
-            workspace = Path(temporary)
+            workspace = Path(temporary) / "data" / "nested-workspace"
             source = workspace / "apps" / "fixture"
             source.mkdir(parents=True)
             python = source / "example.py"

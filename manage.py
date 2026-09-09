@@ -248,33 +248,10 @@ def _promote_before_forking(definition: AppDefinition) -> None:
         _fail(error)
 
 
-def _verify_focused_workspace(candidate: Path, aesthetic_review: bool) -> None:
-    """Run focused gates quietly while retaining complete failure diagnostics."""
-    commands = [
-        ["uv", "run", "manage.py", "restore", "--no-submodules"],
-        ["uv", "run", "manage.py", "verify"],
-        ["uv", "run", "manage.py", "ui-check"],
-    ]
-    if aesthetic_review:
-        commands.append(["uv", "run", "manage.py", "aesthetic-check"])
-    for command in commands:
-        completed = subprocess.run(command, cwd=candidate, check=False, text=True,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-        if completed.returncode:
-            detail = completed.stdout.strip() or "no diagnostic output"
-            raise RepositoryError(
-                f"focused workspace verification failed ({completed.returncode}) while running "
-                f"{' '.join(command)}; local clone retained at {candidate}\n{detail}"
-            )
-
-
 @monoapp.command("fork-workspace")
 def fork_monoapp_workspace(name: str = typer.Argument(...),
-    directory: Path | None = typer.Option(None, "--directory"),
-    aesthetic_review: bool = typer.Option(False,
-        "--aesthetic-review/--no-aesthetic-review",
-        help="Include the nondeterministic AI aesthetic review in verification.")) -> None:
-    """Create a verified Xenorepo clone focused on one promoted monoapp."""
+    directory: Path | None = typer.Option(None, "--directory")) -> None:
+    """Create a Xenorepo clone focused on one promoted monoapp."""
     selected = next((definition for definition, _ in MANAGERS if definition.name == name), None)
     if selected is None:
         _fail(f"unknown managed monoapp {name!r}")
@@ -286,8 +263,7 @@ def fork_monoapp_workspace(name: str = typer.Argument(...),
     _promote_before_forking(selected)
 
     try:
-        focused = fork_focused_workspace(selected, ROOT, destination=destination,
-            verify=lambda candidate: _verify_focused_workspace(candidate, aesthetic_review))
+        focused = fork_focused_workspace(selected, ROOT, destination=destination)
     except (OSError, RepositoryError) as error:
         _fail(error)
     console.print("[bold green]Forked detached workspace[/]")

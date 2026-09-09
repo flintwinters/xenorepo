@@ -56,33 +56,25 @@ class RepositoryTransactionTests(unittest.TestCase):
     def test_missing_original_repository_does_not_prevent_fork_or_refork(self) -> None:
         self.promote()
         self.backing.rename(self.parent / "moved-backing")
-        fork_focused_workspace(self.definition, self.workspace,
-            destination=self.destination, verify=lambda _: None)
+        fork_focused_workspace(self.definition, self.workspace, destination=self.destination)
         app = self.destination / "apps" / "fixture"
         self.assertEqual(self.git(app, "status", "--porcelain"), "")
         self.assertTrue((app / "README.md").is_file())
         self.assertEqual(self.git(self.destination, "remote"), "")
         fork_focused_workspace(replace(self.definition, directory=app), self.destination,
-            destination=self.parent / "refocused", verify=lambda _: None)
+            destination=self.parent / "refocused")
 
-    def test_failed_verification_retains_evidence_and_allows_retry(self) -> None:
+    def test_clone_failure_leaves_no_destination_and_allows_retry(self) -> None:
         self.promote()
         revision = self.git(self.workspace, "rev-parse", "HEAD")
-
-        def fail(candidate: Path) -> None:
-            (candidate / "failure-evidence.txt").write_text("diagnostic", encoding="utf-8")
-            raise RepositoryError("injected verification failure")
-
-        with self.assertRaisesRegex(RepositoryError, "recovery workspace retained"):
-            fork_focused_workspace(self.definition, self.workspace,
-                destination=self.destination, verify=fail)
+        populate = "monotools.provisioning.repositories._populate_focused_workspace"
+        with patch(populate, side_effect=RepositoryError("injected clone failure")), \
+             self.assertRaisesRegex(RepositoryError, "no workspace was created"):
+            fork_focused_workspace(self.definition, self.workspace, destination=self.destination)
         self.assertFalse(self.destination.exists())
-        pending = list(self.destination.parent.glob("fixture-pending-*"))
-        self.assertEqual(len(pending), 1)
-        self.assertTrue((pending[0] / "failure-evidence.txt").is_file())
+        self.assertEqual(list(self.destination.parent.glob("fixture-pending-*")), [])
         self.assertEqual(self.git(self.workspace, "rev-parse", "HEAD"), revision)
-        fork_focused_workspace(self.definition, self.workspace,
-            destination=self.destination, verify=lambda _: None)
+        fork_focused_workspace(self.definition, self.workspace, destination=self.destination)
         self.assertTrue(self.destination.is_dir())
 
     def test_existing_destination_is_rejected_before_promotion(self) -> None:
@@ -101,8 +93,7 @@ class RepositoryTransactionTests(unittest.TestCase):
                 side_effect=RepositoryError("injected clone failure")), \
              self.assertRaisesRegex(RepositoryError, "injected clone failure"):
             fork_focused_workspace(self.definition, self.workspace,
-                destination=self.destination, verify=lambda _: None)
+                destination=self.destination)
         self.assertFalse(self.destination.exists())
-        fork_focused_workspace(self.definition, self.workspace,
-            destination=self.destination, verify=lambda _: None)
+        fork_focused_workspace(self.definition, self.workspace, destination=self.destination)
         self.assertEqual(self.git(self.destination / "apps/fixture", "status", "--porcelain"), "")

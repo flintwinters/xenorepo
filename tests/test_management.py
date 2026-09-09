@@ -239,7 +239,7 @@ frontend:
              patch("manage._promote_monoapp") as promote, \
              patch("manage.fork_focused_workspace", return_value=focused) as fork:
             result = CliRunner().invoke(repository_manager.app,
-                ["monoapp", "fork-workspace", selected.name, "--no-aesthetic-review"],
+                ["monoapp", "fork-workspace", selected.name],
                 input="y\n")
 
         self.assertEqual(result.exit_code, 0, result.output)

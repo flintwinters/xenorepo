@@ -29,8 +29,7 @@ Pull requests and pushes to `main` run the same `release` command in CI.
 
 `uv run manage.py restore` restores locked dependencies without enforcing the
 supported runtime version. `bootstrap` additionally enforces Node 22 for a fully
-supported development checkout. Focused repository operations use
-`restore --no-submodules` because they initialize only their selected monoapp.
+supported development checkout.
 
 Promote a mature monoapp from the shared monoapp controls, then create a
 separately cloned workspace that retains only that app and disconnects it from
@@ -44,14 +43,15 @@ uv run manage.py monoapp fork-workspace app_name
 Promotion creates a Git repository in `data/repositories/<app>` with no hosted remote, then mounts
 it as the monoapp submodule. Configure and push an external remote manually when ready.
 `fork-workspace` offers this local promotion when needed, removes the focused clone's
-inherited Xenorepo `origin`, and verifies it. Forks default to `data/workspaces/<app>`
+inherited Xenorepo `origin`, and does not restore dependencies or run tests. Use the
+focused checkout's explicit `verify` and `release` commands when appropriate. Forks default to `data/workspaces/<app>`
 inside the invoking checkout. External paths require an explicit path option.
 
 Forking checks destination conflicts before promotion and copies the app from its
 mounted checkout, even when its original local repository has moved. It builds in
-a sibling `*-pending-*` directory, then verifies at the final path so generated
-environments have correct paths. Failed attempts move back to a recovery directory and report its
-path; the same command can be retried. Existing destinations are preserved: choose
+a sibling `*-pending-*` directory and atomically moves the completed clone into place.
+Failed attempts remove that incomplete temporary clone so the same command can be
+retried. Existing destinations are preserved: choose
 another `--directory` when an older attempt already occupies the requested path.
 
 See [AGENTS.md](AGENTS.md) for the project architecture and invariants, and

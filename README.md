@@ -24,6 +24,10 @@ Run `uv run manage.py --help` to discover repository and app-specific commands.
 `uv run manage.py verify` is the complete build, test, and browser-validation
 checkpoint for a fully provisioned checkout.
 
+`uv run manage.py restore` restores locked dependencies without enforcing the
+supported runtime version. `bootstrap` additionally enforces Node 22 for a fully
+supported development checkout.
+
 Promote a mature monoapp from the shared monoapp controls, then create a
 separately cloned workspace that retains only that app and disconnects it from
 Xenorepo's remote:

@@ -176,11 +176,21 @@ frontend:
         for definition, _ in repository_manager.MANAGERS:
             self.assertIn(definition.name, result.stdout)
 
+    def test_restore_does_not_enforce_bootstrap_node_version_policy(self) -> None:
+        with patch("manage._restore_dependencies") as restore, \
+             patch("manage.discover_managers", return_value=repository_manager.MANAGERS), \
+             patch("manage.subprocess.run") as run:
+            result = CliRunner().invoke(repository_manager.app, ["restore"])
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        restore.assert_called_once_with()
+        run.assert_not_called()
+
     def test_root_and_leaf_commands_have_distinct_ownership(self) -> None:
         root_commands = {command.name or command.callback.__name__.replace("_", "-")
             for command in repository_manager.app.registered_commands}
         self.assertEqual(root_commands,
-            {"audit", "bootstrap", "list", "status", "check", "test", "ui-check",
+            {"audit", "bootstrap", "restore", "list", "status", "check", "test", "ui-check",
                 "ui-hygiene", "aesthetic-check", "verify"})
         self.assertIn("monoapp", {group.name for group in repository_manager.app.registered_groups})
 

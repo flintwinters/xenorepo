@@ -13,7 +13,7 @@ import manage as repository_manager
 
 
 class PromotionTests(unittest.TestCase):
-    def test_promotion_bootstraps_once_before_both_verification_passes(self) -> None:
+    def test_promotion_restores_once_before_both_verification_passes(self) -> None:
         definition = repository_manager.MANAGERS[0][0]
 
         def promote(*_arguments, verify, **_options):
@@ -27,7 +27,7 @@ class PromotionTests(unittest.TestCase):
                 visibility="private", aesthetic_review=False)
 
         commands = [call.args[0] for call in run.call_args_list]
-        self.assertEqual(commands.count(["uv", "run", "manage.py", "bootstrap"]), 1)
+        self.assertEqual(commands.count(["uv", "run", "manage.py", "restore"]), 1)
         self.assertEqual(commands.count(
             ["uv", "run", "manage.py", definition.name, "check"]), 2)
 

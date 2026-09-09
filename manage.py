@@ -191,11 +191,11 @@ def delete_monoapp(name: str = typer.Argument(...)) -> None:
 def _promote_monoapp(definition: AppDefinition, *, owner: str, repository: str,
     visibility: str, aesthetic_review: bool) -> None:
     """Promote one managed app after its selected verification gate passes."""
-    bootstrapped = False
+    dependencies_restored = False
 
     def verify_workspace() -> None:
-        nonlocal bootstrapped
-        commands = [] if bootstrapped else [["uv", "run", "manage.py", "bootstrap"]]
+        nonlocal dependencies_restored
+        commands = [] if dependencies_restored else [["uv", "run", "manage.py", "restore"]]
         if not aesthetic_review:
             commands.extend([["uv", "run", "manage.py", definition.name, command]
                 for command in ("check", "test", "ui-check")])
@@ -208,7 +208,7 @@ def _promote_monoapp(definition: AppDefinition, *, owner: str, repository: str,
                     f"workspace verification failed ({completed.returncode}) while running "
                     f"{' '.join(command[3:])}; promotion stopped"
                 )
-        bootstrapped = True
+        dependencies_restored = True
 
     remote = promote_to_submodule(definition, ROOT, owner=owner, repository=repository,
         visibility=visibility, verify=verify_workspace)
@@ -269,7 +269,7 @@ def fork_monoapp_workspace(name: str = typer.Argument(...),
     _promote_before_forking(selected, aesthetic_review)
 
     def verify_workspace(candidate: Path) -> None:
-        commands = [["uv", "run", "manage.py", "bootstrap"]]
+        commands = [["uv", "run", "manage.py", "restore"]]
         if aesthetic_review:
             commands.append(["uv", "run", "manage.py", "verify"])
         else:
@@ -290,6 +290,17 @@ def fork_monoapp_workspace(name: str = typer.Argument(...),
         _fail(error)
     console.print("[bold green]Forked detached workspace[/]")
     console.print(f"Local clone: {focused.path} at {focused.revision}")
+
+
+@app.command()
+def restore() -> None:
+    """Restore locked repository dependencies without imposing a runtime version policy."""
+    try:
+        _restore_dependencies()
+        discover_managers()
+    except (FileNotFoundError, LifecycleError, ManagerError) as error:
+        _fail(error)
+    console.print("[bold green]Dependencies restored[/]")
 
 
 @app.command()

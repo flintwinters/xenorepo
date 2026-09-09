@@ -20,8 +20,7 @@ function initialFrame(): Frame {
 function contain(frame: Frame): Frame {
   const workspaceHeight = Math.max(MIN_HEIGHT, window.innerHeight - 112);
   const width = Math.min(frame.width, window.innerWidth), height = Math.min(frame.height, workspaceHeight);
-  return { width, height, x: Math.max(0, Math.min(frame.x, window.innerWidth - width)),
-    y: Math.max(0, Math.min(frame.y, workspaceHeight - height)) };
+  return { ...frame, width, height };
 }
 
 function socketUrl(): string {
@@ -42,8 +41,8 @@ function Application() {
   const moveDrag = (event: PointerEvent): void => {
     const gesture = drag.current;
     if (gesture?.id !== event.pointerId) return;
-    setFrame(contain({ ...gesture.frame, x: gesture.frame.x + event.clientX - gesture.startX,
-      y: gesture.frame.y + event.clientY - gesture.startY }));
+    setFrame({ ...gesture.frame, x: gesture.frame.x + event.clientX - gesture.startX,
+      y: gesture.frame.y + event.clientY - gesture.startY });
   };
   const moveResize = (event: PointerEvent): void => {
     const gesture = sizing.current;
@@ -52,18 +51,10 @@ function Application() {
       width: Math.max(MIN_WIDTH, gesture.frame.width + event.clientX - gesture.startX),
       height: Math.max(MIN_HEIGHT, gesture.frame.height + event.clientY - gesture.startY) }));
   };
-  const nudge = (event: KeyboardEvent): void => {
-    const movement: Record<string, [number, number]> = { ArrowLeft: [-10, 0], ArrowRight: [10, 0],
-      ArrowUp: [0, -10], ArrowDown: [0, 10] };
-    const delta = movement[event.key];
-    if (!delta) return;
-    event.preventDefault(); const [x, y] = delta;
-    setFrame((current) => contain({ ...current, x: current.x + x, y: current.y + y }));
-  };
   useEffect(() => {
     if (!host.current) return;
     const terminal = new Terminal({ cursorBlink: true, convertEol: false,
-      fontFamily: '"JetBrains Mono", "Cascadia Mono", monospace', fontSize: 14,
+      fontFamily: '"JetBrains Mono", "Cascadia Mono", monospace', fontSize: 11,
       theme: { background: "#1d2021", foreground: "#ebdbb2", cursor: "#fabd2f" } });
     const fit = new FitAddon();
     terminal.loadAddon(fit); terminal.open(host.current); fit.fit();
@@ -90,12 +81,10 @@ function Application() {
   return <ConsoleShell class="worminal-shell" header={header} footer={footer}>
     <ConsoleWorkspace class="workspace"><ConsolePane title="TERMINAL" tone="green"
       class="terminal-window" style={{ left: frame.x, top: frame.y, width: frame.width,
-        height: frame.height }} chromeProps={{ role: "button", tabIndex: 0,
-        "aria-label": "Move terminal window", onKeyDown: nudge,
-        onPointerDown: (event) => startGesture(event.currentTarget, event, drag),
+        height: frame.height }} chromeProps={{ onPointerDown: (event) => startGesture(event.currentTarget, event, drag),
         onPointerMove: moveDrag, onPointerUp: () => { drag.current = null; } }}>
       <div class="terminal-host" ref={host} />
-      <div class="resize-handle" role="separator" tabIndex={0} aria-label="Resize terminal window"
+      <div class="resize-handle" aria-label="Resize terminal window"
         onPointerDown={(event) => startGesture(event.currentTarget, event, sizing)}
         onPointerMove={moveResize} onPointerUp={() => { sizing.current = null; }} />
     </ConsolePane></ConsoleWorkspace>

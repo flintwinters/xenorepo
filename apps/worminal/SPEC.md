@@ -23,8 +23,8 @@ The terminal interaction is product-defining and therefore app-owned; MonoForm i
 ## Interaction contracts
 
 - Opening the page connects automatically and reports connecting, connected, exited, or failed.
-- The terminal window can be dragged by its title bar and resized from its lower-right handle while
-  remaining inside the visible browser workspace. Arrow keys move a focused title bar.
+- The terminal window can be dragged freely, including beyond the browser workspace edge, and resized
+  from its lower-right handle.
 - Browser input is written to the PTY without command interpretation by the application.
 - Resize messages set positive terminal row and column counts; malformed messages are ignored.
 - Ctrl+C is ordinary terminal input and interrupts the foreground process through PTY semantics.

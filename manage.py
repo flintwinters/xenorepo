@@ -33,7 +33,7 @@ from monotools.orchestration.hygiene import analyze_ui_hygiene
 from monotools.provisioning.audit import AuditReport, audit_workspace
 from monotools.provisioning.management import attach_repository_commands
 from monotools.provisioning.repositories import (
-    RepositoryError, delete_app, uninitialized_app_submodules,
+    RepositoryError, delete_app, fork_focused_workspace, uninitialized_app_submodules,
 )
 from monotools.provisioning.scaffolding import ScaffoldError, scaffold_app
 
@@ -185,6 +185,46 @@ def delete_monoapp(name: str = typer.Argument(...)) -> None:
         _fail(error)
     console.print(f"[bold green]Deleted monoapp[/] {deleted.name} ({deleted.mode})")
     console.print(f"Committed as {deleted.revision}; run uv run manage.py verify.")
+
+
+@monoapp.command("fork-workspace")
+def fork_monoapp_workspace(name: str = typer.Argument(...),
+    owner: str = typer.Option(..., "--owner"),
+    repository: str = typer.Option(..., "--repository"),
+    visibility: str = typer.Option(..., "--visibility"),
+    directory: Path | None = typer.Option(None, "--directory"),
+    aesthetic_review: bool = typer.Option(False,
+        "--aesthetic-review/--no-aesthetic-review",
+        help="Include the nondeterministic AI aesthetic review in verification.")) -> None:
+    """Create a verified Xenorepo clone focused on one promoted monoapp."""
+    selected = next((definition for definition, _ in MANAGERS if definition.name == name), None)
+    if selected is None:
+        _fail(f"unknown managed monoapp {name!r}")
+    destination = directory or ROOT.parent / repository
+
+    def verify_workspace(candidate: Path) -> None:
+        commands = [["uv", "run", "manage.py", "bootstrap"]]
+        if aesthetic_review:
+            commands.append(["uv", "run", "manage.py", "verify"])
+        else:
+            commands.extend([["uv", "run", "manage.py", command]
+                for command in ("check", "test", "ui-check")])
+        for command in commands:
+            completed = subprocess.run(command, cwd=candidate, check=False)
+            if completed.returncode:
+                raise RepositoryError(
+                    f"focused workspace verification failed ({completed.returncode}) while running "
+                    f"{' '.join(command)}; local clone retained at {candidate}"
+                )
+
+    try:
+        focused = fork_focused_workspace(selected, ROOT, destination=destination,
+            owner=owner, repository=repository, visibility=visibility,
+            verify=verify_workspace)
+    except (OSError, RepositoryError) as error:
+        _fail(error)
+    console.print(f"[bold green]Forked workspace[/] {focused.remote}")
+    console.print(f"Local clone: {focused.path} at {focused.revision}")
 
 
 @app.command()

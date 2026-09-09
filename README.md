@@ -24,5 +24,16 @@ Run `uv run manage.py --help` to discover repository and app-specific commands.
 `uv run manage.py verify` is the complete build, test, and browser-validation
 checkpoint for a fully provisioned checkout.
 
+After promoting a monoapp to a submodule, create a separately cloned workspace
+that retains only that app while preserving this repository as `upstream`:
+
+```console
+uv run manage.py monoapp fork-workspace app_name \
+  --owner github_owner --repository app-workspace --visibility private
+```
+
+The routine verifies the focused clone before creating or pushing its GitHub
+repository. Pass `--directory` to override the default sibling directory.
+
 See [AGENTS.md](AGENTS.md) for the project architecture and invariants, and
 [LIBRARIES.md](LIBRARIES.md) for shared-library boundaries.

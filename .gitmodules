@@ -6,3 +6,7 @@
 	path = apps/calculator
 	url = git@github.com:flintwinters/calculator.git
 	branch = main
+[submodule "worminal"]
+	path = apps/worminal
+	url = git@github.com:flintwinters/worminal.git
+	branch = main

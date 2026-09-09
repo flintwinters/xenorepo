@@ -47,10 +47,9 @@ class AppDeletion:
 
 @dataclass(frozen=True)
 class FocusedWorkspace:
-    """A verified Xenorepo derivative containing one promoted monoapp."""
+    """A verified Xenorepo derivative detached from its source repository."""
 
     path: Path
-    remote: str
     revision: str
 
 
@@ -200,10 +199,9 @@ def _validate_github_target(owner: str, repository: str, visibility: str) -> Non
         raise RepositoryError("visibility must be private, public, or internal")
 
 
-def _require_repository_tools() -> None:
-    for executable in ("git", "gh"):
-        if shutil.which(executable) is None:
-            raise RepositoryError(f"{executable} is required for focused workspace creation")
+def _require_git() -> None:
+    if shutil.which("git") is None:
+        raise RepositoryError("git is required for focused workspace creation")
 
 
 def _require_promoted_app(definition: AppDefinition, workspace: Path) -> Path:
@@ -218,21 +216,16 @@ def _require_promoted_app(definition: AppDefinition, workspace: Path) -> Path:
     return relative
 
 
-def _focused_preflight(definition: AppDefinition, workspace: Path, destination: Path,
-    owner: str, repository: str, visibility: str) -> tuple[Path, str, str]:
-    _validate_github_target(owner, repository, visibility)
-    _require_repository_tools()
+def _focused_preflight(definition: AppDefinition, workspace: Path,
+    destination: Path) -> tuple[Path, str]:
+    _require_git()
     if destination == workspace or destination.is_relative_to(workspace):
         raise RepositoryError("focused workspace destination must be outside the source Xenorepo")
     relative = _require_promoted_app(definition, workspace)
     if destination.exists():
         raise RepositoryError(f"refusing to overwrite existing destination: {destination}")
-    source_remote = _optional_remote(workspace)
-    if source_remote is None:
-        raise RepositoryError("source Xenorepo needs an origin remote")
     branch = _git(workspace, "symbolic-ref", "--quiet", "--short", "HEAD")
-    _gh(workspace, "auth", "status")
-    return relative, source_remote, branch
+    return relative, branch
 
 
 def _tracked_app_names(workspace: Path) -> tuple[str, ...]:
@@ -247,12 +240,10 @@ def _tracked_app_names(workspace: Path) -> tuple[str, ...]:
 
 
 def fork_focused_workspace(definition: AppDefinition, workspace: Path, *, destination: Path,
-    owner: str, repository: str, visibility: str,
     verify: Callable[[Path], None]) -> FocusedWorkspace:
-    """Create and publish a verified Xenorepo derivative containing one promoted app."""
+    """Create and verify a focused workspace with no remote Xenorepo dependency."""
     workspace, destination = workspace.resolve(), destination.resolve()
-    relative, source_remote, branch = _focused_preflight(
-        definition, workspace, destination, owner, repository, visibility)
+    relative, branch = _focused_preflight(definition, workspace, destination)
     _git(workspace, "clone", "--no-recurse-submodules", "--branch", branch,
         str(workspace), str(destination))
     _git(destination, "submodule", "update", "--init", "--", str(relative))
@@ -262,17 +253,10 @@ def fork_focused_workspace(definition: AppDefinition, workspace: Path, *, destin
     _git(destination, "commit", "-m", f"Create focused {definition.title} workspace",
         "-m", "Retain the shared Xenorepo platform and the selected promoted monoapp while "
         "removing unrelated application sources and submodule registrations.")
+    _git(destination, "remote", "remove", "origin")
     verify(destination)
-    target = f"{owner}/{repository}"
-    _gh(workspace, "repo", "create", target, f"--{visibility}", "--description",
-        f"Focused Xenorepo workspace for {definition.title}", "--disable-wiki")
-    remote = _gh(workspace, "repo", "view", target, "--json", "sshUrl", "--jq", ".sshUrl")
-    _git(destination, "remote", "rename", "origin", "upstream")
-    _git(destination, "remote", "set-url", "upstream", source_remote)
-    _git(destination, "remote", "add", "origin", remote)
-    _git(destination, "push", "-u", "origin", branch)
     revision = _git(destination, "rev-parse", "--short", "HEAD")
-    return FocusedWorkspace(destination, remote, revision)
+    return FocusedWorkspace(destination, revision)
 
 
 def _preflight(definition: AppDefinition, workspace: Path, owner: str,

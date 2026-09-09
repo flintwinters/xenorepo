@@ -14,7 +14,7 @@ import manage as repository_manager
 
 
 class WorkspaceForkTests(unittest.TestCase):
-    def test_focused_workspace_is_verified_before_remote_creation(self) -> None:
+    def test_focused_workspace_is_detached_before_verification(self) -> None:
         source_definition = repository_manager.MANAGERS[0][0]
         events: list[str] = []
         with TemporaryDirectory(dir=ROOT / "tests", prefix="focused-parent-") as temporary:
@@ -36,11 +36,6 @@ class WorkspaceForkTests(unittest.TestCase):
                 }
                 return responses.get(arguments, "")
 
-            def gh(_cwd: Path, *arguments: str) -> str:
-                events.append("gh " + " ".join(arguments))
-                return "git@github.com:owner/focused.git" if arguments[:2] == (
-                    "repo", "view") else ""
-
             def verify(path: Path) -> None:
                 self.assertEqual(path, destination)
                 events.append("verify")
@@ -51,22 +46,17 @@ class WorkspaceForkTests(unittest.TestCase):
                     return_value="/usr/bin/tool"), \
                  patch("monotools.provisioning.repositories.inspect_app_repository",
                     return_value=state), \
-                 patch("monotools.provisioning.repositories._optional_remote",
-                    return_value="git@github.com:owner/xenorepo.git"), \
-                 patch("monotools.provisioning.repositories._git", side_effect=git), \
-                 patch("monotools.provisioning.repositories._gh", side_effect=gh):
+                 patch("monotools.provisioning.repositories._git", side_effect=git):
                 focused = fork_focused_workspace(definition, workspace, destination=destination,
-                    owner="owner", repository="focused", visibility="private", verify=verify)
+                    verify=verify)
 
         self.assertIsInstance(focused, FocusedWorkspace)
-        self.assertEqual((focused.remote, focused.revision),
-            ("git@github.com:owner/focused.git", "abc1234"))
+        self.assertEqual(focused.revision, "abc1234")
         self.assertIn("git rm -r -f -- apps/unrelated", events)
         self.assertNotIn(f"git rm -r -f -- apps/{definition.name}", events)
-        self.assertLess(events.index("verify"),
-            events.index("gh repo create owner/focused --private --description "
-                f"Focused Xenorepo workspace for {definition.title} --disable-wiki"))
-        self.assertLess(events.index("verify"), events.index("git push -u origin main"))
+        self.assertIn("git remote remove origin", events)
+        self.assertLess(events.index("git remote remove origin"), events.index("verify"))
+        self.assertFalse(any(event.startswith("gh ") for event in events))
 
 
 if __name__ == "__main__":

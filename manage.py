@@ -189,9 +189,6 @@ def delete_monoapp(name: str = typer.Argument(...)) -> None:
 
 @monoapp.command("fork-workspace")
 def fork_monoapp_workspace(name: str = typer.Argument(...),
-    owner: str = typer.Option(..., "--owner"),
-    repository: str = typer.Option(..., "--repository"),
-    visibility: str = typer.Option(..., "--visibility"),
     directory: Path | None = typer.Option(None, "--directory"),
     aesthetic_review: bool = typer.Option(False,
         "--aesthetic-review/--no-aesthetic-review",
@@ -200,7 +197,7 @@ def fork_monoapp_workspace(name: str = typer.Argument(...),
     selected = next((definition for definition, _ in MANAGERS if definition.name == name), None)
     if selected is None:
         _fail(f"unknown managed monoapp {name!r}")
-    destination = directory or ROOT.parent / repository
+    destination = directory or ROOT.parent / f"{name}-workspace"
 
     def verify_workspace(candidate: Path) -> None:
         commands = [["uv", "run", "manage.py", "bootstrap"]]
@@ -219,11 +216,10 @@ def fork_monoapp_workspace(name: str = typer.Argument(...),
 
     try:
         focused = fork_focused_workspace(selected, ROOT, destination=destination,
-            owner=owner, repository=repository, visibility=visibility,
             verify=verify_workspace)
     except (OSError, RepositoryError) as error:
         _fail(error)
-    console.print(f"[bold green]Forked workspace[/] {focused.remote}")
+    console.print("[bold green]Forked detached workspace[/]")
     console.print(f"Local clone: {focused.path} at {focused.revision}")
 
 

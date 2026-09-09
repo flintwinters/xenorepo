@@ -11,6 +11,7 @@ from unittest.mock import ANY, patch
 
 import typer
 from rich.console import Console
+from rich.text import Text
 from typer.testing import CliRunner
 
 from monotools.orchestration import apps as app_registry
@@ -251,7 +252,7 @@ frontend:
         result = CliRunner().invoke(repository_manager.app, ["audit"], color=False)
 
         self.assertEqual(result.exit_code, 0)
-        self.assertIn("Architecture violations: 0", result.output)
+        self.assertIn("Architecture violations: 0", Text.from_ansi(result.output).plain)
         self.assertIn("0 large file(s)", result.output)
         self.assertRegex(result.output, r"0 complex\s+function\(s\)")
 

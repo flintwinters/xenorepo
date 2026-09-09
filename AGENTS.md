@@ -2,20 +2,14 @@
 
 ## 1. Guiding motivation
 
-Monotools is the primary product; monoapps prove its planning, creation,
-lifecycle, validation, and maintenance. Optimize for coherence, determinism,
-reusable automation, short feedback loops, and actionable failures.
-Promote recurring operations and protections into Monotools.
+Monotools is the product; monoapps prove its lifecycle. Optimize for coherence,
+determinism, reusable automation, short feedback, and actionable failures.
 
-Before implementation, review the outcome, responsibilities, invariants, states,
+Before implementation, review outcomes, responsibilities, invariants, states,
 dependencies, and lifecycle. Compare inaction, existing mechanisms, and the
-simplest adequate intervention by coherence, reversibility, blast radius, and
-maintenance. Cover malformed, unavailable, repeated, interrupted, and recovery
-states. Reject misplaced responsibility, invalid intermediate states, and lost
-recovery. State the evidence, weakest assumption, and reversal test.
-
-Here, **monorepo** means this repository, **monoapp** an app, and **Monotools**
-the orchestration library.
+simplest adequate intervention by reversibility, blast radius, and maintenance.
+Cover malformed, unavailable, repeated, interrupted, and recovery states. Reject
+misplaced responsibility, invalid intermediate states, and lost recovery.
 
 ## 2. Architecture and invariants
 
@@ -24,7 +18,7 @@ the orchestration library.
   managers and runtimes resolve the owning definition from local entrypoints;
   Monotools owns discovery, scaffolding, lifecycle, build, validation, universal
   platform tests, and status reporting.
-- Monotools uses documented, recursively discovered `orchestration`, `runtime`,
+- Monotools recursively discovers documented `orchestration`, `runtime`,
   `persistence`, and `integrations` packages.
 - Treat every public and control-plane boundary as a product contract.
   Foreseeable repository, configuration, dependency, and runtime states must
@@ -52,8 +46,8 @@ the orchestration library.
 - Keep framework code modular and DRY; extract abstractions only after an app
   proves the boundary. Apps share Monotools and contracts, not app source or
   artifacts.
-- Reintegrate proven tools and protections into Monotools; consolidate duplicates.
-- Operations are deterministic, composable, and reversible where practical.
+- Reintegrate proven tools and protections into Monotools.
+- Operations are deterministic, composable, and reversible.
   Validate before mutation, report partial failures and recovery, and claim
   success only after stable readiness.
 - Route all repeatable validation through root `manage.py`. Test in visible,
@@ -63,9 +57,8 @@ the orchestration library.
 - Keep source files under 600 lines and cyclomatic complexity at most 8. Do not
   hide project state or put exposition in UI elements.
 
-- Apps and Monotools remain deployment-independent. Xenoview manages deployments
-  through a generic external operator protocol; deployment methods, provider
-  adapters and infrastructure execution stay outside this repository.
+- Apps and Monotools remain deployment-independent; infrastructure execution and
+  provider adapters stay external behind a generic operator protocol.
 
 ## 3. Current tasks
 

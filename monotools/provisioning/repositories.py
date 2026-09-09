@@ -283,6 +283,9 @@ def _commit_pending_app_changes(definition: AppDefinition, workspace: Path,
     if not _git(workspace, "status", "--short", "--", str(relative)):
         return
     try:
+        readme = relative / "README.md"
+        if (workspace / readme).is_file():
+            _git(workspace, "add", "-f", "--", str(readme))
         _git(workspace, "add", "-A", "--", str(relative))
         _git(workspace, "commit", "-m", f"Prepare {definition.title} for promotion", "-m",
             f"Record the complete current {relative} application state before extracting its "

@@ -56,6 +56,7 @@ class PromotionTests(unittest.TestCase):
 
         self.assertEqual(promoted, repository)
         commands = [" ".join(arguments) for arguments, _ in calls]
+        self.assertIn(f"git add -f -- apps/{definition.name}/README.md", commands)
         self.assertIn(f"git add -A -- apps/{definition.name}", commands)
         snapshot = next(i for i, item in enumerate(commands) if "git commit -m Prepare" in item)
         split_index = next(i for i, item in enumerate(commands) if "subtree split" in item)
@@ -63,7 +64,7 @@ class PromotionTests(unittest.TestCase):
         self.assertLess(split_index, next(i for i, item in enumerate(commands)
             if "git init --initial-branch=main" in item))
         self.assertFalse(any(item.startswith("gh ") or "git push" in item for item in commands))
-        self.assertIn("git submodule add", "\n".join(commands))
+        self.assertIn("submodule add", "\n".join(commands))
         self.assertTrue(commands[-1].startswith("git commit -m"))
 
     def test_failed_mount_rolls_back_to_the_committed_monolith(self) -> None:

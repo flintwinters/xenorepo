@@ -8,8 +8,9 @@ The walking skeleton is a local operator tool, not a remotely deployable shell s
 ## Walking skeleton
 
 FastAPI serves one self-contained Preact artifact and owns one ephemeral pseudoterminal per browser
-WebSocket. The PTY starts the server user's default shell in the Worminal app directory. The xterm.js
-frontend forwards input and terminal dimensions and renders the byte stream.
+WebSocket. The PTY starts the server user's default interactive shell from their home directory and
+allows its normal startup files to establish the resulting environment and working directory. The
+xterm.js frontend forwards input and terminal dimensions and renders the byte stream.
 
 Only loopback clients may open a shell. Existing same-origin WebSocket protection also applies. A
 disconnect terminates the shell's process group and closes its PTY; sessions, output, and command

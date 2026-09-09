@@ -7,7 +7,6 @@ import os
 from pathlib import Path
 import pty
 import pwd
-import shlex
 import signal
 import struct
 import subprocess
@@ -20,7 +19,6 @@ from monotools.runtime.application import create_local_application
 from monotools.runtime.realtime import websocket_origin_allowed
 
 
-APP_DIRECTORY = Path(__file__).resolve().parents[1]
 MAX_DIMENSION = 1000
 
 
@@ -50,11 +48,11 @@ def terminal_size(payload: dict[str, Any]) -> tuple[int, int] | None:
 class PtySession:
     """Own one shell process group and its pseudoterminal descriptor."""
 
-    def __init__(self, directory: Path = APP_DIRECTORY, shell: str | None = None) -> None:
+    def __init__(self, directory: Path | None = None, shell: str | None = None) -> None:
         master, slave = pty.openpty()
         command = shell or pwd.getpwuid(os.getuid()).pw_shell or "/bin/sh"
         try:
-            self.process = subprocess.Popen([command, "-i"], cwd=directory,
+            self.process = subprocess.Popen([command, "-i"], cwd=directory or Path.home(),
                 stdin=slave, stdout=slave, stderr=slave, start_new_session=True,
                 close_fds=True)
         except Exception:
@@ -65,7 +63,6 @@ class PtySession:
         self.master = master
         os.set_blocking(self.master, False)
         self.closed = False
-        self.write(f"cd {shlex.quote(str(directory))}\n")
 
     async def read(self) -> bytes:
         while True:

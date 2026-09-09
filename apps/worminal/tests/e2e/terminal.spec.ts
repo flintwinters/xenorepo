@@ -7,8 +7,9 @@ test("[acceptance] runs commands and interrupts a foreground process", async ({ 
   await terminal.pressSequentially("printf 'worminal-ready\\n'", { delay: 10 });
   await terminal.press("Enter");
   await expect(page.locator(".xterm-screen")).toContainText("worminal-ready");
-  await terminal.pressSequentially("pwd", { delay: 10 }); await terminal.press("Enter");
-  await expect(page.locator(".xterm-screen")).toContainText("apps/worminal");
+  await terminal.pressSequentially("printf '__PWD__%s\\n' \"$PWD\"", { delay: 10 });
+  await terminal.press("Enter");
+  await expect(page.locator(".xterm-screen")).toContainText("__PWD__/");
   await terminal.pressSequentially("sleep 30", { delay: 10 }); await terminal.press("Enter");
   await terminal.press("Control+C");
   await terminal.pressSequentially("printf 'interrupted\\n'", { delay: 10 });

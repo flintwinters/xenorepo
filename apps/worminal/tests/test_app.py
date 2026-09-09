@@ -17,21 +17,21 @@ class WorminalTests(unittest.TestCase):
             {"type": "input", "data": "pwd"}):
             self.assertIsNone(terminal_size(payload))
 
-    def test_pty_runs_in_app_directory_and_closes_process_group(self) -> None:
+    def test_pty_starts_from_home_and_closes_process_group(self) -> None:
         session = PtySession(shell="/bin/sh")
         pid = session.process.pid
 
         async def exercise() -> bytes:
             session.write("printf '__WORMINAL__%s\\n' \"$PWD\"\n")
             output = b""
-            expected = str(Path("apps/worminal").resolve()).encode()
+            expected = str(Path.home()).encode()
             while expected not in output:
                 output += await asyncio.wait_for(session.read(), 2)
             await session.close()
             return output
 
         output = asyncio.run(exercise())
-        self.assertIn(str(Path("apps/worminal").resolve()).encode(), output)
+        self.assertIn(str(Path.home()).encode(), output)
         self.assertIsNotNone(session.process.poll())
         with self.assertRaises(ProcessLookupError):
             os.kill(pid, 0)

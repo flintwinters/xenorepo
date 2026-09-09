@@ -33,8 +33,8 @@ from monotools.orchestration.hygiene import analyze_ui_hygiene
 from monotools.provisioning.audit import AuditReport, audit_workspace
 from monotools.provisioning.management import attach_repository_commands
 from monotools.provisioning.repositories import (
-    RepositoryError, delete_app, fork_focused_workspace, inspect_app_repository,
-    promote_to_submodule, uninitialized_app_submodules,
+    RepositoryError, authenticated_github_owner, delete_app, fork_focused_workspace,
+    inspect_app_repository, promote_to_submodule, uninitialized_app_submodules,
 )
 from monotools.provisioning.scaffolding import ScaffoldError, scaffold_app
 
@@ -211,9 +211,11 @@ def _promote_monoapp(definition: AppDefinition, *, owner: str, repository: str,
 
 @monoapp.command("promote")
 def promote_monoapp(name: str = typer.Argument(...),
-    owner: str = typer.Option(..., "--owner"),
-    repository: str = typer.Option(..., "--repository"),
-    visibility: str = typer.Option(..., "--visibility"),
+    owner: str | None = typer.Option(None, "--owner",
+        help="GitHub owner; defaults to the authenticated GitHub CLI account."),
+    repository: str | None = typer.Option(None, "--repository",
+        help="GitHub repository; defaults to the monoapp name."),
+    visibility: str = typer.Option("private", "--visibility"),
     aesthetic_review: bool = typer.Option(True,
         "--aesthetic-review/--no-aesthetic-review",
         help="Include the nondeterministic AI aesthetic review in promotion gates.")) -> None:
@@ -222,8 +224,9 @@ def promote_monoapp(name: str = typer.Argument(...),
     if selected is None:
         _fail(f"unknown managed monoapp {name!r}")
     try:
-        _promote_monoapp(selected, owner=owner, repository=repository, visibility=visibility,
-            aesthetic_review=aesthetic_review)
+        resolved_owner = owner or authenticated_github_owner(ROOT)
+        _promote_monoapp(selected, owner=resolved_owner, repository=repository or name,
+            visibility=visibility, aesthetic_review=aesthetic_review)
     except RepositoryError as error:
         _fail(error)
 
@@ -238,12 +241,10 @@ def _promote_before_forking(definition: AppDefinition, aesthetic_review: bool) -
         return
     if not typer.confirm(f"{definition.name} is not promoted. Promote it before forking?", default=True):
         _fail(f"{definition.name} must be promoted before forking a workspace")
-    owner = typer.prompt("GitHub owner")
-    repository = typer.prompt("GitHub repository", default=definition.name)
-    visibility = typer.prompt("GitHub visibility", default="private")
     try:
-        _promote_monoapp(definition, owner=owner, repository=repository, visibility=visibility,
-            aesthetic_review=aesthetic_review)
+        owner = authenticated_github_owner(ROOT)
+        _promote_monoapp(definition, owner=owner, repository=definition.name,
+            visibility="private", aesthetic_review=aesthetic_review)
     except RepositoryError as error:
         _fail(error)
 

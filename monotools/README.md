@@ -105,13 +105,14 @@ delete an independently hosted remote repository. Reverting the commit restores
 versioned app context; ignored runtime data and uploads are not recoverable. An
 unversioned app must be committed before it can be deleted through this command.
 
-When mounted by Xenorepo, every managed app exposes `git status` and
-`git create-repo` through `monotools.provisioning`. Promotion requires
-explicit `--owner`, `--repository`, and `--visibility` values, a clean Xenorepo
-worktree, GitHub CLI authentication, and two successful complete verification
-runs. It extracts app-only history, pushes it to GitHub, remounts the same path
-as a submodule, and commits Xenorepo's gitlink. Fresh checkouts initialize all
-declared app submodules through `uv run manage.py bootstrap`.
+When mounted by Xenorepo, every managed app exposes `git status` through
+`monotools.provisioning`, while the root `monoapp promote` routine owns promotion.
+It defaults to the authenticated GitHub CLI account, the monoapp name, and private
+visibility while allowing explicit overrides. Promotion requires a clean Xenorepo
+worktree and two successful complete verification runs. It extracts app-only history,
+pushes it to GitHub, remounts the same path as a submodule, and commits Xenorepo's
+gitlink. Fresh checkouts initialize all declared app submodules through
+`uv run manage.py bootstrap`.
 
 A promoted monoapp is independently versioned but deliberately not standalone:
 it consumes the enclosing checkout's current Monotools and shared packages.

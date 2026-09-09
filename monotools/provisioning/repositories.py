@@ -157,6 +157,16 @@ def _gh(cwd: Path, *arguments: str) -> str:
     return _run(["gh", *arguments], cwd)
 
 
+def authenticated_github_owner(workspace: Path) -> str:
+    """Return the login owning the active GitHub CLI authentication."""
+    if shutil.which("gh") is None:
+        raise RepositoryError("GitHub CLI is required; install gh and run 'gh auth login'")
+    owner = _gh(workspace, "api", "user", "--jq", ".login")
+    if not _GITHUB_COMPONENT.fullmatch(owner):
+        raise RepositoryError("GitHub CLI returned an invalid authenticated account login")
+    return owner
+
+
 def _relative_app_path(definition: AppDefinition, workspace: Path) -> Path | None:
     try:
         relative = definition.directory.resolve().relative_to(workspace.resolve())

@@ -202,15 +202,15 @@ frontend:
 
     def test_monoapp_promotion_is_centralized_by_app_name(self) -> None:
         selected = repository_manager.MANAGERS[0][0]
-        with patch("manage._promote_monoapp") as promote:
+        with patch("manage.authenticated_github_owner", return_value="account") as owner, \
+             patch("manage._promote_monoapp") as promote:
             result = CliRunner().invoke(repository_manager.app, [
-                "monoapp", "promote", selected.name, "--owner", "owner",
-                "--repository", "repository", "--visibility", "private",
-                "--no-aesthetic-review",
+                "monoapp", "promote", selected.name, "--no-aesthetic-review",
             ])
 
         self.assertEqual(result.exit_code, 0, result.output)
-        promote.assert_called_once_with(selected, owner="owner", repository="repository",
+        owner.assert_called_once_with(ROOT)
+        promote.assert_called_once_with(selected, owner="account", repository=selected.name,
             visibility="private", aesthetic_review=False)
 
     def test_fork_workspace_offers_to_promote_an_unpromoted_app(self) -> None:
@@ -218,15 +218,17 @@ frontend:
         state = AppRepositoryState("monolith", True, None, "current")
         focused = type("Focused", (), {"path": ROOT / "focused", "revision": "abc1234"})()
         with patch("manage.inspect_app_repository", return_value=state), \
+             patch("manage.authenticated_github_owner", return_value="account") as owner, \
              patch("manage._promote_monoapp") as promote, \
              patch("manage.fork_focused_workspace", return_value=focused) as fork:
             result = CliRunner().invoke(repository_manager.app,
                 ["monoapp", "fork-workspace", selected.name, "--no-aesthetic-review"],
-                input="y\nowner\nrepository\nprivate\n")
+                input="y\n")
 
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn("not promoted. Promote it before forking?", result.output)
-        promote.assert_called_once_with(selected, owner="owner", repository="repository",
+        owner.assert_called_once_with(ROOT)
+        promote.assert_called_once_with(selected, owner="account", repository=selected.name,
             visibility="private", aesthetic_review=False)
         fork.assert_called_once()
 

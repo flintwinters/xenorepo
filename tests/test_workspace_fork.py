@@ -8,12 +8,20 @@ from unittest.mock import patch
 
 from monotools.orchestration.apps import ROOT
 from monotools.provisioning.repositories import (
-    AppRepositoryState, FocusedWorkspace, fork_focused_workspace,
+    AppRepositoryState, FocusedWorkspace, authenticated_github_owner, fork_focused_workspace,
 )
 import manage as repository_manager
 
 
 class WorkspaceForkTests(unittest.TestCase):
+    def test_authenticated_github_owner_uses_the_active_cli_account(self) -> None:
+        with patch("monotools.provisioning.repositories.shutil.which", return_value="/usr/bin/gh"), \
+             patch("monotools.provisioning.repositories._run", return_value="account") as run:
+            owner = authenticated_github_owner(ROOT)
+
+        self.assertEqual(owner, "account")
+        run.assert_called_once_with(["gh", "api", "user", "--jq", ".login"], ROOT)
+
     def test_focused_workspace_is_detached_before_verification(self) -> None:
         source_definition = repository_manager.MANAGERS[0][0]
         events: list[str] = []

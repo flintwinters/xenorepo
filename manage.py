@@ -247,6 +247,26 @@ def _promote_before_forking(definition: AppDefinition) -> None:
         _fail(error)
 
 
+def _verify_focused_workspace(candidate: Path, aesthetic_review: bool) -> None:
+    """Run focused gates quietly while retaining complete failure diagnostics."""
+    commands = [
+        ["uv", "run", "manage.py", "restore", "--no-submodules"],
+        ["uv", "run", "manage.py", "verify"],
+        ["uv", "run", "manage.py", "ui-check"],
+    ]
+    if aesthetic_review:
+        commands.append(["uv", "run", "manage.py", "aesthetic-check"])
+    for command in commands:
+        completed = subprocess.run(command, cwd=candidate, check=False, text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        if completed.returncode:
+            detail = completed.stdout.strip() or "no diagnostic output"
+            raise RepositoryError(
+                f"focused workspace verification failed ({completed.returncode}) while running "
+                f"{' '.join(command)}; local clone retained at {candidate}\n{detail}"
+            )
+
+
 @monoapp.command("fork-workspace")
 def fork_monoapp_workspace(name: str = typer.Argument(...),
     directory: Path | None = typer.Option(None, "--directory"),
@@ -260,24 +280,9 @@ def fork_monoapp_workspace(name: str = typer.Argument(...),
     destination = directory or ROOT.parent / f"{name}-workspace"
     _promote_before_forking(selected)
 
-    def verify_workspace(candidate: Path) -> None:
-        commands = [["uv", "run", "manage.py", "restore", "--no-submodules"]]
-        if aesthetic_review:
-            commands.append(["uv", "run", "manage.py", "verify"])
-        else:
-            commands.extend([["uv", "run", "manage.py", command]
-                for command in ("check", "test", "ui-check")])
-        for command in commands:
-            completed = subprocess.run(command, cwd=candidate, check=False)
-            if completed.returncode:
-                raise RepositoryError(
-                    f"focused workspace verification failed ({completed.returncode}) while running "
-                    f"{' '.join(command)}; local clone retained at {candidate}"
-                )
-
     try:
         focused = fork_focused_workspace(selected, ROOT, destination=destination,
-            verify=verify_workspace)
+            verify=lambda candidate: _verify_focused_workspace(candidate, aesthetic_review))
     except (OSError, RepositoryError) as error:
         _fail(error)
     console.print("[bold green]Forked detached workspace[/]")

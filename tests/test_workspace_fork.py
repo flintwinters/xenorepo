@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 from pathlib import Path
+from subprocess import CompletedProcess
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
@@ -15,6 +16,23 @@ import manage as repository_manager
 
 
 class WorkspaceForkTests(unittest.TestCase):
+    def test_focused_verification_captures_success_noise(self) -> None:
+        completed = CompletedProcess([], 0, stdout="verbose successful tool output")
+        with patch("manage.subprocess.run", return_value=completed) as run:
+            repository_manager._verify_focused_workspace(ROOT, aesthetic_review=False)
+
+        self.assertEqual(len(run.call_args_list), 3)
+        self.assertEqual([call.args[0][-1] for call in run.call_args_list],
+            ["--no-submodules", "verify", "ui-check"])
+        self.assertTrue(all(call.kwargs["stdout"] is repository_manager.subprocess.PIPE
+            for call in run.call_args_list))
+
+    def test_focused_verification_retains_failure_diagnostics(self) -> None:
+        completed = CompletedProcess([], 1, stdout="actionable failure")
+        with patch("manage.subprocess.run", return_value=completed), \
+             self.assertRaisesRegex(RepositoryError, "actionable failure"):
+            repository_manager._verify_focused_workspace(ROOT, aesthetic_review=False)
+
     def test_fork_preflight_cleans_only_known_untracked_generator_residue(self) -> None:
         source = repository_manager.MANAGERS[0][0]
         dirty = AppRepositoryState("submodule", False, "remote", "current")

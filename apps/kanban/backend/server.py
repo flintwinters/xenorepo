@@ -8,8 +8,9 @@ from fastapi.responses import Response
 
 from apps.kanban.backend.database import Base, KanbanError, KanbanStore
 from apps.kanban.backend.schemas import (
-    AttachmentEdit, AttachmentView, BoardDetailsEdit, BoardEdit, BoardImport, BoardView, CardCreate, CardEdit, CardFields,
-    CardMove, CardTagsEdit, CardView, ColumnCreate, ColumnEdit, ColumnView, KanbanView,
+    AttachmentEdit, AttachmentView, BoardDetailsEdit, BoardEdit, BoardImport, BoardView,
+    CardCreate, CardEdit, CardFields,
+    CardMove, CardView, ColumnCreate, ColumnEdit, ColumnView, KanbanView,
     ImportResult, TagColorEdit, LinkInput, LogInput, LogView,
     PositionInput,
 )
@@ -112,11 +113,6 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
     async def edit_card(card_id: str, value: CardEdit, request: Request) -> CardView:
         require_origin(request)
         return board.edit_card(card_id, value)
-
-    @application.put("/api/cards/{card_id}/tags", response_model=CardView)
-    async def set_card_tags(card_id: str, value: CardTagsEdit, request: Request) -> CardView:
-        require_origin(request)
-        return board.set_card_tags(card_id, value)
 
     @application.put("/api/cards/{card_id}/position", response_model=CardView)
     async def move_card(card_id: str, value: CardMove, request: Request) -> CardView:

@@ -130,12 +130,12 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   const cardDetails = page.getByRole("dialog", { name: "CARD DETAILS" });
   await expect(cardDetails).toBeVisible();
   await expect(page.getByLabel("Priority")).toHaveCount(0);
-  const availableTags = cardDetails.getByLabel("Available tags");
-  const assignedTags = cardDetails.getByLabel("Assigned tags");
+  const availableTags = cardDetails.getByLabel("Available Tags");
+  const assignedTags = cardDetails.getByLabel("Selected Tags");
   await assignedTags.getByRole("button", { name: "Remove durable" }).click();
   await availableTags.getByRole("button", { name: "Assign durable" }).dragTo(assignedTags);
   await expect(assignedTags.getByRole("button", { name: "Remove durable" })).toBeVisible();
-  await page.getByRole("button", { name: "Cancel" }).click();
+  await cardDetails.getByRole("button", { name: "SAVE", exact: true }).click();
   await page.getByRole("button", { name: "EDIT BOARD" }).click();
   const palette = page.getByRole("dialog", { name: "BOARD SETTINGS" });
   const tagColor = palette.locator("section").filter({ hasText: "acceptance" });

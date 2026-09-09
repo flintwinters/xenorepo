@@ -3,7 +3,9 @@
 from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, field_validator, model_validator
+from pydantic import (
+    AliasChoices, BaseModel, ConfigDict, Field, HttpUrl, StringConstraints, field_validator, model_validator,
+)
 
 
 Name = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=120)]
@@ -71,19 +73,8 @@ class CardCreate(CardFields):
     column_id: str
 
 
-class CardEdit(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    title: Name
-
-
-class CardTagsEdit(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-    tags: list[Name] = Field(default_factory=list)
-
-    @field_validator("tags")
-    @classmethod
-    def unique_tags(cls, values: list[str]) -> list[str]:
-        return _unique_tags(values)
+class CardEdit(CardFields):
+    pass
 
 
 class CardMove(BaseModel):

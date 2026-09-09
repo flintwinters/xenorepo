@@ -275,6 +275,19 @@
 .x-ui-color-preview[style] { background-image: none; }
 .x-ui-form-field > textarea.x-ui-form-control { min-height: 80px; }
 .x-ui-form-field small[role="alert"], .x-ui-form > [role="alert"] { color: #fb4934; }
+.x-ui-array-transfer { display: grid; gap: 5px; margin: 0; padding: 0; border: 0; }
+.x-ui-array-transfer > legend { padding: 0; }
+.x-ui-array-transfer-groups { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.x-ui-array-transfer-group {
+  min-width: 0; min-height: 82px; padding: 7px;
+  border: 1px dashed var(--console-muted, #a89984); background: var(--console-bg, #1d2021);
+}
+.x-ui-array-transfer-group > strong { display: block; color: var(--console-muted, #a89984); font-size: 10px; }
+.x-ui-array-transfer-group > div { display: flex; flex-wrap: wrap; gap: 5px; padding-top: 7px; }
+.x-ui-array-transfer-group > div > span:not(.x-ui-command) { padding: 4px; color: var(--console-muted, #a89984); }
+.x-ui-array-transfer-group .x-ui-command { cursor: grab; }
+.x-ui-array-transfer-group .x-ui-command:active { cursor: grabbing; }
+.x-ui-array-transfer > small[role="alert"] { color: #fb4934; }
 .x-ui-form-actions { display: flex; gap: 8px; }
 .x-ui-monoform-result:not(:empty) {
   color: var(--console-fg, #ebdbb2);
@@ -347,4 +360,5 @@
     place-items: start center;
     padding: 12px 8px;
   }
+  .x-ui-array-transfer-groups { grid-template-columns: 1fr; }
 }

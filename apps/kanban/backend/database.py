@@ -5,11 +5,13 @@ import json
 from typing import Callable
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, delete, inspect, select, text
+from sqlalchemy import (
+    CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, delete, inspect, select, text,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from apps.kanban.backend.schemas import (
-    ActivityView, AttachmentView, BoardEdit, BoardView, CardCreate, CardEdit, CardMove, CardTagsEdit, CardView,
+    ActivityView, AttachmentView, BoardEdit, BoardView, CardCreate, CardEdit, CardMove, CardView,
     BoardDetailsEdit, BoardImport, ColumnView, ImportResult, KanbanView, LogView, TagView,
 )
 from apps.kanban.backend.tag_catalog import ensure_board_tag, ensure_regular_tag
@@ -459,21 +461,12 @@ class KanbanStore:
         with self.sessions.begin() as session:
             record = self._required(session, CardRecord, identity, "Card")
             record.title = value.title
-            record.updated_at = self.now()
-            self._activity(session, "edited", "card", identity, f"Edited card “{record.title}”")
-            session.flush()
-            return _card(record)
-
-    def set_card_tags(self, identity: str, value: CardTagsEdit) -> CardView:
-        with self.sessions.begin() as session:
-            record = self._required(session, CardRecord, identity, "Card")
-            if record.archived_at:
-                raise KanbanError("Cannot tag an archived card", "conflict")
             instant = self.now()
             for tag in value.tags:
                 ensure_regular_tag(session, TagRecord, tag, instant, KanbanError)
-            record.tags_json, record.updated_at = json.dumps(value.tags), instant
-            self._activity(session, "edited", "card", identity, f"Updated tags on “{record.title}”")
+            record.tags_json = json.dumps(value.tags)
+            record.updated_at = instant
+            self._activity(session, "edited", "card", identity, f"Edited card “{record.title}”")
             session.flush()
             return _card(record)
 

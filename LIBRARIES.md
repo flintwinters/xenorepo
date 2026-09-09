@@ -49,7 +49,10 @@ and transport boundary without app-specific shared branches. MonoForm
 accepts only annotated relative `/api` operations and declared primitive fields,
 filters initial and submitted values through the manifest, escapes rendered
 content, binds hidden path values, maps validation and platform errors, prevents
-parallel submission, and confirms destructive operations. Generated pages expose
+parallel submission, and confirms destructive operations. Consumers may supply
+an allowed choice catalog for an array field to render a shared drag-and-drop
+transfer control with an equivalent click interaction; choice catalogs guide
+editing but do not replace server-side validation. Generated pages expose
 only metadata-allowlisted operations and atomically replace prior artifacts.
 Authentication, authorization, same-origin enforcement, transactions, and domain
 validation remain server-authoritative. Unsupported or product-defining flows

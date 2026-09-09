@@ -3,7 +3,7 @@ import { CommandButton, ConsoleChrome, ConsolePane, ConsoleShell, EmptyState, Mo
   UtilityRail, type MonoFormManifest } from "monoui";
 import rawManifest from "../data/monoform.json";
 import {
-  addLink, addLog, addUpload, importBoard, loadBoard, moveCard, moveColumn, setArchived, setCardTags,
+  addLink, addLog, addUpload, importBoard, loadBoard, moveCard, moveColumn, setArchived,
   type BoardImport,
   type Attachment, type Card, type Column, type KanbanView, type Tag,
 } from "./client.js";
@@ -53,8 +53,6 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     editingAttachment: null, message: "Loading board…", failed: false, busy: false };
   private dragged: string | null = null;
   private draggedColumn: string | null = null;
-  private draggedTag: string | null = null;
-  private tagUpdates = new Map<string, Promise<void>>();
 
   override componentDidMount(): void { void this.refresh("Board ready"); }
   private refresh = async (message?: string): Promise<void> => {
@@ -95,44 +93,6 @@ class KanbanBoard extends Component<Record<string, never>, State> {
   private knownTags(): string[] {
     return (this.state.view?.tags ?? []).filter((tag) => tag.kind === "tag")
       .map((tag) => tag.name).sort((left, right) => left.localeCompare(right));
-  }
-  private setTagsImmediately(card: Card, tags: string[]): void {
-    const view = this.state.view;
-    if (!view) return;
-    const unique = tags.filter((tag, index) =>
-      tags.findIndex((candidate) => candidate.toLocaleLowerCase() === tag.toLocaleLowerCase()) === index);
-    this.setState({ view: { ...view, cards: view.cards.map((item) =>
-      item.id === card.id ? { ...item, tags: unique } : item) }, message: "Item tags updated", failed: false });
-    const pending = (this.tagUpdates.get(card.id) ?? Promise.resolve()).catch(() => undefined)
-      .then(() => setCardTags(card.id, unique));
-    this.tagUpdates.set(card.id, pending);
-    void pending.then(() => {
-      if (this.tagUpdates.get(card.id) === pending) this.tagUpdates.delete(card.id);
-    }).catch(async (error) => {
-      if (this.tagUpdates.get(card.id) !== pending) return;
-      this.tagUpdates.delete(card.id);
-      try {
-        const restored = await loadBoard();
-        this.setState({ view: restored,
-          message: error instanceof Error ? error.message : "Could not update item tags", failed: true });
-      } catch (refreshError) {
-        this.setState({ message: refreshError instanceof Error ? refreshError.message : "Could not update item tags",
-          failed: true });
-      }
-    });
-  }
-  private assignDraggedTag(event: DragEvent, card: Card): void {
-    event.preventDefault();
-    const tag = this.draggedTag;
-    this.draggedTag = null;
-    if (tag) this.setTagsImmediately(card, [...card.tags, tag]);
-  }
-  private removeDraggedTag(event: DragEvent, card: Card): void {
-    event.preventDefault();
-    const tag = this.draggedTag;
-    this.draggedTag = null;
-    if (tag) this.setTagsImmediately(card,
-      card.tags.filter((value) => value.toLocaleLowerCase() !== tag.toLocaleLowerCase()));
   }
   private archive = (kind: string, id: string): void => {
     if (kind === "card") this.setState({ selected: null });
@@ -288,27 +248,6 @@ class KanbanBoard extends Component<Record<string, never>, State> {
           void this.refresh("Attachment updated"); }} />
     </Modal>;
   }
-  private tagEditor(card: Card) {
-    const assigned = new Set(card.tags.map((tag) => tag.toLocaleLowerCase()));
-    const available = (this.state.view?.tags ?? []).filter((tag) =>
-      tag.kind === "tag" && !assigned.has(tag.name.toLocaleLowerCase()));
-    const start = (tag: string): void => { this.draggedTag = tag; };
-    return <section class="tag-editor" aria-label="Item tags"><div class="tag-group"
-      aria-label="Available tags" onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => this.removeDraggedTag(event, card)}><h3>AVAILABLE TAGS</h3><div class="tag-pool">
-      {available.length ? available.map((tag: Tag) => <CommandButton type="button" appearance="subtle"
-        draggable aria-label={`Assign ${tag.name}`} onDragStart={() => start(tag.name)}
-        onDragEnd={() => { this.draggedTag = null; }}
-        onClick={() => this.setTagsImmediately(card, [...card.tags, tag.name])}>{tag.name}</CommandButton>) :
-        <span class="empty-tags">All tags assigned</span>}</div></div><div class="tag-group assigned-tags"
-      aria-label="Assigned tags" onDragOver={(event) => event.preventDefault()}
-      onDrop={(event) => this.assignDraggedTag(event, card)}><h3>ITEM TAGS</h3><div class="tag-pool">
-      {card.tags.length ? card.tags.map((tag) => <CommandButton type="button" appearance="subtle"
-        draggable aria-label={`Remove ${tag}`} onDragStart={() => start(tag)}
-        onDragEnd={() => { this.draggedTag = null; }}
-        onClick={() => this.setTagsImmediately(card, card.tags.filter((value) => value !== tag))}>{tag}</CommandButton>) :
-        <span class="empty-tags">Drop tags here</span>}</div></div></section>;
-  }
   private cardEditor() {
     if (this.state.editingAttachment) return null;
     const card = this.card(this.state.selected);
@@ -322,11 +261,12 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       <div class="card-fields"><MonoForm manifest={monoform}
         operationId={card ? "edit_card" : "create_card"}
         pathValues={card ? { card_id: card.id } : { column_id: this.state.creatingIn! }}
-        initialValues={value} onCancel={() => this.setState({ selected: null, creatingIn: null })}
+        initialValues={value} fieldChoices={card ? { tags: this.knownTags() } : {}}
+        onCancel={() => this.setState({ selected: null, creatingIn: null })}
         onSuccess={() => {
           this.setState({ selected: null, creatingIn: null });
           void this.refresh(card ? "Card updated" : "Card created");
-        }} />{card && this.tagEditor(card)}{card && <div class="actions"><CommandButton type="button" class="danger"
+        }} />{card && <div class="actions"><CommandButton type="button" class="danger"
           onClick={() => this.archive("card", card.id)}>ARCHIVE</CommandButton></div>}</div>
       {card && <div class="card-extras"><section class="item-log"><h3>ITEM LOG</h3>{logs.length > 0 ? <ol>
         {logs.map((item) => <li><time dateTime={item.created_at}>

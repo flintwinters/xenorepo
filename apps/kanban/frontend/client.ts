@@ -65,12 +65,6 @@ export async function editCard(id: string, fields: CardEditFields): Promise<void
   });
   if (error) result(undefined, error);
 }
-export async function setCardTags(id: string, tags: string[]): Promise<void> {
-  const { error } = await api.PUT("/api/cards/{card_id}/tags", {
-    params: { path: { card_id: id } }, body: { tags },
-  });
-  if (error) result(undefined, error);
-}
 export async function moveCard(id: string, column_id: string, position: number): Promise<void> {
   const { error } = await api.PUT("/api/cards/{card_id}/position", {
     params: { path: { card_id: id } }, body: { column_id, position },

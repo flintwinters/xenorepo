@@ -70,15 +70,6 @@
   padding: 14px; border: 1px solid #83a598; background: #282828; box-shadow: 0 14px 34px #000;
 }
 .card-dialog { width: min(720px, 100%); }
-.tag-editor { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.tag-group {
-  min-width: 0; min-height: 88px; padding: 7px; border: 1px dashed #665c54; background: #202223;
-}
-.tag-group h3 { margin-top: 0; }
-.tag-pool { display: flex; flex-wrap: wrap; align-content: start; gap: 5px; min-height: 34px; padding-top: 6px; }
-.tag-pool .x-ui-command { cursor: grab; }
-.tag-pool .x-ui-command:active { cursor: grabbing; }
-.empty-tags { padding: 5px; color: #928374; }
 .tag-catalog { height: 100%; }
 .tag-catalog table { width: 100%; border-collapse: collapse; }
 .tag-catalog th, .tag-catalog td { padding: 7px 10px; text-align: left; border-bottom: 1px solid #3c3836; }
@@ -149,7 +140,6 @@
   .board-description { display: none; }
   .push { flex: 1; }
   .field-row, .compact-form, .compact-form:has(input[type="file"]), .log-form { grid-template-columns: 1fr; }
-  .tag-editor { grid-template-columns: 1fr; }
   .row { flex-wrap: wrap; }
   .row p, .row a { flex-basis: 100%; }
   .activity-list li, .item-log li { grid-template-columns: 1fr; gap: 2px; }

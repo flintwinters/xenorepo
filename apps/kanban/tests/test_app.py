@@ -126,11 +126,14 @@ class ApplicationTests(unittest.TestCase):
         self.assertEqual({(tag["name"], tag["kind"]) for tag in view["tags"]}, {
             ("My board", "board"), ("Quality", "tag"), ("Backend", "tag"),
         })
-        rejected = self.client.request("PUT", f"/api/cards/{card['id']}/tags", json={"tags": ["My board"]})
-        assigned = self.client.request("PUT", f"/api/cards/{card['id']}/tags", json={"tags": ["Backend"]})
+        rejected = self.client.request("PATCH", f"/api/cards/{card['id']}",
+            json={"title": card["title"], "tags": ["My board"]})
+        assigned = self.client.request("PATCH", f"/api/cards/{card['id']}",
+            json={"title": card["title"], "tags": ["Backend"]})
         moved = self.client.request("PUT", f"/api/cards/{card['id']}/position",
             json={"column_id": doing["id"], "position": 0})
-        cleared = self.client.request("PUT", f"/api/cards/{card['id']}/tags", json={"tags": []})
+        cleared = self.client.request("PATCH", f"/api/cards/{card['id']}",
+            json={"title": card["title"], "tags": []})
         persisted = self.client.request("GET", "/api/board").json()
         self.assertEqual((rejected.status_code, assigned.status_code, moved.status_code, cleared.status_code),
             (409, 200, 200, 200))

@@ -1,6 +1,7 @@
 import type { JSX } from "preact";
 import { useMemo, useState } from "preact/hooks";
 import { CommandButton } from "./command-button";
+import { ArrayTransfer } from "./array-transfer";
 import {
   Form, FormActions, FormConfirmation, FormField, FormInput, FormSelect, FormTextarea,
 } from "./form-controls";
@@ -65,6 +66,7 @@ export interface MonoFormProps {
   showTitle?: boolean;
   pathValues?: Record<string, string | number>;
   initialValues?: Record<string, unknown>;
+  fieldChoices?: Record<string, readonly string[]>;
   onSuccess?: (result: MonoFormResult) => void;
   onCancel?: () => void;
 }
@@ -87,7 +89,8 @@ function valueFor(field: MonoFormSchema, raw: unknown): unknown {
   if (raw === "" && field.nullable) return null;
   if (field.type === "integer") return Number.parseInt(String(raw), 10);
   if (field.type === "number") return Number(raw);
-  if (field.type === "array") return String(raw).split(",").map((value) => value.trim()).filter(Boolean);
+  if (field.type === "array") return Array.isArray(raw) ? raw
+    : String(raw).split(",").map((value) => value.trim()).filter(Boolean);
   return raw;
 }
 
@@ -128,10 +131,18 @@ function fieldError(detail: unknown): Errors {
   }));
 }
 
-function Field({ name, schema, value, error, disabled, onChange }: {
+function Field({ name, schema, value, error, disabled, choices, onChange }: {
   name: string; schema: MonoFormSchema; value: unknown; error?: string; disabled: boolean;
+  choices?: readonly string[];
   onChange: (value: unknown) => void;
 }) {
+  if (schema.type === "array" && choices !== undefined) {
+    return <ArrayTransfer id={`monoform-${name}`} label={labelFor(name, schema)}
+      {...(schema.description ? { description: schema.description } : {})}
+      {...(error ? { error } : {})} disabled={disabled} choices={choices}
+      value={Array.isArray(value) ? value.map(String) : valueFor(schema, value) as string[]}
+      onChange={onChange} />;
+  }
   const common = { id: `monoform-${name}`, name, disabled, "aria-invalid": Boolean(error),
     "aria-describedby": error ? `monoform-${name}-error` : undefined };
   let control: JSX.Element;
@@ -220,7 +231,7 @@ function submissionErrors(operation: MonoFormOperation, pathValues: Record<strin
 }
 
 export function MonoForm({ manifest, operationId, title, showTitle = true, pathValues = {}, initialValues = {},
-  onSuccess, onCancel }: MonoFormProps) {
+  fieldChoices = {}, onSuccess, onCancel }: MonoFormProps) {
   const operation = manifest.schemaVersion === 1
     ? manifest.operations.find((candidate) => candidate.operationId === operationId) : undefined;
   const [values, setValues] = useState<Values>(() => initialBody(
@@ -250,6 +261,7 @@ export function MonoForm({ manifest, operationId, title, showTitle = true, pathV
     <Form class="x-ui-monoform" onSubmit={submit} noValidate>
       {properties.map(([name, schema]) => <Field name={name} schema={schema} value={values[name]}
         {...(errors[name] ? { error: errors[name] } : {})} disabled={pending}
+        {...(fieldChoices[name] !== undefined ? { choices: fieldChoices[name] } : {})}
         onChange={(value) => setValues({ ...values, [name]: value })} />)}
       {message && <p role="alert">{message}</p>}
       {operation.destructive && <FormConfirmation checked={confirmed} disabled={pending}

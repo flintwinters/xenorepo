@@ -199,6 +199,86 @@ compatible container environments, use the same image digest. Compare actual
 application behavior, including dependency failure and connection recovery.
 This is evidence for the boundary, not a supported-target registry in Monotools.
 
+## First walking skeleton: Git promotion to independent execution
+
+Xenoview integration is deferred. The first external deployment system is a
+separate repository with a Python CLI, a root `manage.py` using Rich/Typer, and
+one local OCI runtime backend. The container runtime supplies supervision,
+logs and durable process identity. No HTTP controller, operation database,
+generic action forms, cloud provisioning or new scheduler is needed initially.
+The operator protocol above remains a later design, not a prerequisite.
+
+Use calculator as the first stateless consumer. The complete proof is: promote
+its source into its own GitHub repository, build from exact committed inputs,
+export an independent artifact, run it externally, exercise a calculation,
+restart it, and stop it. This proves one boundary; durable and realtime apps
+and another execution backend remain subsequent portability evidence.
+
+### Source ownership and release identity
+
+Reuse `manage.py <app> git create-repo` and
+`monotools/provisioning/repositories.py`. The existing routine verifies the app,
+splits its history, creates and pushes a GitHub repository, mounts it as a
+submodule, verifies again, and commits the gitlink. Calendar already uses this
+source-ownership arrangement. Promotion does not currently make an app an
+independent build: the README template explicitly retains its enclosing
+Xenorepo dependency.
+
+The normal flow after promotion is:
+
+1. Commit and push app changes in the app repository.
+2. Update Xenorepo's app gitlink to that exact commit.
+3. Verify the candidate Xenorepo state and commit the integration update.
+4. Build a release from a clean checkout of that exact Xenorepo commit.
+5. Deploy the resulting artifact by immutable digest.
+
+The Xenorepo commit is initially the authoritative integration lock: it pins
+Monotools, shared frontend/build inputs, dependency lockfiles and the app gitlink.
+Do not introduce a reciprocal app-to-Xenorepo pin that creates a commit cycle.
+Record both repository URLs and full revisions as release provenance; the app
+revision is derived from the gitlink and cannot be independently substituted.
+Branch names and tags are selection conveniences, never deployment identities.
+
+Add a provider-neutral export routine to root `manage.py`, reusing existing
+build/validation logic. It stages only the selected app, required Monotools
+runtime code, compiled assets and locked runtime dependencies, preserving the
+module layout needed by existing entrypoints. Export must not assume Monotools
+is already a standalone installable package. Record the artifact checksum and
+build-input provenance. Fail rather than exporting uncommitted source.
+
+The external deployment repository packages the export into an OCI image with
+a pinned base and ordinary entrypoint. Build tooling may use a clean Xenorepo
+checkout; the running artifact must need neither that checkout nor Git access.
+The app repository contains no deployment backend configuration. GitHub Actions
+can automate these same routines later; a manually invoked release is sufficient
+for this skeleton. Source promotion and deployment remain separate operations.
+
+### Minimal external controls and acceptance
+
+Provide deploy, status, logs and stop through the external root CLI. Deploy
+accepts an artifact digest and ordinary runtime bindings. Use a deterministic
+deployment identity and runtime ownership labels: repeated deployment of the
+same digest is a no-op, an occupied slot with a different digest is rejected,
+and stop never acts on an unowned container. Status inspects the runtime on
+every invocation, so CLI exit or restart loses no authoritative process state.
+Report unavailable runtime, failed launch and readiness timeout contextually.
+
+One fixed port and one slot are sufficient. Readiness requires both a responding
+server and the compiled page. Routinized acceptance in the external repository
+also performs a real calculation, retries deployment without duplication,
+restarts the container, verifies the same release remains functional, and stops
+it. Run without mounting the developer checkout or passing source credentials.
+Test a broken artifact and port conflict as explicit failure cases. Xenorepo
+owns export checks; the external repository owns backend checks.
+
+Before using promotion on another real app, make its existing multi-step Git
+transition recoverable: preserve ignored runtime data currently subject to
+`git clean -fdX`, and report recoverable checkpoints for remote creation, push,
+submodule replacement and verification. A retry must recognize an existing
+matching remote/export instead of blindly recreating it. Do not delete the
+remote to recover a local failure. Exercise these cases through the existing
+root test infrastructure before another promotion.
+
 ## Assumptions and reversal test
 
 Evidence: existing FastAPI, environment and SQLAlchemy boundaries already hide

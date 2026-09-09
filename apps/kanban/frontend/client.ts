@@ -5,9 +5,11 @@ const api = createClient<paths>();
 export type KanbanView = components["schemas"]["KanbanView"];
 export type Card = components["schemas"]["CardView"];
 export type Column = components["schemas"]["ColumnView"];
+export type Tag = components["schemas"]["TagView"];
 export type Log = components["schemas"]["LogView"];
 export type Attachment = components["schemas"]["AttachmentView"];
-export type CardFields = components["schemas"]["CardEdit"];
+export type CardFields = components["schemas"]["CardFields"];
+export type CardEditFields = components["schemas"]["CardEdit"];
 export type BoardFields = components["schemas"]["BoardEdit"];
 export type BoardImport = components["schemas"]["BoardImport"];
 
@@ -57,9 +59,15 @@ export async function createCard(column_id: string, fields: CardFields): Promise
   });
   if (error) result(undefined, error);
 }
-export async function editCard(id: string, fields: CardFields): Promise<void> {
+export async function editCard(id: string, fields: CardEditFields): Promise<void> {
   const { error } = await api.PATCH("/api/cards/{card_id}", {
     params: { path: { card_id: id } }, body: fields,
+  });
+  if (error) result(undefined, error);
+}
+export async function setCardTags(id: string, tags: string[]): Promise<void> {
+  const { error } = await api.PUT("/api/cards/{card_id}/tags", {
+    params: { path: { card_id: id } }, body: { tags },
   });
   if (error) result(undefined, error);
 }

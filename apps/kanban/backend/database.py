@@ -5,13 +5,14 @@ import json
 from typing import Callable
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, delete, select
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Integer, String, Text, delete, inspect, select, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 from apps.kanban.backend.schemas import (
-    ActivityView, AttachmentView, BoardEdit, BoardView, CardCreate, CardEdit, CardMove, CardView,
-    BoardDetailsEdit, BoardImport, ColumnView, ImportResult, KanbanView, LogView,
+    ActivityView, AttachmentView, BoardEdit, BoardView, CardCreate, CardEdit, CardMove, CardTagsEdit, CardView,
+    BoardDetailsEdit, BoardImport, ColumnView, ImportResult, KanbanView, LogView, TagView,
 )
+from apps.kanban.backend.tag_catalog import ensure_board_tag, ensure_regular_tag
 
 
 class KanbanError(ValueError):
@@ -22,7 +23,6 @@ class KanbanError(ValueError):
 
 class Base(DeclarativeBase):
     pass
-
 
 class BoardRecord(Base):
     __tablename__ = "kanban_boards"
@@ -79,6 +79,16 @@ class CardRecord(Base):
     archived_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class TagRecord(Base):
+    __tablename__ = "kanban_tags"
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    key: Mapped[str] = mapped_column(String(120), unique=True, index=True)
+    name: Mapped[str] = mapped_column(String(120))
+    kind: Mapped[str] = mapped_column(String(10))
+    board_id: Mapped[str | None] = mapped_column(ForeignKey("kanban_boards.id"), unique=True, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class LegacyCommentRecord(Base):
@@ -159,6 +169,7 @@ class KanbanStore:
 
     def _initialize(self) -> None:
         with self.sessions.begin() as session:
+            self._upgrade_tag_catalog(session)
             board = session.scalar(select(BoardRecord))
             if board is None:
                 instant = self.now()
@@ -169,6 +180,25 @@ class KanbanStore:
             if session.get(BoardSettingsRecord, 1) is None:
                 session.add(BoardSettingsRecord(id=1))
             self._migrate_card_text(session)
+            self._migrate_tags(session, board)
+
+    @staticmethod
+    def _upgrade_tag_catalog(session: Session) -> None:
+        columns = {value["name"] for value in inspect(session.get_bind()).get_columns("kanban_tags")}
+        if "board_id" not in columns:
+            session.execute(text("ALTER TABLE kanban_tags ADD COLUMN board_id VARCHAR(36)"))
+            session.execute(text("DELETE FROM kanban_tags WHERE kind = 'board'"))
+
+    def _migrate_tags(self, session: Session, board: BoardRecord) -> None:
+        instant = self.now()
+        ensure_board_tag(session, TagRecord, board, instant, KanbanError)
+        for card in session.scalars(select(CardRecord)).all():
+            for name in json.loads(card.tags_json):
+                ensure_regular_tag(session, TagRecord, name, instant, KanbanError, allow_board=True)
+        settings = session.get(BoardSettingsRecord, 1)
+        if settings is not None:
+            for name in json.loads(settings.tag_colors_json):
+                ensure_regular_tag(session, TagRecord, name, instant, KanbanError, allow_board=True)
 
     @staticmethod
     def _migrate_card_text(session: Session) -> None:
@@ -216,11 +246,16 @@ class KanbanStore:
                 LogRecord.created_at, LogRecord.id)).all()
             attachments = session.scalars(select(AttachmentRecord).order_by(
                 AttachmentRecord.created_at, AttachmentRecord.id)).all()
+            tag_records = session.scalars(select(TagRecord).order_by(TagRecord.kind, TagRecord.name)).all()
             activity = session.scalars(select(ActivityRecord).order_by(
                 ActivityRecord.occurred_at.desc(), ActivityRecord.id.desc()).limit(200)).all()
+            tag_colors = json.loads(settings.tag_colors_json)
             return KanbanView(board=_board(board, settings),
                 columns=[_column(value, column_colors) for value in columns],
                 cards=[_card(value) for value in cards],
+                tags=[TagView(id=value.id, name=value.name, kind=value.kind,
+                    color=settings.accent_color if value.kind == "board"
+                    else tag_colors.get(value.key, settings.accent_color)) for value in tag_records],
                 logs=[LogView.model_validate(value) for value in logs],
                 attachments=[_attachment(value) for value in attachments],
                 activity=[ActivityView.model_validate(value) for value in activity])
@@ -235,6 +270,9 @@ class KanbanStore:
             settings.background_color, settings.accent_color = value.background_color, value.accent_color
             settings.tag_colors_json = json.dumps({key.casefold(): color
                 for key, color in value.tag_colors.items()})
+            for tag in value.tag_colors:
+                ensure_regular_tag(session, TagRecord, tag, board.updated_at, KanbanError)
+            ensure_board_tag(session, TagRecord, board, board.updated_at, KanbanError)
             self._activity(session, "edited", "board", board.id, f"Edited board “{board.name}”")
             session.flush()
             return _board(board, settings)
@@ -249,6 +287,9 @@ class KanbanStore:
                 self._replace_import_state(session, board, settings, value)
             column_offset = 0 if replace else self._active_column_count(session)
             instant = self.now()
+            ensure_board_tag(session, TagRecord, board, instant, KanbanError)
+            for tag in {*value.tags, *value.tag_colors}:
+                ensure_regular_tag(session, TagRecord, tag, instant, KanbanError)
             column_colors = {} if replace else json.loads(settings.column_colors_json)
             column_ids = self._import_columns(session, value, instant, column_offset, column_colors)
             session.flush()
@@ -261,7 +302,7 @@ class KanbanStore:
     def _replace_import_state(self, session: Session, board: BoardRecord,
         settings: BoardSettingsRecord, value: BoardImport) -> None:
         for model in (AttachmentRecord, LegacyCommentRecord, LogRecord,
-            CardRecord, ColumnRecord, ActivityRecord):
+            CardRecord, TagRecord, ColumnRecord, ActivityRecord):
             session.execute(delete(model))
         session.flush()
         board.name, board.description, board.updated_at = value.name, value.description, self.now()
@@ -274,23 +315,24 @@ class KanbanStore:
         return len(session.scalars(select(ColumnRecord).where(
             ColumnRecord.archived_at.is_(None))).all())
 
-    @staticmethod
-    def _import_columns(session: Session, value: BoardImport, instant: datetime,
+    def _import_columns(self, session: Session, value: BoardImport, instant: datetime,
         offset: int, colors: dict[str, str]) -> dict[str, str]:
         identities = {source.id: str(uuid4()) for source in value.columns}
         for position, source in enumerate(value.columns, start=offset):
             identity = identities[source.id]
-            session.add(ColumnRecord(id=identity, name=source.name, position=position,
-                archived_at=None, created_at=instant, updated_at=instant))
+            record = ColumnRecord(id=identity, name=source.name, position=position,
+                archived_at=None, created_at=instant, updated_at=instant)
+            session.add(record)
             colors[identity] = source.color
         return identities
 
-    @staticmethod
-    def _import_cards(session: Session, value: BoardImport, instant: datetime,
+    def _import_cards(self, session: Session, value: BoardImport, instant: datetime,
         column_ids: dict[str, str]) -> dict[str, str]:
         identities = {source.id: str(uuid4()) for source in value.cards}
         positions: dict[str, int] = {}
         for source in value.cards:
+            for tag in source.tags:
+                ensure_regular_tag(session, TagRecord, tag, instant, KanbanError)
             column_id = column_ids[source.column_id]
             position = positions.get(column_id, 0)
             positions[column_id] = position + 1
@@ -328,6 +370,7 @@ class KanbanStore:
             settings = session.get(BoardSettingsRecord, 1)
             assert settings is not None
             board.name, board.description, board.updated_at = value.name, value.description, self.now()
+            ensure_board_tag(session, TagRecord, board, board.updated_at, KanbanError)
             self._activity(session, "edited", "board", board.id, f"Edited board “{board.name}”")
             session.flush()
             return _board(board, settings)
@@ -338,6 +381,7 @@ class KanbanStore:
             assert board is not None
             settings = session.get(BoardSettingsRecord, 1)
             assert settings is not None
+            ensure_regular_tag(session, TagRecord, tag, self.now(), KanbanError)
             colors = json.loads(settings.tag_colors_json)
             colors[tag.casefold()] = color
             settings.tag_colors_json = json.dumps(colors)
@@ -405,6 +449,8 @@ class KanbanStore:
                 tags_json=json.dumps(value.tags), legacy_priority="normal", position=position,
                 archived_at=None, created_at=instant, updated_at=instant)
             session.add(record)
+            for tag in value.tags:
+                ensure_regular_tag(session, TagRecord, tag, instant, KanbanError)
             self._activity(session, "created", "card", record.id, f"Created card “{record.title}”")
             session.flush()
             return _card(record)
@@ -413,9 +459,21 @@ class KanbanStore:
         with self.sessions.begin() as session:
             record = self._required(session, CardRecord, identity, "Card")
             record.title = value.title
-            record.tags_json = json.dumps(value.tags)
             record.updated_at = self.now()
             self._activity(session, "edited", "card", identity, f"Edited card “{record.title}”")
+            session.flush()
+            return _card(record)
+
+    def set_card_tags(self, identity: str, value: CardTagsEdit) -> CardView:
+        with self.sessions.begin() as session:
+            record = self._required(session, CardRecord, identity, "Card")
+            if record.archived_at:
+                raise KanbanError("Cannot tag an archived card", "conflict")
+            instant = self.now()
+            for tag in value.tags:
+                ensure_regular_tag(session, TagRecord, tag, instant, KanbanError)
+            record.tags_json, record.updated_at = json.dumps(value.tags), instant
+            self._activity(session, "edited", "card", identity, f"Updated tags on “{record.title}”")
             session.flush()
             return _card(record)
 

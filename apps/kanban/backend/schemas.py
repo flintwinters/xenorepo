@@ -45,6 +45,17 @@ class PositionInput(BaseModel):
     position: int
 
 
+def _unique_tags(values: list[str]) -> list[str]:
+    result: list[str] = []
+    seen: set[str] = set()
+    for value in values:
+        key = value.casefold()
+        if key not in seen:
+            seen.add(key)
+            result.append(value)
+    return result
+
+
 class CardFields(BaseModel):
     model_config = ConfigDict(extra="forbid")
     title: Name
@@ -53,22 +64,26 @@ class CardFields(BaseModel):
     @field_validator("tags")
     @classmethod
     def unique_tags(cls, values: list[str]) -> list[str]:
-        result: list[str] = []
-        seen: set[str] = set()
-        for value in values:
-            key = value.casefold()
-            if key not in seen:
-                seen.add(key)
-                result.append(value)
-        return result
+        return _unique_tags(values)
 
 
 class CardCreate(CardFields):
     column_id: str
 
 
-class CardEdit(CardFields):
-    pass
+class CardEdit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    title: Name
+
+
+class CardTagsEdit(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    tags: list[Name] = Field(default_factory=list)
+
+    @field_validator("tags")
+    @classmethod
+    def unique_tags(cls, values: list[str]) -> list[str]:
+        return _unique_tags(values)
 
 
 class CardMove(BaseModel):
@@ -121,6 +136,13 @@ class CardView(BaseModel):
     updated_at: datetime
 
 
+class TagView(BaseModel):
+    id: str
+    name: str
+    kind: Literal["board", "tag"]
+    color: Color
+
+
 class LogView(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
@@ -155,6 +177,7 @@ class KanbanView(BaseModel):
     board: BoardView
     columns: list[ColumnView]
     cards: list[CardView]
+    tags: list[TagView]
     logs: list[LogView]
     attachments: list[AttachmentView]
     activity: list[ActivityView]
@@ -210,6 +233,7 @@ def _require_known(values: set[str], known: set[str], label: str) -> None:
 
 class BoardImport(BoardEdit):
     model_config = ConfigDict(extra="forbid")
+    tags: list[Name] = Field(default_factory=list)
     columns: list[ImportColumn]
     cards: list[ImportCard]
     logs: list[ImportLog]

@@ -3,14 +3,14 @@ import { CommandButton, ConsoleChrome, ConsolePane, ConsoleShell, EmptyState, Mo
   UtilityRail, type MonoFormManifest } from "monoui";
 import rawManifest from "../data/monoform.json";
 import {
-  addLink, addLog, addUpload, importBoard, loadBoard, moveCard, moveColumn, setArchived,
+  addLink, addLog, addUpload, importBoard, loadBoard, moveCard, moveColumn, setArchived, setCardTags,
   type BoardImport,
-  type Attachment, type Card, type Column, type KanbanView,
+  type Attachment, type Card, type Column, type KanbanView, type Tag,
 } from "./client.js";
 import { coloredSurfaceStyle } from "./color.js";
 import "./styles.css";
 
-type Mode = "board" | "archive" | "activity";
+type Mode = "boards" | "tags" | "archive" | "activity";
 interface State {
   view: KanbanView | null;
   mode: Mode;
@@ -36,7 +36,8 @@ const currentState = (view: KanbanView) => {
   );
   const cardIds = new Set(cards.map((value) => value.id));
   const { name, description, background_color, accent_color, tag_colors } = view.board;
-  return { name, description, background_color, accent_color, tag_colors, columns, cards,
+  const tags = view.tags.filter((tag) => tag.kind === "tag").map((tag) => tag.name);
+  return { name, description, background_color, accent_color, tag_colors, tags, columns, cards,
     logs: view.logs.filter((value) => cardIds.has(value.card_id)).map(
       ({ card_id, body, created_at }) => ({ card_id, body, created_at })),
     attachments: active(view.attachments).filter((value) => cardIds.has(value.card_id)).map(
@@ -47,11 +48,13 @@ const currentState = (view: KanbanView) => {
 const monoform = rawManifest as MonoFormManifest;
 
 class KanbanBoard extends Component<Record<string, never>, State> {
-  override state: State = { view: null, mode: "board", selected: null, creatingIn: null,
+  override state: State = { view: null, mode: "boards", selected: null, creatingIn: null,
     creatingColumn: false, importing: false, editingBoard: false, editingColumn: null,
     editingAttachment: null, message: "Loading board…", failed: false, busy: false };
   private dragged: string | null = null;
   private draggedColumn: string | null = null;
+  private draggedTag: string | null = null;
+  private tagUpdates = new Map<string, Promise<void>>();
 
   override componentDidMount(): void { void this.refresh("Board ready"); }
   private refresh = async (message?: string): Promise<void> => {
@@ -90,10 +93,46 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       .sort((left, right) => left.created_at.localeCompare(right.created_at));
   }
   private knownTags(): string[] {
-    const values = new Map<string, string>();
-    for (const card of this.state.view?.cards ?? [])
-      for (const tag of card.tags) values.set(tag.toLocaleLowerCase(), tag);
-    return [...values.values()].sort((left, right) => left.localeCompare(right));
+    return (this.state.view?.tags ?? []).filter((tag) => tag.kind === "tag")
+      .map((tag) => tag.name).sort((left, right) => left.localeCompare(right));
+  }
+  private setTagsImmediately(card: Card, tags: string[]): void {
+    const view = this.state.view;
+    if (!view) return;
+    const unique = tags.filter((tag, index) =>
+      tags.findIndex((candidate) => candidate.toLocaleLowerCase() === tag.toLocaleLowerCase()) === index);
+    this.setState({ view: { ...view, cards: view.cards.map((item) =>
+      item.id === card.id ? { ...item, tags: unique } : item) }, message: "Item tags updated", failed: false });
+    const pending = (this.tagUpdates.get(card.id) ?? Promise.resolve()).catch(() => undefined)
+      .then(() => setCardTags(card.id, unique));
+    this.tagUpdates.set(card.id, pending);
+    void pending.then(() => {
+      if (this.tagUpdates.get(card.id) === pending) this.tagUpdates.delete(card.id);
+    }).catch(async (error) => {
+      if (this.tagUpdates.get(card.id) !== pending) return;
+      this.tagUpdates.delete(card.id);
+      try {
+        const restored = await loadBoard();
+        this.setState({ view: restored,
+          message: error instanceof Error ? error.message : "Could not update item tags", failed: true });
+      } catch (refreshError) {
+        this.setState({ message: refreshError instanceof Error ? refreshError.message : "Could not update item tags",
+          failed: true });
+      }
+    });
+  }
+  private assignDraggedTag(event: DragEvent, card: Card): void {
+    event.preventDefault();
+    const tag = this.draggedTag;
+    this.draggedTag = null;
+    if (tag) this.setTagsImmediately(card, [...card.tags, tag]);
+  }
+  private removeDraggedTag(event: DragEvent, card: Card): void {
+    event.preventDefault();
+    const tag = this.draggedTag;
+    this.draggedTag = null;
+    if (tag) this.setTagsImmediately(card,
+      card.tags.filter((value) => value.toLocaleLowerCase() !== tag.toLocaleLowerCase()));
   }
   private archive = (kind: string, id: string): void => {
     if (kind === "card") this.setState({ selected: null });
@@ -249,6 +288,27 @@ class KanbanBoard extends Component<Record<string, never>, State> {
           void this.refresh("Attachment updated"); }} />
     </Modal>;
   }
+  private tagEditor(card: Card) {
+    const assigned = new Set(card.tags.map((tag) => tag.toLocaleLowerCase()));
+    const available = (this.state.view?.tags ?? []).filter((tag) =>
+      tag.kind === "tag" && !assigned.has(tag.name.toLocaleLowerCase()));
+    const start = (tag: string): void => { this.draggedTag = tag; };
+    return <section class="tag-editor" aria-label="Item tags"><div class="tag-group"
+      aria-label="Available tags" onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => this.removeDraggedTag(event, card)}><h3>AVAILABLE TAGS</h3><div class="tag-pool">
+      {available.length ? available.map((tag: Tag) => <CommandButton type="button" appearance="subtle"
+        draggable aria-label={`Assign ${tag.name}`} onDragStart={() => start(tag.name)}
+        onDragEnd={() => { this.draggedTag = null; }}
+        onClick={() => this.setTagsImmediately(card, [...card.tags, tag.name])}>{tag.name}</CommandButton>) :
+        <span class="empty-tags">All tags assigned</span>}</div></div><div class="tag-group assigned-tags"
+      aria-label="Assigned tags" onDragOver={(event) => event.preventDefault()}
+      onDrop={(event) => this.assignDraggedTag(event, card)}><h3>ITEM TAGS</h3><div class="tag-pool">
+      {card.tags.length ? card.tags.map((tag) => <CommandButton type="button" appearance="subtle"
+        draggable aria-label={`Remove ${tag}`} onDragStart={() => start(tag)}
+        onDragEnd={() => { this.draggedTag = null; }}
+        onClick={() => this.setTagsImmediately(card, card.tags.filter((value) => value !== tag))}>{tag}</CommandButton>) :
+        <span class="empty-tags">Drop tags here</span>}</div></div></section>;
+  }
   private cardEditor() {
     if (this.state.editingAttachment) return null;
     const card = this.card(this.state.selected);
@@ -266,7 +326,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
         onSuccess={() => {
           this.setState({ selected: null, creatingIn: null });
           void this.refresh(card ? "Card updated" : "Card created");
-        }} />{card && <div class="actions"><CommandButton type="button" class="danger"
+        }} />{card && this.tagEditor(card)}{card && <div class="actions"><CommandButton type="button" class="danger"
           onClick={() => this.archive("card", card.id)}>ARCHIVE</CommandButton></div>}</div>
       {card && <div class="card-extras"><section class="item-log"><h3>ITEM LOG</h3>{logs.length > 0 ? <ol>
         {logs.map((item) => <li><time dateTime={item.created_at}>
@@ -289,6 +349,20 @@ class KanbanBoard extends Component<Record<string, never>, State> {
           type="file" required aria-label="Choose file" /><CommandButton type="submit">UPLOAD</CommandButton>
       </form></section></div>}</Modal>;
   }
+  private cardItem(card: Card, draggable: boolean) {
+    const latestLog = this.cardLogs(card.id).at(-1);
+    return <article data-card-id={card.id} class="card"><ConsoleChrome appearance="subtle" class="card-chrome"
+      draggable={draggable} onDragStart={draggable ? () => { this.dragged = card.id; } : undefined}
+      onDragEnd={draggable ? () => { this.dragged = null; } : undefined} title={<strong>{card.title}</strong>}
+      titleEnd={<><span class="card-badges">{card.tags.map((tag) => {
+        const color = this.state.view?.board.tag_colors[tag.toLocaleLowerCase()] ?? "#1d2021";
+        return <span style={coloredSurfaceStyle("--tag-color", "--tag-ink", color)}>{tag}</span>;
+      })}</span><CommandButton appearance="link" class="card-edit" aria-label={`Edit ${card.title}`}
+        onClick={() => this.setState({ selected: card.id })}>EDIT</CommandButton></>} />
+      {latestLog && <div class="card-log"><time dateTime={latestLog.created_at}>
+        {new Date(latestLog.created_at).toLocaleString()}</time><span>{latestLog.body}</span></div>}
+    </article>;
+  }
   private column(column: Column) {
     const cards = this.cards(column.id);
     return <ConsolePane class="column"
@@ -303,30 +377,28 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       <CommandButton appearance="subtle" aria-label={`Rename ${column.name}`}
         onClick={() => this.setState({ editingColumn: column.id })}>EDIT</CommandButton></>}>
       <div class="card-list" data-column={column.id} onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => this.drop(event, column.id)}>{cards.map((card) => {
-        const latestLog = this.cardLogs(card.id).at(-1);
-        return <article data-card-id={card.id}
-          class="card"
-          ><ConsoleChrome appearance="subtle" class="card-chrome" draggable
-            onDragStart={() => { this.dragged = card.id; }} onDragEnd={() => { this.dragged = null; }}
-            title={<strong>{card.title}</strong>}
-            titleEnd={<><span class="card-badges">{card.tags.map((tag) => {
-            const color = this.state.view?.board.tag_colors[tag.toLocaleLowerCase()] ?? "#1d2021";
-            return <span style={coloredSurfaceStyle("--tag-color", "--tag-ink", color)}>
-              {tag}</span>;
-          })}
-          </span><CommandButton appearance="link" class="card-edit" aria-label={`Edit ${card.title}`}
-            onClick={() => this.setState({ selected: card.id })}>EDIT</CommandButton></>} />
-          {latestLog && <div class="card-log"><time dateTime={latestLog.created_at}>
-            {new Date(latestLog.created_at).toLocaleString()}</time><span>{latestLog.body}</span></div>}
-          </article>;
-      })}
+        onDrop={(event) => this.drop(event, column.id)}>{cards.map((card) => this.cardItem(card, true))}
       </div></ConsolePane>;
   }
-  private board() {
+  private boardsView() {
     const columns = active(this.state.view?.columns ?? []).sort((a, b) => a.position - b.position);
     if (!columns.length) return <EmptyState heading="NO COLUMNS" detail="Create a column to begin your workflow." />;
     return <div class="board">{columns.map((column) => this.column(column))}</div>;
+  }
+  private tagsView() {
+    const cards = active(this.state.view?.cards ?? []);
+    const tags = (this.state.view?.tags ?? []).filter((tag) => tag.kind === "tag");
+    const groups = tags.map((tag) => ({ tag, cards: cards.filter((card) => card.tags.some(
+      (value) => value.toLocaleLowerCase() === tag.name.toLocaleLowerCase())) }));
+    const untagged = cards.filter((card) => card.tags.length === 0);
+    return <div class="board tags-board">{groups.map(({ tag, cards: tagged }) => <ConsolePane
+      class="column tag-column" data-tag={tag.name} title={tag.name} tone="neutral"
+      style={coloredSurfaceStyle("--column-color", "--tone-ink", tag.color)}>
+      <div class="card-list">{tagged.length ? tagged.map((card) => this.cardItem(card, false)) :
+        <span class="empty-tags">No items</span>}</div></ConsolePane>)}
+      <ConsolePane class="column tag-column" data-tag="" title="UNTAGGED" tone="neutral">
+        <div class="card-list">{untagged.length ? untagged.map((card) => this.cardItem(card, false)) :
+          <span class="empty-tags">No items</span>}</div></ConsolePane></div>;
   }
   private archiveView() {
     const view = this.state.view!;
@@ -352,8 +424,10 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       <CommandButton disabled={!view || this.state.busy}
         onClick={() => this.setState({ importing: true })}>IMPORT JSON</CommandButton>
       {board?.description && <span class="board-description">{board.description}</span>}<span class="push" />
-      <CommandButton pressed={this.state.mode === "board"}
-        onClick={() => this.setState({ mode: "board" })}>BOARD</CommandButton>
+      <CommandButton pressed={this.state.mode === "boards"}
+        onClick={() => this.setState({ mode: "boards" })}>BOARDS</CommandButton>
+      <CommandButton pressed={this.state.mode === "tags"}
+        onClick={() => this.setState({ mode: "tags" })}>TAGS</CommandButton>
       <CommandButton pressed={this.state.mode === "activity"}
         onClick={() => this.setState({ mode: "activity" })}>ACTIVITY</CommandButton>
       <CommandButton pressed={this.state.mode === "archive"}
@@ -364,8 +438,9 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       {this.state.busy ? "SAVING…" : this.state.message}</span><span class="push">
       {active(view?.columns ?? []).length} COLUMNS · {active(view?.cards ?? []).length} CARDS</span></StatusRail>;
     return <ConsoleShell class="kanban-shell" header={header} footer={footer}><div class="workspace">
-      {!view ? <EmptyState heading="LOADING BOARD" /> : this.state.mode === "board" ? this.board() :
-        this.state.mode === "archive" ? this.archiveView() : this.activityView()}</div>
+      {!view ? <EmptyState heading="LOADING BOARD" /> : this.state.mode === "boards" ? this.boardsView() :
+        this.state.mode === "tags" ? this.tagsView() : this.state.mode === "archive" ? this.archiveView() :
+          this.activityView()}</div>
       {this.boardEditor()}{this.columnCreator()}{this.columnEditor()}
       {this.attachmentEditor()}{this.cardEditor()}{this.importDialog()}</ConsoleShell>;
   }

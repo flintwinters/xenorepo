@@ -119,6 +119,25 @@ class ApplicationTests(unittest.TestCase):
             self.assertEqual(session.get(CardRecord, card["id"]).legacy_description,
                 "Original description")
 
+    def test_board_and_regular_tags_share_a_catalog_with_exclusive_board_assignment(self) -> None:
+        queue, doing = self.column("Queue"), self.column("Doing")
+        card = self.card(queue["id"])
+        view = self.client.request("GET", "/api/board").json()
+        self.assertEqual({(tag["name"], tag["kind"]) for tag in view["tags"]}, {
+            ("My board", "board"), ("Quality", "tag"), ("Backend", "tag"),
+        })
+        rejected = self.client.request("PUT", f"/api/cards/{card['id']}/tags", json={"tags": ["My board"]})
+        assigned = self.client.request("PUT", f"/api/cards/{card['id']}/tags", json={"tags": ["Backend"]})
+        moved = self.client.request("PUT", f"/api/cards/{card['id']}/position",
+            json={"column_id": doing["id"], "position": 0})
+        cleared = self.client.request("PUT", f"/api/cards/{card['id']}/tags", json={"tags": []})
+        persisted = self.client.request("GET", "/api/board").json()
+        self.assertEqual((rejected.status_code, assigned.status_code, moved.status_code, cleared.status_code),
+            (409, 200, 200, 200))
+        self.assertEqual(next(value for value in persisted["cards"] if value["id"] == card["id"])["column_id"],
+            doing["id"])
+        self.assertIn(("Backend", "tag"), {(tag["name"], tag["kind"]) for tag in persisted["tags"]})
+
     def test_modal_crud_operations_are_declared_for_monoform(self) -> None:
         operations = monoform_manifest(self.client.application.openapi(), app="kanban",
             title="Kanban")["operations"]

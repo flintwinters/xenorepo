@@ -33,7 +33,7 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
     tag_colors: initialBoard.tag_colors,
   }));
   expect(Object.keys(initialCurrent)).toEqual([
-    "name", "description", "background_color", "accent_color", "tag_colors",
+    "name", "description", "background_color", "accent_color", "tag_colors", "tags",
     "columns", "cards", "logs", "attachments",
   ]);
   expect(initialCurrent).not.toHaveProperty("board");
@@ -127,8 +127,14 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await card.click();
   await expect(page.getByRole("dialog", { name: "CARD DETAILS" })).toHaveCount(0);
   await card.getByRole("button", { name: `Edit Prove board ${suffix}` }).click();
-  await expect(page.getByRole("dialog", { name: "CARD DETAILS" })).toBeVisible();
+  const cardDetails = page.getByRole("dialog", { name: "CARD DETAILS" });
+  await expect(cardDetails).toBeVisible();
   await expect(page.getByLabel("Priority")).toHaveCount(0);
+  const availableTags = cardDetails.getByLabel("Available tags");
+  const assignedTags = cardDetails.getByLabel("Assigned tags");
+  await assignedTags.getByRole("button", { name: "Remove durable" }).click();
+  await availableTags.getByRole("button", { name: "Assign durable" }).dragTo(assignedTags);
+  await expect(assignedTags.getByRole("button", { name: "Remove durable" })).toBeVisible();
   await page.getByRole("button", { name: "Cancel" }).click();
   await page.getByRole("button", { name: "EDIT BOARD" }).click();
   const palette = page.getByRole("dialog", { name: "BOARD SETTINGS" });
@@ -140,6 +146,10 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await tagColor.getByRole("button", { name: "SAVE COLOR" }).click();
   await expect(card.locator(".card-badges > span", { hasText: "acceptance" }).filter({ hasText: /^acceptance$/ }))
     .toHaveCSS("color", "rgb(251, 241, 199)");
+  await page.getByRole("button", { name: "TAGS", exact: true }).click();
+  await expect(page.locator('.tag-column[data-tag="acceptance"]')
+    .getByText(`Prove board ${suffix}`, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "BOARDS", exact: true }).click();
   const cardId = await card.getAttribute("data-card-id");
   const sourceId = await source.locator(".card-list").getAttribute("data-column");
   const target = page.locator(".column").filter({ hasText: doing }).locator(".card-list");
@@ -188,13 +198,13 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   const archived = page.locator(".archive-row").filter({ hasText: `Prove board ${suffix}` });
   await expect(archived).toBeVisible();
   await archived.getByRole("button", { name: "RESTORE" }).click();
-  await page.getByRole("button", { name: "BOARD", exact: true }).click();
+  await page.getByRole("button", { name: "BOARDS", exact: true }).click();
   await expect(target.locator(".card").filter({ hasText: `Prove board ${suffix}` })).toBeVisible();
   await page.getByRole("button", { name: "ACTIVITY" }).click();
   await expect(page.locator(".activity-list")).toContainText(`Prove board ${suffix}`);
   expect(cardId && sourceId && targetId).toBeTruthy();
   expect((await page.request.delete(`/api/archive/card/${cardId}`)).ok()).toBe(true);
-  await page.getByRole("button", { name: "BOARD", exact: true }).click();
+  await page.getByRole("button", { name: "BOARDS", exact: true }).click();
   await source.getByRole("button", { name: `Rename ${renamedQueue}` }).click();
   await page.getByRole("dialog", { name: "EDIT COLUMN" })
     .getByRole("button", { name: "ARCHIVE COLUMN" }).click();

@@ -191,11 +191,16 @@ def delete_monoapp(name: str = typer.Argument(...)) -> None:
 def _promote_monoapp(definition: AppDefinition, *, owner: str, repository: str,
     visibility: str, aesthetic_review: bool) -> None:
     """Promote one managed app after its selected verification gate passes."""
+    bootstrapped = False
+
     def verify_workspace() -> None:
-        commands = [["uv", "run", "manage.py", definition.name, "verify"]]
+        nonlocal bootstrapped
+        commands = [] if bootstrapped else [["uv", "run", "manage.py", "bootstrap"]]
         if not aesthetic_review:
-            commands = [["uv", "run", "manage.py", definition.name, command]
-                for command in ("check", "test", "ui-check")]
+            commands.extend([["uv", "run", "manage.py", definition.name, command]
+                for command in ("check", "test", "ui-check")])
+        else:
+            commands.append(["uv", "run", "manage.py", definition.name, "verify"])
         for command in commands:
             completed = subprocess.run(command, cwd=ROOT, check=False)
             if completed.returncode:
@@ -203,6 +208,7 @@ def _promote_monoapp(definition: AppDefinition, *, owner: str, repository: str,
                     f"workspace verification failed ({completed.returncode}) while running "
                     f"{' '.join(command[3:])}; promotion stopped"
                 )
+        bootstrapped = True
 
     remote = promote_to_submodule(definition, ROOT, owner=owner, repository=repository,
         visibility=visibility, verify=verify_workspace)

@@ -110,10 +110,10 @@ When mounted by Xenorepo, every managed app exposes `git status` through
 It defaults to the authenticated GitHub CLI account, the monoapp name, and private
 visibility while allowing explicit overrides. Promotion requires a clean Xenorepo
 index and two successful complete verification runs. After the first verification it
-records any pending app changes in a path-scoped snapshot commit, then extracts
-app-only history, pushes it to GitHub, remounts the same path as a submodule, and
-commits Xenorepo's gitlink. Fresh checkouts initialize all declared app submodules through
-`uv run manage.py bootstrap`.
+records any pending app changes in a path-scoped snapshot commit, then extracts app-only
+history, pushes it to GitHub, remounts the same path as a submodule, and commits
+Xenorepo's gitlink. The routine bootstraps missing locked dependencies before these
+gates. Fresh checkouts initialize all declared app submodules through `uv run manage.py bootstrap`.
 
 A promoted monoapp is independently versioned but deliberately not standalone:
 it consumes the enclosing checkout's current Monotools and shared packages.

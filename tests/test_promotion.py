@@ -1,6 +1,7 @@
 """Contracts for promoting a monolithic app into a GitHub submodule."""
 
 from pathlib import Path
+from subprocess import CompletedProcess
 import unittest
 from unittest.mock import patch
 
@@ -12,6 +13,24 @@ import manage as repository_manager
 
 
 class PromotionTests(unittest.TestCase):
+    def test_promotion_bootstraps_once_before_both_verification_passes(self) -> None:
+        definition = repository_manager.MANAGERS[0][0]
+
+        def promote(*_arguments, verify, **_options):
+            verify()
+            verify()
+            return "git@github.com:owner/app.git"
+
+        with patch("manage.promote_to_submodule", side_effect=promote), \
+             patch("manage.subprocess.run", return_value=CompletedProcess([], 0)) as run:
+            repository_manager._promote_monoapp(definition, owner="owner", repository="app",
+                visibility="private", aesthetic_review=False)
+
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertEqual(commands.count(["uv", "run", "manage.py", "bootstrap"]), 1)
+        self.assertEqual(commands.count(
+            ["uv", "run", "manage.py", definition.name, "check"]), 2)
+
     def test_promotion_requires_valid_github_identity(self) -> None:
         definition = repository_manager.MANAGERS[0][0]
         cases = (

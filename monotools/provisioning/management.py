@@ -5,8 +5,6 @@ Xenorepo adds repository inspection and promotion when it mounts each manager.
 """
 
 from pathlib import Path
-import subprocess
-import sys
 
 from rich.console import Console
 import typer
@@ -14,7 +12,7 @@ import typer
 from monotools.orchestration.management import ApplicationManager, create_cli
 from monotools.orchestration.output import print_error
 from monotools.provisioning.repositories import (
-    RepositoryError, inspect_app_repository, promote_to_submodule,
+    RepositoryError, inspect_app_repository,
 )
 
 
@@ -42,31 +40,3 @@ def attach_repository_commands(manager: ApplicationManager, workspace: Path) -> 
         console.print(f"[bold]{definition.name}[/] {state.mode} at {state.revision}")
         console.print(f"worktree: {'clean' if state.clean else 'modified'}")
         console.print(f"origin: {state.remote or 'not configured'}")
-
-    @git_app.command("create-repo")
-    def create_repository(owner: str = typer.Option(..., "--owner"),
-        repository: str = typer.Option(..., "--repository"),
-        visibility: str = typer.Option(..., "--visibility"),
-        aesthetic_review: bool = typer.Option(True,
-            "--aesthetic-review/--no-aesthetic-review",
-            help="Include the nondeterministic AI aesthetic review in promotion gates.")) -> None:
-        """Create a GitHub repository and replace this app with its verified submodule."""
-        def verify_workspace() -> None:
-            commands = [[sys.executable, "manage.py", definition.name, "verify"]]
-            if not aesthetic_review:
-                commands = [[sys.executable, "manage.py", definition.name, command]
-                    for command in ("check", "test", "ui-check")]
-            for command in commands:
-                completed = subprocess.run(command, cwd=workspace, check=False)
-                if completed.returncode:
-                    raise RepositoryError(
-                        f"workspace verification failed ({completed.returncode}) while running "
-                        f"{' '.join(command[3:])}; promotion stopped"
-                    )
-
-        try:
-            remote = promote_to_submodule(definition, workspace, owner=owner,
-                repository=repository, visibility=visibility, verify=verify_workspace)
-        except RepositoryError as error:
-            _fail(error)
-        console.print(f"[bold green]Promoted[/] {definition.name} -> {remote}")

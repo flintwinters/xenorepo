@@ -33,7 +33,8 @@ from monotools.orchestration.hygiene import analyze_ui_hygiene
 from monotools.provisioning.audit import AuditReport, audit_workspace
 from monotools.provisioning.management import attach_repository_commands
 from monotools.provisioning.repositories import (
-    RepositoryError, delete_app, fork_focused_workspace, uninitialized_app_submodules,
+    RepositoryError, delete_app, fork_focused_workspace, inspect_app_repository,
+    promote_to_submodule, uninitialized_app_submodules,
 )
 from monotools.provisioning.scaffolding import ScaffoldError, scaffold_app
 
@@ -187,6 +188,66 @@ def delete_monoapp(name: str = typer.Argument(...)) -> None:
     console.print(f"Committed as {deleted.revision}; run uv run manage.py verify.")
 
 
+def _promote_monoapp(definition: AppDefinition, *, owner: str, repository: str,
+    visibility: str, aesthetic_review: bool) -> None:
+    """Promote one managed app after its selected verification gate passes."""
+    def verify_workspace() -> None:
+        commands = [["uv", "run", "manage.py", definition.name, "verify"]]
+        if not aesthetic_review:
+            commands = [["uv", "run", "manage.py", definition.name, command]
+                for command in ("check", "test", "ui-check")]
+        for command in commands:
+            completed = subprocess.run(command, cwd=ROOT, check=False)
+            if completed.returncode:
+                raise RepositoryError(
+                    f"workspace verification failed ({completed.returncode}) while running "
+                    f"{' '.join(command[3:])}; promotion stopped"
+                )
+
+    remote = promote_to_submodule(definition, ROOT, owner=owner, repository=repository,
+        visibility=visibility, verify=verify_workspace)
+    console.print(f"[bold green]Promoted[/] {definition.name} -> {remote}")
+
+
+@monoapp.command("promote")
+def promote_monoapp(name: str = typer.Argument(...),
+    owner: str = typer.Option(..., "--owner"),
+    repository: str = typer.Option(..., "--repository"),
+    visibility: str = typer.Option(..., "--visibility"),
+    aesthetic_review: bool = typer.Option(True,
+        "--aesthetic-review/--no-aesthetic-review",
+        help="Include the nondeterministic AI aesthetic review in promotion gates.")) -> None:
+    """Create a GitHub repository and replace a monoapp with its verified submodule."""
+    selected = next((definition for definition, _ in MANAGERS if definition.name == name), None)
+    if selected is None:
+        _fail(f"unknown managed monoapp {name!r}")
+    try:
+        _promote_monoapp(selected, owner=owner, repository=repository, visibility=visibility,
+            aesthetic_review=aesthetic_review)
+    except RepositoryError as error:
+        _fail(error)
+
+
+def _promote_before_forking(definition: AppDefinition, aesthetic_review: bool) -> None:
+    """Offer the required promotion only when a focused workspace needs it."""
+    try:
+        state = inspect_app_repository(definition, ROOT)
+    except RepositoryError as error:
+        _fail(error)
+    if state.mode != "monolith":
+        return
+    if not typer.confirm(f"{definition.name} is not promoted. Promote it before forking?", default=True):
+        _fail(f"{definition.name} must be promoted before forking a workspace")
+    owner = typer.prompt("GitHub owner")
+    repository = typer.prompt("GitHub repository", default=definition.name)
+    visibility = typer.prompt("GitHub visibility", default="private")
+    try:
+        _promote_monoapp(definition, owner=owner, repository=repository, visibility=visibility,
+            aesthetic_review=aesthetic_review)
+    except RepositoryError as error:
+        _fail(error)
+
+
 @monoapp.command("fork-workspace")
 def fork_monoapp_workspace(name: str = typer.Argument(...),
     directory: Path | None = typer.Option(None, "--directory"),
@@ -198,6 +259,7 @@ def fork_monoapp_workspace(name: str = typer.Argument(...),
     if selected is None:
         _fail(f"unknown managed monoapp {name!r}")
     destination = directory or ROOT.parent / f"{name}-workspace"
+    _promote_before_forking(selected, aesthetic_review)
 
     def verify_workspace(candidate: Path) -> None:
         commands = [["uv", "run", "manage.py", "bootstrap"]]

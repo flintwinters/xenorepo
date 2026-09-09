@@ -24,15 +24,18 @@ Run `uv run manage.py --help` to discover repository and app-specific commands.
 `uv run manage.py verify` is the complete build, test, and browser-validation
 checkpoint for a fully provisioned checkout.
 
-After promoting a monoapp to a submodule, create a separately cloned workspace
-that retains only that app and disconnects it from Xenorepo's remote:
+Promote a mature monoapp from the shared monoapp controls, then create a
+separately cloned workspace that retains only that app and disconnects it from
+Xenorepo's remote:
 
 ```console
+uv run manage.py monoapp promote app_name --owner account --repository app_name --visibility private
 uv run manage.py monoapp fork-workspace app_name
 ```
 
 The routine removes the inherited `origin` after focusing the clone, then verifies
-the detached workspace. Pass `--directory` to override the default sibling directory.
+the detached workspace. If the app has not been promoted, `fork-workspace` offers
+to promote it interactively. Pass `--directory` to override the default sibling directory.
 
 See [AGENTS.md](AGENTS.md) for the project architecture and invariants, and
 [LIBRARIES.md](LIBRARIES.md) for shared-library boundaries.

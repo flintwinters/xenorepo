@@ -221,23 +221,20 @@ frontend:
 
     def test_monoapp_promotion_is_centralized_by_app_name(self) -> None:
         selected = repository_manager.MANAGERS[0][0]
-        with patch("manage.authenticated_github_owner", return_value="account") as owner, \
-             patch("manage._promote_monoapp") as promote:
+        with patch("manage._promote_monoapp") as promote:
             result = CliRunner().invoke(repository_manager.app, [
                 "monoapp", "promote", selected.name, "--no-aesthetic-review",
             ])
 
         self.assertEqual(result.exit_code, 0, result.output)
-        owner.assert_called_once_with(ROOT)
-        promote.assert_called_once_with(selected, owner="account", repository=selected.name,
-            visibility="private", aesthetic_review=False)
+        promote.assert_called_once_with(selected, repository_directory=ROOT.parent / selected.name,
+            aesthetic_review=False)
 
     def test_fork_workspace_offers_to_promote_an_unpromoted_app(self) -> None:
         selected = repository_manager.MANAGERS[0][0]
         state = AppRepositoryState("monolith", True, None, "current")
         focused = type("Focused", (), {"path": ROOT / "focused", "revision": "abc1234"})()
         with patch("manage.inspect_app_repository", return_value=state), \
-             patch("manage.authenticated_github_owner", return_value="account") as owner, \
              patch("manage._promote_monoapp") as promote, \
              patch("manage.fork_focused_workspace", return_value=focused) as fork:
             result = CliRunner().invoke(repository_manager.app,
@@ -246,9 +243,8 @@ frontend:
 
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn("not promoted. Promote it before forking?", result.output)
-        owner.assert_called_once_with(ROOT)
-        promote.assert_called_once_with(selected, owner="account", repository=selected.name,
-            visibility="private", aesthetic_review=False)
+        promote.assert_called_once_with(selected, repository_directory=ROOT.parent / selected.name,
+            aesthetic_review=False)
         fork.assert_called_once()
 
     def test_root_audit_reports_zero_architecture_and_structural_debt(self) -> None:

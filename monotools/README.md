@@ -107,11 +107,11 @@ unversioned app must be committed before it can be deleted through this command.
 
 When mounted by Xenorepo, every managed app exposes `git status` through
 `monotools.provisioning`, while the root `monoapp promote` routine owns promotion.
-It defaults to the authenticated GitHub CLI account, the monoapp name, and private
-visibility while allowing explicit overrides. Promotion requires a clean Xenorepo
-index and two successful complete verification runs. After the first verification it
+It creates a normal sibling Git repository without a hosted remote; external hosting
+is configured manually later. Promotion requires a clean Xenorepo index and two
+successful complete verification runs. After the first verification it
 records any pending app changes in a path-scoped snapshot commit, then extracts app-only
-history, pushes it to GitHub, remounts the same path as a submodule, and commits
+history, remounts the local repository at the same path as a submodule, and commits
 Xenorepo's gitlink. The routine restores missing locked dependencies before these
 gates without imposing bootstrap's supported Node version policy or recursively
 initializing unrelated monoapps. Fresh checkouts initialize all declared app submodules

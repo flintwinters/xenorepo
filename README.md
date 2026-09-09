@@ -41,11 +41,10 @@ uv run manage.py monoapp promote app_name
 uv run manage.py monoapp fork-workspace app_name
 ```
 
-The routine removes the inherited `origin` after focusing the clone, then verifies
-the detached workspace. Promotion defaults to the authenticated GitHub CLI account,
-the monoapp name, and private visibility; explicit options can override those defaults.
-If the app has not been promoted, `fork-workspace` offers to promote it with those
-defaults. Pass `--directory` to override the default sibling directory.
+Promotion creates a normal sibling Git repository with no hosted remote, then mounts
+it as the monoapp submodule. Configure and push an external remote manually when ready.
+`fork-workspace` offers this local promotion when needed, removes the focused clone's
+inherited Xenorepo `origin`, and verifies it. Path options override sibling defaults.
 
 See [AGENTS.md](AGENTS.md) for the project architecture and invariants, and
 [LIBRARIES.md](LIBRARIES.md) for shared-library boundaries.

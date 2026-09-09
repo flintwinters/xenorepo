@@ -1,4 +1,4 @@
-"""Contracts for promoting a monolithic app into a GitHub submodule."""
+"""Contracts for promoting a monolithic app into a local Git submodule."""
 
 from pathlib import Path
 from subprocess import CompletedProcess
@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from monotools.orchestration.apps import ROOT
 from monotools.provisioning.repositories import (
-    AppRepositoryState, RepositoryError, promote_to_submodule,
+    AppRepositoryState, promote_to_submodule,
 )
 import manage as repository_manager
 
@@ -19,31 +19,18 @@ class PromotionTests(unittest.TestCase):
         def promote(*_arguments, verify, **_options):
             verify()
             verify()
-            return "git@github.com:owner/app.git"
+            return ROOT.parent / "app"
 
         with patch("manage.promote_to_submodule", side_effect=promote), \
              patch("manage.subprocess.run", return_value=CompletedProcess([], 0)) as run:
-            repository_manager._promote_monoapp(definition, owner="owner", repository="app",
-                visibility="private", aesthetic_review=False)
+            repository_manager._promote_monoapp(definition,
+                repository_directory=ROOT.parent / "app", aesthetic_review=False)
 
         commands = [call.args[0] for call in run.call_args_list]
         self.assertEqual(commands.count(
             ["uv", "run", "manage.py", "restore", "--no-submodules"]), 1)
         self.assertEqual(commands.count(
             ["uv", "run", "manage.py", definition.name, "check"]), 2)
-
-    def test_promotion_requires_valid_github_identity(self) -> None:
-        definition = repository_manager.MANAGERS[0][0]
-        cases = (
-            ("bad/owner", "app", "private", "owner"),
-            ("owner", "bad/repo", "private", "repository"),
-            ("owner", "app", "secret", "visibility"),
-        )
-        for owner, repository, visibility, message in cases:
-            with self.subTest(owner=owner, repository=repository, visibility=visibility), \
-                    self.assertRaisesRegex(RepositoryError, message):
-                promote_to_submodule(definition, ROOT, owner=owner, repository=repository,
-                    visibility=visibility, verify=lambda: None)
 
     def test_promotion_snapshots_verified_app_changes_before_export(self) -> None:
         definition = repository_manager.MANAGERS[0][0]
@@ -58,7 +45,6 @@ class PromotionTests(unittest.TestCase):
                 "status --short": f" M apps/{definition.name}/app.yaml",
                 "diff --cached --name-only": "",
                 "subtree split": split,
-                "gh repo view": "git@github.com:owner/app.git",
             }
             if joined.endswith("rev-parse HEAD"):
                 return split
@@ -66,13 +52,15 @@ class PromotionTests(unittest.TestCase):
 
         verified: list[str] = []
         state = AppRepositoryState("monolith", False, None, "current")
+        repository = ROOT.parent / "promotion-test-repository"
         with patch("monotools.provisioning.repositories.shutil.which", return_value="/usr/bin/tool"), \
              patch("monotools.provisioning.repositories.inspect_app_repository", return_value=state), \
-             patch("monotools.provisioning.repositories._run", side_effect=command):
-            remote = promote_to_submodule(definition, ROOT, owner="owner", repository="app",
-                visibility="private", verify=lambda: verified.append("verified"))
+             patch("monotools.provisioning.repositories._run", side_effect=command), \
+             patch("pathlib.Path.mkdir"):
+            promoted = promote_to_submodule(definition, ROOT,
+                repository_directory=repository, verify=lambda: verified.append("verified"))
 
-        self.assertEqual(remote, "git@github.com:owner/app.git")
+        self.assertEqual(promoted, repository)
         self.assertEqual(verified, ["verified", "verified"])
         commands = [" ".join(arguments) for arguments, _ in calls]
         self.assertIn(f"git add -A -- apps/{definition.name}", commands)
@@ -80,9 +68,8 @@ class PromotionTests(unittest.TestCase):
         split_index = next(i for i, item in enumerate(commands) if "subtree split" in item)
         self.assertLess(snapshot, split_index)
         self.assertLess(split_index, next(i for i, item in enumerate(commands)
-            if "gh repo create" in item))
-        self.assertLess(next(i for i, item in enumerate(commands) if "git push" in item),
-            next(i for i, item in enumerate(commands) if "git rm -r" in item))
+            if "git init --initial-branch=main" in item))
+        self.assertFalse(any(item.startswith("gh ") or "git push" in item for item in commands))
         self.assertIn("git submodule add", "\n".join(commands))
         self.assertTrue(commands[-1].startswith("git commit -m"))
 

@@ -10,7 +10,6 @@ from collections.abc import Callable
 from configparser import ConfigParser
 from dataclasses import dataclass
 from pathlib import Path
-import re
 import shutil
 import subprocess
 from typing import TYPE_CHECKING
@@ -51,10 +50,6 @@ class FocusedWorkspace:
 
     path: Path
     revision: str
-
-
-_GITHUB_COMPONENT = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9_.-]*[A-Za-z0-9])?$")
-_VISIBILITIES = frozenset({"private", "public", "internal"})
 
 
 def declared_app_submodules(workspace: Path) -> tuple[Path, ...]:
@@ -153,20 +148,6 @@ def _git(cwd: Path, *arguments: str) -> str:
     return _run(["git", *arguments], cwd)
 
 
-def _gh(cwd: Path, *arguments: str) -> str:
-    return _run(["gh", *arguments], cwd)
-
-
-def authenticated_github_owner(workspace: Path) -> str:
-    """Return the login owning the active GitHub CLI authentication."""
-    if shutil.which("gh") is None:
-        raise RepositoryError("GitHub CLI is required; install gh and run 'gh auth login'")
-    owner = _gh(workspace, "api", "user", "--jq", ".login")
-    if not _GITHUB_COMPONENT.fullmatch(owner):
-        raise RepositoryError("GitHub CLI returned an invalid authenticated account login")
-    return owner
-
-
 def _relative_app_path(definition: AppDefinition, workspace: Path) -> Path | None:
     try:
         relative = definition.directory.resolve().relative_to(workspace.resolve())
@@ -198,15 +179,6 @@ def _optional_remote(directory: Path) -> str | None:
     completed = subprocess.run(["git", "remote", "get-url", "origin"], cwd=directory,
         check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     return completed.stdout.strip() if completed.returncode == 0 else None
-
-
-def _validate_github_target(owner: str, repository: str, visibility: str) -> None:
-    if not _GITHUB_COMPONENT.fullmatch(owner):
-        raise RepositoryError("GitHub owner must be one account or organization name")
-    if not _GITHUB_COMPONENT.fullmatch(repository):
-        raise RepositoryError("GitHub repository must be one unqualified repository name")
-    if visibility not in _VISIBILITIES:
-        raise RepositoryError("visibility must be private, public, or internal")
 
 
 def _require_git() -> None:
@@ -260,7 +232,8 @@ def fork_focused_workspace(definition: AppDefinition, workspace: Path, *, destin
     relative, branch = _focused_preflight(definition, workspace, destination)
     _git(workspace, "clone", "--no-recurse-submodules", "--branch", branch,
         str(workspace), str(destination))
-    _git(destination, "submodule", "update", "--init", "--", str(relative))
+    _git(destination, "-c", "protocol.file.allow=always", "submodule", "update", "--init",
+        "--", str(relative))
     for name in _tracked_app_names(destination):
         if name != definition.name:
             _git(destination, "rm", "-r", "-f", "--", str(Path("apps") / name))
@@ -273,16 +246,22 @@ def fork_focused_workspace(definition: AppDefinition, workspace: Path, *, destin
     return FocusedWorkspace(destination, revision)
 
 
-def _preflight(definition: AppDefinition, workspace: Path, owner: str,
-    repository: str, visibility: str) -> Path:
-    _validate_github_target(owner, repository, visibility)
+def _validate_local_repository_target(workspace: Path, repository_directory: Path) -> None:
+    """Require a new local repository target outside the source Xenorepo."""
+    if repository_directory == workspace or repository_directory.is_relative_to(workspace):
+        raise RepositoryError("promoted monoapp repository must be outside Xenorepo")
+    if repository_directory.exists():
+        raise RepositoryError(f"refusing to overwrite existing repository: {repository_directory}")
+
+
+def _preflight(definition: AppDefinition, workspace: Path,
+    repository_directory: Path) -> Path:
     if shutil.which("git") is None:
         raise RepositoryError("git is required for monoapp repository management")
-    if shutil.which("gh") is None:
-        raise RepositoryError("GitHub CLI is required; install gh and run 'gh auth login'")
+    _validate_local_repository_target(workspace, repository_directory)
     relative = _relative_app_path(definition, workspace)
     if relative is None:
-        raise RepositoryError("create-repo requires an app mounted at apps/<name> in Xenorepo")
+        raise RepositoryError("promote requires an app mounted at apps/<name> in Xenorepo")
     state = inspect_app_repository(definition, workspace)
     if state.mode != "monolith":
         raise RepositoryError(f"{definition.name} is already managed as {state.mode}")
@@ -293,7 +272,6 @@ def _preflight(definition: AppDefinition, workspace: Path, owner: str,
         )
     if not (definition.directory / ".gitignore").is_file():
         raise RepositoryError(f"{definition.name} needs an app-owned .gitignore before promotion")
-    _gh(workspace, "auth", "status")
     return relative
 
 
@@ -308,38 +286,38 @@ def _commit_pending_app_changes(definition: AppDefinition, workspace: Path,
         "history into an independently versioned monoapp repository.")
 
 
-def promote_to_submodule(definition: AppDefinition, workspace: Path, *, owner: str,
-    repository: str, visibility: str, verify: Callable[[], None]) -> str:
-    """Create a GitHub repository, preserve app history, and mount it as a submodule."""
-    relative = _preflight(definition, workspace, owner, repository, visibility)
+def promote_to_submodule(definition: AppDefinition, workspace: Path, *,
+    repository_directory: Path, verify: Callable[[], None]) -> Path:
+    """Create a local app repository, preserve history, and mount it as a submodule."""
+    workspace, repository_directory = workspace.resolve(), repository_directory.resolve()
+    relative = _preflight(definition, workspace, repository_directory)
     verify()
     _commit_pending_app_changes(definition, workspace, relative)
     split = _git(workspace, "subtree", "split", f"--prefix={relative}", "HEAD").splitlines()[-1]
-    target = f"{owner}/{repository}"
-    _gh(workspace, "repo", "create", target, f"--{visibility}",
-        "--description", f"{definition.title} monoapp", "--disable-wiki")
-    remote = _gh(workspace, "repo", "view", target, "--json", "sshUrl", "--jq", ".sshUrl")
-    _git(workspace, "push", remote, f"{split}:refs/heads/main")
+    repository_directory.mkdir(parents=True)
+    _git(repository_directory, "init", "--initial-branch=main")
+    _git(repository_directory, "fetch", str(workspace), split)
+    _git(repository_directory, "checkout", "-B", "main", "FETCH_HEAD")
     _git(workspace, "rm", "-r", "--", str(relative))
     _git(workspace, "clean", "-fdX", "--", str(relative))
-    _git(workspace, "submodule", "add", "--name", definition.name, "--branch", "main",
-        remote, str(relative))
+    _git(workspace, "-c", "protocol.file.allow=always", "submodule", "add", "--name",
+        definition.name, "--branch", "main", str(repository_directory), str(relative))
     mounted = _git(definition.directory, "rev-parse", "HEAD")
     if mounted != split:
         raise RepositoryError(f"mounted revision {mounted} does not match exported revision {split}")
     verify()
-    _commit_promotion(definition, workspace, relative, remote, split)
-    return remote
+    _commit_promotion(definition, workspace, relative, repository_directory, split)
+    return repository_directory
 
 
 def _commit_promotion(definition: AppDefinition, workspace: Path, relative: Path,
-    remote: str, revision: str) -> None:
+    repository_directory: Path, revision: str) -> None:
     subject = f"Promote {definition.title} to a monoapp submodule"
     body = (
         f"Move {relative} from Xenorepo-owned files to an independently versioned Git repository "
-        f"at {remote}. Preserve the app-only history through revision {revision} and pin the "
-        "verified remote main revision through Xenorepo's submodule gitlink.\n\n"
-        "The app remains intentionally coupled to the enclosing Xenorepo's current Monotools, "
-        "shared frontend packages, lifecycle commands, and complete verification matrix."
+        f"at {repository_directory}. Preserve app-only history through revision {revision} and pin the "
+        "verified local main revision through Xenorepo's submodule gitlink.\n\n"
+        "No hosted remote is configured; add one manually when repository ownership and hosting "
+        "are decided. The app remains coupled to Xenorepo's Monotools and shared packages."
     )
     _git(workspace, "commit", "-m", subject, "-m", body)

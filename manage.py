@@ -33,8 +33,8 @@ from monotools.orchestration.hygiene import analyze_ui_hygiene
 from monotools.provisioning.audit import AuditReport, audit_workspace
 from monotools.provisioning.management import attach_repository_commands
 from monotools.provisioning.repositories import (
-    RepositoryError, authenticated_github_owner, delete_app, fork_focused_workspace,
-    inspect_app_repository, promote_to_submodule, uninitialized_app_submodules,
+    RepositoryError, delete_app, fork_focused_workspace, inspect_app_repository,
+    promote_to_submodule, uninitialized_app_submodules,
 )
 from monotools.provisioning.scaffolding import ScaffoldError, scaffold_app
 
@@ -188,8 +188,8 @@ def delete_monoapp(name: str = typer.Argument(...)) -> None:
     console.print(f"Committed as {deleted.revision}; run uv run manage.py verify.")
 
 
-def _promote_monoapp(definition: AppDefinition, *, owner: str, repository: str,
-    visibility: str, aesthetic_review: bool) -> None:
+def _promote_monoapp(definition: AppDefinition, *, repository_directory: Path,
+    aesthetic_review: bool) -> None:
     """Promote one managed app after its selected verification gate passes."""
     dependencies_restored = False
 
@@ -211,29 +211,27 @@ def _promote_monoapp(definition: AppDefinition, *, owner: str, repository: str,
                 )
         dependencies_restored = True
 
-    remote = promote_to_submodule(definition, ROOT, owner=owner, repository=repository,
-        visibility=visibility, verify=verify_workspace)
-    console.print(f"[bold green]Promoted[/] {definition.name} -> {remote}")
+    repository = promote_to_submodule(definition, ROOT,
+        repository_directory=repository_directory, verify=verify_workspace)
+    console.print(f"[bold green]Promoted[/] {definition.name} -> {repository}")
+    console.print("External remote: not configured; add one manually when ready.")
 
 
 @monoapp.command("promote")
 def promote_monoapp(name: str = typer.Argument(...),
-    owner: str | None = typer.Option(None, "--owner",
-        help="GitHub owner; defaults to the authenticated GitHub CLI account."),
-    repository: str | None = typer.Option(None, "--repository",
-        help="GitHub repository; defaults to the monoapp name."),
-    visibility: str = typer.Option("private", "--visibility"),
+    repository_directory: Path | None = typer.Option(None, "--repository-directory",
+        help="Local repository path; defaults to a sibling of Xenorepo."),
     aesthetic_review: bool = typer.Option(True,
         "--aesthetic-review/--no-aesthetic-review",
         help="Include the nondeterministic AI aesthetic review in promotion gates.")) -> None:
-    """Create a GitHub repository and replace a monoapp with its verified submodule."""
+    """Create a local Git repository and replace a monoapp with its verified submodule."""
     selected = next((definition for definition, _ in MANAGERS if definition.name == name), None)
     if selected is None:
         _fail(f"unknown managed monoapp {name!r}")
     try:
-        resolved_owner = owner or authenticated_github_owner(ROOT)
-        _promote_monoapp(selected, owner=resolved_owner, repository=repository or name,
-            visibility=visibility, aesthetic_review=aesthetic_review)
+        _promote_monoapp(selected,
+            repository_directory=repository_directory or ROOT.parent / name,
+            aesthetic_review=aesthetic_review)
     except RepositoryError as error:
         _fail(error)
 
@@ -249,9 +247,8 @@ def _promote_before_forking(definition: AppDefinition, aesthetic_review: bool) -
     if not typer.confirm(f"{definition.name} is not promoted. Promote it before forking?", default=True):
         _fail(f"{definition.name} must be promoted before forking a workspace")
     try:
-        owner = authenticated_github_owner(ROOT)
-        _promote_monoapp(definition, owner=owner, repository=definition.name,
-            visibility="private", aesthetic_review=aesthetic_review)
+        _promote_monoapp(definition, repository_directory=ROOT.parent / definition.name,
+            aesthetic_review=aesthetic_review)
     except RepositoryError as error:
         _fail(error)
 

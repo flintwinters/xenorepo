@@ -208,31 +208,10 @@ def delete_monoapp(name: str = typer.Argument(...)) -> None:
     console.print(f"Committed as {deleted.revision}; run uv run manage.py verify.")
 
 
-def _promote_monoapp(definition: AppDefinition, *, repository_directory: Path,
-    aesthetic_review: bool) -> None:
-    """Promote one managed app after its selected verification gate passes."""
-    dependencies_restored = False
-
-    def verify_workspace() -> None:
-        nonlocal dependencies_restored
-        commands = [] if dependencies_restored else [
-            ["uv", "run", "manage.py", "restore", "--no-submodules"]]
-        if not aesthetic_review:
-            commands.extend([["uv", "run", "manage.py", definition.name, command]
-                for command in ("check", "test", "ui-check")])
-        else:
-            commands.append(["uv", "run", "manage.py", definition.name, "verify"])
-        for command in commands:
-            completed = subprocess.run(command, cwd=ROOT, check=False)
-            if completed.returncode:
-                raise RepositoryError(
-                    f"workspace verification failed ({completed.returncode}) while running "
-                    f"{' '.join(command[3:])}; promotion stopped"
-                )
-        dependencies_restored = True
-
-    repository = promote_to_submodule(definition, ROOT,
-        repository_directory=repository_directory, verify=verify_workspace)
+def _promote_monoapp(definition: AppDefinition, *, repository_directory: Path) -> None:
+    """Move one managed app into a local Git repository without product validation."""
+    repository = promote_to_submodule(
+        definition, ROOT, repository_directory=repository_directory)
     console.print(f"[bold green]Promoted[/] {definition.name} -> {repository}")
     console.print("External remote: not configured; add one manually when ready.")
 
@@ -240,23 +219,19 @@ def _promote_monoapp(definition: AppDefinition, *, repository_directory: Path,
 @monoapp.command("promote")
 def promote_monoapp(name: str = typer.Argument(...),
     repository_directory: Path | None = typer.Option(None, "--repository-directory",
-        help="Local repository path; defaults to a sibling of Xenorepo."),
-    aesthetic_review: bool = typer.Option(True,
-        "--aesthetic-review/--no-aesthetic-review",
-        help="Include the nondeterministic AI aesthetic review in promotion gates.")) -> None:
+        help="Local repository path; defaults to a sibling of Xenorepo.")) -> None:
     """Create a local Git repository and replace a monoapp with its verified submodule."""
     selected = next((definition for definition, _ in MANAGERS if definition.name == name), None)
     if selected is None:
         _fail(f"unknown managed monoapp {name!r}")
     try:
         _promote_monoapp(selected,
-            repository_directory=repository_directory or ROOT.parent / name,
-            aesthetic_review=aesthetic_review)
+            repository_directory=repository_directory or ROOT.parent / name)
     except RepositoryError as error:
         _fail(error)
 
 
-def _promote_before_forking(definition: AppDefinition, aesthetic_review: bool) -> None:
+def _promote_before_forking(definition: AppDefinition) -> None:
     """Offer the required promotion only when a focused workspace needs it."""
     try:
         state = inspect_app_repository(definition, ROOT)
@@ -267,8 +242,7 @@ def _promote_before_forking(definition: AppDefinition, aesthetic_review: bool) -
     if not typer.confirm(f"{definition.name} is not promoted. Promote it before forking?", default=True):
         _fail(f"{definition.name} must be promoted before forking a workspace")
     try:
-        _promote_monoapp(definition, repository_directory=ROOT.parent / definition.name,
-            aesthetic_review=aesthetic_review)
+        _promote_monoapp(definition, repository_directory=ROOT.parent / definition.name)
     except RepositoryError as error:
         _fail(error)
 
@@ -284,7 +258,7 @@ def fork_monoapp_workspace(name: str = typer.Argument(...),
     if selected is None:
         _fail(f"unknown managed monoapp {name!r}")
     destination = directory or ROOT.parent / f"{name}-workspace"
-    _promote_before_forking(selected, aesthetic_review)
+    _promote_before_forking(selected)
 
     def verify_workspace(candidate: Path) -> None:
         commands = [["uv", "run", "manage.py", "restore", "--no-submodules"]]

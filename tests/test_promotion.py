@@ -13,26 +13,20 @@ import manage as repository_manager
 
 
 class PromotionTests(unittest.TestCase):
-    def test_promotion_restores_once_before_both_verification_passes(self) -> None:
+    def test_promotion_does_not_restore_dependencies_or_run_product_checks(self) -> None:
         definition = repository_manager.MANAGERS[0][0]
 
-        def promote(*_arguments, verify, **_options):
-            verify()
-            verify()
+        def promote(*_arguments, **_options):
             return ROOT.parent / "app"
 
         with patch("manage.promote_to_submodule", side_effect=promote), \
              patch("manage.subprocess.run", return_value=CompletedProcess([], 0)) as run:
             repository_manager._promote_monoapp(definition,
-                repository_directory=ROOT.parent / "app", aesthetic_review=False)
+                repository_directory=ROOT.parent / "app")
 
-        commands = [call.args[0] for call in run.call_args_list]
-        self.assertEqual(commands.count(
-            ["uv", "run", "manage.py", "restore", "--no-submodules"]), 1)
-        self.assertEqual(commands.count(
-            ["uv", "run", "manage.py", definition.name, "check"]), 2)
+        run.assert_not_called()
 
-    def test_promotion_snapshots_verified_app_changes_before_export(self) -> None:
+    def test_promotion_snapshots_current_app_changes_before_export(self) -> None:
         definition = repository_manager.MANAGERS[0][0]
         split = "a" * 40
         calls: list[tuple[tuple[str, ...], Path]] = []
@@ -50,7 +44,6 @@ class PromotionTests(unittest.TestCase):
                 return split
             return next((value for key, value in responses.items() if key in joined), "")
 
-        verified: list[str] = []
         state = AppRepositoryState("monolith", False, None, "current")
         repository = ROOT.parent / "promotion-test-repository"
         with patch("monotools.provisioning.repositories.shutil.which", return_value="/usr/bin/tool"), \
@@ -59,10 +52,9 @@ class PromotionTests(unittest.TestCase):
              patch("pathlib.Path.mkdir"), \
              patch("monotools.provisioning.repositories.shutil.rmtree"):
             promoted = promote_to_submodule(definition, ROOT,
-                repository_directory=repository, verify=lambda: verified.append("verified"))
+                repository_directory=repository)
 
         self.assertEqual(promoted, repository)
-        self.assertEqual(verified, ["verified", "verified"])
         commands = [" ".join(arguments) for arguments, _ in calls]
         self.assertIn(f"git add -A -- apps/{definition.name}", commands)
         snapshot = next(i for i, item in enumerate(commands) if "git commit -m Prepare" in item)
@@ -86,8 +78,7 @@ class PromotionTests(unittest.TestCase):
                 side_effect=RepositoryError("mount failed")), \
              patch("monotools.provisioning.repositories._restore_monolith") as restore, \
              self.assertRaisesRegex(RepositoryError, "rolled back after failure"):
-            promote_to_submodule(definition, ROOT, repository_directory=repository,
-                verify=lambda: None)
+            promote_to_submodule(definition, ROOT, repository_directory=repository)
 
         restore.assert_called_once()
 

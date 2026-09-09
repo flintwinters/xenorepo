@@ -108,14 +108,12 @@ unversioned app must be committed before it can be deleted through this command.
 When mounted by Xenorepo, every managed app exposes `git status` through
 `monotools.provisioning`, while the root `monoapp promote` routine owns promotion.
 It creates a normal sibling Git repository without a hosted remote; external hosting
-is configured manually later. Promotion requires a clean Xenorepo index and two
-successful complete verification runs. After the first verification it
-records any pending app changes in a path-scoped snapshot commit, then extracts app-only
-history, remounts the local repository at the same path as a submodule, and commits
-Xenorepo's gitlink. The routine restores missing locked dependencies before these
-gates without imposing bootstrap's supported Node version policy or recursively
-initializing unrelated monoapps. Fresh checkouts initialize all declared app submodules
-through `uv run manage.py bootstrap`.
+is configured manually later. Promotion requires a clean Xenorepo index, records any
+pending app changes in a path-scoped snapshot commit, extracts app-only history, mounts
+the local repository at the same path as a submodule, and commits Xenorepo's gitlink.
+It deliberately performs no dependency restoration or product validation; those belong
+to the explicit `verify`, `release`, and completed focused-workspace gates. Fresh
+checkouts initialize declared app submodules through `uv run manage.py bootstrap`.
 
 A promoted monoapp is independently versioned but deliberately not standalone:
 it consumes the enclosing checkout's current Monotools and shared packages.

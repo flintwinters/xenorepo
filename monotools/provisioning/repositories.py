@@ -279,13 +279,13 @@ def _preflight(definition: AppDefinition, workspace: Path,
 
 def _commit_pending_app_changes(definition: AppDefinition, workspace: Path,
     relative: Path) -> None:
-    """Capture a verified app snapshot without staging unrelated workspace changes."""
+    """Capture the current app snapshot without staging unrelated workspace changes."""
     if not _git(workspace, "status", "--short", "--", str(relative)):
         return
     try:
         _git(workspace, "add", "-A", "--", str(relative))
         _git(workspace, "commit", "-m", f"Prepare {definition.title} for promotion", "-m",
-            f"Record the complete verified {relative} application state before extracting its "
+            f"Record the complete current {relative} application state before extracting its "
             "history into an independently versioned monoapp repository.")
     except Exception:
         _git(workspace, "reset", "HEAD", "--", str(relative))
@@ -337,11 +337,10 @@ def _mount_local_repository(definition: AppDefinition, workspace: Path, relative
 
 
 def promote_to_submodule(definition: AppDefinition, workspace: Path, *,
-    repository_directory: Path, verify: Callable[[], None]) -> Path:
+    repository_directory: Path) -> Path:
     """Create a local app repository, preserve history, and mount it as a submodule."""
     workspace, repository_directory = workspace.resolve(), repository_directory.resolve()
     relative = _preflight(definition, workspace, repository_directory)
-    verify()
     _commit_pending_app_changes(definition, workspace, relative)
     split = _git(workspace, "subtree", "split", f"--prefix={relative}", "HEAD").splitlines()[-1]
     _create_local_repository(repository_directory, workspace, split)
@@ -353,7 +352,6 @@ def promote_to_submodule(definition: AppDefinition, workspace: Path, *,
         if mounted != split:
             raise RepositoryError(
                 f"mounted revision {mounted} does not match exported revision {split}")
-        verify()
         _commit_promotion(definition, workspace, relative, repository_directory, split)
     except Exception as error:
         try:

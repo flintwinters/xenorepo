@@ -223,12 +223,12 @@ frontend:
         selected = repository_manager.MANAGERS[0][0]
         with patch("manage._promote_monoapp") as promote:
             result = CliRunner().invoke(repository_manager.app, [
-                "monoapp", "promote", selected.name, "--no-aesthetic-review",
+                "monoapp", "promote", selected.name,
             ])
 
         self.assertEqual(result.exit_code, 0, result.output)
-        promote.assert_called_once_with(selected, repository_directory=ROOT.parent / selected.name,
-            aesthetic_review=False)
+        promote.assert_called_once_with(
+            selected, repository_directory=ROOT.parent / selected.name)
 
     def test_fork_workspace_offers_to_promote_an_unpromoted_app(self) -> None:
         selected = repository_manager.MANAGERS[0][0]
@@ -243,8 +243,8 @@ frontend:
 
         self.assertEqual(result.exit_code, 0, result.output)
         self.assertIn("not promoted. Promote it before forking?", result.output)
-        promote.assert_called_once_with(selected, repository_directory=ROOT.parent / selected.name,
-            aesthetic_review=False)
+        promote.assert_called_once_with(
+            selected, repository_directory=ROOT.parent / selected.name)
         fork.assert_called_once()
 
     def test_root_audit_reports_zero_architecture_and_structural_debt(self) -> None:

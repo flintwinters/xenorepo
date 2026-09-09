@@ -220,8 +220,8 @@ def validate_fork_destination(workspace: Path, destination: Path) -> None:
         raise RepositoryError(f"destination already exists: {destination}; preserve it and "
             "choose a new path with --directory")
     workspace, destination = workspace.resolve(), destination.resolve()
-    if destination.is_relative_to(workspace):
-        raise RepositoryError("focused workspace destination must be outside the source Xenorepo")
+    if destination.is_relative_to(workspace) and not destination.is_relative_to(workspace / "data"):
+        raise RepositoryError("internal workspace destinations must be beneath Xenorepo data/")
 
 
 def _tracked_app_names(workspace: Path) -> tuple[str, ...]:
@@ -281,9 +281,10 @@ def _populate_focused_workspace(definition: AppDefinition, workspace: Path,
 
 
 def _validate_local_repository_target(workspace: Path, repository_directory: Path) -> None:
-    """Require a new local repository target outside the source Xenorepo."""
-    if repository_directory == workspace or repository_directory.is_relative_to(workspace):
-        raise RepositoryError("promoted monoapp repository must be outside Xenorepo")
+    """Require a new target outside maintained source directories."""
+    if repository_directory.is_relative_to(workspace) and not repository_directory.is_relative_to(
+        workspace / "data"):
+        raise RepositoryError("internal repository targets must be beneath Xenorepo data/")
     if repository_directory.exists():
         raise RepositoryError(f"refusing to overwrite existing repository: {repository_directory}")
 

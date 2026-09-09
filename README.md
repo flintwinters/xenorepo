@@ -41,10 +41,11 @@ uv run manage.py monoapp promote app_name
 uv run manage.py monoapp fork-workspace app_name
 ```
 
-Promotion creates a normal sibling Git repository with no hosted remote, then mounts
+Promotion creates a Git repository in `data/repositories/<app>` with no hosted remote, then mounts
 it as the monoapp submodule. Configure and push an external remote manually when ready.
 `fork-workspace` offers this local promotion when needed, removes the focused clone's
-inherited Xenorepo `origin`, and verifies it. Path options override sibling defaults.
+inherited Xenorepo `origin`, and verifies it. Forks default to `data/workspaces/<app>`
+inside the invoking checkout. External paths require an explicit path option.
 
 Forking checks destination conflicts before promotion and copies the app from its
 mounted checkout, even when its original local repository has moved. It builds in

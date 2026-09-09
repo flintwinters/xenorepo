@@ -219,14 +219,14 @@ def _promote_monoapp(definition: AppDefinition, *, repository_directory: Path) -
 @monoapp.command("promote")
 def promote_monoapp(name: str = typer.Argument(...),
     repository_directory: Path | None = typer.Option(None, "--repository-directory",
-        help="Local repository path; defaults to a sibling of Xenorepo.")) -> None:
+        help="Local repository path; defaults to data/repositories/<app>.")) -> None:
     """Create a local Git repository and replace a monoapp with its verified submodule."""
     selected = next((definition for definition, _ in MANAGERS if definition.name == name), None)
     if selected is None:
         _fail(f"unknown managed monoapp {name!r}")
     try:
         _promote_monoapp(selected,
-            repository_directory=repository_directory or ROOT.parent / name)
+            repository_directory=repository_directory or ROOT / "data" / "repositories" / name)
     except RepositoryError as error:
         _fail(error)
 
@@ -242,7 +242,8 @@ def _promote_before_forking(definition: AppDefinition) -> None:
     if not typer.confirm(f"{definition.name} is not promoted. Promote it before forking?", default=True):
         _fail(f"{definition.name} must be promoted before forking a workspace")
     try:
-        _promote_monoapp(definition, repository_directory=ROOT.parent / definition.name)
+        _promote_monoapp(definition,
+            repository_directory=ROOT / "data" / "repositories" / definition.name)
     except RepositoryError as error:
         _fail(error)
 
@@ -277,7 +278,7 @@ def fork_monoapp_workspace(name: str = typer.Argument(...),
     selected = next((definition for definition, _ in MANAGERS if definition.name == name), None)
     if selected is None:
         _fail(f"unknown managed monoapp {name!r}")
-    destination = directory or ROOT.parent / f"{name}-workspace"
+    destination = directory or ROOT / "data" / "workspaces" / name
     try:
         validate_fork_destination(ROOT, destination)
     except RepositoryError as error:

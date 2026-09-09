@@ -107,7 +107,7 @@ unversioned app must be committed before it can be deleted through this command.
 
 When mounted by Xenorepo, every managed app exposes `git status` through
 `monotools.provisioning`, while the root `monoapp promote` routine owns promotion.
-It creates a normal sibling Git repository without a hosted remote; external hosting
+It creates a Git repository under the checkout's ignored `data/repositories/` without a hosted remote; external hosting
 is configured manually later. Promotion requires a clean Xenorepo index, records any
 pending app changes in a path-scoped snapshot commit, extracts app-only history, mounts
 the local repository at the same path as a submodule, and commits Xenorepo's gitlink.

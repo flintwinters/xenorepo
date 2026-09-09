@@ -36,12 +36,13 @@ class RepositoryTransactionTests(unittest.TestCase):
         self.environment.start()
         self.addCleanup(self.environment.stop)
         directory = scaffold_app(self.workspace / "apps", "fixture", "Fixture")
+        (self.workspace / ".gitignore").write_text("/data/\n", encoding="utf-8")
         self.definition = replace(manage.MANAGERS[0][0], name="fixture",
             title="Fixture", directory=directory)
         self.git(self.workspace, "add", ".")
         self.git(self.workspace, "commit", "-m", "Create test workspace")
-        self.backing = self.parent / "fixture"
-        self.destination = self.parent / "focused"
+        self.backing = self.workspace / "data" / "repositories" / "fixture"
+        self.destination = self.workspace / "data" / "workspaces" / "fixture"
 
     def git(self, directory: Path, *arguments: str) -> str:
         result = subprocess.run(["git", *arguments], cwd=directory, text=True,
@@ -76,7 +77,7 @@ class RepositoryTransactionTests(unittest.TestCase):
             fork_focused_workspace(self.definition, self.workspace,
                 destination=self.destination, verify=fail)
         self.assertFalse(self.destination.exists())
-        pending = list(self.parent.glob("focused-pending-*"))
+        pending = list(self.destination.parent.glob("fixture-pending-*"))
         self.assertEqual(len(pending), 1)
         self.assertTrue((pending[0] / "failure-evidence.txt").is_file())
         self.assertEqual(self.git(self.workspace, "rev-parse", "HEAD"), revision)
@@ -85,7 +86,7 @@ class RepositoryTransactionTests(unittest.TestCase):
         self.assertTrue(self.destination.is_dir())
 
     def test_existing_destination_is_rejected_before_promotion(self) -> None:
-        self.destination.mkdir()
+        self.destination.mkdir(parents=True)
         with patch("manage.MANAGERS", ((self.definition, None),)), \
              patch("manage.ROOT", self.workspace), patch("manage._promote_before_forking") as promote:
             result = CliRunner().invoke(manage.app, ["monoapp", "fork-workspace", "fixture",

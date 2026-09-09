@@ -222,6 +222,10 @@ def _require_promoted_app(definition: AppDefinition, workspace: Path) -> Path:
     if state.mode != "submodule":
         raise RepositoryError(f"{definition.name} must be promoted before forking a workspace")
     if not state.clean:
+        _git(definition.directory, "clean", "-fd", "--",
+            "data/monoform.json", "data/monoform-build")
+        state = inspect_app_repository(definition, workspace)
+    if not state.clean:
         raise RepositoryError(f"{definition.name} submodule must be clean before forking a workspace")
     return relative
 

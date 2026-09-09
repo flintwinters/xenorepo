@@ -8,6 +8,8 @@ data/*.sqlite
 data/*.sqlite3
 data/openapi.json
 data/openapi.d.ts
+data/monoform.json
+data/monoform-build/
 data/ui-check/
 .env
 .env.*

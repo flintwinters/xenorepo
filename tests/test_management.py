@@ -440,6 +440,10 @@ frontend:
             self.assertEqual(definition.title, "Signal Lab")
             self.assertTrue((directory / "SPEC.md").is_file())
             self.assertTrue((directory / ".gitignore").is_file())
+            ignores = (directory / ".gitignore").read_text(encoding="utf-8").splitlines()
+            self.assertTrue({"dist/", "data/openapi.json", "data/openapi.d.ts",
+                "data/monoform.json", "data/monoform-build/", "data/ui-check/"}
+                .issubset(ignores))
             self.assertTrue((directory / "frontend/styles.css").is_file())
             frontend = (directory / "frontend/index.tsx").read_text(encoding="utf-8")
             styles = (directory / "frontend/styles.css").read_text(encoding="utf-8")

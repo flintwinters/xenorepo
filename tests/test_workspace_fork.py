@@ -8,12 +8,26 @@ from unittest.mock import patch
 
 from monotools.orchestration.apps import ROOT
 from monotools.provisioning.repositories import (
-    AppRepositoryState, FocusedWorkspace, authenticated_github_owner, fork_focused_workspace,
+    AppRepositoryState, FocusedWorkspace, _require_promoted_app,
+    authenticated_github_owner, fork_focused_workspace,
 )
 import manage as repository_manager
 
 
 class WorkspaceForkTests(unittest.TestCase):
+    def test_fork_preflight_cleans_only_known_untracked_generator_residue(self) -> None:
+        source = repository_manager.MANAGERS[0][0]
+        dirty = AppRepositoryState("submodule", False, "remote", "current")
+        clean = AppRepositoryState("submodule", True, "remote", "current")
+        with patch("monotools.provisioning.repositories.inspect_app_repository",
+                side_effect=(dirty, clean)), \
+             patch("monotools.provisioning.repositories._git") as git:
+            relative = _require_promoted_app(source, ROOT)
+
+        self.assertEqual(relative, Path("apps") / source.name)
+        git.assert_called_once_with(source.directory, "clean", "-fd", "--",
+            "data/monoform.json", "data/monoform-build")
+
     def test_authenticated_github_owner_uses_the_active_cli_account(self) -> None:
         with patch("monotools.provisioning.repositories.shutil.which", return_value="/usr/bin/gh"), \
              patch("monotools.provisioning.repositories._run", return_value="account") as run:

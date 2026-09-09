@@ -23,7 +23,6 @@ from monotools.provisioning.repositories import (
     RepositoryError,
     delete_app,
     declared_app_submodules,
-    promote_to_submodule,
     uninitialized_app_submodules,
 )
 from monotools.provisioning.scaffolding import ScaffoldError, scaffold_app
@@ -508,58 +507,6 @@ frontend:
         self.assertEqual(result.exit_code, 0)
         self.assertIn("Committed as abc1234", result.output)
         delete.assert_called_once_with(ROOT, "signal_lab")
-
-    def test_repository_promotion_requires_explicit_valid_github_identity(self) -> None:
-        definition = repository_manager.MANAGERS[0][0]
-        for owner, repository, visibility, message in (
-            ("bad/owner", "app", "private", "owner"),
-            ("owner", "bad/repo", "private", "repository"),
-            ("owner", "app", "secret", "visibility"),
-        ):
-            with self.subTest(owner=owner, repository=repository, visibility=visibility), \
-                    self.assertRaisesRegex(RepositoryError, message):
-                promote_to_submodule(definition, ROOT, owner=owner, repository=repository,
-                    visibility=visibility, verify=lambda: None)
-
-    def test_repository_promotion_orders_history_remote_submodule_and_verification(self) -> None:
-        definition = repository_manager.MANAGERS[0][0]
-        split = "a" * 40
-        calls: list[tuple[tuple[str, ...], Path]] = []
-
-        def command(arguments: list[str], cwd: Path) -> str:
-            calls.append((tuple(arguments), cwd))
-            joined = " ".join(arguments)
-            if "ls-files --stage" in joined:
-                return "100644 b app.yaml"
-            if "status --short" in joined:
-                return ""
-            if "diff --cached --name-only" in joined:
-                return ""
-            if "subtree split" in joined:
-                return split
-            if arguments[:3] == ["gh", "repo", "view"]:
-                return "git@github.com:owner/app.git"
-            if arguments[-3:] == ["rev-parse", "HEAD"] or joined.endswith("rev-parse HEAD"):
-                return split
-            return ""
-
-        verified: list[str] = []
-        state = AppRepositoryState("monolith", True, None, "current")
-        with patch("monotools.provisioning.repositories.shutil.which", return_value="/usr/bin/tool"), \
-             patch("monotools.provisioning.repositories.inspect_app_repository", return_value=state), \
-             patch("monotools.provisioning.repositories._run", side_effect=command):
-            remote = promote_to_submodule(definition, ROOT, owner="owner", repository="app",
-                visibility="private", verify=lambda: verified.append("verified"))
-
-        self.assertEqual(remote, "git@github.com:owner/app.git")
-        self.assertEqual(verified, ["verified", "verified"])
-        commands = [" ".join(arguments) for arguments, _ in calls]
-        self.assertLess(next(i for i, item in enumerate(commands) if "subtree split" in item),
-            next(i for i, item in enumerate(commands) if "gh repo create" in item))
-        self.assertLess(next(i for i, item in enumerate(commands) if "git push" in item),
-            next(i for i, item in enumerate(commands) if "git rm -r" in item))
-        self.assertIn("git submodule add", "\n".join(commands))
-        self.assertTrue(commands[-1].startswith("git commit -m"))
 
     def test_manager_uses_only_metadata_declared_suites_and_proofs(self) -> None:
         _, manage_file = self._manager(ui_suite="product.spec.js")

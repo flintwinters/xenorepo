@@ -282,8 +282,6 @@ def _preflight(definition: AppDefinition, workspace: Path, owner: str,
     state = inspect_app_repository(definition, workspace)
     if state.mode != "monolith":
         raise RepositoryError(f"{definition.name} is already managed as {state.mode}")
-    if not state.clean:
-        raise RepositoryError(f"{definition.name} worktree must be clean before promotion")
     staged = _git(workspace, "diff", "--cached", "--name-only")
     if staged:
         raise RepositoryError(
@@ -295,11 +293,23 @@ def _preflight(definition: AppDefinition, workspace: Path, owner: str,
     return relative
 
 
+def _commit_pending_app_changes(definition: AppDefinition, workspace: Path,
+    relative: Path) -> None:
+    """Capture a verified app snapshot without staging unrelated workspace changes."""
+    if not _git(workspace, "status", "--short", "--", str(relative)):
+        return
+    _git(workspace, "add", "-A", "--", str(relative))
+    _git(workspace, "commit", "-m", f"Prepare {definition.title} for promotion", "-m",
+        f"Record the complete verified {relative} application state before extracting its "
+        "history into an independently versioned monoapp repository.")
+
+
 def promote_to_submodule(definition: AppDefinition, workspace: Path, *, owner: str,
     repository: str, visibility: str, verify: Callable[[], None]) -> str:
     """Create a GitHub repository, preserve app history, and mount it as a submodule."""
     relative = _preflight(definition, workspace, owner, repository, visibility)
     verify()
+    _commit_pending_app_changes(definition, workspace, relative)
     split = _git(workspace, "subtree", "split", f"--prefix={relative}", "HEAD").splitlines()[-1]
     target = f"{owner}/{repository}"
     _gh(workspace, "repo", "create", target, f"--{visibility}",

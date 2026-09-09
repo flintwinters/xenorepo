@@ -46,17 +46,23 @@ def attach_repository_commands(manager: ApplicationManager, workspace: Path) -> 
     @git_app.command("create-repo")
     def create_repository(owner: str = typer.Option(..., "--owner"),
         repository: str = typer.Option(..., "--repository"),
-        visibility: str = typer.Option(..., "--visibility")) -> None:
+        visibility: str = typer.Option(..., "--visibility"),
+        aesthetic_review: bool = typer.Option(True,
+            "--aesthetic-review/--no-aesthetic-review",
+            help="Include the nondeterministic AI aesthetic review in promotion gates.")) -> None:
         """Create a GitHub repository and replace this app with its verified submodule."""
         def verify_workspace() -> None:
-            completed = subprocess.run(
-                [sys.executable, "manage.py", definition.name, "verify"],
-                cwd=workspace, check=False,
-            )
-            if completed.returncode:
-                raise RepositoryError(
-                    f"workspace verification failed ({completed.returncode}); promotion stopped"
-                )
+            commands = [[sys.executable, "manage.py", definition.name, "verify"]]
+            if not aesthetic_review:
+                commands = [[sys.executable, "manage.py", definition.name, command]
+                    for command in ("check", "test", "ui-check")]
+            for command in commands:
+                completed = subprocess.run(command, cwd=workspace, check=False)
+                if completed.returncode:
+                    raise RepositoryError(
+                        f"workspace verification failed ({completed.returncode}) while running "
+                        f"{' '.join(command[3:])}; promotion stopped"
+                    )
 
         try:
             remote = promote_to_submodule(definition, workspace, owner=owner,

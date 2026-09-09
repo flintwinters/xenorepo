@@ -27,7 +27,8 @@ class PromotionTests(unittest.TestCase):
                 visibility="private", aesthetic_review=False)
 
         commands = [call.args[0] for call in run.call_args_list]
-        self.assertEqual(commands.count(["uv", "run", "manage.py", "restore"]), 1)
+        self.assertEqual(commands.count(
+            ["uv", "run", "manage.py", "restore", "--no-submodules"]), 1)
         self.assertEqual(commands.count(
             ["uv", "run", "manage.py", definition.name, "check"]), 2)
 

@@ -180,11 +180,20 @@ frontend:
         with patch("manage._restore_dependencies") as restore, \
              patch("manage.discover_managers", return_value=repository_manager.MANAGERS), \
              patch("manage.subprocess.run") as run:
-            result = CliRunner().invoke(repository_manager.app, ["restore"])
+            result = CliRunner().invoke(repository_manager.app, ["restore", "--no-submodules"])
 
         self.assertEqual(result.exit_code, 0, result.output)
-        restore.assert_called_once_with()
+        restore.assert_called_once_with(initialize_submodules=False)
         run.assert_not_called()
+
+    def test_dependency_restore_can_preserve_unrelated_submodule_state(self) -> None:
+        with patch("manage._run_bootstrap") as run:
+            repository_manager._restore_dependencies(initialize_submodules=False)
+
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertFalse(any(command[:2] == ["git", "submodule"] for command in commands))
+        self.assertEqual([command[0] for command in commands], ["uv", "npm",
+            "node_modules/.bin/playwright"])
 
     def test_root_and_leaf_commands_have_distinct_ownership(self) -> None:
         root_commands = {command.name or command.callback.__name__.replace("_", "-")

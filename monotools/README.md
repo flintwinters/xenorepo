@@ -113,8 +113,9 @@ index and two successful complete verification runs. After the first verificatio
 records any pending app changes in a path-scoped snapshot commit, then extracts app-only
 history, pushes it to GitHub, remounts the same path as a submodule, and commits
 Xenorepo's gitlink. The routine restores missing locked dependencies before these
-gates without imposing bootstrap's supported Node version policy. Fresh checkouts
-initialize all declared app submodules through `uv run manage.py bootstrap`.
+gates without imposing bootstrap's supported Node version policy or recursively
+initializing unrelated monoapps. Fresh checkouts initialize all declared app submodules
+through `uv run manage.py bootstrap`.
 
 A promoted monoapp is independently versioned but deliberately not standalone:
 it consumes the enclosing checkout's current Monotools and shared packages.

@@ -129,9 +129,9 @@ def _run_bootstrap(command: list[str], recovery: str) -> None:
         raise LifecycleError(f"{' '.join(command)} failed ({completed.returncode}). {recovery}")
 
 
-def _restore_dependencies() -> None:
+def _restore_dependencies(*, initialize_submodules: bool = True) -> None:
     """Initialize repository and language dependencies in their required order."""
-    if (ROOT / ".gitmodules").is_file():
+    if initialize_submodules and (ROOT / ".gitmodules").is_file():
         _run_bootstrap(["git", "submodule", "update", "--init", "--recursive"],
             "Verify submodule access and URLs, then rerun bootstrap.")
     _run_bootstrap(["uv", "sync", "--locked"],
@@ -195,7 +195,8 @@ def _promote_monoapp(definition: AppDefinition, *, owner: str, repository: str,
 
     def verify_workspace() -> None:
         nonlocal dependencies_restored
-        commands = [] if dependencies_restored else [["uv", "run", "manage.py", "restore"]]
+        commands = [] if dependencies_restored else [
+            ["uv", "run", "manage.py", "restore", "--no-submodules"]]
         if not aesthetic_review:
             commands.extend([["uv", "run", "manage.py", definition.name, command]
                 for command in ("check", "test", "ui-check")])
@@ -269,7 +270,7 @@ def fork_monoapp_workspace(name: str = typer.Argument(...),
     _promote_before_forking(selected, aesthetic_review)
 
     def verify_workspace(candidate: Path) -> None:
-        commands = [["uv", "run", "manage.py", "restore"]]
+        commands = [["uv", "run", "manage.py", "restore", "--no-submodules"]]
         if aesthetic_review:
             commands.append(["uv", "run", "manage.py", "verify"])
         else:
@@ -293,10 +294,12 @@ def fork_monoapp_workspace(name: str = typer.Argument(...),
 
 
 @app.command()
-def restore() -> None:
+def restore(initialize_submodules: bool = typer.Option(True,
+    "--submodules/--no-submodules",
+    help="Initialize every declared app submodule before restoring language dependencies.")) -> None:
     """Restore locked repository dependencies without imposing a runtime version policy."""
     try:
-        _restore_dependencies()
+        _restore_dependencies(initialize_submodules=initialize_submodules)
         discover_managers()
     except (FileNotFoundError, LifecycleError, ManagerError) as error:
         _fail(error)

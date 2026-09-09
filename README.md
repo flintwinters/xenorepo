@@ -26,7 +26,8 @@ checkpoint for a fully provisioned checkout.
 
 `uv run manage.py restore` restores locked dependencies without enforcing the
 supported runtime version. `bootstrap` additionally enforces Node 22 for a fully
-supported development checkout.
+supported development checkout. Focused repository operations use
+`restore --no-submodules` because they initialize only their selected monoapp.
 
 Promote a mature monoapp from the shared monoapp controls, then create a
 separately cloned workspace that retains only that app and disconnects it from

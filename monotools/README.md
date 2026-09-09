@@ -70,9 +70,9 @@ Monotools validates the complete entry-rooted import graph before mutating
 `dist/`, watches app and relevant shared sources, and generates an API-only
 OpenAPI declaration in the owning app's ignored `data/` directory before type
 checking. Imported modules require no metadata. Use
-`python manage.py bootstrap` to verify Node 22, synchronize locked Python
-dependencies, run `npm ci`, and install the locked Chromium browser before
-frontend work.
+`python manage.py bootstrap` to synchronize locked Python dependencies, run
+`npm ci`, and install the locked Chromium browser before frontend work. The
+installed tools remain authoritative for their own Node compatibility.
 
 ## Required verification
 

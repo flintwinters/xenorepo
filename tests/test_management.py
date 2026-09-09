@@ -177,7 +177,7 @@ frontend:
         for definition, _ in repository_manager.MANAGERS:
             self.assertIn(definition.name, result.stdout)
 
-    def test_restore_does_not_enforce_bootstrap_node_version_policy(self) -> None:
+    def test_restore_can_skip_submodule_initialization(self) -> None:
         with patch("manage._restore_dependencies") as restore, \
              patch("manage.discover_managers", return_value=repository_manager.MANAGERS), \
              patch("manage.subprocess.run") as run:
@@ -185,6 +185,16 @@ frontend:
 
         self.assertEqual(result.exit_code, 0, result.output)
         restore.assert_called_once_with(initialize_submodules=False)
+        run.assert_not_called()
+
+    def test_bootstrap_restores_dependencies_without_a_node_version_policy(self) -> None:
+        with patch("manage._restore_dependencies") as restore, \
+             patch("manage.discover_managers", return_value=repository_manager.MANAGERS), \
+             patch("manage.subprocess.run") as run:
+            result = CliRunner().invoke(repository_manager.app, ["bootstrap"])
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        restore.assert_called_once_with()
         run.assert_not_called()
 
     def test_dependency_restore_can_preserve_unrelated_submodule_state(self) -> None:

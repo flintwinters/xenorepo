@@ -312,7 +312,7 @@ def fork_monoapp_workspace(name: str = typer.Argument(...)) -> None:
 def restore(initialize_submodules: bool = typer.Option(True,
     "--submodules/--no-submodules",
     help="Initialize every declared app submodule before restoring language dependencies.")) -> None:
-    """Restore locked repository dependencies without imposing a runtime version policy."""
+    """Restore locked repository dependencies."""
     try:
         _restore_dependencies(initialize_submodules=initialize_submodules)
         discover_managers()
@@ -323,16 +323,7 @@ def restore(initialize_submodules: bool = typer.Option(True,
 
 @app.command()
 def bootstrap() -> None:
-    """Verify Node 22 and restore the locked Python, npm, and browser environments."""
-    try:
-        version = subprocess.run(
-            ["node", "--version"], cwd=ROOT, check=False, text=True, capture_output=True
-        )
-    except FileNotFoundError:
-        _fail("Node 22 is required; install Node 22, then run python manage.py bootstrap.")
-    if version.returncode or not version.stdout.startswith("v22."):
-        actual = version.stdout.strip() or version.stderr.strip() or "not available"
-        _fail(f"Node 22 is required (found {actual}); install Node 22, then rerun bootstrap.")
+    """Restore the locked Python, npm, and browser environments."""
     try:
         _restore_dependencies()
     except (FileNotFoundError, LifecycleError) as error:
@@ -341,7 +332,7 @@ def bootstrap() -> None:
         discover_managers()
     except ManagerError as error:
         _fail(error)
-    console.print(f"[bold green]Bootstrap complete[/] (Node {version.stdout.strip()})")
+    console.print("[bold green]Bootstrap complete[/]")
 
 
 @app.command("list")

@@ -27,9 +27,8 @@ security auditing plus framework and app-owned browser validation. AI aesthetic 
 remains an explicit nondeterministic `aesthetic-check` rather than a release invariant.
 Pull requests and pushes to `main` run the same `release` command in CI.
 
-`uv run manage.py restore` restores locked dependencies without enforcing the
-supported runtime version. `bootstrap` additionally enforces Node 22 for a fully
-supported development checkout.
+`uv run manage.py restore` restores locked dependencies and can preserve existing
+submodule state. `bootstrap` restores the complete development checkout.
 
 Promote a mature monoapp from the shared monoapp controls, then work directly in
 its app directory:

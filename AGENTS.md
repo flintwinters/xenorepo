@@ -78,6 +78,5 @@ the orchestration library.
   with no static monoapp identity or product policy in central code or tests.
 - Admit shared code only after independent consumers prove a generic boundary;
   keep `LIBRARIES.md` authoritative for contracts and extraction policy.
-- Keep `PREACT_MIGRATION.md` concise and current.
 - Create from the Monotools template and promote mature apps to versioned GitHub
   submodules without weakening their verified Xenorepo dependency.

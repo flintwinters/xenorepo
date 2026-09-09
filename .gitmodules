@@ -2,3 +2,7 @@
 	path = apps/calendar
 	url = git@github.com:flintwinters/calendar.git
 	branch = main
+[submodule "calculator"]
+	path = apps/calculator
+	url = git@github.com:flintwinters/calculator.git
+	branch = main

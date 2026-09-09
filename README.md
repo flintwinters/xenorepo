@@ -31,28 +31,21 @@ Pull requests and pushes to `main` run the same `release` command in CI.
 supported runtime version. `bootstrap` additionally enforces Node 22 for a fully
 supported development checkout.
 
-Promote a mature monoapp from the shared monoapp controls, then create a
-separately cloned workspace that retains only that app and disconnects it from
-Xenorepo's remote:
+Promote a mature monoapp from the shared monoapp controls, then work directly in
+its app directory:
 
 ```console
 uv run manage.py monoapp promote app_name
-uv run manage.py monoapp fork-workspace app_name
+cd apps/app_name
 ```
 
 Promotion creates a Git repository in `data/repositories/<app>` with no hosted remote, then mounts
 it as the monoapp submodule. Configure and push an external remote manually when ready.
-`fork-workspace` offers this local promotion when needed, removes the focused clone's
-inherited Xenorepo `origin`, and does not restore dependencies or run tests. Use the
-focused checkout's explicit `verify` and `release` commands when appropriate. Forks default to `data/workspaces/<app>`
-inside the invoking checkout. External paths require an explicit path option.
-
-Forking checks destination conflicts before promotion and copies the app from its
-mounted checkout, even when its original local repository has moved. It builds in
-a sibling `*-pending-*` directory and atomically moves the completed clone into place.
-Failed attempts remove that incomplete temporary clone so the same command can be
-retried. Existing destinations are preserved: choose
-another `--directory` when an older attempt already occupies the requested path.
+The mounted `apps/<app>` directory is that repository's working tree; no duplicate
+workspace is created. The compatibility command `monoapp fork-workspace <app>` offers
+to remove all other clean monoapps from the current Xenorepo, offers promotion when
+needed, and reports the same in-place working tree. It refuses to remove an app with
+uncommitted work.
 
 See [AGENTS.md](AGENTS.md) for the project architecture and invariants, and
 [LIBRARIES.md](LIBRARIES.md) for shared-library boundaries.

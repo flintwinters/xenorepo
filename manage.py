@@ -33,8 +33,8 @@ from monotools.orchestration.hygiene import analyze_ui_hygiene
 from monotools.provisioning.audit import AuditReport, audit_workspace
 from monotools.provisioning.management import attach_repository_commands
 from monotools.provisioning.repositories import (
-    RepositoryError, delete_app, fork_focused_workspace, inspect_app_repository,
-    promote_to_submodule, uninitialized_app_submodules, validate_fork_destination,
+    RepositoryError, delete_app, inspect_app_repository, promote_to_submodule,
+    uninitialized_app_submodules,
 )
 from monotools.provisioning.scaffolding import ScaffoldError, scaffold_app
 
@@ -231,43 +231,75 @@ def promote_monoapp(name: str = typer.Argument(...),
         _fail(error)
 
 
-def _promote_before_forking(definition: AppDefinition) -> None:
-    """Offer the required promotion only when a focused workspace needs it."""
+def _confirm_workspace_promotion(definition: AppDefinition) -> bool:
+    """Confirm whether the current monolithic app should become its own repository."""
     try:
         state = inspect_app_repository(definition, ROOT)
     except RepositoryError as error:
         _fail(error)
     if state.mode != "monolith":
+        return False
+    if not typer.confirm(
+        f"{definition.name} is not promoted. Promote it for direct work in apps/{definition.name}?",
+        default=True,
+    ):
+        _fail(f"{definition.name} must be promoted before using its app-owned working tree")
+    return True
+
+
+def _clean_removal_candidates(others: tuple[AppDefinition, ...]) -> tuple[AppDefinition, ...]:
+    """Preflight every app before allowing any workspace-focused deletion."""
+    states = []
+    for definition in others:
+        try:
+            states.append((definition, inspect_app_repository(definition, ROOT)))
+        except RepositoryError as error:
+            _fail(f"cannot safely focus the workspace: {error}")
+    dirty = [definition.name for definition, state in states if not state.clean]
+    if dirty:
+        _fail("cannot remove monoapps with uncommitted work: " + ", ".join(dirty))
+    return tuple(definition for definition, _ in states)
+
+
+def _remove_other_apps(others: tuple[AppDefinition, ...]) -> None:
+    """Remove a preflighted set of apps through the canonical deletion routine."""
+    for definition in others:
+        try:
+            delete_app(ROOT, definition.name)
+        except RepositoryError as error:
+            _fail(f"workspace focus stopped while removing {definition.name}: {error}")
+
+
+def _offer_workspace_focus(selected: AppDefinition) -> None:
+    """Offer to remove every other clean monoapp from the current Xenorepo."""
+    others = tuple(definition for definition, _ in MANAGERS
+        if definition.name != selected.name)
+    if not others or not typer.confirm(
+        f"Remove the other {len(others)} monoapp(s) from this Xenorepo before promotion?",
+        default=False,
+    ):
         return
-    if not typer.confirm(f"{definition.name} is not promoted. Promote it before forking?", default=True):
-        _fail(f"{definition.name} must be promoted before forking a workspace")
-    try:
-        _promote_monoapp(definition,
-            repository_directory=ROOT / "data" / "repositories" / definition.name)
-    except RepositoryError as error:
-        _fail(error)
+    candidates = _clean_removal_candidates(others)
+    _remove_other_apps(candidates)
+    console.print(f"[bold green]Removed[/] {len(candidates)} other monoapp(s)")
 
 
 @monoapp.command("fork-workspace")
-def fork_monoapp_workspace(name: str = typer.Argument(...),
-    directory: Path | None = typer.Option(None, "--directory")) -> None:
-    """Create a Xenorepo clone focused on one promoted monoapp."""
+def fork_monoapp_workspace(name: str = typer.Argument(...)) -> None:
+    """Focus this Xenorepo on one app and prepare its in-place Git workspace."""
     selected = next((definition for definition, _ in MANAGERS if definition.name == name), None)
     if selected is None:
         _fail(f"unknown managed monoapp {name!r}")
-    destination = directory or ROOT / "data" / "workspaces" / name
-    try:
-        validate_fork_destination(ROOT, destination)
-    except RepositoryError as error:
-        _fail(error)
-    _promote_before_forking(selected)
-
-    try:
-        focused = fork_focused_workspace(selected, ROOT, destination=destination)
-    except (OSError, RepositoryError) as error:
-        _fail(error)
-    console.print("[bold green]Forked detached workspace[/]")
-    console.print(f"Local clone: {focused.path} at {focused.revision}")
+    promote = _confirm_workspace_promotion(selected)
+    _offer_workspace_focus(selected)
+    if promote:
+        try:
+            _promote_monoapp(selected,
+                repository_directory=ROOT / "data" / "repositories" / selected.name)
+        except RepositoryError as error:
+            _fail(error)
+    console.print("[bold green]App workspace ready[/]")
+    console.print(f"Working tree: {selected.directory}")
 
 
 @app.command()

@@ -11,7 +11,6 @@ from dataclasses import dataclass
 from pathlib import Path
 import shutil
 import subprocess
-from tempfile import mkdtemp
 from typing import TYPE_CHECKING
 
 from monotools.orchestration.apps import AppDefinitionError, validate_app_name
@@ -40,14 +39,6 @@ class AppDeletion:
 
     name: str
     mode: str
-    path: Path
-    revision: str
-
-
-@dataclass(frozen=True)
-class FocusedWorkspace:
-    """A Xenorepo derivative detached from its source repository."""
-
     path: Path
     revision: str
 
@@ -181,94 +172,6 @@ def _optional_remote(directory: Path) -> str | None:
     completed = subprocess.run(["git", "remote", "get-url", "origin"], cwd=directory,
         check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     return completed.stdout.strip() if completed.returncode == 0 else None
-
-
-def _require_git() -> None:
-    if shutil.which("git") is None:
-        raise RepositoryError("git is required for focused workspace creation")
-
-
-def _require_promoted_app(definition: AppDefinition, workspace: Path) -> Path:
-    relative = _relative_app_path(definition, workspace)
-    if relative is None:
-        raise RepositoryError("fork-workspace requires an app mounted at apps/<name> in Xenorepo")
-    state = inspect_app_repository(definition, workspace)
-    if state.mode != "submodule":
-        raise RepositoryError(f"{definition.name} must be promoted before forking a workspace")
-    if not state.clean:
-        _git(definition.directory, "clean", "-fd", "--",
-            "data/monoform.json", "data/monoform-build")
-        state = inspect_app_repository(definition, workspace)
-    if not state.clean:
-        raise RepositoryError(f"{definition.name} submodule must be clean before forking a workspace")
-    return relative
-
-
-def _focused_preflight(definition: AppDefinition, workspace: Path,
-    destination: Path) -> tuple[Path, str]:
-    _require_git()
-    validate_fork_destination(workspace, destination)
-    relative = _require_promoted_app(definition, workspace)
-    branch = _git(workspace, "symbolic-ref", "--quiet", "--short", "HEAD")
-    return relative, branch
-
-
-def validate_fork_destination(workspace: Path, destination: Path) -> None:
-    """Reject destination conflicts before any source promotion or clone mutation."""
-    if destination.is_symlink() or destination.exists():
-        raise RepositoryError(f"destination already exists: {destination}; preserve it and "
-            "choose a new path with --directory")
-    workspace, destination = workspace.resolve(), destination.resolve()
-    if destination.is_relative_to(workspace) and not destination.is_relative_to(workspace / "data"):
-        raise RepositoryError("internal workspace destinations must be beneath Xenorepo data/")
-
-
-def _tracked_app_names(workspace: Path) -> tuple[str, ...]:
-    output = _git(workspace, "ls-tree", "-d", "--name-only", "HEAD:apps")
-    names = tuple(line.strip() for line in output.splitlines() if line.strip())
-    for name in names:
-        try:
-            validate_app_name(name)
-        except AppDefinitionError as error:
-            raise RepositoryError(f"tracked apps entry is not a monoapp name: {name}") from error
-    return names
-
-
-def fork_focused_workspace(definition: AppDefinition, workspace: Path, *,
-    destination: Path) -> FocusedWorkspace:
-    """Create a focused workspace with no remote Xenorepo dependency."""
-    validate_fork_destination(workspace, destination)
-    workspace, destination = workspace.resolve(), destination.resolve()
-    relative, branch = _focused_preflight(definition, workspace, destination)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    candidate = Path(mkdtemp(prefix=f"{destination.name}-pending-", dir=destination.parent))
-    try:
-        _populate_focused_workspace(definition, workspace, candidate, relative, branch)
-        revision = _git(candidate, "rev-parse", "--short", "HEAD")
-        validate_fork_destination(workspace, destination)
-        candidate.rename(destination)
-    except Exception as error:
-        if candidate.exists():
-            shutil.rmtree(candidate)
-        raise RepositoryError(f"fork failed: {error}; no workspace was created") from error
-    return FocusedWorkspace(destination, revision)
-
-
-def _populate_focused_workspace(definition: AppDefinition, workspace: Path,
-    destination: Path, relative: Path, branch: str) -> None:
-    """Copy the pinned app from its mounted checkout, independent of its old origin."""
-    _git(workspace, "clone", "--no-recurse-submodules", "--branch", branch,
-        str(workspace), str(destination))
-    _git(destination, "config", f"submodule.{definition.name}.url", str(definition.directory))
-    _git(destination, "-c", "protocol.file.allow=always", "submodule", "update", "--init",
-        "--", str(relative))
-    for name in _tracked_app_names(destination):
-        if name != definition.name:
-            _git(destination, "rm", "-r", "-f", "--", str(Path("apps") / name))
-    _git(destination, "commit", "--allow-empty", "-m", f"Create focused {definition.title} workspace",
-        "-m", "Retain the shared Xenorepo platform and the selected promoted monoapp while "
-        "removing unrelated application sources and submodule registrations.")
-    _git(destination, "remote", "remove", "origin")
 
 
 def _validate_local_repository_target(workspace: Path, repository_directory: Path) -> None:

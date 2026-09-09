@@ -20,7 +20,8 @@ SOURCE_ROOTS = ("apps", "monotools", "packages", "tests", "xenorepo")
 SOURCE_SUFFIXES = frozenset({".py", ".js", ".ts", ".tsx", ".css", ".html"})
 TEXT_SUFFIXES = SOURCE_SUFFIXES | frozenset({".md", ".json", ".toml", ".yaml", ".yml"})
 EXCLUDED_PARTS = frozenset({
-    ".git", ".state", ".venv", "data", "dist", "historic", "node_modules", "__pycache__",
+    ".git", ".state", ".uv-cache", ".venv", "data", "dist", "historic", "node_modules",
+    "__pycache__",
 })
 MAX_SOURCE_LINES = 600
 MAX_CYCLOMATIC_COMPLEXITY = 8
@@ -62,17 +63,11 @@ def _source_files(workspace: Path) -> tuple[Path, ...]:
 
 
 def _central_text_files(workspace: Path) -> tuple[Path, ...]:
-    roots = [workspace, workspace / "monotools", workspace / "packages", workspace / "tests",
-        workspace / "xenorepo"]
-    candidates: set[Path] = set()
-    for root in roots:
-        if not root.is_dir():
-            continue
-        iterator = root.iterdir() if root == workspace else root.rglob("*")
-        candidates.update(path for path in iterator if path.is_file() and path.suffix in TEXT_SUFFIXES
-            and path.name not in {"package-lock.json", "uv.lock"}
-            and not EXCLUDED_PARTS.intersection(path.relative_to(workspace).parts))
-    return tuple(sorted(candidates))
+    excluded_roots = EXCLUDED_PARTS | frozenset({"apps"})
+    return tuple(sorted(path for path in workspace.rglob("*")
+        if path.is_file() and path.suffix in TEXT_SUFFIXES
+        and path.name not in {"package-lock.json", "uv.lock"}
+        and not excluded_roots.intersection(path.relative_to(workspace).parts)))
 
 
 def _central_identity_violations(workspace: Path,

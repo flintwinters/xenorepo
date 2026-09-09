@@ -23,6 +23,9 @@ class AuditTests(unittest.TestCase):
                 '"""Describe synthetic policy.\n\nExplain its test-only purpose.\n"""\n'
                 "from monotools.provisioning.audit import audit_workspace\nproduct = 'orion'\n",
                 encoding="utf-8")
+            (workspace / "docs").mkdir()
+            (workspace / "docs" / "runbook.md").write_text(
+                "Operate nebula with product-specific credentials.\n", encoding="utf-8")
             (first / "backend" / "server.py").write_text(
                 "from apps.nebula.backend import server\n", encoding="utf-8")
             (first / "frontend" / "index.ts").write_text(
@@ -50,6 +53,9 @@ class AuditTests(unittest.TestCase):
         })
         html_violations = [item for item in violations if item.category == "app-source-html"]
         self.assertEqual([item.path for item in html_violations], ["apps/orion/frontend/legacy.html"])
+        identity_paths = {item.path for item in violations
+            if item.category == "central-app-identity"}
+        self.assertIn("docs/runbook.md:1", identity_paths)
 
     def test_structural_audit_reports_large_files_and_python_complexity(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="audit-") as temporary:

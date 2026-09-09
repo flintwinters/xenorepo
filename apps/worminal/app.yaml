@@ -1,0 +1,23 @@
+name: worminal
+title: Worminal
+module: apps.worminal.backend.server
+capabilities:
+  - realtime
+imports:
+  - monotools.orchestration.management
+  - monotools.runtime.application
+  - monotools.runtime.realtime
+  - "monoui"
+testing:
+  python: tests
+  browser:
+    suite: tests/e2e/terminal.spec.ts
+    proofs: [acceptance, visual]
+frontend:
+  artifacts:
+    index:
+      format: preact
+      source: frontend/index.tsx
+      output: index.html
+  routes:
+    /: index

@@ -10,6 +10,7 @@ import unittest
 from unittest.mock import ANY, patch
 
 import typer
+from git import GitCommandError, Repo
 from rich.console import Console
 from rich.text import Text
 from typer.testing import CliRunner
@@ -151,17 +152,17 @@ frontend:
                 readme = definition.directory / "README.md"
                 repository = definition.directory if (definition.directory / ".git").exists() else ROOT
                 relative = readme.relative_to(repository)
-                ignored = subprocess.run(
-                    ["git", "check-ignore", "--quiet", str(relative)], cwd=repository,
-                    check=False,
-                )
-                tracked = subprocess.run(
-                    ["git", "ls-files", "--error-unmatch", str(relative)], cwd=repository,
-                    check=False,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
-                )
-                self.assertTrue(ignored.returncode == 0 or tracked.returncode == 0)
+                repo = Repo(repository)
+                try:
+                    repo.git.check_ignore("--quiet", str(relative))
+                    known = True
+                except GitCommandError:
+                    try:
+                        repo.git.ls_files("--error-unmatch", str(relative))
+                        known = True
+                    except GitCommandError:
+                        known = False
+                self.assertTrue(known)
 
     def test_root_cockpit_cold_start_discovers_the_complete_inventory(self) -> None:
         """Prove the real entrypoint imports before in-process test fixtures can mask it."""
@@ -177,34 +178,39 @@ frontend:
         for definition, _ in repository_manager.MANAGERS:
             self.assertIn(definition.name, result.stdout)
 
-    def test_restore_can_skip_submodule_initialization(self) -> None:
-        with patch("manage._restore_dependencies") as restore, \
-             patch("manage.discover_managers", return_value=repository_manager.MANAGERS), \
+    def test_restore_never_initializes_submodules_or_installs_browsers(self) -> None:
+        with patch("manage._restore_toolchain") as restore, \
              patch("manage.subprocess.run") as run:
-            result = CliRunner().invoke(repository_manager.app, ["restore", "--no-submodules"])
-
-        self.assertEqual(result.exit_code, 0, result.output)
-        restore.assert_called_once_with(initialize_submodules=False)
-        run.assert_not_called()
-
-    def test_bootstrap_restores_dependencies_without_a_node_version_policy(self) -> None:
-        with patch("manage._restore_dependencies") as restore, \
-             patch("manage.discover_managers", return_value=repository_manager.MANAGERS), \
-             patch("manage.subprocess.run") as run:
-            result = CliRunner().invoke(repository_manager.app, ["bootstrap"])
+            result = CliRunner().invoke(repository_manager.app, ["restore"])
 
         self.assertEqual(result.exit_code, 0, result.output)
         restore.assert_called_once_with()
         run.assert_not_called()
 
-    def test_dependency_restore_can_preserve_unrelated_submodule_state(self) -> None:
+    def test_bootstrap_restores_dependencies_without_a_node_version_policy(self) -> None:
+        with patch("manage._restore_toolchain") as restore, \
+             patch("manage.discover_managers", return_value=repository_manager.MANAGERS), \
+             patch("manage.subprocess.run") as run:
+            result = CliRunner().invoke(repository_manager.app, ["bootstrap"])
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        restore.assert_called_once_with(browsers=True)
+        run.assert_not_called()
+
+    def test_toolchain_restore_is_independent_of_monoapp_source(self) -> None:
         with patch("manage._run_bootstrap") as run:
-            repository_manager._restore_dependencies(initialize_submodules=False)
+            repository_manager._restore_toolchain()
 
         commands = [call.args[0] for call in run.call_args_list]
         self.assertFalse(any(command[:2] == ["git", "submodule"] for command in commands))
-        self.assertEqual([command[0] for command in commands], ["uv", "npm",
-            "node_modules/.bin/playwright"])
+        self.assertEqual([command[0] for command in commands], ["uv", "npm"])
+
+    def test_explicit_monoapp_initialization_targets_only_the_requested_path(self) -> None:
+        with patch("manage.initialize_app_submodules") as initialize:
+            result = CliRunner().invoke(repository_manager.app,
+                ["monoapp", "initialize", "signal_lab"])
+        self.assertEqual(result.exit_code, 0, result.output)
+        initialize.assert_called_once_with(ROOT, ("signal_lab",))
 
     def test_root_and_leaf_commands_have_distinct_ownership(self) -> None:
         root_commands = {command.name or command.callback.__name__.replace("_", "-")
@@ -229,6 +235,7 @@ frontend:
         monoapp_result = CliRunner().invoke(repository_manager.app, ["monoapp", "--help"])
         self.assertEqual(monoapp_result.exit_code, 0)
         self.assertIn("promote", monoapp_result.output)
+        self.assertIn("initialize", monoapp_result.output)
 
     def test_monoapp_promotion_is_centralized_by_app_name(self) -> None:
         selected = repository_manager.MANAGERS[0][0]

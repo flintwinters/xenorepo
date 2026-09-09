@@ -33,7 +33,8 @@ from monotools.orchestration.hygiene import analyze_ui_hygiene
 from monotools.provisioning.audit import AuditReport, audit_workspace
 from monotools.provisioning.management import attach_repository_commands
 from monotools.provisioning.repositories import (
-    RepositoryError, delete_app, inspect_app_repository, promote_to_submodule,
+    RepositoryError, app_boundary_inventory, delete_app, focus_app_workspace,
+    initialize_app_submodules, inspect_app_repository, promote_to_submodule,
     protect_upstream_remote, uninitialized_app_submodules,
 )
 from monotools.provisioning.scaffolding import ScaffoldError, scaffold_app
@@ -149,17 +150,15 @@ def _run_bootstrap(command: list[str], recovery: str) -> None:
         raise LifecycleError(f"{' '.join(command)} failed ({completed.returncode}). {recovery}")
 
 
-def _restore_dependencies(*, initialize_submodules: bool = True) -> None:
-    """Initialize repository and language dependencies in their required order."""
-    if initialize_submodules and (ROOT / ".gitmodules").is_file():
-        _run_bootstrap(["git", "submodule", "update", "--init", "--recursive"],
-            "Verify submodule access and URLs, then rerun bootstrap.")
+def _restore_toolchain(*, browsers: bool = False) -> None:
+    """Restore shared locked tools without changing monoapp source state."""
     _run_bootstrap(["uv", "sync", "--locked"],
-        "Restore or update uv.lock with uv lock, then rerun bootstrap.")
+        "Restore or update uv.lock with uv lock, then rerun restore.")
     _run_bootstrap(["npm", "ci"],
-        "Verify package-lock.json and npm registry access, then rerun bootstrap.")
-    _run_bootstrap(["node_modules/.bin/playwright", "install", "chromium"],
-        "Restore network access for the Playwright browser download, then rerun bootstrap.")
+        "Verify package-lock.json and npm registry access, then rerun restore.")
+    if browsers:
+        _run_bootstrap(["node_modules/.bin/playwright", "install", "chromium"],
+            "Restore network access for the Playwright browser download, then rerun bootstrap.")
 
 
 def _collect_audit() -> AuditReport:
@@ -195,6 +194,16 @@ def create_monoapp(name: str = typer.Argument(...),
         _fail(error)
     console.print(f"[bold green]Created monoapp[/] {directory.relative_to(ROOT)}")
     console.print(f"Complete {directory.relative_to(ROOT) / 'SPEC.md'}, then run uv run manage.py verify.")
+
+
+@monoapp.command("initialize")
+def initialize_monoapps(name: str | None = typer.Argument(None)) -> None:
+    """Initialize one declared monoapp submodule, or every declared monoapp when omitted."""
+    try:
+        initialize_app_submodules(ROOT, None if name is None else (name,))
+    except RepositoryError as error:
+        _fail(error)
+    console.print(f"[bold green]Monoapp source initialized[/] {name or 'all declared apps'}")
 
 
 @monoapp.command("delete")
@@ -247,61 +256,77 @@ def _confirm_workspace_promotion(definition: AppDefinition) -> bool:
     return True
 
 
-def _clean_removal_candidates(others: tuple[AppDefinition, ...]) -> tuple[AppDefinition, ...]:
-    """Preflight every app before allowing any workspace-focused deletion."""
-    states = []
-    for definition in others:
-        try:
-            states.append((definition, inspect_app_repository(definition, ROOT)))
-        except RepositoryError as error:
-            _fail(f"cannot safely focus the workspace: {error}")
-    dirty = [definition.name for definition, state in states if not state.clean]
-    if dirty:
-        _fail("cannot remove monoapps with uncommitted work: " + ", ".join(dirty))
-    return tuple(definition for definition, _ in states)
-
-
-def _remove_other_apps(others: tuple[AppDefinition, ...]) -> None:
-    """Remove a preflighted set of apps through the canonical deletion routine."""
-    for definition in others:
-        try:
-            delete_app(ROOT, definition.name)
-        except RepositoryError as error:
-            _fail(f"workspace focus stopped while removing {definition.name}: {error}")
-
-
-def _offer_workspace_focus(selected: AppDefinition) -> None:
-    """Offer to remove every other clean monoapp from the current Xenorepo."""
-    others = tuple(definition for definition, _ in MANAGERS
-        if definition.name != selected.name)
-    if not others or not typer.confirm(
-        f"Remove the other {len(others)} monoapp(s) from this Xenorepo before promotion?",
-        default=False,
-    ):
+def _focus_workspace(selected: AppDefinition, *, discard: bool) -> None:
+    """Confirm and apply the complete versioned app inventory transaction."""
+    try:
+        candidates = tuple(item for item in app_boundary_inventory(ROOT)
+            if item.name != selected.name)
+    except RepositoryError as error:
+        _fail(f"cannot safely focus the workspace: {error}")
+    if not candidates:
         return
-    candidates = _clean_removal_candidates(others)
-    _remove_other_apps(candidates)
-    console.print(f"[bold green]Removed[/] {len(candidates)} other monoapp(s)")
+    names = ", ".join(item.name for item in candidates)
+    if not typer.confirm(
+        f"Remove {len(candidates)} other monoapp boundary(s): {names}?", default=False):
+        _fail("workspace focus was not confirmed")
+    _confirm_discard(candidates, discard)
+    try:
+        focused = focus_app_workspace(ROOT, selected.name, discard=discard)
+    except RepositoryError as error:
+        _fail(error)
+    console.print(f"[bold green]Removed[/] {len(focused.removed)} other monoapp boundary(s)")
+
+
+def _confirm_discard(candidates: tuple[object, ...], discard: bool) -> None:
+    dirty = tuple(item.name for item in candidates if not item.clean)
+    if dirty and discard and not typer.confirm(
+        f"Discard uncommitted or unpinned work in: {', '.join(dirty)}?", default=False):
+        _fail("destructive discard was not confirmed")
+
+
+def _prepare_selected_workspace(selected: AppDefinition) -> None:
+    _restore_toolchain()
+    with activated_environment(ROOT, selected.directory):
+        validate_app(selected, ROOT)
+        build_app(selected, ROOT)
+        validate_dist(selected)
+
+
+def _assert_focused_workspace(selected: AppDefinition) -> None:
+    remaining = app_boundary_inventory(ROOT)
+    state = inspect_app_repository(selected, ROOT)
+    if tuple(item.name for item in remaining) != (selected.name,) or state.mode != "submodule":
+        raise RepositoryError("workspace focus did not converge to one promoted monoapp")
+
+
+def _mutate_focused_workspace(selected: AppDefinition, promote: bool, discard: bool
+    ) -> str | None:
+    upstream = protect_upstream_remote(ROOT)
+    _focus_workspace(selected, discard=discard)
+    if promote:
+        _promote_monoapp(selected,
+            repository_directory=ROOT / "data" / "repositories" / selected.name)
+    _assert_focused_workspace(selected)
+    return upstream
 
 
 @monoapp.command("fork-workspace")
-def fork_monoapp_workspace(name: str = typer.Argument(...)) -> None:
+def fork_monoapp_workspace(name: str = typer.Argument(...),
+    discard: bool = typer.Option(False, "--discard",
+        help="Allow confirmed removal of uncommitted work in non-selected apps.")) -> None:
     """Focus this Xenorepo on one app and prepare its in-place Git workspace."""
     selected = next((definition for definition, _ in MANAGERS if definition.name == name), None)
     if selected is None:
         _fail(f"unknown managed monoapp {name!r}")
+    try:
+        _prepare_selected_workspace(selected)
+    except (FileNotFoundError, EnvironmentConfigurationError, LifecycleError) as error:
+        _fail(error)
     promote = _confirm_workspace_promotion(selected)
     try:
-        upstream = protect_upstream_remote(ROOT)
+        upstream = _mutate_focused_workspace(selected, promote, discard)
     except RepositoryError as error:
         _fail(error)
-    _offer_workspace_focus(selected)
-    if promote:
-        try:
-            _promote_monoapp(selected,
-                repository_directory=ROOT / "data" / "repositories" / selected.name)
-        except RepositoryError as error:
-            _fail(error)
     console.print("[bold green]App workspace ready[/]")
     console.print(f"Working tree: {selected.directory}")
     if upstream:
@@ -309,14 +334,11 @@ def fork_monoapp_workspace(name: str = typer.Argument(...)) -> None:
 
 
 @app.command()
-def restore(initialize_submodules: bool = typer.Option(True,
-    "--submodules/--no-submodules",
-    help="Initialize every declared app submodule before restoring language dependencies.")) -> None:
+def restore() -> None:
     """Restore locked repository dependencies."""
     try:
-        _restore_dependencies(initialize_submodules=initialize_submodules)
-        discover_managers()
-    except (FileNotFoundError, LifecycleError, ManagerError) as error:
+        _restore_toolchain()
+    except (FileNotFoundError, LifecycleError) as error:
         _fail(error)
     console.print("[bold green]Dependencies restored[/]")
 
@@ -325,7 +347,7 @@ def restore(initialize_submodules: bool = typer.Option(True,
 def bootstrap() -> None:
     """Restore the locked Python, npm, and browser environments."""
     try:
-        _restore_dependencies()
+        _restore_toolchain(browsers=True)
     except (FileNotFoundError, LifecycleError) as error:
         _fail(error)
     try:
@@ -403,7 +425,7 @@ def check() -> None:
         if missing:
             names = ", ".join(path.name for path in missing)
             raise LifecycleError(
-                f"uninitialized app submodules: {names}; run uv run manage.py bootstrap"
+                f"uninitialized app submodules: {names}; run uv run manage.py monoapp initialize"
             )
         validate_source_lines(ROOT)
         report = _collect_audit()

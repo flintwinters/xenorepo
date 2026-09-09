@@ -2,10 +2,11 @@
 
 from dataclasses import replace
 from pathlib import Path
-import subprocess
 from tempfile import TemporaryDirectory
 import unittest
 from unittest.mock import patch
+
+from git import Repo
 
 import manage
 from monotools.provisioning.repositories import (
@@ -43,9 +44,10 @@ class RepositoryTransactionTests(unittest.TestCase):
         self.backing = self.workspace / "data" / "repositories" / "fixture"
 
     def git(self, directory: Path, *arguments: str) -> str:
-        result = subprocess.run(["git", *arguments], cwd=directory, text=True,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-        return result.stdout.strip()
+        if arguments[:1] == ("init",):
+            Repo.init(directory, initial_branch="main")
+            return ""
+        return Repo(directory).git.execute(["git", *arguments]).strip()
 
     def promote(self) -> None:
         promote_to_submodule(self.definition, self.workspace,

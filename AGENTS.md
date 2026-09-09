@@ -18,8 +18,6 @@ misplaced responsibility, invalid intermediate states, and lost recovery.
   managers and runtimes resolve the owning definition from local entrypoints;
   Monotools owns discovery, scaffolding, lifecycle, build, validation, universal
   platform tests, and status reporting.
-- Monotools recursively discovers documented `orchestration`, `runtime`,
-  `persistence`, and `integrations` packages.
 - Treat every public and control-plane boundary as a product contract.
   Foreseeable repository, configuration, dependency, and runtime states must
   produce coherent, contextual behavior with bounded blast radius. Preserve
@@ -50,6 +48,9 @@ misplaced responsibility, invalid intermediate states, and lost recovery.
 - Operations are deterministic, composable, and reversible.
   Validate before mutation, report partial failures and recovery, and claim
   success only after stable readiness.
+- Tools and source are independent: `restore` installs Python/Node tools,
+  `bootstrap` adds browsers, and `monoapp initialize` populates source.
+  `monoapp fork-workspace` builds its selection and atomically focuses inventory.
 - Route all repeatable validation through root `manage.py`. Test in visible,
   ignored per-app `data/`, never hidden directories or `/tmp`. Use `verify` for
   fast inner-loop checks and `release` for slow browser and fail-closed dependency

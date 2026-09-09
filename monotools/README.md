@@ -70,9 +70,11 @@ Monotools validates the complete entry-rooted import graph before mutating
 `dist/`, watches app and relevant shared sources, and generates an API-only
 OpenAPI declaration in the owning app's ignored `data/` directory before type
 checking. Imported modules require no metadata. Use
-`python manage.py bootstrap` to synchronize locked Python dependencies, run
-`npm ci`, and install the locked Chromium browser before frontend work. The
-installed tools remain authoritative for their own Node compatibility.
+`python manage.py restore` to synchronize locked Python dependencies and run
+`npm ci`; use `python manage.py bootstrap` when the locked Chromium browser is
+also required. Neither command changes monoapp source or submodule state. Use
+`python manage.py monoapp initialize [NAME]` for one declared checkout, or omit
+the name for all. The installed tools remain authoritative for Node compatibility.
 
 ## Required verification
 
@@ -112,8 +114,15 @@ is configured manually later. Promotion requires a clean Xenorepo index, records
 pending app changes in a path-scoped snapshot commit, extracts app-only history, mounts
 the local repository at the same path as a submodule, and commits Xenorepo's gitlink.
 It deliberately performs no dependency restoration or product validation; those belong
-to the explicit `verify` and `release` gates. Fresh
-checkouts initialize declared app submodules through `uv run manage.py bootstrap`.
+to the explicit `verify` and `release` gates. Fresh checkouts initialize declared
+app submodules through `uv run manage.py monoapp initialize [NAME]`.
+
+`uv run manage.py monoapp fork-workspace NAME` restores shared tools, validates
+and builds the selected app, then focuses the complete versioned `apps/*`
+inventory in one commit before promotion. Uninitialized and partial submodules
+are removed without fetching them. Dirty non-selected work blocks the operation
+unless `--discard` is supplied and its destructive confirmation is accepted.
+Success means the selected app is built and promoted and no other app registration remains.
 
 A promoted monoapp is independently versioned but deliberately not standalone:
 it consumes the enclosing checkout's current Monotools and shared packages.

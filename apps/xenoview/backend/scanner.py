@@ -10,7 +10,8 @@ import ast
 import os
 import re
 import statistics
-import subprocess
+
+from git import GitCommandError, InvalidGitRepositoryError, Repo
 
 from monotools.orchestration.apps import AppDefinition, discover_apps
 from monotools.provisioning.audit import EXCLUDED_PARTS, audit_workspace
@@ -60,11 +61,11 @@ def _is_app_source(fact: FileFact) -> bool:
 
 
 def _git(root: Path) -> tuple[str, bool]:
-    revision = subprocess.run(["git", "rev-parse", "--short=12", "HEAD"], cwd=root,
-        check=False, text=True, capture_output=True).stdout.strip() or "unavailable"
-    dirty = bool(subprocess.run(["git", "status", "--porcelain"], cwd=root,
-        check=False, text=True, capture_output=True).stdout.strip())
-    return revision, dirty
+    try:
+        repository = Repo(root, search_parent_directories=False)
+        return repository.head.commit.hexsha[:12], repository.is_dirty(untracked_files=True)
+    except (InvalidGitRepositoryError, ValueError):
+        return "unavailable", False
 
 
 def _definitions(root: Path) -> tuple[AppDefinition, ...]:
@@ -235,12 +236,14 @@ def _head_source_path(root: Path, row: str) -> str | None:
 
 
 def _head_app_lines(root: Path) -> dict[str, int]:
-    result = subprocess.run(["git", "grep", "-I", "-n", "-e", "^", "HEAD", "--", "apps/"],
-        cwd=root, check=False, text=True, capture_output=True)
     counts: Counter[str] = Counter()
-    if result.returncode not in {0, 1}:
+    try:
+        output = Repo(root).git.grep("-I", "-n", "-e", "^", "HEAD", "--", "apps/")
+    except GitCommandError as error:
+        if error.status == 1:
+            return {}
         return {}
-    for row in result.stdout.splitlines():
+    for row in output.splitlines():
         path = _head_source_path(root, row)
         if path:
             owner = _change_owner(path)
@@ -250,30 +253,33 @@ def _head_app_lines(root: Path) -> dict[str, int]:
 
 
 def _head_line_count(root: Path) -> int:
-    result = subprocess.run(["git", "grep", "-I", "-n", "-e", "^", "HEAD", "--", "."],
-        cwd=root, check=False, text=True, capture_output=True)
-    if result.returncode not in {0, 1}:
+    try:
+        output = Repo(root).git.grep("-I", "-n", "-e", "^", "HEAD", "--", ".")
+    except GitCommandError:
         return 0
-    return sum(_head_source_path(root, row) is not None for row in result.stdout.splitlines())
+    return sum(_head_source_path(root, row) is not None for row in output.splitlines())
 
 
 def _repository_root(directory: Path) -> Path | None:
-    result = subprocess.run(["git", "rev-parse", "--show-toplevel"], cwd=directory,
-        check=False, text=True, capture_output=True)
-    return Path(result.stdout.strip()).resolve() if result.returncode == 0 else None
+    try:
+        root = Repo(directory, search_parent_directories=True).working_tree_dir
+    except InvalidGitRepositoryError:
+        return None
+    return Path(root).resolve() if root else None
 
 
 def _independent_app_series(definition: AppDefinition, limit: int) -> dict[str, object] | None:
     directory = definition.directory.resolve()
     if _repository_root(directory) != directory:
         return None
-    command = ["git", "log", f"--max-count={limit}", "--date=iso-strict",
-        f"--format={_COMMIT_MARKER}%H{_FIELD_SEPARATOR}%aI{_FIELD_SEPARATOR}%s", "--numstat", "--", "."]
-    result = subprocess.run(command, cwd=directory, check=False, text=True, capture_output=True)
-    if result.returncode:
+    try:
+        output = Repo(directory).git.log(f"--max-count={limit}", "--date=iso-strict",
+            f"--format={_COMMIT_MARKER}%H{_FIELD_SEPARATOR}%aI{_FIELD_SEPARATOR}%s",
+            "--numstat", "--", ".")
+    except GitCommandError:
         return None
     commits = [_commit_history(directory, block)
-        for block in result.stdout.split(_COMMIT_MARKER)[1:]]
+        for block in output.split(_COMMIT_MARKER)[1:]]
     total = _head_line_count(directory)
     points = []
     for commit in commits:
@@ -318,14 +324,15 @@ def _app_line_series(root: Path, definitions: tuple[AppDefinition, ...],
 def scan_history(root: Path, limit: int = HISTORY_LIMIT) -> dict[str, object]:
     """Project bounded Git numstats into app and language change timelines."""
     definitions = _definitions(root)
-    command = ["git", "log", f"--max-count={limit + 1}", "--date=iso-strict",
-        f"--format={_COMMIT_MARKER}%H{_FIELD_SEPARATOR}%aI{_FIELD_SEPARATOR}%s", "--numstat", "--"]
-    result = subprocess.run(command, cwd=root, check=False, text=True, capture_output=True)
-    if result.returncode:
+    try:
+        output = Repo(root).git.log(f"--max-count={limit + 1}", "--date=iso-strict",
+            f"--format={_COMMIT_MARKER}%H{_FIELD_SEPARATOR}%aI{_FIELD_SEPARATOR}%s",
+            "--numstat", "--")
+    except GitCommandError:
         return {"available": False, "truncated": False, "limit": limit,
             "commits": [], "app_lines": []}
     commits = [_commit_history(root, block)
-        for block in result.stdout.split(_COMMIT_MARKER)[1:]]
+        for block in output.split(_COMMIT_MARKER)[1:]]
     truncated = len(commits) > limit
     commits = commits[:limit]
     return {"available": True, "truncated": truncated, "limit": limit,

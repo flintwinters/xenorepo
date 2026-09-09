@@ -7,11 +7,13 @@ contract: promoted apps remain deliberate consumers of their enclosing Xenorepo.
 from __future__ import annotations
 
 from configparser import ConfigParser
+from configparser import NoSectionError
 from dataclasses import dataclass
 from pathlib import Path
 import shutil
-import subprocess
 from typing import TYPE_CHECKING
+
+from git import GitCommandError, InvalidGitRepositoryError, NoSuchPathError, Repo
 
 from monotools.orchestration.apps import AppDefinitionError, validate_app_name
 
@@ -24,6 +26,22 @@ class RepositoryError(RuntimeError):
 
 
 UPSTREAM_PUSH_DISABLED_URL = "disabled://xenorepo-upstream-push-prohibited"
+
+
+def _repository(directory: Path) -> Repo:
+    """Open exactly one repository and normalize library diagnostics."""
+    try:
+        return Repo(directory, search_parent_directories=False)
+    except (InvalidGitRepositoryError, NoSuchPathError) as error:
+        raise RepositoryError(f"not a Git repository: {directory}") from error
+
+
+def _remove_local_submodule_config(workspace: Path, name: str) -> None:
+    try:
+        with _repository(workspace).config_writer() as writer:
+            writer.remove_section(f"submodule.{name}")
+    except NoSectionError:
+        pass
 
 
 @dataclass(frozen=True)
@@ -44,6 +62,26 @@ class AppDeletion:
     mode: str
     path: Path
     revision: str
+
+
+@dataclass(frozen=True)
+class AppBoundary:
+    """One complete versioned apps/* boundary, whether or not its source is loaded."""
+
+    name: str
+    path: Path
+    mode: str
+    populated: bool
+    clean: bool
+
+
+@dataclass(frozen=True)
+class WorkspaceFocus:
+    """The atomic host-repository change that retained one monoapp boundary."""
+
+    selected: str
+    removed: tuple[str, ...]
+    revision: str | None
 
 
 def declared_app_submodules(workspace: Path) -> tuple[Path, ...]:
@@ -68,6 +106,159 @@ def uninitialized_app_submodules(workspace: Path) -> tuple[Path, ...]:
     """Return declared app submodules whose working trees have not been populated."""
     return tuple(path for path in declared_app_submodules(workspace)
         if not (path / ".git").exists())
+
+
+def _versioned_app_names(workspace: Path) -> set[str]:
+    """Read app identities from HEAD without requiring their working trees."""
+    output = _git(workspace, "ls-tree", "-r", "--name-only", "HEAD", "--", "apps")
+    names: set[str] = set()
+    for line in output.splitlines():
+        path = Path(line)
+        if path.parts[:1] == ("apps",) and len(path.parts) >= 2:
+            names.add(path.parts[1])
+    return names
+
+
+def _validate_boundary_name(name: str) -> None:
+    try:
+        validate_app_name(name)
+    except AppDefinitionError as error:
+        raise RepositoryError(f"unmanaged app directory {name!r}: {error}") from error
+
+
+def _inspect_boundary(workspace: Path, name: str, submodule: bool) -> AppBoundary:
+    _validate_boundary_name(name)
+    path = workspace / "apps" / name
+    tracked = _git(workspace, "ls-files", "--stage", "--", f"apps/{name}")
+    if not tracked:
+        raise RepositoryError(
+            f"unmanaged app directory apps/{name}; commit or remove it before focusing")
+    populated = path.is_dir() and (not submodule or (path / ".git").exists())
+    if not submodule:
+        dirty = bool(_git(workspace, "status", "--short", "--", f"apps/{name}"))
+        return AppBoundary(name, path, "monolith", populated, not dirty)
+    dirty = path.is_dir() and any(path.iterdir()) if not populated else _submodule_dirty(
+        path, tracked)
+    return AppBoundary(name, path, "submodule", populated, not dirty)
+
+
+def _submodule_dirty(path: Path, tracked: str) -> bool:
+    pinned = tracked.split()[1] if tracked.split() else ""
+    return bool(_git(path, "status", "--short")) or _git(path, "rev-parse", "HEAD") != pinned
+
+
+def app_boundary_inventory(workspace: Path) -> tuple[AppBoundary, ...]:
+    """Inspect every versioned or registered immediate app without loading app code."""
+    workspace = workspace.resolve()
+    submodules = {path.name: path for path in declared_app_submodules(workspace)}
+    names = _versioned_app_names(workspace) | set(submodules)
+    apps_directory = workspace / "apps"
+    if apps_directory.is_dir():
+        for path in apps_directory.iterdir():
+            if path.is_dir() and not path.name.startswith((".", "_")):
+                names.add(path.name)
+    return tuple(_inspect_boundary(workspace, name, name in submodules)
+        for name in sorted(names))
+
+
+def initialize_app_submodules(workspace: Path, names: tuple[str, ...] | None = None) -> None:
+    """Populate only explicitly declared monoapp source boundaries."""
+    declared = {path.name: path for path in declared_app_submodules(workspace)}
+    requested = tuple(sorted(declared)) if names is None else names
+    unknown = sorted(set(requested) - set(declared))
+    if unknown:
+        raise RepositoryError(
+            f"unknown declared monoapp submodule(s): {', '.join(unknown)}")
+    if not requested:
+        return
+    _git(workspace, "submodule", "update", "--init", "--recursive", "--",
+        *(str(declared[name].relative_to(workspace)) for name in requested))
+
+
+def _remove_gitmodule_sections(metadata: Path, names: tuple[str, ...]) -> None:
+    parser = ConfigParser(interpolation=None)
+    parser.read(metadata, encoding="utf-8")
+    for section in tuple(parser.sections()):
+        path = Path(parser.get(section, "path", fallback=""))
+        if path.parts[:1] == ("apps",) and len(path.parts) == 2 and path.name in names:
+            parser.remove_section(section)
+    if parser.sections():
+        with metadata.open("w", encoding="utf-8") as stream:
+            parser.write(stream, space_around_delimiters=False)
+    else:
+        metadata.unlink(missing_ok=True)
+
+
+def _restore_focus_index(workspace: Path, paths: tuple[str, ...], metadata: Path,
+    original_metadata: bytes | None) -> None:
+    _git(workspace, "reset", "HEAD", "--", *paths)
+    if original_metadata is None:
+        metadata.unlink(missing_ok=True)
+        return
+    metadata.write_bytes(original_metadata)
+    _git(workspace, "reset", "HEAD", "--", ".gitmodules")
+
+
+def _commit_focus(workspace: Path, selected: str, names: tuple[str, ...],
+    paths: tuple[str, ...], metadata: Path, original_metadata: bytes | None) -> None:
+    _git(workspace, "rm", "-r", "-f", "--cached", "--", *paths)
+    if original_metadata is not None:
+        _remove_gitmodule_sections(metadata, names)
+        _git(workspace, "add", "-A", "--", ".gitmodules")
+    body = (
+        f"Retain apps/{selected} as the sole monoapp boundary and remove {len(names)} "
+        f"other versioned app boundaries in one reversible repository transaction.\n\n"
+        f"Removed: {', '.join(names)}. Source checkouts were not fetched or initialized; "
+        "reverting this commit restores their host-repository registrations."
+    )
+    _git(workspace, "commit", "-m", f"Focus Xenorepo workspace on {selected}", "-m", body)
+
+
+def _discard_focused_boundaries(workspace: Path, candidates: tuple[AppBoundary, ...]) -> None:
+    for item in candidates:
+        if item.path.exists():
+            shutil.rmtree(item.path)
+        module_metadata = workspace / ".git" / "modules" / item.name
+        if module_metadata.exists():
+            shutil.rmtree(module_metadata)
+        _remove_local_submodule_config(workspace, item.name)
+
+
+def _focus_candidates(workspace: Path, selected: str, discard: bool
+    ) -> tuple[AppBoundary, ...]:
+    if _git(workspace, "diff", "--cached", "--name-only"):
+        raise RepositoryError(
+            "Xenorepo index contains staged changes; commit or unstage them before focusing")
+    inventory = app_boundary_inventory(workspace)
+    if selected not in {item.name for item in inventory}:
+        raise RepositoryError(f"unknown versioned monoapp {selected!r}")
+    candidates = tuple(item for item in inventory if item.name != selected)
+    dirty = tuple(item.name for item in candidates if not item.clean)
+    if dirty and not discard:
+        raise RepositoryError(
+            "cannot remove monoapps with uncommitted or unpinned work: " + ", ".join(dirty))
+    return candidates
+
+
+def focus_app_workspace(workspace: Path, selected: str, *, discard: bool = False
+    ) -> WorkspaceFocus:
+    """Atomically remove every non-selected versioned app boundary without fetching source."""
+    workspace = workspace.resolve()
+    candidates = _focus_candidates(workspace, selected, discard)
+    if not candidates:
+        return WorkspaceFocus(selected, (), None)
+    names = tuple(item.name for item in candidates)
+    paths = tuple(f"apps/{name}" for name in names)
+    metadata = workspace / ".gitmodules"
+    original_metadata = metadata.read_bytes() if metadata.is_file() else None
+    try:
+        _commit_focus(workspace, selected, names, paths, metadata, original_metadata)
+    except Exception as error:
+        _restore_focus_index(workspace, paths, metadata, original_metadata)
+        raise RepositoryError(f"workspace focus rolled back after failure: {error}") from error
+    _discard_focused_boundaries(workspace, candidates)
+    revision = _git(workspace, "rev-parse", "--short", "HEAD")
+    return WorkspaceFocus(selected, names, revision)
 
 
 def _deletion_target(workspace: Path, name: str) -> tuple[str, Path, Path, bool]:
@@ -131,17 +322,20 @@ def delete_app(workspace: Path, name: str) -> AppDeletion:
     return AppDeletion(valid_name, mode, relative, revision)
 
 
-def _run(command: list[str], cwd: Path) -> str:
-    completed = subprocess.run(command, cwd=cwd, check=False, text=True,
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
-    if completed.returncode:
-        detail = completed.stdout.strip() or "no diagnostic output"
-        raise RepositoryError(f"{' '.join(command)} failed ({completed.returncode}): {detail}")
-    return completed.stdout.strip()
-
-
 def _git(cwd: Path, *arguments: str) -> str:
-    return _run(["git", *arguments], cwd)
+    """Run Git plumbing through the project's sole GitPython boundary."""
+    try:
+        if arguments[:1] == ("init",):
+            initial_branch = next((item.split("=", 1)[1] for item in arguments
+                if item.startswith("--initial-branch=")), None)
+            Repo.init(cwd, initial_branch=initial_branch)
+            return ""
+        repository = _repository(cwd)
+        return repository.git.execute(["git", *arguments]).strip()
+    except GitCommandError as error:
+        detail = (error.stderr or error.stdout or "no diagnostic output").strip()
+        raise RepositoryError(
+            f"git {' '.join(arguments)} failed ({error.status}): {detail}") from error
 
 
 def _relative_app_path(definition: AppDefinition, workspace: Path) -> Path | None:
@@ -172,9 +366,11 @@ def inspect_app_repository(definition: AppDefinition, workspace: Path) -> AppRep
 
 
 def _optional_remote(directory: Path, name: str = "origin") -> str | None:
-    completed = subprocess.run(["git", "remote", "get-url", name], cwd=directory,
-        check=False, text=True, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
-    return completed.stdout.strip() if completed.returncode == 0 else None
+    repository = _repository(directory)
+    try:
+        return next(remote.url for remote in repository.remotes if remote.name == name)
+    except StopIteration:
+        return None
 
 
 def protect_upstream_remote(workspace: Path) -> str | None:
@@ -203,8 +399,6 @@ def _validate_local_repository_target(workspace: Path, repository_directory: Pat
 
 def _preflight(definition: AppDefinition, workspace: Path,
     repository_directory: Path) -> Path:
-    if shutil.which("git") is None:
-        raise RepositoryError("git is required for monoapp repository management")
     _validate_local_repository_target(workspace, repository_directory)
     relative = _relative_app_path(definition, workspace)
     if relative is None:
@@ -260,8 +454,7 @@ def _restore_monolith(definition: AppDefinition, workspace: Path, relative: Path
     module_metadata = workspace / ".git" / "modules" / definition.name
     if module_metadata.exists():
         shutil.rmtree(module_metadata)
-    subprocess.run(["git", "config", "--remove-section", f"submodule.{definition.name}"],
-        cwd=workspace, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    _remove_local_submodule_config(workspace, definition.name)
     _git(workspace, "reset", "HEAD", "--", str(relative))
     metadata = workspace / ".gitmodules"
     if gitmodules is not None or metadata.exists():

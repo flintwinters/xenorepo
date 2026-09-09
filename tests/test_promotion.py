@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 from monotools.orchestration.apps import ROOT
 from monotools.provisioning.repositories import (
-    AppRepositoryState, promote_to_submodule,
+    AppRepositoryState, RepositoryError, promote_to_submodule,
 )
 import manage as repository_manager
 
@@ -56,7 +56,8 @@ class PromotionTests(unittest.TestCase):
         with patch("monotools.provisioning.repositories.shutil.which", return_value="/usr/bin/tool"), \
              patch("monotools.provisioning.repositories.inspect_app_repository", return_value=state), \
              patch("monotools.provisioning.repositories._run", side_effect=command), \
-             patch("pathlib.Path.mkdir"):
+             patch("pathlib.Path.mkdir"), \
+             patch("monotools.provisioning.repositories.shutil.rmtree"):
             promoted = promote_to_submodule(definition, ROOT,
                 repository_directory=repository, verify=lambda: verified.append("verified"))
 
@@ -72,6 +73,23 @@ class PromotionTests(unittest.TestCase):
         self.assertFalse(any(item.startswith("gh ") or "git push" in item for item in commands))
         self.assertIn("git submodule add", "\n".join(commands))
         self.assertTrue(commands[-1].startswith("git commit -m"))
+
+    def test_failed_mount_rolls_back_to_the_committed_monolith(self) -> None:
+        definition = repository_manager.MANAGERS[0][0]
+        repository = ROOT.parent / "promotion-test-repository"
+        with patch("monotools.provisioning.repositories._preflight",
+                return_value=Path("apps") / definition.name), \
+             patch("monotools.provisioning.repositories._commit_pending_app_changes"), \
+             patch("monotools.provisioning.repositories._git", return_value="a" * 40), \
+             patch("monotools.provisioning.repositories._create_local_repository"), \
+             patch("monotools.provisioning.repositories._mount_local_repository",
+                side_effect=RepositoryError("mount failed")), \
+             patch("monotools.provisioning.repositories._restore_monolith") as restore, \
+             self.assertRaisesRegex(RepositoryError, "rolled back after failure"):
+            promote_to_submodule(definition, ROOT, repository_directory=repository,
+                verify=lambda: None)
+
+        restore.assert_called_once()
 
 
 if __name__ == "__main__":

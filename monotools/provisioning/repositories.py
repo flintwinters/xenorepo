@@ -93,10 +93,10 @@ def _deletion_target(workspace: Path, name: str) -> tuple[str, Path, Path, bool]
     return valid_name, relative, directory, submodule
 
 
-def _remove_submodule(workspace: Path, relative: Path) -> None:
+def _remove_submodule(workspace: Path, name: str, relative: Path) -> None:
     _git(workspace, "submodule", "deinit", "-f", "--", str(relative))
     _git(workspace, "rm", "-f", "--", str(relative))
-    module_metadata = workspace / ".git" / "modules" / relative
+    module_metadata = workspace / ".git" / "modules" / name
     if module_metadata.exists():
         shutil.rmtree(module_metadata)
 
@@ -118,15 +118,17 @@ def delete_app(workspace: Path, name: str) -> AppDeletion:
     """Remove one local monoapp and every host-repository registration it owns."""
     workspace = workspace.resolve()
     valid_name, relative, directory, submodule = _deletion_target(workspace, name)
-    tracked = "" if submodule else _git(workspace, "ls-files", "--", str(relative))
+    tracked = "" if submodule else _git(
+        workspace, "ls-tree", "-r", "--name-only", "HEAD", "--", str(relative))
     if not submodule and not tracked:
         raise RepositoryError(
             f"{valid_name} is not versioned; commit it before deletion so the deletion can be reverted"
         )
     if submodule:
-        _remove_submodule(workspace, relative)
+        _remove_submodule(workspace, valid_name, relative)
         mode = "submodule"
     else:
+        _git(workspace, "reset", "HEAD", "--", str(relative))
         _git(workspace, "rm", "-r", "-f", "--", str(relative))
         mode = "monolith"
     if directory.exists():
@@ -280,10 +282,58 @@ def _commit_pending_app_changes(definition: AppDefinition, workspace: Path,
     """Capture a verified app snapshot without staging unrelated workspace changes."""
     if not _git(workspace, "status", "--short", "--", str(relative)):
         return
-    _git(workspace, "add", "-A", "--", str(relative))
-    _git(workspace, "commit", "-m", f"Prepare {definition.title} for promotion", "-m",
-        f"Record the complete verified {relative} application state before extracting its "
-        "history into an independently versioned monoapp repository.")
+    try:
+        _git(workspace, "add", "-A", "--", str(relative))
+        _git(workspace, "commit", "-m", f"Prepare {definition.title} for promotion", "-m",
+            f"Record the complete verified {relative} application state before extracting its "
+            "history into an independently versioned monoapp repository.")
+    except Exception:
+        _git(workspace, "reset", "HEAD", "--", str(relative))
+        raise
+
+
+def _create_local_repository(repository_directory: Path, workspace: Path, split: str) -> None:
+    """Materialize app-only history without leaving a partial target on failure."""
+    try:
+        repository_directory.mkdir(parents=True)
+        _git(repository_directory, "init", "--initial-branch=main")
+        _git(repository_directory, "fetch", str(workspace), split)
+        _git(repository_directory, "checkout", "-B", "main", "FETCH_HEAD")
+    except Exception:
+        shutil.rmtree(repository_directory, ignore_errors=True)
+        raise
+
+
+def _restore_monolith(definition: AppDefinition, workspace: Path, relative: Path,
+    repository_directory: Path, gitmodules: bytes | None) -> None:
+    """Roll an interrupted local-submodule transition back to committed source."""
+    if definition.directory.exists():
+        shutil.rmtree(definition.directory)
+    module_metadata = workspace / ".git" / "modules" / definition.name
+    if module_metadata.exists():
+        shutil.rmtree(module_metadata)
+    subprocess.run(["git", "config", "--remove-section", f"submodule.{definition.name}"],
+        cwd=workspace, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    _git(workspace, "reset", "HEAD", "--", str(relative))
+    metadata = workspace / ".gitmodules"
+    if gitmodules is not None or metadata.exists():
+        _git(workspace, "reset", "HEAD", "--", ".gitmodules")
+    _git(workspace, "restore", "--source=HEAD", "--worktree", "--", str(relative))
+    if gitmodules is None:
+        metadata.unlink(missing_ok=True)
+    else:
+        metadata.write_bytes(gitmodules)
+    shutil.rmtree(repository_directory, ignore_errors=True)
+
+
+def _mount_local_repository(definition: AppDefinition, workspace: Path, relative: Path,
+    repository_directory: Path) -> None:
+    """Replace committed monolith files with an exact local submodule mount."""
+    _git(workspace, "rm", "-r", "--", str(relative))
+    if definition.directory.exists():
+        shutil.rmtree(definition.directory)
+    _git(workspace, "-c", "protocol.file.allow=always", "submodule", "add", "--name",
+        definition.name, "--branch", "main", str(repository_directory), str(relative))
 
 
 def promote_to_submodule(definition: AppDefinition, workspace: Path, *,
@@ -294,19 +344,26 @@ def promote_to_submodule(definition: AppDefinition, workspace: Path, *,
     verify()
     _commit_pending_app_changes(definition, workspace, relative)
     split = _git(workspace, "subtree", "split", f"--prefix={relative}", "HEAD").splitlines()[-1]
-    repository_directory.mkdir(parents=True)
-    _git(repository_directory, "init", "--initial-branch=main")
-    _git(repository_directory, "fetch", str(workspace), split)
-    _git(repository_directory, "checkout", "-B", "main", "FETCH_HEAD")
-    _git(workspace, "rm", "-r", "--", str(relative))
-    _git(workspace, "clean", "-fdX", "--", str(relative))
-    _git(workspace, "-c", "protocol.file.allow=always", "submodule", "add", "--name",
-        definition.name, "--branch", "main", str(repository_directory), str(relative))
-    mounted = _git(definition.directory, "rev-parse", "HEAD")
-    if mounted != split:
-        raise RepositoryError(f"mounted revision {mounted} does not match exported revision {split}")
-    verify()
-    _commit_promotion(definition, workspace, relative, repository_directory, split)
+    _create_local_repository(repository_directory, workspace, split)
+    metadata = workspace / ".gitmodules"
+    gitmodules = metadata.read_bytes() if metadata.is_file() else None
+    try:
+        _mount_local_repository(definition, workspace, relative, repository_directory)
+        mounted = _git(definition.directory, "rev-parse", "HEAD")
+        if mounted != split:
+            raise RepositoryError(
+                f"mounted revision {mounted} does not match exported revision {split}")
+        verify()
+        _commit_promotion(definition, workspace, relative, repository_directory, split)
+    except Exception as error:
+        try:
+            _restore_monolith(
+                definition, workspace, relative, repository_directory, gitmodules)
+        except Exception as recovery_error:
+            raise RepositoryError(
+                f"promotion failed: {error}; automatic rollback also failed: {recovery_error}"
+            ) from error
+        raise RepositoryError(f"promotion rolled back after failure: {error}") from error
     return repository_directory
 
 

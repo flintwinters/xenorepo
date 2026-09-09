@@ -357,6 +357,8 @@ frontend:
             self._definition(unmanaged, "unmanaged")
             with self.assertRaisesRegex(repository_manager.ManagerError, "has no manage.py"):
                 repository_manager.discover_managers(apps_directory)
+            self.assertEqual(
+                repository_manager.discover_managers(apps_directory, strict=False), ())
 
             (unmanaged / "manage.py").write_text("app = object()\n", encoding="utf-8")
             with self.assertRaisesRegex(repository_manager.ManagerError, "must export 'manager'"):
@@ -476,7 +478,7 @@ frontend:
 
             def git(_cwd: Path, *arguments: str) -> str:
                 calls.append(arguments)
-                if arguments[0] == "ls-files":
+                if arguments[0] == "ls-tree":
                     return "apps/signal_lab/manage.py"
                 return "abc1234" if arguments[:2] == ("rev-parse", "--short") else ""
 
@@ -486,6 +488,7 @@ frontend:
             self.assertEqual((deleted.name, deleted.mode, deleted.revision),
                 ("signal_lab", "monolith", "abc1234"))
             self.assertFalse(directory.exists())
+            self.assertIn(("reset", "HEAD", "--", "apps/signal_lab"), calls)
             self.assertIn(("rm", "-r", "-f", "--", "apps/signal_lab"), calls)
             self.assertEqual(calls[-2][0:2], ("commit", "--only"))
             self.assertEqual(calls[-2][-2:], ("--", "apps/signal_lab"))
@@ -494,7 +497,7 @@ frontend:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="delete-") as temporary:
             workspace = Path(temporary)
             directory = workspace / "apps" / "signal_lab"
-            metadata = workspace / ".git" / "modules" / "apps" / "signal_lab"
+            metadata = workspace / ".git" / "modules" / "signal_lab"
             directory.mkdir(parents=True)
             metadata.mkdir(parents=True)
             (workspace / ".gitmodules").write_text(

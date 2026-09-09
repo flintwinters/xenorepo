@@ -96,7 +96,27 @@ def _load_managed_app(directory: Path) -> tuple[AppDefinition, ApplicationManage
     return definition, manager
 
 
-def discover_managers(apps_directory: Path = APPS_DIRECTORY
+def _load_startup_app(directory: Path, *, strict: bool
+    ) -> tuple[AppDefinition, ApplicationManager] | None:
+    """Skip broken remnants only while constructing recovery-capable commands."""
+    try:
+        return _load_managed_app(directory)
+    except ManagerError:
+        if strict:
+            raise
+        return None
+
+
+def _record_manager(managers: list[tuple[AppDefinition, ApplicationManager]], names: set[str],
+    definition: AppDefinition, manager: ApplicationManager) -> None:
+    """Append one manager while enforcing inventory identity uniqueness."""
+    if definition.name in names:
+        raise ManagerError(f"duplicate managed app name: {definition.name}")
+    names.add(definition.name)
+    managers.append((definition, manager))
+
+
+def discover_managers(apps_directory: Path = APPS_DIRECTORY, *, strict: bool = True
     ) -> tuple[tuple[AppDefinition, ApplicationManager], ...]:
     """Load every immediate visible Xenorepo app and its explicit manager."""
     managers: list[tuple[AppDefinition, ApplicationManager]] = []
@@ -107,11 +127,11 @@ def discover_managers(apps_directory: Path = APPS_DIRECTORY
             continue
         if is_planned_app(directory):
             continue
-        definition, manager = _load_managed_app(directory)
-        if definition.name in names:
-            raise ManagerError(f"duplicate managed app name: {definition.name}")
-        names.add(definition.name)
-        managers.append((definition, manager))
+        loaded = _load_startup_app(directory, strict=strict)
+        if loaded is None:
+            continue
+        definition, manager = loaded
+        _record_manager(managers, names, definition, manager)
     suite_paths = [manager.python_suite.path for _, manager in managers]
     if len(suite_paths) != len(set(suite_paths)):
         raise ManagerError("application Python suite paths must be unique")
@@ -159,7 +179,7 @@ def _print_violations(title: str, violations: tuple[object, ...]) -> None:
 app = create_cli("Manage Xenorepo and its immediate applications.")
 monoapp = create_cli("Create and manage Xenorepo monoapps.")
 app.add_typer(monoapp, name="monoapp")
-MANAGERS = discover_managers()
+MANAGERS = discover_managers(strict=False)
 for definition, manager in MANAGERS:
     attach_repository_commands(manager, ROOT)
     app.add_typer(manager.app, name=definition.name)

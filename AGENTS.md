@@ -57,8 +57,9 @@ the orchestration library.
   Validate before mutation, report partial failures and recovery, and claim
   success only after stable readiness.
 - Route all repeatable validation through root `manage.py`. Test in visible,
-  ignored per-app `data/`, never hidden directories or `/tmp`. Finish every
-  monoapp checkpoint with `uv run manage.py verify`; leaf checks are diagnostic.
+  ignored per-app `data/`, never hidden directories or `/tmp`. Use `verify` for
+  fast inner-loop checks and `release` for slow browser and fail-closed dependency
+  security gates before mainline release; leaf checks are diagnostic.
 - Keep source files under 600 lines and cyclomatic complexity at most 8. Do not
   hide project state or put exposition in UI elements.
 

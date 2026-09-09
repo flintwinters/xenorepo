@@ -166,5 +166,6 @@ completion API and retains its structured verdict, resolved model, and usage in
 `MONOTOOLS_AESTHETIC_MODEL` may override the default
 `z-ai/glm-5.3-flash` reviewer, a current high-usage, low-cost native multimodal
 model. Routing requires native support for the requested JSON Schema parameters.
-`verify` runs this AI review last, so a model outage, incomplete matrix, or major
-aesthetic finding fails the checkpoint.
+The nondeterministic review remains explicit rather than blocking the fast `verify`
+or deterministic `release` tier; a model outage, incomplete matrix, or major finding
+fails `aesthetic-check` itself.

@@ -199,8 +199,9 @@ frontend:
         root_commands = {command.name or command.callback.__name__.replace("_", "-")
             for command in repository_manager.app.registered_commands}
         self.assertEqual(root_commands,
-            {"audit", "bootstrap", "restore", "list", "status", "check", "test", "ui-check",
-                "ui-hygiene", "aesthetic-check", "verify"})
+            {"audit", "bootstrap", "restore", "list", "status", "check", "test",
+                "test-browser", "security", "ui-check", "ui-hygiene", "aesthetic-check",
+                "verify", "release"})
         self.assertIn("monoapp", {group.name for group in repository_manager.app.registered_groups})
 
         mounted_name = repository_manager.MANAGERS[0][0].name
@@ -309,8 +310,7 @@ frontend:
                 build.assert_not_called()
 
     def test_root_test_executes_the_curated_suite_once(self) -> None:
-        with patch("manage.run_test_suite", return_value=0) as run, \
-             patch("manage.run_browser_framework_suite", return_value=0) as browser:
+        with patch("manage.run_test_suite", return_value=0) as run:
             result = CliRunner().invoke(repository_manager.app, ["test"])
 
         self.assertEqual(result.exit_code, 0)
@@ -321,16 +321,38 @@ frontend:
         self.assertEqual([call.kwargs for call in run.call_args_list],
             [{"allow_empty": False}, *({"allow_empty": True} for _ in repository_manager.MANAGERS)])
         self.assertEqual(len(expected), len(set(expected)))
+
+    def test_browser_tests_are_reserved_for_the_slow_tier(self) -> None:
+        with patch("manage.run_browser_framework_suite", return_value=0) as browser:
+            result = CliRunner().invoke(repository_manager.app, ["test-browser"])
+
+        self.assertEqual(result.exit_code, 0, result.output)
         browser.assert_called_once_with(ROOT)
 
-    def test_verify_composes_checks_tests_and_complete_browser_inventory(self) -> None:
-        with patch("manage.check") as check, patch("manage.test") as test, \
-             patch("manage.aesthetic_check") as aesthetic:
+    def test_verify_composes_only_fast_checks_and_tests(self) -> None:
+        with patch("manage.check") as check, patch("manage.test") as test:
             result = CliRunner().invoke(repository_manager.app, ["verify"])
         self.assertEqual(result.exit_code, 0)
         check.assert_called_once_with()
         test.assert_called_once_with()
-        aesthetic.assert_called_once_with(app_name=None)
+
+    def test_release_composes_every_deterministic_slow_gate(self) -> None:
+        with patch("manage.verify") as verify, patch("manage.security") as security, \
+             patch("manage.test_browser") as browser, patch("manage.ui_check") as ui:
+            result = CliRunner().invoke(repository_manager.app, ["release"])
+
+        self.assertEqual(result.exit_code, 0, result.output)
+        verify.assert_called_once_with()
+        security.assert_called_once_with()
+        browser.assert_called_once_with()
+        ui.assert_called_once_with(app_name=None, evidence=False)
+
+    def test_security_gate_fails_closed_for_findings_or_audit_unavailability(self) -> None:
+        with patch("manage.subprocess.run", return_value=type("Result", (), {"returncode": 1})()):
+            result = CliRunner().invoke(repository_manager.app, ["security"], color=False)
+
+        self.assertEqual(result.exit_code, 1)
+        self.assertIn("security audit failed or was unavailable", result.output)
 
     def test_discovery_rejects_unmanaged_and_invalid_manager_directories(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="inventory-") as temporary:

@@ -422,7 +422,7 @@ def check() -> None:
 
 @app.command()
 def test() -> None:
-    """Run the curated platform and application regression suite exactly once."""
+    """Run the fast Python platform and application regression suites exactly once."""
     suites = ((PythonSuite(ROOT / "tests"), None),
         *((manager.python_suite, definition.directory) for definition, manager in MANAGERS))
     for suite, app_directory in suites:
@@ -433,11 +433,31 @@ def test() -> None:
             _fail(error)
         if result:
             raise typer.Exit(result)
-    with activated_environment(ROOT):
-        browser_result = run_browser_framework_suite(ROOT)
-    if browser_result:
-        raise typer.Exit(browser_result)
     console.print("[bold green]Tests passed[/]")
+
+
+@app.command("test-browser")
+def test_browser() -> None:
+    """Run the slower browser-framework integration suite."""
+    with activated_environment(ROOT):
+        result = run_browser_framework_suite(ROOT)
+    if result:
+        raise typer.Exit(result)
+    console.print("[bold green]Browser framework tests passed[/]")
+
+
+@app.command()
+def security() -> None:
+    """Fail closed when the root JavaScript graph has high or critical vulnerabilities."""
+    try:
+        completed = subprocess.run(
+            ["npm", "audit", "--audit-level=high"], cwd=ROOT, check=False,
+        )
+    except FileNotFoundError:
+        _fail("npm is required for the dependency security gate")
+    if completed.returncode:
+        _fail("dependency security audit failed or was unavailable")
+    console.print("[bold green]Dependency security gate passed[/]")
 
 
 @app.command("ui-check")
@@ -495,10 +515,18 @@ def aesthetic_check(app_name: str | None = typer.Argument(None)) -> None:
 
 @app.command()
 def verify() -> None:
-    """Run checks, all Python/framework tests, and the complete browser matrix."""
+    """Run the fast, deterministic inner-loop checks and Python tests."""
     check()
     test()
-    aesthetic_check(app_name=None)
+
+
+@app.command()
+def release() -> None:
+    """Run the slow, fail-closed mainline release gate."""
+    verify()
+    security()
+    test_browser()
+    ui_check(app_name=None, evidence=False)
 
 
 if __name__ == "__main__":

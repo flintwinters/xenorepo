@@ -21,8 +21,11 @@ uv run manage.py test
 ```
 
 Run `uv run manage.py --help` to discover repository and app-specific commands.
-`uv run manage.py verify` is the complete build, test, and browser-validation
-checkpoint for a fully provisioned checkout.
+`uv run manage.py verify` is the fast inner-loop build and Python-test checkpoint.
+`uv run manage.py release` is the slower mainline gate: it adds fail-closed dependency
+security auditing plus framework and app-owned browser validation. AI aesthetic review
+remains an explicit nondeterministic `aesthetic-check` rather than a release invariant.
+Pull requests and pushes to `main` run the same `release` command in CI.
 
 `uv run manage.py restore` restores locked dependencies without enforcing the
 supported runtime version. `bootstrap` additionally enforces Node 22 for a fully

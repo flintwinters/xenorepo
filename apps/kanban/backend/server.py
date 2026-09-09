@@ -11,7 +11,7 @@ from apps.kanban.backend.schemas import (
     AttachmentEdit, AttachmentView, BoardDetailsEdit, BoardEdit, BoardImport, BoardView,
     CardCreate, CardEdit, CardFields,
     CardMove, CardView, ColumnCreate, ColumnEdit, ColumnView, KanbanView,
-    ImportResult, TagColorEdit, LinkInput, LogInput, LogView,
+    ImportResult, TagColorEdit, TagCreate, TagView, LinkInput, LogInput, LogView,
     PositionInput,
 )
 from monotools.runtime.appkit import create_app_context
@@ -70,6 +70,14 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
     async def set_tag_color(tag: str, value: TagColorEdit, request: Request) -> BoardView:
         require_origin(request)
         return board.set_tag_color(tag, value.color)
+
+    @application.post("/api/tags", response_model=TagView,
+        status_code=status.HTTP_201_CREATED, operation_id="create_tag",
+        openapi_extra=monoform_operation(kind="create", entity="tag",
+            title="New tag", submit_label="CREATE"))
+    async def create_tag(value: TagCreate, request: Request) -> TagView:
+        require_origin(request)
+        return board.create_tag(value)
 
     @application.post("/api/columns", response_model=ColumnView,
         status_code=status.HTTP_201_CREATED, operation_id="create_column",

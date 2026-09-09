@@ -38,4 +38,5 @@ status, box-within-box composition, and other decorative AI conventions.
   content out of the Tags view; it is a catalog and metadata view only.
 - Keep the ordinary-tag catalog durable even when a tag has no assigned cards. Card details expose
   only ordinary tags for assignment through MonoForm's shared array-choice transfer control; board
-  membership is never edited as an ordinary tag.
+  membership is never edited as an ordinary tag. Create ordinary tags and their initial color
+  atomically through the Tags view's MonoForm operation.

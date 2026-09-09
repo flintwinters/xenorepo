@@ -12,9 +12,9 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sess
 
 from apps.kanban.backend.schemas import (
     ActivityView, AttachmentView, BoardEdit, BoardView, CardCreate, CardEdit, CardMove, CardView,
-    BoardDetailsEdit, BoardImport, ColumnView, ImportResult, KanbanView, LogView, TagView,
+    BoardDetailsEdit, BoardImport, ColumnView, ImportResult, KanbanView, LogView, TagCreate, TagView,
 )
-from apps.kanban.backend.tag_catalog import ensure_board_tag, ensure_regular_tag
+from apps.kanban.backend.tag_catalog import create_regular_tag, ensure_board_tag, ensure_regular_tag
 
 
 class KanbanError(ValueError):
@@ -226,10 +226,9 @@ class KanbanStore:
             subject_id=subject_id, summary=summary[:300], occurred_at=self.now()))
 
     @staticmethod
-    def _required(session: Session, model: type, identity: str, label: str):
+    def _required(session: Session, model: type, identity: str | int, label: str):
         value = session.get(model, identity)
-        if value is None:
-            raise KanbanError(f"{label} not found", "missing")
+        if value is None: raise KanbanError(f"{label} not found", "missing")
         return value
 
     def view(self) -> KanbanView:
@@ -390,6 +389,15 @@ class KanbanStore:
             self._activity(session, "edited", "board", board.id, f"Changed tag “{tag}” color")
             session.flush()
             return _board(board, settings)
+
+    def create_tag(self, value: TagCreate) -> TagView:
+        with self.sessions.begin() as session:
+            record = create_regular_tag(session, TagRecord, value.name, self.now(), KanbanError)
+            settings = self._required(session, BoardSettingsRecord, 1, "Board settings")
+            colors = {**json.loads(settings.tag_colors_json), record.key: value.color}
+            settings.tag_colors_json = json.dumps(colors)
+            self._activity(session, "created", "tag", record.id, f"Created tag “{record.name}”")
+            return TagView(id=record.id, name=record.name, kind="tag", color=value.color)
 
     def create_column(self, name: str, color: str) -> ColumnView:
         with self.sessions.begin() as session:

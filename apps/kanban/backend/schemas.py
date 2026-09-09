@@ -34,6 +34,12 @@ class TagColorEdit(BaseModel):
     color: Color = Field(title="Tag color")
 
 
+class TagCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: Name = Field(title="Tag name")
+    color: Color = Field(default="#665c54", title="Tag color")
+
+
 class ColumnCreate(BaseModel):
     name: Name = Field(title="Column name")
     color: Color = Field(default="#665c54", title="Column color")

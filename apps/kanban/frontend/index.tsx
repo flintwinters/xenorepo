@@ -17,6 +17,7 @@ interface State {
   selected: string | null;
   creatingIn: string | null;
   creatingColumn: boolean;
+  creatingTag: boolean;
   importing: boolean;
   editingBoard: boolean;
   editingColumn: string | null;
@@ -49,7 +50,7 @@ const monoform = rawManifest as MonoFormManifest;
 
 class KanbanBoard extends Component<Record<string, never>, State> {
   override state: State = { view: null, mode: "boards", selected: null, creatingIn: null,
-    creatingColumn: false, importing: false, editingBoard: false, editingColumn: null,
+    creatingColumn: false, creatingTag: false, importing: false, editingBoard: false, editingColumn: null,
     editingAttachment: null, message: "Loading board…", failed: false, busy: false };
   private dragged: string | null = null;
   private draggedColumn: string | null = null;
@@ -202,6 +203,16 @@ class KanbanBoard extends Component<Record<string, never>, State> {
         onSuccess={() => { this.setState({ creatingColumn: false }); void this.refresh("Column created"); }} />
     </Modal>;
   }
+  private tagCreator() {
+    if (!this.state.creatingTag) return null;
+    return <Modal class="backdrop" contentClass="dialog" labelledBy="tag-creator-title"
+      onDismiss={() => this.setState({ creatingTag: false })}><h2 id="tag-creator-title">NEW TAG</h2>
+      <MonoForm manifest={monoform} operationId="create_tag"
+        initialValues={{ color: this.state.view?.board.accent_color ?? "#665c54" }}
+        onCancel={() => this.setState({ creatingTag: false })}
+        onSuccess={() => { this.setState({ creatingTag: false }); void this.refresh("Tag created"); }} />
+    </Modal>;
+  }
   private importDialog() {
     if (!this.state.importing) return null;
     const busy = this.state.busy;
@@ -329,7 +340,9 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const cards = active(this.state.view?.cards ?? []);
     const count = (tag: Tag): number => tag.kind === "board" ? cards.length : cards.filter((card) =>
       card.tags.some((value) => value.toLocaleLowerCase() === tag.name.toLocaleLowerCase())).length;
-    return <ConsolePane class="tag-catalog" title="TAGS" tone="neutral"><table>
+    return <ConsolePane class="tag-catalog" title="TAGS" tone="neutral"
+      titleEnd={<CommandButton appearance="subtle"
+        onClick={() => this.setState({ creatingTag: true })}>+ TAG</CommandButton>}><table>
       <thead><tr><th scope="col">NAME</th><th scope="col">TYPE</th><th scope="col">COLOR</th>
         <th scope="col">ASSIGNMENTS</th></tr></thead><tbody>{(this.state.view?.tags ?? []).map((tag) =>
         <tr data-tag={tag.name}><th scope="row">{tag.name}</th><td>{tag.kind === "board" ? "BOARD" : "TAG"}</td>
@@ -378,7 +391,7 @@ class KanbanBoard extends Component<Record<string, never>, State> {
       {!view ? <EmptyState heading="LOADING BOARD" /> : this.state.mode === "boards" ? this.boardsView() :
         this.state.mode === "tags" ? this.tagsView() : this.state.mode === "archive" ? this.archiveView() :
           this.activityView()}</div>
-      {this.boardEditor()}{this.columnCreator()}{this.columnEditor()}
+      {this.boardEditor()}{this.columnCreator()}{this.tagCreator()}{this.columnEditor()}
       {this.attachmentEditor()}{this.cardEditor()}{this.importDialog()}</ConsoleShell>;
   }
 }

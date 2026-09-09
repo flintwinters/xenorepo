@@ -31,3 +31,14 @@ def ensure_regular_tag(session: Session, tag_model: type, name: str, instant: da
         return
     session.add(tag_model(id=str(uuid4()), key=key, name=name, kind="tag",
         board_id=None, created_at=instant))
+
+
+def create_regular_tag(session: Session, tag_model: type, name: str, instant: datetime,
+    conflict_error: type[Exception]):
+    key = name.casefold()
+    if session.scalar(select(tag_model).where(tag_model.key == key)) is not None:
+        raise conflict_error(f"Tag “{name}” already exists", "conflict")
+    record = tag_model(id=str(uuid4()), key=key, name=name, kind="tag",
+        board_id=None, created_at=instant)
+    session.add(record)
+    return record

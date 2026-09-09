@@ -152,6 +152,17 @@ test("[acceptance] creates, edits, drags, archives, restores, and reloads durabl
   await expect(acceptanceTag).toContainText("1");
   await expect(page.locator(".tag-catalog .card")).toHaveCount(0);
   await expect(page.getByText(`Prove board ${suffix}`, { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "+ TAG" }).click();
+  const tagCreator = page.getByRole("dialog", { name: "NEW TAG" });
+  const createdTag = `unassigned-${suffix}`;
+  await tagCreator.getByLabel("Tag name").fill(createdTag);
+  await tagCreator.getByLabel("Tag color").fill("#357");
+  await tagCreator.getByRole("button", { name: "CREATE", exact: true }).click();
+  await expect(page.getByRole("status")).toHaveText("Tag created");
+  const createdTagRow = page.locator(`[data-tag="${createdTag}"]`);
+  await expect(createdTagRow).toContainText("TAG");
+  await expect(createdTagRow).toContainText("#357");
+  await expect(createdTagRow.locator("td").last()).toHaveText("0");
   await page.getByRole("button", { name: "BOARDS", exact: true }).click();
   const cardId = await card.getAttribute("data-card-id");
   const sourceId = await source.locator(".card-list").getAttribute("data-column");

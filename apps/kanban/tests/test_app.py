@@ -141,13 +141,28 @@ class ApplicationTests(unittest.TestCase):
             doing["id"])
         self.assertIn(("Backend", "tag"), {(tag["name"], tag["kind"]) for tag in persisted["tags"]})
 
+    def test_tag_creation_persists_unassigned_metadata_and_rejects_namespace_conflicts(self) -> None:
+        created = self.client.request("POST", "/api/tags", json={"name": "Release", "color": "#357"})
+        duplicate = self.client.request("POST", "/api/tags", json={"name": "release", "color": "#fff"})
+        board_name = self.client.request("POST", "/api/tags", json={"name": "My board", "color": "#fff"})
+        persisted = self.client.request("GET", "/api/board").json()
+        self.assertEqual((created.status_code, duplicate.status_code, board_name.status_code), (201, 409, 409))
+        self.assertEqual(created.json()["name"], "Release")
+        self.assertEqual(created.json()["color"], "#357")
+        self.assertIn(("Release", "tag", "#357"),
+            {(tag["name"], tag["kind"], tag["color"]) for tag in persisted["tags"]})
+        self.assertIn("Created tag “Release”", {item["summary"] for item in persisted["activity"]})
+
     def test_modal_crud_operations_are_declared_for_monoform(self) -> None:
         operations = monoform_manifest(self.client.application.openapi(), app="kanban",
             title="Kanban")["operations"]
         self.assertEqual({operation["operationId"] for operation in operations}, {
             "create_card", "create_column", "edit_attachment", "edit_board_details", "edit_card",
-            "edit_column", "set_tag_color",
+            "edit_column", "create_tag", "set_tag_color",
         })
+        create_tag = next(operation for operation in operations
+            if operation["operationId"] == "create_tag")
+        self.assertEqual(create_tag["bodySchema"]["required"], ["name"])
         tag_color = next(operation for operation in operations
             if operation["operationId"] == "set_tag_color")
         self.assertEqual(tag_color["bodySchema"]["properties"]["color"], {

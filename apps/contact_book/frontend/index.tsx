@@ -55,7 +55,8 @@ function Application() {
       <CommandButton onClick={() => setEditing("new")}>+ CONTACT</CommandButton></UtilityRail>}
     footer={<StatusRail><span role="status" class={failed ? "error" : ""}>{message}</span>
       <span>PAGE {view?.page ?? page} / {view?.pages ?? 1}</span></StatusRail>}>
-    <ConsolePane class="directory" title="DIRECTORY" tone="green" titleEnd={<div class="controls">
+    <ConsolePane class="directory" title="DIRECTORY" tone="green">
+      <div class="controls" aria-label="Directory controls">
       <label><span>SEARCH</span><input aria-label="Search contacts" value={query}
         onInput={(event) => { setQuery(event.currentTarget.value); setPage(1); }} /></label>
       <label><span>SORT</span><select aria-label="Sort contacts" value={sort}
@@ -67,7 +68,7 @@ function Application() {
       <CommandButton aria-label="Reverse sort" pressed={direction === "desc"}
         onClick={() => { setDirection(direction === "asc" ? "desc" : "asc"); setPage(1); }}>
         {direction === "asc" ? "ASC" : "DESC"}</CommandButton>
-    </div>}>
+      </div>
       {view?.items.length ? <Table aria-label="Contacts" columns={columns} rows={view.items}
         rowKey={(contact) => contact.id} /> : <EmptyState heading={failed ? "DIRECTORY UNAVAILABLE" : "NO CONTACTS"}
         detail={failed ? "Change the query or retry when the service is available." : "Create or seed a contact."} />}

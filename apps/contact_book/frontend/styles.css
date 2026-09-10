@@ -2,19 +2,26 @@
 .app-shell > main { min-width: 0; overflow: hidden; }
 .push { margin-left: auto; color: #a89984; }
 .directory { min-width: 0; height: 100%; }
-.directory > .x-ui-chrome { flex-wrap: wrap; gap: 6px; }
 .directory > .x-ui-pane-body {
   display: grid; min-width: 0; min-height: 0; overflow: hidden;
-  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
 }
 .directory .x-ui-table-scroll { min-height: 0; }
-.controls { display: flex; align-items: end; flex-wrap: wrap; gap: 4px; }
+.controls {
+  display: flex; align-items: end; flex-wrap: wrap; gap: 4px; padding: 6px 8px;
+  background: color-mix(in srgb, #ebdbb2 2%, transparent);
+}
 .controls label { display: grid; gap: 2px; color: #a89984; font-size: 10px; }
 .controls input, .controls select {
   min-height: 26px; padding: 3px 7px; color: #ebdbb2; font: inherit;
   background: #181a1b; border: 1px solid #665c54; border-radius: 2px;
 }
 .controls input { width: min(240px, 38vw); }
+.directory .x-ui-table th, .directory .x-ui-table td { padding: 3px 8px; }
+.directory .x-ui-table tbody th, .directory .x-ui-table tbody td { border-bottom: 0; }
+.directory .x-ui-table tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--console-fg, #ebdbb2) 2%, transparent);
+}
 .x-ui-table a { display: inline-flex; align-items: center; min-height: 18px; color: #83a598; }
 .x-ui-table .actions { width: 1%; text-align: right; }
 .pager { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px; }
@@ -29,7 +36,6 @@
 @media (max-width: 720px) {
   .app-shell > header .x-ui-rail { flex-wrap: wrap; }
   .push { display: none; }
-  .directory > .x-ui-chrome { align-items: start; }
   .controls { width: 100%; }
   .controls label:first-child { flex: 1 1 100%; }
   .controls input { width: 100%; }

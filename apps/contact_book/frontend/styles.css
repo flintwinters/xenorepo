@@ -18,6 +18,11 @@
   background: #181a1b; border: 1px solid #665c54; border-radius: 2px;
 }
 .controls input { width: min(240px, 38vw); }
+.sort-heading {
+  display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 4px;
+  padding: 0; color: inherit; font: inherit; text-align: left; background: none; border: 0; cursor: pointer;
+}
+.sort-heading:hover, .sort-heading:focus-visible { color: #ebdbb2; }
 .directory .x-ui-table th, .directory .x-ui-table td { padding: 3px 8px; }
 .directory .x-ui-table tbody th, .directory .x-ui-table tbody td { border-bottom: 0; }
 .directory .x-ui-table tbody tr:nth-child(even) {

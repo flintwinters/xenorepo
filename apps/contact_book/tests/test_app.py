@@ -69,10 +69,13 @@ class ContactBookTests(unittest.TestCase):
         first = self.client.request("GET", "/api/contacts?sort=name&page_size=2").json()
         second = self.client.request("GET", "/api/contacts?sort=name&page=2&page_size=2").json()
         filtered = self.client.request("GET", "/api/contacts?q=Boston&sort=email&direction=desc").json()
+        sortable = [self.client.request("GET", f"/api/contacts?sort={field}")
+            for field in ("name", "email", "company", "job_title", "city")]
         self.assertEqual(([item["name"] for item in first["items"]], first["pages"],
             [item["name"] for item in second["items"]]), (["Alpha", "Beta"], 2, ["Zulu"]))
         self.assertEqual([item["email"] for item in filtered["items"]],
             ["z@example.test", "b@example.test"])
+        self.assertTrue(all(response.status_code == 200 for response in sortable))
         self.assertEqual(self.client.request("GET", "/api/contacts?page_size=101").status_code, 422)
         self.assertEqual(self.client.request("GET", "/api/contacts?sort=unknown").status_code, 422)
 

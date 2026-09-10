@@ -7,7 +7,7 @@ import type { Contact } from "./client.js";
 import "./styles.css";
 
 interface ContactPage { items: Contact[]; page: number; page_size: number; total: number; pages: number }
-type Sort = "name" | "email" | "company" | "city" | "updated_at";
+type Sort = "name" | "email" | "company" | "job_title" | "city";
 
 async function loadContacts(query: string, sort: Sort, direction: "asc" | "desc", page: number) {
   const params = new URLSearchParams({ q: query, sort, direction, page: String(page), page_size: "20" });
@@ -38,20 +38,33 @@ function Application() {
     }
   };
   useEffect(() => { void refresh(); }, [query, sort, direction, page]);
+  const sortBy = (next: Sort) => {
+    setDirection(next === sort && direction === "asc" ? "desc" : "asc");
+    setSort(next); setPage(1);
+  };
+  const heading = (label: string, field: Sort) => <CommandButton appearance="subtle" class="sort-heading"
+    aria-label={`Sort by ${label}`} onClick={() => sortBy(field)}>
+    <span>{label}</span><span aria-hidden="true">{sort === field ? (direction === "asc" ? "▲" : "▼") : "↕"}</span>
+  </CommandButton>;
   const columns = useMemo<TableColumn<Contact>[]>(() => [
-    { key: "name", header: "Name", width: "18%", rowHeader: true, render: (contact) => contact.name },
-    { key: "email", header: "Email", width: "30%",
+    { key: "name", header: heading("Name", "name"), width: "18%", rowHeader: true,
+      sortDirection: sort === "name" ? `${direction}ending` : "none", render: (contact) => contact.name },
+    { key: "email", header: heading("Email", "email"), width: "30%",
+      sortDirection: sort === "email" ? `${direction}ending` : "none",
       render: (contact) => <a href={`mailto:${contact.email}`}>{contact.email}</a> },
-    { key: "company", header: "Company", width: "25%", class: "mobile-hidden",
+    { key: "company", header: heading("Company", "company"), width: "25%", class: "mobile-hidden",
+      sortDirection: sort === "company" ? `${direction}ending` : "none",
       render: (contact) => contact.company || "—" },
-    { key: "role", header: "Role", width: "15%", class: "mobile-hidden",
+    { key: "role", header: heading("Role", "job_title"), width: "15%", class: "mobile-hidden",
+      sortDirection: sort === "job_title" ? `${direction}ending` : "none",
       render: (contact) => contact.job_title || "—" },
-    { key: "city", header: "City", width: "12%", class: "mobile-hidden",
+    { key: "city", header: heading("City", "city"), width: "12%", class: "mobile-hidden",
+      sortDirection: sort === "city" ? `${direction}ending` : "none",
       render: (contact) => contact.city || "—" },
     { key: "actions", header: <span class="visually-hidden">Actions</span>, width: "64px", class: "actions",
       render: (contact) => <CommandButton appearance="subtle"
         onClick={() => setEditing(contact)}>EDIT</CommandButton> },
-  ], []);
+  ], [sort, direction]);
   const changed = () => { setEditing(null); void refresh(); };
   const current = editing === "new" ? null : editing;
   return <ConsoleShell class="app-shell"
@@ -63,15 +76,6 @@ function Application() {
       <div class="controls" aria-label="Directory controls">
       <label><span>SEARCH</span><input aria-label="Search contacts" value={query}
         onInput={(event) => { setQuery(event.currentTarget.value); setPage(1); }} /></label>
-      <label><span>SORT</span><select aria-label="Sort contacts" value={sort}
-        onChange={(event) => { setSort(event.currentTarget.value as Sort); setPage(1); }}>
-        <option value="name">Name</option><option value="email">Email</option>
-        <option value="company">Company</option><option value="city">City</option>
-        <option value="updated_at">Recently updated</option>
-      </select></label>
-      <CommandButton aria-label="Reverse sort" pressed={direction === "desc"}
-        onClick={() => { setDirection(direction === "asc" ? "desc" : "asc"); setPage(1); }}>
-        {direction === "asc" ? "ASC" : "DESC"}</CommandButton>
       </div>
       {view?.items.length ? <Table aria-label="Contacts" columns={columns} rows={view.items}
         rowKey={(contact) => contact.id} /> : <EmptyState heading={failed ? "DIRECTORY UNAVAILABLE" : "NO CONTACTS"}

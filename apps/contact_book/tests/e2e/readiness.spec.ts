@@ -28,19 +28,29 @@ test("[acceptance] directory data drives search, sort, pagination, and CRUD", as
   await page.getByLabel("Search contacts").fill("");
   await page.getByRole("button", { name: "NEXT" }).click();
   await expect(page.getByText("PAGE 2", { exact: true }).last()).toBeVisible();
-  await page.getByLabel("Sort contacts").selectOption("email");
-  await page.getByLabel("Reverse sort").click();
+  await page.getByRole("button", { name: "Sort by Name" }).click();
+  await expect(table.locator("th[aria-sort='descending']")).toContainText("Name");
+  for (const heading of ["Email", "Company", "Role", "City"]) {
+    const control = page.getByRole("button", { name: `Sort by ${heading}` });
+    if (await control.isVisible()) {
+      await control.click();
+      await expect(table.locator("th[aria-sort='ascending']")).toContainText(heading);
+    }
+  }
+  await page.getByRole("button", { name: "Sort by Name" }).click();
+  await page.getByRole("button", { name: "Sort by Name" }).click();
+  await expect(table.locator("th[aria-sort='descending']")).toContainText("Name");
   expect(await columnWidths()).toEqual(initialColumnWidths);
 
   await page.getByRole("button", { name: "+ CONTACT" }).click();
-  await page.getByLabel("Name").fill("Grace Hopper");
-  await page.getByLabel("Email").fill("grace@example.test");
+  await page.getByLabel("Name", { exact: true }).fill("Grace Hopper");
+  await page.getByLabel("Email", { exact: true }).fill("grace@example.test");
   await page.getByRole("button", { name: "CREATE" }).click();
   await expect(page.getByRole("dialog")).toBeHidden();
   await page.getByLabel("Search contacts").fill("grace@example.test");
   await expect(table).toContainText("Grace Hopper");
   await page.getByRole("button", { name: "EDIT" }).click();
-  await page.getByLabel("Name").fill("Grace Murray Hopper");
+  await page.getByLabel("Name", { exact: true }).fill("Grace Murray Hopper");
   await page.getByRole("button", { name: "SAVE" }).click();
   await expect(page.getByRole("dialog")).toBeHidden();
   await expect(table).toContainText("Grace Murray Hopper");

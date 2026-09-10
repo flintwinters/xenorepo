@@ -13,7 +13,7 @@ RequiredText = Annotated[str, StringConstraints(strip_whitespace=True, min_lengt
 Email = Annotated[str, StringConstraints(strip_whitespace=True, min_length=3, max_length=254,
     pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")]
 OptionalText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=160)]
-SortField = Literal["name", "email", "company", "city", "updated_at"]
+SortField = Literal["name", "email", "company", "job_title", "city"]
 Direction = Literal["asc", "desc"]
 
 
@@ -63,7 +63,9 @@ class Base(DeclarativeBase):
 class ContactRecord(Base):
     __tablename__ = "contacts"
     __table_args__ = (Index("contact_name_order", "name", "id"),
-        Index("contact_company_order", "company", "id"), Index("contact_city_order", "city", "id"))
+        Index("contact_company_order", "company", "id"),
+        Index("contact_job_title_order", "job_title", "id"),
+        Index("contact_city_order", "city", "id"))
     id: Mapped[str] = mapped_column(String(36), primary_key=True)
     name: Mapped[str] = mapped_column(String(160))
     email: Mapped[str] = mapped_column(String(254), unique=True, index=True)

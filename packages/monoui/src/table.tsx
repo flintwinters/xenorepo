@@ -7,6 +7,7 @@ export interface TableColumn<Row> {
   render: (row: Row) => ComponentChildren;
   rowHeader?: boolean;
   class?: string;
+  sortDirection?: "ascending" | "descending" | "none";
 }
 
 export interface TableProps<Row> extends Omit<JSX.HTMLAttributes<HTMLTableElement>, "children"> {
@@ -26,7 +27,8 @@ export function Table<Row>({ columns, rows, rowKey, caption, class: className,
     {caption && <caption>{caption}</caption>}
     <colgroup>{columns.map((column) => <col key={column.key} class={column.class}
       style={{ width: column.width }} />)}</colgroup>
-    <thead><tr>{columns.map((column) => <th key={column.key} scope="col" class={column.class}>
+    <thead><tr>{columns.map((column) => <th key={column.key} scope="col" class={column.class}
+      aria-sort={column.sortDirection}>
       {column.header}
     </th>)}</tr></thead>
     <tbody>{rows.map((row) => <tr key={rowKey(row)}>{columns.map((column) => {

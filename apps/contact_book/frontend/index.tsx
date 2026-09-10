@@ -42,7 +42,7 @@ function Application() {
     setDirection(next === sort && direction === "asc" ? "desc" : "asc");
     setSort(next); setPage(1);
   };
-  const heading = (label: string, field: Sort) => <CommandButton appearance="subtle" class="sort-heading"
+  const heading = (label: string, field: Sort) => <CommandButton appearance="link" class="sort-heading"
     aria-label={`Sort by ${label}`} onClick={() => sortBy(field)}>
     <span>{label}</span><span aria-hidden="true">{sort === field ? (direction === "asc" ? "▲" : "▼") : "↕"}</span>
   </CommandButton>;

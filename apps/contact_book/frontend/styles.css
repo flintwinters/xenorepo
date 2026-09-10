@@ -25,11 +25,11 @@
 .sort-heading:hover, .sort-heading:focus-visible { color: #ebdbb2; }
 .directory .x-ui-table th, .directory .x-ui-table td { padding: 3px 8px; }
 .directory .x-ui-table tbody th, .directory .x-ui-table tbody td { border-bottom: 0; }
-.directory .x-ui-table tbody tr:nth-child(even) {
-  background: color-mix(in srgb, var(--console-fg, #ebdbb2) 2%, transparent);
+.directory .x-ui-table tbody tr:nth-child(even) > :is(th, td) {
+  background-color: color-mix(in srgb, var(--console-fg, #ebdbb2) 2%, transparent);
 }
-.directory .x-ui-table tbody tr:hover {
-  background: color-mix(in srgb, var(--console-fg, #ebdbb2) 6%, transparent);
+.directory .x-ui-table tbody tr:hover > :is(th, td) {
+  background-color: color-mix(in srgb, var(--console-fg, #ebdbb2) 6%, transparent);
 }
 .x-ui-table a { display: inline-flex; align-items: center; min-height: 18px; color: #83a598; }
 .x-ui-table .actions { width: 1%; text-align: right; }

@@ -1,0 +1,43 @@
+.app-shell { height: 100%; --console-line-height: 1.2; }
+.app-shell > main { min-width: 0; overflow: hidden; }
+.push { margin-left: auto; color: #a89984; }
+.directory { min-width: 0; height: 100%; }
+.directory > .x-ui-chrome { flex-wrap: wrap; gap: 6px; }
+.directory > .x-ui-pane-body {
+  display: grid; min-width: 0; min-height: 0; overflow: hidden;
+  grid-template-rows: minmax(0, 1fr) auto;
+}
+.directory .x-ui-table-scroll { min-height: 0; }
+.controls { display: flex; align-items: end; flex-wrap: wrap; gap: 4px; }
+.controls label { display: grid; gap: 2px; color: #a89984; font-size: 10px; }
+.controls input, .controls select {
+  min-height: 26px; padding: 3px 7px; color: #ebdbb2; font: inherit;
+  background: #181a1b; border: 1px solid #665c54; border-radius: 2px;
+}
+.controls input { width: min(240px, 38vw); }
+.x-ui-table a { display: inline-flex; align-items: center; min-height: 18px; color: #83a598; }
+.x-ui-table .actions { width: 1%; text-align: right; }
+.pager { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px; }
+.pager span { color: #a89984; font-size: 10px; }
+.dialog {
+  width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto;
+  padding: 16px; background: #282828; border: 1px solid #8ec07c; box-shadow: 0 14px 34px #000;
+}
+.dialog h2 { margin: 0 0 12px; color: #b8bb26; font-size: 14px; }
+.error { color: #fb4934; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+@media (max-width: 720px) {
+  .app-shell > header .x-ui-rail { flex-wrap: wrap; }
+  .push { display: none; }
+  .directory > .x-ui-chrome { align-items: start; }
+  .controls { width: 100%; }
+  .controls label:first-child { flex: 1 1 100%; }
+  .controls input { width: 100%; }
+  .controls input, .controls select, .x-ui-table a { min-height: 28px; }
+  .directory .x-ui-table { table-layout: fixed; }
+  .directory .x-ui-table th:nth-child(n+3):nth-child(-n+5),
+  .directory .x-ui-table td:nth-child(n+3):nth-child(-n+5) { display: none; }
+  .directory .x-ui-table th, .directory .x-ui-table td { overflow-wrap: anywhere; }
+  .directory .x-ui-table th:first-child { width: 36%; }
+  .directory .x-ui-table .actions { width: 64px; white-space: nowrap; }
+}

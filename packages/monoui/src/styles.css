@@ -351,6 +351,17 @@
   font-weight: bold;
 }
 .x-ui-form-confirm { display: flex; align-items: center; gap: 6px; }
+.x-ui-table-scroll { display: block; width: 100%; max-width: 100%; min-width: 0; overflow: auto; }
+.x-ui-table { width: 100%; border-collapse: collapse; font: inherit; }
+.x-ui-table th, .x-ui-table td {
+  padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--console-border, #3c3836);
+}
+.x-ui-table thead th {
+  color: var(--console-muted, #a89984); font-size: 10px; letter-spacing: .06em;
+  text-transform: uppercase;
+}
+.x-ui-table tbody th { color: var(--console-fg, #ebdbb2); font-weight: 600; }
+.x-ui-table tbody tr:hover { background: color-mix(in srgb, var(--console-fg, #ebdbb2) 4%, transparent); }
 @media (max-width: 390px) {
   .x-ui-command-control {
     min-width: 28px;

@@ -6,6 +6,8 @@ export { MonoForm } from "./monoform";
 export type { MonoFormManifest, MonoFormOperation, MonoFormProps, MonoFormResult } from "./monoform";
 export { CommandButton } from "./command-button";
 export type { CommandButtonProps } from "./command-button";
+export { Table } from "./table";
+export type { TableColumn, TableProps } from "./table";
 export {
   Form, FormActions, FormConfirmation, FormField, FormInput, FormSelect, FormTextarea,
 } from "./form-controls";

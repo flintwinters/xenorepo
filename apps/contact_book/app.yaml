@@ -1,0 +1,27 @@
+name: contact_book
+title: Contact Book
+module: apps.contact_book.backend.server
+capabilities:
+  - database
+  - monoform
+imports:
+  - monotools.orchestration.management
+  - monotools.persistence.database
+  - monotools.runtime.appkit
+  - monotools.runtime.application
+  - monotools.runtime.http
+  - monotools.runtime.monoform
+  - "monoui"
+testing:
+  python: tests
+  browser:
+    suite: tests/e2e/readiness.spec.ts
+    proofs: [acceptance, visual]
+frontend:
+  artifacts:
+    index:
+      format: preact
+      source: frontend/index.tsx
+      output: index.html
+  routes:
+    /: index

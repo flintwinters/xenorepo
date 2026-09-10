@@ -1,6 +1,6 @@
 import { Component, render } from "preact";
 import { CommandButton, ConsoleChrome, ConsolePane, ConsoleShell, EmptyState, Modal, MonoForm, StatusRail,
-  UtilityRail, type MonoFormManifest } from "monoui";
+  Table, UtilityRail, type MonoFormManifest, type TableColumn } from "monoui";
 import rawManifest from "../data/monoform.json";
 import {
   addLink, addLog, addUpload, importBoard, loadBoard, moveCard, moveColumn, setArchived,
@@ -340,15 +340,18 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const cards = active(this.state.view?.cards ?? []);
     const count = (tag: Tag): number => tag.kind === "board" ? cards.length : cards.filter((card) =>
       card.tags.some((value) => value.toLocaleLowerCase() === tag.name.toLocaleLowerCase())).length;
+    const columns: TableColumn<Tag>[] = [
+      { key: "name", header: "NAME", rowHeader: true, render: (tag) => tag.name },
+      { key: "type", header: "TYPE", render: (tag) => tag.kind === "board" ? "BOARD" : "TAG" },
+      { key: "color", header: "COLOR", render: (tag) => <span class="tag-color"
+        style={coloredSurfaceStyle("--tag-color", "--tag-ink", tag.color)}>{tag.color.toUpperCase()}</span> },
+      { key: "assignments", header: "ASSIGNMENTS", render: count },
+    ];
     return <ConsolePane class="tag-catalog" title="TAGS" tone="neutral"
       titleEnd={<CommandButton appearance="subtle"
-        onClick={() => this.setState({ creatingTag: true })}>+ TAG</CommandButton>}><table>
-      <thead><tr><th scope="col">NAME</th><th scope="col">TYPE</th><th scope="col">COLOR</th>
-        <th scope="col">ASSIGNMENTS</th></tr></thead><tbody>{(this.state.view?.tags ?? []).map((tag) =>
-        <tr data-tag={tag.name}><th scope="row">{tag.name}</th><td>{tag.kind === "board" ? "BOARD" : "TAG"}</td>
-          <td><span class="tag-color" style={coloredSurfaceStyle("--tag-color", "--tag-ink", tag.color)}>
-            {tag.color.toUpperCase()}</span></td><td>{count(tag)}</td></tr>)}</tbody>
-    </table></ConsolePane>;
+        onClick={() => this.setState({ creatingTag: true })}>+ TAG</CommandButton>}>
+      <Table columns={columns} rows={this.state.view?.tags ?? []} rowKey={(tag) => tag.name} />
+    </ConsolePane>;
   }
   private archiveView() {
     const view = this.state.view!;

@@ -23,7 +23,8 @@ The typed `ConsoleShell`, `UtilityRail`, `StatusRail`, `ConsoleChrome`, `Console
 `CommandButton` console family is proven by nine independent consumers. Typed `Form`,
 `FormField`, `FormInput`, `FormSelect`, `FormTextarea`, `FormConfirmation`, and
 `FormActions` primitives own form structure and presentation for the independent
-MonoForm consumers. `EmptyState`
+MonoForm consumers. `Table` has two independent consumers and owns only accessible table structure;
+consumers own all data operations and provide columns, rows, stable row keys, and cell rendering. `EmptyState`
 has three and owns only centered empty-result geometry around an app-owned heading
 and optional detail. `Modal` has two independent consumers and owns accessible
 dialog structure, Escape dismissal, and direct-backdrop dismissal while leaving

@@ -3,6 +3,7 @@ import type { ComponentChildren, JSX } from "preact";
 export interface TableColumn<Row> {
   key: string;
   header: ComponentChildren;
+  width: string;
   render: (row: Row) => ComponentChildren;
   rowHeader?: boolean;
   class?: string;
@@ -23,6 +24,8 @@ export function Table<Row>({ columns, rows, rowKey, caption, class: className,
   return <div class="x-ui-table-scroll"><table class={classes("x-ui-table", className as string | undefined)}
     {...props}>
     {caption && <caption>{caption}</caption>}
+    <colgroup>{columns.map((column) => <col key={column.key} class={column.class}
+      style={{ width: column.width }} />)}</colgroup>
     <thead><tr>{columns.map((column) => <th key={column.key} scope="col" class={column.class}>
       {column.header}
     </th>)}</tr></thead>

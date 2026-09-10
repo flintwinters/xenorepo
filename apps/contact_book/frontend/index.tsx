@@ -39,12 +39,16 @@ function Application() {
   };
   useEffect(() => { void refresh(); }, [query, sort, direction, page]);
   const columns = useMemo<TableColumn<Contact>[]>(() => [
-    { key: "name", header: "Name", rowHeader: true, render: (contact) => contact.name },
-    { key: "email", header: "Email", render: (contact) => <a href={`mailto:${contact.email}`}>{contact.email}</a> },
-    { key: "company", header: "Company", render: (contact) => contact.company || "—" },
-    { key: "role", header: "Role", render: (contact) => contact.job_title || "—" },
-    { key: "city", header: "City", render: (contact) => contact.city || "—" },
-    { key: "actions", header: <span class="visually-hidden">Actions</span>, class: "actions",
+    { key: "name", header: "Name", width: "18%", rowHeader: true, render: (contact) => contact.name },
+    { key: "email", header: "Email", width: "30%",
+      render: (contact) => <a href={`mailto:${contact.email}`}>{contact.email}</a> },
+    { key: "company", header: "Company", width: "25%", class: "mobile-hidden",
+      render: (contact) => contact.company || "—" },
+    { key: "role", header: "Role", width: "15%", class: "mobile-hidden",
+      render: (contact) => contact.job_title || "—" },
+    { key: "city", header: "City", width: "12%", class: "mobile-hidden",
+      render: (contact) => contact.city || "—" },
+    { key: "actions", header: <span class="visually-hidden">Actions</span>, width: "64px", class: "actions",
       render: (contact) => <CommandButton appearance="subtle"
         onClick={() => setEditing(contact)}>EDIT</CommandButton> },
   ], []);

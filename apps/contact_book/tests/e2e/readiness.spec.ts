@@ -19,13 +19,18 @@ test("[acceptance] directory data drives search, sort, pagination, and CRUD", as
   await page.goto("/");
   const table = page.getByRole("table", { name: "Contacts" });
   await expect(table).toContainText("Ada Lovelace");
+  const columnWidths = () => table.locator("thead th").evaluateAll((headers) =>
+    headers.map((header) => header.getBoundingClientRect().width));
+  const initialColumnWidths = await columnWidths();
   await page.getByLabel("Search contacts").fill("Boston");
   await expect(table.locator("tbody tr")).toHaveCount(12);
+  expect(await columnWidths()).toEqual(initialColumnWidths);
   await page.getByLabel("Search contacts").fill("");
   await page.getByRole("button", { name: "NEXT" }).click();
   await expect(page.getByText("PAGE 2", { exact: true }).last()).toBeVisible();
   await page.getByLabel("Sort contacts").selectOption("email");
   await page.getByLabel("Reverse sort").click();
+  expect(await columnWidths()).toEqual(initialColumnWidths);
 
   await page.getByRole("button", { name: "+ CONTACT" }).click();
   await page.getByLabel("Name").fill("Grace Hopper");

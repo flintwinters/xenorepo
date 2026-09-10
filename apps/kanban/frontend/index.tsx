@@ -330,11 +330,12 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const count = (tag: Tag): number => tag.kind === "board" ? cards.length : cards.filter((card) =>
       card.tags.some((value) => value.toLocaleLowerCase() === tag.name.toLocaleLowerCase())).length;
     const columns: TableColumn<Tag>[] = [
-      { key: "name", header: "NAME", rowHeader: true, render: (tag) => tag.name },
-      { key: "type", header: "TYPE", render: (tag) => tag.kind === "board" ? "BOARD" : "TAG" },
-      { key: "color", header: "COLOR", render: (tag) => <span class="tag-color"
+      { key: "name", header: "NAME", width: "28%", rowHeader: true, render: (tag) => tag.name },
+      { key: "type", header: "TYPE", width: "18%",
+        render: (tag) => tag.kind === "board" ? "BOARD" : "TAG" },
+      { key: "color", header: "COLOR", width: "30%", render: (tag) => <span class="tag-color"
         style={coloredSurfaceStyle("--tag-color", "--tag-ink", tag.color)}>{tag.color.toUpperCase()}</span> },
-      { key: "assignments", header: "ASSIGNMENTS", render: count },
+      { key: "assignments", header: "ASSIGNMENTS", width: "24%", render: count },
     ];
     return <ConsolePane class="tag-catalog" title="TAGS" tone="neutral"
       titleEnd={<CommandButton appearance="subtle"

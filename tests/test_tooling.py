@@ -109,6 +109,32 @@ class RepositoryAppTests(unittest.TestCase):
             self.assertIn("Ready", document)
             self.assertNotIn('script src=', document)
             self.assertNotIn('rel="stylesheet"', document)
+
+    def test_frontend_build_reuses_only_content_identical_artifacts(self) -> None:
+        with TemporaryDirectory(dir=ROOT / "tests", prefix="preact-cache-") as temporary:
+            directory = Path(temporary)
+            frontend = directory / "frontend"
+            frontend.mkdir()
+            source = frontend / "index.tsx"
+            source.write_text("export const answer = 42;\n", encoding="utf-8")
+            (directory / "app.yaml").write_text("name: fixture\n", encoding="utf-8")
+            definition = self.fixture_definition(directory)
+
+            def produce(_definition, artifact, _workspace):
+                output = directory / "dist" / artifact.output
+                output.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+
+            with patch("monotools.orchestration.lifecycle._build_frontend",
+                    side_effect=produce) as compile_frontend:
+                build_app(definition, ROOT)
+                build_app(definition, ROOT)
+                (directory / "dist" / "index.html").write_text("tampered", encoding="utf-8")
+                build_app(definition, ROOT)
+                source.write_text("export const answer = 43;\n", encoding="utf-8")
+                build_app(definition, ROOT)
+
+            self.assertEqual(compile_frontend.call_count, 3)
+            self.assertIn("answer = 43", (directory / "dist" / "index.html").read_text())
     def test_preact_metadata_requires_a_tsx_entry(self) -> None:
         base = """name: fixture
 title: Fixture

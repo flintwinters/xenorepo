@@ -21,7 +21,7 @@ class ServiceSupervisorTests(unittest.TestCase):
     @patch("monotools.orchestration.services.wait_for_health")
     @patch("monotools.orchestration.services.validate_dist")
     @patch("monotools.orchestration.services.build_app")
-    @patch("monotools.orchestration.services.validate_app")
+    @patch("monotools.orchestration.services.validate_startup")
     def test_start_uses_canonical_build_and_owns_process(self, validate, build, dist, wait, healthy) -> None:
         status = self.supervisor.start("example")
         self.assertEqual((status.name, status.port, status.running, status.managed),

@@ -370,6 +370,37 @@ def list_apps() -> None:
     console.print(table)
 
 
+@app.command("benchmark-startup")
+def benchmark_startup(app_name: str = typer.Argument(...),
+    runs: int = typer.Option(3, min=1, max=20),
+    port: int = typer.Option(0, min=0, max=65535,
+        help="Fixed port, or zero to select an available loopback port.")) -> None:
+    """Measure launch through healthy readiness using the production lifecycle."""
+    from statistics import median
+    from time import perf_counter
+
+    from monotools.orchestration.services import ServiceError, ServiceSupervisor
+    from monotools.orchestration.ui import available_local_port
+
+    selected = [definition for definition, _ in MANAGERS if definition.name == app_name]
+    if not selected:
+        _fail(f"unknown app '{app_name}'; available: {', '.join(d.name for d, _ in MANAGERS)}")
+    selected_port = port or available_local_port()
+    supervisor = ServiceSupervisor(tuple(selected), ROOT, first_port=selected_port)
+    durations: list[float] = []
+    try:
+        for _ in range(runs):
+            started = perf_counter()
+            supervisor.start(app_name)
+            durations.append(perf_counter() - started)
+            supervisor.stop(app_name)
+    except ServiceError as error:
+        _fail(error)
+    rendered = ", ".join(f"{duration:.3f}s" for duration in durations)
+    console.print(f"[bold green]{app_name} healthy startup[/]: {rendered}; "
+        f"median {median(durations):.3f}s")
+
+
 @app.command()
 def status() -> None:
     """Show source and artifact health for every managed application."""

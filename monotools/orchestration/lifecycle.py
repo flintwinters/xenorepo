@@ -7,6 +7,7 @@ prepares databases, imports services, and coordinates repeatable app tests.
 from importlib import import_module
 import ast
 from html import escape
+import hashlib
 from pathlib import Path
 import json
 import os
@@ -34,6 +35,8 @@ MAX_SOURCE_LINE_LENGTH = 120
 SOURCE_DIRECTORIES = ("apps", "monotools", "packages", "tests")
 SOURCE_EXCLUDED_DIRECTORIES = frozenset({".venv", "__pycache__", "data", "dist", "node_modules"})
 SOURCE_SUFFIXES = frozenset({".py", ".js", ".ts", ".tsx", ".css"})
+BUILD_STATE = ".build.json"
+BUILD_STATE_VERSION = 1
 
 
 def validate_source_lines(workspace: Path) -> None:
@@ -108,7 +111,10 @@ def _build_frontend(definition: AppDefinition, artifact: FrontendArtifact, works
     finally:
         bundle.unlink(missing_ok=True)
         stylesheet.unlink(missing_ok=True)
-    _write_document(definition, artifact, script, styles)
+    output = definition.dist_directory / artifact.output
+    temporary = output.with_name(f".{output.name}.new")
+    _write_document(definition, artifact, script, styles, output=temporary)
+    temporary.replace(output)
 
 
 def _write_document(definition: AppDefinition, artifact: FrontendArtifact,
@@ -130,10 +136,67 @@ def _write_document(definition: AppDefinition, artifact: FrontendArtifact,
     )
 
 
+def frontend_inputs(definition: AppDefinition, workspace: Path) -> tuple[Path, ...]:
+    """Return every authoritative file that can affect a frontend build."""
+    inputs = [*(_files_beneath(definition.source_directory)),
+        *(_files_beneath(workspace / "packages" / "monoui" / "src")),
+        *(workspace / name for name in
+            ("package.json", "package-lock.json", "tsconfig.preact.json")),
+        *(workspace / "monotools" / "node" / name for name in
+            ("build-preact.mjs", "check-frontend.mjs")),
+        *(_files_beneath(workspace / "types")), definition.directory / "app.yaml"]
+    return tuple(sorted(path for path in inputs if path.is_file()))
+
+
+def _files_beneath(directory: Path) -> tuple[Path, ...]:
+    return tuple(path for path in directory.rglob("*") if path.is_file())
+
+
+def _build_fingerprint(definition: AppDefinition, workspace: Path) -> str:
+    digest = hashlib.sha256()
+    for path in frontend_inputs(definition, workspace):
+        digest.update(str(path.relative_to(workspace)).encode())
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
+def _build_is_current(definition: AppDefinition, fingerprint: str) -> bool:
+    outputs = {str(item.output): _file_digest(definition.dist_directory / item.output)
+        for item in definition.artifacts}
+    if any(value is None for value in outputs.values()):
+        return False
+    try:
+        state = json.loads((definition.dist_directory / BUILD_STATE).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    return state == {
+        "version": BUILD_STATE_VERSION, "fingerprint": fingerprint, "outputs": outputs}
+
+
+def _file_digest(path: Path) -> str | None:
+    try:
+        return hashlib.sha256(path.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+
 def build_app(definition: AppDefinition, workspace: Path) -> None:
+    """Build changed frontend inputs and atomically record the reusable result."""
     definition.dist_directory.mkdir(exist_ok=True)
+    fingerprint = _build_fingerprint(definition, workspace)
+    if _build_is_current(definition, fingerprint):
+        return
     for artifact in definition.artifacts:
         _build_frontend(definition, artifact, workspace)
+    state = definition.dist_directory / BUILD_STATE
+    temporary = definition.dist_directory / f".{BUILD_STATE}.new"
+    outputs = {str(item.output): _file_digest(definition.dist_directory / item.output)
+        for item in definition.artifacts}
+    temporary.write_text(json.dumps({"version": BUILD_STATE_VERSION,
+        "fingerprint": fingerprint, "outputs": outputs}, sort_keys=True) + "\n", encoding="utf-8")
+    temporary.replace(state)
 
 
 _SHARED_PACKAGE_IMPORT = re.compile(
@@ -188,6 +251,16 @@ def validate_app(definition: AppDefinition, workspace: Path) -> None:
     _validate_runtime_contract(definition, module)
     _generate_openapi_types(definition, module.app, workspace)
     _validate_frontend(definition, workspace)
+
+
+def validate_startup(definition: AppDefinition, workspace: Path) -> None:
+    """Validate cheap launch prerequisites without repeating the full release gate."""
+    missing = [path.relative_to(workspace) for path in _required_sources(definition)
+        if not path.is_file()]
+    if missing:
+        raise LifecycleError(f"{definition.name} missing files: {', '.join(map(str, missing))}")
+    _validate_declared_imports(definition)
+    py_compile.compile(str(definition.backend_directory / "server.py"), doraise=True)
 
 
 def _generate_openapi_types(definition: AppDefinition, application: FastAPI,
@@ -288,7 +361,7 @@ def serve_app(definition: AppDefinition, workspace: Path, *, host: str = "127.0.
     port: int = 8000, watch: bool = False, environment: Mapping[str, str] | None = None,
     report: Callable[[str], None] = print) -> int:
     """Build and run one FastAPI app, optionally watching its frontend inputs."""
-    validate_app(definition, workspace)
+    validate_startup(definition, workspace)
     build_app(definition, workspace)
     validate_dist(definition)
     if watch:

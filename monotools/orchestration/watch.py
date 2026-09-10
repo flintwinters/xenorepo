@@ -9,29 +9,7 @@ from pathlib import Path
 import time
 
 from monotools.orchestration.apps import AppDefinition
-from monotools.orchestration.lifecycle import build_app
-
-
-def frontend_inputs(definition: AppDefinition, workspace: Path) -> tuple[Path, ...]:
-    """Return every authoritative input that can affect an app's frontend build."""
-    inputs = [definition.directory / artifact.source for artifact in definition.artifacts]
-    inputs.extend(_frontend_tooling_inputs(definition, workspace))
-    return tuple(sorted(path for path in inputs if path.is_file()))
-
-
-def _frontend_tooling_inputs(definition: AppDefinition, workspace: Path) -> tuple[Path, ...]:
-    inputs = [*(_files_beneath(definition.directory / "frontend")),
-        *(_files_beneath(workspace / "packages" / "monoui" / "src")),
-        *(workspace / name for name in
-            ("package.json", "package-lock.json", "tsconfig.preact.json")),
-        *(workspace / "monotools" / "node" / name for name in
-            ("build-preact.mjs", "check-frontend.mjs")),
-        *(_files_beneath(workspace / "types"))]
-    return tuple(inputs)
-
-
-def _files_beneath(directory: Path) -> tuple[Path, ...]:
-    return tuple(path for path in directory.rglob("*") if path.is_file())
+from monotools.orchestration.lifecycle import build_app, frontend_inputs
 
 
 def _snapshot(paths: tuple[Path, ...]) -> tuple[tuple[Path, int], ...]:

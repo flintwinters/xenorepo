@@ -16,7 +16,9 @@ import urllib.error
 import urllib.request
 
 from monotools.orchestration.apps import AppDefinition
-from monotools.orchestration.lifecycle import LifecycleError, build_app, validate_app, validate_dist
+from monotools.orchestration.lifecycle import (
+    LifecycleError, build_app, validate_dist, validate_startup,
+)
 from monotools.orchestration.ui import wait_for_health
 
 
@@ -63,7 +65,7 @@ class ServiceSupervisor:
             current = self._status(definition)
             if current.running:
                 raise ServiceError(f"{name} is already running")
-            validate_app(definition, self._workspace)
+            validate_startup(definition, self._workspace)
             build_app(definition, self._workspace)
             validate_dist(definition)
             port = self._ports[name]

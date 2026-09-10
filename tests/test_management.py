@@ -216,7 +216,7 @@ frontend:
         root_commands = {command.name or command.callback.__name__.replace("_", "-")
             for command in repository_manager.app.registered_commands}
         self.assertEqual(root_commands,
-            {"audit", "bootstrap", "restore", "list", "status", "check", "test",
+            {"audit", "benchmark-startup", "bootstrap", "restore", "list", "status", "check", "test",
                 "test-browser", "security", "ui-check", "ui-hygiene", "aesthetic-check",
                 "verify", "release"})
         self.assertIn("monoapp", {group.name for group in repository_manager.app.registered_groups})

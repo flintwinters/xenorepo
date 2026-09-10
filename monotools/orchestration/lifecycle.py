@@ -9,6 +9,7 @@ import ast
 from html import escape
 from pathlib import Path
 import json
+import os
 import py_compile
 import re
 import shutil

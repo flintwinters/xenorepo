@@ -11,9 +11,8 @@ application reaches its ready state through the same Monotools lifecycle used by
 
 ## Interaction contracts
 
-Identify conventional CRUD operations and decide explicitly whether MonoForm can preserve their
-workflow. Prefer typed MonoForm declarations when its schema-derived fields and fixed transport fit;
-keep product-defining, conditional, relationship, file, or specialized interactions app-owned.
+Describe app-owned Preact forms composed from MonoUI controls and generated OpenAPI types. Keep
+backend models, validation, and authorization authoritative.
 
 ## Real-world validation
 

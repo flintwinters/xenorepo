@@ -26,13 +26,13 @@ directory.
 2. The directory requests one bounded page and renders it through the shared MonoUI table.
 3. App-owned controls change the query, sort, direction, and page; the resulting server data alone
    changes the table view.
-4. MonoForm-backed dialogs create, edit, and delete contacts, then refresh the current directory.
+4. App-owned dialogs create, edit, and delete contacts, then refresh the current directory.
 5. Empty, loading, validation, conflict, missing-record, and transport-failure states remain explicit
    and recoverable.
 
 ## Interaction contract
 
-MonoForm is suitable for contact create, update, and delete because these are conventional scalar
+App-owned Preact forms handle contact create, update, and delete as conventional scalar
 CRUD operations. Search, ordering, and pagination are product-owned controls around the read-only
 table. The table accepts typed column descriptions, typed rows, an app-supplied stable row key, and
 cell renderers; it adds no hidden data transformations or interaction policy.

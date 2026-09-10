@@ -1,7 +1,6 @@
 import { Component, render } from "preact";
-import { CommandButton, ConsoleChrome, ConsolePane, ConsoleShell, EmptyState, Modal, MonoForm, StatusRail,
-  Table, UtilityRail, type MonoFormManifest, type TableColumn } from "monoui";
-import rawManifest from "../data/monoform.json";
+import { CommandButton, ConsoleChrome, ConsolePane, ConsoleShell, EmptyState, Modal, StatusRail,
+  Table, UtilityRail, type TableColumn } from "monoui";
 import {
   addLink, addLog, addUpload, importBoard, loadBoard, moveCard, moveColumn, setArchived,
   type BoardImport,
@@ -9,6 +8,7 @@ import {
 } from "./client.js";
 import { coloredSurfaceStyle } from "./color.js";
 import "./styles.css";
+import { AttachmentForm, BoardForm, CardForm, ColorForm, ColumnForm, TagForm } from "./forms.js";
 
 type Mode = "boards" | "tags" | "archive" | "activity";
 interface State {
@@ -46,7 +46,6 @@ const currentState = (view: KanbanView) => {
         ({ card_id, kind, title, url, original_name, media_type })),
   };
 };
-const monoform = rawManifest as MonoFormManifest;
 
 class KanbanBoard extends Component<Record<string, never>, State> {
   override state: State = { view: null, mode: "boards", selected: null, creatingIn: null,
@@ -167,15 +166,12 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     const knownTags = this.knownTags();
     return <Modal class="backdrop" contentClass="dialog" labelledBy="board-editor-title"
       onDismiss={() => this.setState({ editingBoard: false })}><h2 id="board-editor-title">BOARD SETTINGS</h2>
-      <MonoForm manifest={monoform} operationId="edit_board_details" initialValues={board}
-        onCancel={() => this.setState({ editingBoard: false })}
-        onSuccess={() => { this.setState({ editingBoard: false }); void this.refresh("Board details updated"); }} />
+      <BoardForm board={board} onCancel={() => this.setState({ editingBoard: false })}
+        onSaved={() => { this.setState({ editingBoard: false }); void this.refresh("Board details updated"); }} />
       {knownTags.length > 0 && <fieldset><legend>Tag colors</legend>{knownTags.map((tag) =>
-        <MonoForm manifest={monoform} operationId="set_tag_color" title={`Tag “${tag}”`}
-          pathValues={{ tag }} initialValues={{
-            color: board.tag_colors[tag.toLocaleLowerCase()] ?? board.accent_color,
-          }} onSuccess={() => { this.setState({ editingBoard: false });
-            void this.refresh(`Tag ${tag} color updated`); }} />)}</fieldset>}
+        <ColorForm tag={tag} color={board.tag_colors[tag.toLocaleLowerCase()] ?? board.accent_color}
+          onCancel={() => this.setState({ editingBoard: false })} onSaved={() => {
+            this.setState({ editingBoard: false }); void this.refresh(`Tag ${tag} color updated`); }} />)}</fieldset>}
     </Modal>;
   }
   private columnEditor() {
@@ -185,9 +181,8 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     if (!column) return null;
     return <Modal class="backdrop" contentClass="dialog" labelledBy="column-editor-title"
       onDismiss={() => this.setState({ editingColumn: null })}><h2 id="column-editor-title">EDIT COLUMN</h2>
-      <MonoForm manifest={monoform} operationId="edit_column" pathValues={{ column_id: column.id }}
-        initialValues={column} onCancel={() => this.setState({ editingColumn: null })}
-        onSuccess={() => { this.setState({ editingColumn: null }); void this.refresh("Column renamed"); }} />
+      <ColumnForm column={column} onCancel={() => this.setState({ editingColumn: null })}
+        onSaved={() => { this.setState({ editingColumn: null }); void this.refresh("Column renamed"); }} />
       <div class="actions"><CommandButton type="button" class="danger" onClick={() => {
         this.setState({ editingColumn: null });
         this.archive("column", column.id);
@@ -198,19 +193,17 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     if (!this.state.creatingColumn) return null;
     return <Modal class="backdrop" contentClass="dialog" labelledBy="column-creator-title"
       onDismiss={() => this.setState({ creatingColumn: false })}><h2 id="column-creator-title">NEW COLUMN</h2>
-      <MonoForm manifest={monoform} operationId="create_column"
-        onCancel={() => this.setState({ creatingColumn: false })}
-        onSuccess={() => { this.setState({ creatingColumn: false }); void this.refresh("Column created"); }} />
+      <ColumnForm column={null} onCancel={() => this.setState({ creatingColumn: false })}
+        onSaved={() => { this.setState({ creatingColumn: false }); void this.refresh("Column created"); }} />
     </Modal>;
   }
   private tagCreator() {
     if (!this.state.creatingTag) return null;
     return <Modal class="backdrop" contentClass="dialog" labelledBy="tag-creator-title"
       onDismiss={() => this.setState({ creatingTag: false })}><h2 id="tag-creator-title">NEW TAG</h2>
-      <MonoForm manifest={monoform} operationId="create_tag"
-        initialValues={{ color: this.state.view?.board.accent_color ?? "#665c54" }}
+      <TagForm color={this.state.view?.board.accent_color ?? "#665c54"}
         onCancel={() => this.setState({ creatingTag: false })}
-        onSuccess={() => { this.setState({ creatingTag: false }); void this.refresh("Tag created"); }} />
+        onSaved={() => { this.setState({ creatingTag: false }); void this.refresh("Tag created"); }} />
     </Modal>;
   }
   private importDialog() {
@@ -252,10 +245,9 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     return <Modal class="backdrop" contentClass="dialog" labelledBy="attachment-editor-title"
       onDismiss={() => this.setState({ editingAttachment: null })}>
       <h2 id="attachment-editor-title">EDIT ATTACHMENT</h2>
-      <MonoForm manifest={monoform} operationId="edit_attachment"
-        pathValues={{ attachment_id: attachment.id }} initialValues={attachment}
+      <AttachmentForm attachment={attachment}
         onCancel={() => this.setState({ editingAttachment: null })}
-        onSuccess={() => { this.setState({ editingAttachment: null });
+        onSaved={() => { this.setState({ editingAttachment: null });
           void this.refresh("Attachment updated"); }} />
     </Modal>;
   }
@@ -263,18 +255,15 @@ class KanbanBoard extends Component<Record<string, never>, State> {
     if (this.state.editingAttachment) return null;
     const card = this.card(this.state.selected);
     if (!card && !this.state.creatingIn) return null;
-    const value = card ?? { title: "", tags: [] };
     const logs = card ? this.cardLogs(card.id) : [];
     const attachments = active(this.state.view?.attachments ?? []).filter((item) => item.card_id === card?.id);
     return <Modal class="backdrop" contentClass="dialog card-dialog" labelledBy="card-editor-title"
       onDismiss={() => this.setState({ selected: null, creatingIn: null })}>
       <h2 id="card-editor-title">{card ? "CARD DETAILS" : "NEW CARD"}</h2>
-      <div class="card-fields"><MonoForm manifest={monoform}
-        operationId={card ? "edit_card" : "create_card"}
-        pathValues={card ? { card_id: card.id } : { column_id: this.state.creatingIn! }}
-        initialValues={value} fieldChoices={card ? { tags: this.knownTags() } : {}}
+      <div class="card-fields"><CardForm card={card} columnId={this.state.creatingIn ?? card?.column_id ?? ""}
+        choices={this.knownTags()}
         onCancel={() => this.setState({ selected: null, creatingIn: null })}
-        onSuccess={() => {
+        onSaved={() => {
           this.setState({ selected: null, creatingIn: null });
           void this.refresh(card ? "Card updated" : "Card created");
         }} />{card && <div class="actions"><CommandButton type="button" class="danger"

@@ -37,6 +37,19 @@ export async function editBoard(fields: BoardFields): Promise<void> {
   const { error } = await api.PATCH("/api/board", { body: fields });
   if (error) result(undefined, error);
 }
+export async function editBoardDetails(fields: { name: string; description: string }): Promise<void> {
+  const { error } = await api.PATCH("/api/board/details", { body: fields });
+  if (error) result(undefined, error);
+}
+export async function setTagColor(tag: string, color: string): Promise<void> {
+  const { error } = await api.PATCH("/api/board/tag-colors/{tag}", {
+    params: { path: { tag } }, body: { color },
+  }); if (error) result(undefined, error);
+}
+export async function createTag(name: string, color: string): Promise<void> {
+  const { error } = await api.POST("/api/tags", { body: { name, color } });
+  if (error) result(undefined, error);
+}
 export async function createColumn(name: string, color: string): Promise<void> {
   const { error } = await api.POST("/api/columns", { body: { name, color } });
   if (error) result(undefined, error);

@@ -14,7 +14,6 @@ contracts; `monotools.orchestration` must not depend on provisioning policy.
 | --- | --- | --- | --- | --- |
 | Monotools | Python + TypeScript tooling | `monotools/`, `tsconfig.preact.json` | Typed metadata, discovery, lifecycle orchestration, build validation, FastAPI runtime, portable persistence, generic transport primitives, and evidence handling. | A capability must be declarative and reusable by an arbitrary future monoapp. |
 | MonoUI | TypeScript + CSS | `packages/monoui/` | Typed shells, panes, rails, and command controls with stable classes and external presentation. | Every component must have at least two independent monoapp consumers. |
-| MonoForm | Python + TypeScript | `monotools/runtime/monoform.py`, `packages/monoui/src/monoform.tsx` | Validated CRUD declarations, deterministic manifests, schema-derived forms, fixed same-origin transport, and immutable allowlisted page artifacts. | Use only where the generic contract preserves the workflow; backend security and domain invariants remain app-owned. |
 | Browser Testing | JavaScript/TypeScript | `packages/browser-testing/` | Shared Playwright fixtures, strict browser diagnostics, trusted input drivers, schema-versioned evidence, and static proof validation. | Shared code contains no app routes, selectors, entities, or gesture semantics. |
 
 ## MonoUI contract
@@ -22,8 +21,8 @@ contracts; `monotools.orchestration` must not depend on provisioning policy.
 The typed `ConsoleShell`, `UtilityRail`, `StatusRail`, `ConsoleChrome`, `ConsolePane`, and
 `CommandButton` console family is proven by nine independent consumers. Typed `Form`,
 `FormField`, `FormInput`, `FormSelect`, `FormTextarea`, `FormConfirmation`, and
-`FormActions` primitives own form structure and presentation for the independent
-MonoForm consumers. `Table` has two independent consumers and owns only accessible table structure;
+`FormActions` primitives own form structure and presentation for independent app-owned forms.
+`Table` has two independent consumers and owns only accessible table structure;
 consumers own all data operations and provide columns, rows, stable row keys, and cell rendering. `EmptyState`
 has three and owns only centered empty-result geometry around an app-owned heading
 and optional detail. `Modal` has two independent consumers and owns accessible
@@ -42,22 +41,6 @@ The package owns only proved console geometry and interaction treatment; app
 layout remains in external app-owned CSS. All consumers import `monoui`.
 Established catalogued controls are the default for matching semantics. The
 independent-consumer rule governs creating abstractions, not consuming them.
-
-## MonoForm contract
-
-Two independent monoapps prove the same generic declaration, manifest, renderer,
-and transport boundary without app-specific shared branches. MonoForm
-accepts only annotated relative `/api` operations and declared primitive fields,
-filters initial and submitted values through the manifest, escapes rendered
-content, binds hidden path values, maps validation and platform errors, prevents
-parallel submission, and confirms destructive operations. Consumers may supply
-an allowed choice catalog for an array field to render a shared drag-and-drop
-transfer control with an equivalent click interaction; choice catalogs guide
-editing but do not replace server-side validation. Generated pages expose
-only metadata-allowlisted operations and atomically replace prior artifacts.
-Authentication, authorization, same-origin enforcement, transactions, and domain
-validation remain server-authoritative. Unsupported or product-defining flows
-remain bespoke without a waiver.
 
 ## Monotools production contract inventory
 
@@ -78,7 +61,6 @@ root orchestration surfaces rather than independently adopted app contracts.
 | `monotools.runtime.appkit` | 7 |
 | `monotools.runtime.application` | 9 |
 | `monotools.runtime.http` | 7 |
-| `monotools.runtime.monoform` | 2 |
 | `monotools.runtime.realtime` | 3 |
 
 Single-consumer modules are narrow typed integration contracts, not extracted

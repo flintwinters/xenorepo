@@ -1,17 +1,13 @@
 import { render } from "preact";
 import { useEffect, useMemo, useRef, useState } from "preact/hooks";
-import { CommandButton, ConsolePane, ConsoleShell, EmptyState, Modal, MonoForm, StatusRail,
-  Table, UtilityRail, type MonoFormManifest, type TableColumn } from "monoui";
-import rawManifest from "../data/monoform.json";
+import { CommandButton, ConsolePane, ConsoleShell, EmptyState, Modal, StatusRail,
+  Table, UtilityRail, type TableColumn } from "monoui";
+import { ContactForm } from "./contact-form.js";
+import type { Contact } from "./client.js";
 import "./styles.css";
 
-interface Contact {
-  id: string; name: string; email: string; phone: string | null; company: string | null;
-  job_title: string | null; city: string | null; tags: string[];
-}
 interface ContactPage { items: Contact[]; page: number; page_size: number; total: number; pages: number }
 type Sort = "name" | "email" | "company" | "city" | "updated_at";
-const manifest = rawManifest as MonoFormManifest;
 
 async function loadContacts(query: string, sort: Sort, direction: "asc" | "desc", page: number) {
   const params = new URLSearchParams({ q: query, sort, direction, page: String(page), page_size: "20" });
@@ -82,12 +78,7 @@ function Application() {
     </ConsolePane>
     {editing && <Modal labelledBy="contact-editor-title" onDismiss={() => setEditing(null)}
       contentClass="dialog"><h2 id="contact-editor-title">{current ? "EDIT CONTACT" : "NEW CONTACT"}</h2>
-      <MonoForm manifest={manifest} operationId={current ? "update_contact" : "create_contact"}
-        pathValues={current ? { contact_id: current.id } : {}}
-        initialValues={current ? { ...current } : { tags: [] }}
-        onCancel={() => setEditing(null)} onSuccess={changed} />
-      {current && <MonoForm manifest={manifest} operationId="delete_contact"
-        pathValues={{ contact_id: current.id }} onSuccess={changed} />}</Modal>}
+      <ContactForm contact={current} onCancel={() => setEditing(null)} onChanged={changed} /></Modal>}
   </ConsoleShell>;
 }
 

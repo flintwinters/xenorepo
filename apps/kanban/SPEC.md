@@ -20,8 +20,8 @@ board, no accounts, no due dates, and no collaboration behavior.
   Tags show only catalog metadata—including subtype, color, and assignment count—and never item content.
 - A durable tag catalog with an exclusive board-tag subtype. Every card belongs to the current
   board tag and cannot receive another board tag as an ordinary tag. The Tags view creates an
-  ordinary tag and its initial color atomically through MonoForm.
-- Card details use MonoForm's shared array-choice transfer control to show available and selected
+  ordinary tag and its initial color atomically through an app-owned form.
+- Card details use an app-owned multiple-choice control to show available and selected
   ordinary tags; dropping into Selected assigns a tag and dropping into Available removes it.
 - Mouse drag-and-drop for ordering cards within a column and moving them between columns.
 - Local file uploads and web-link attachments.

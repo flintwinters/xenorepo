@@ -2,8 +2,6 @@ import type { ComponentChildren, JSX } from "preact";
 import { useEffect } from "preact/hooks";
 import "./styles.css";
 
-export { MonoForm } from "./monoform";
-export type { MonoFormManifest, MonoFormOperation, MonoFormProps, MonoFormResult } from "./monoform";
 export { CommandButton } from "./command-button";
 export type { CommandButtonProps } from "./command-button";
 export { Table } from "./table";

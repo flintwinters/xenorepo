@@ -11,7 +11,6 @@ from apps.contact_book.backend.database import (
 from monotools.runtime.appkit import create_app_context
 from monotools.runtime.application import create_local_application
 from monotools.runtime.http import domain_error_handler, enforce_same_origin
-from monotools.runtime.monoform import monoform_operation
 
 DEFAULT_DATABASE = Path(__file__).parent.parent / "data" / "contacts.db"
 
@@ -37,15 +36,13 @@ def create_app(database_url: str | None = None, store: ContactStore | None = Non
         return contacts.list(query=q, sort=sort, direction=direction, page=page, page_size=page_size)
 
     @application.post("/api/contacts", response_model=Contact, status_code=status.HTTP_201_CREATED,
-        operation_id="create_contact", openapi_extra=monoform_operation(kind="create", entity="contact",
-            title="New contact", submit_label="CREATE"))
+        operation_id="create_contact")
     async def create_contact(value: ContactCreate, request: Request) -> Contact:
         require_origin(request)
         return contacts.create(value)
 
     @application.put("/api/contacts/{contact_id}", response_model=Contact,
-        operation_id="update_contact", openapi_extra=monoform_operation(kind="update", entity="contact",
-            title="Edit contact", submit_label="SAVE"))
+        operation_id="update_contact")
     async def update_contact(contact_id: str, value: ContactUpdate, request: Request) -> Contact:
         require_origin(request)
         contact = contacts.update(contact_id, value)
@@ -54,8 +51,7 @@ def create_app(database_url: str | None = None, store: ContactStore | None = Non
         return contact
 
     @application.delete("/api/contacts/{contact_id}", status_code=status.HTTP_204_NO_CONTENT,
-        operation_id="delete_contact", openapi_extra=monoform_operation(kind="delete", entity="contact",
-            title="Delete contact", submit_label="DELETE", destructive=True))
+        operation_id="delete_contact")
     async def delete_contact(contact_id: str, request: Request) -> None:
         require_origin(request)
         if not contacts.delete(contact_id):

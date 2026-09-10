@@ -3,13 +3,11 @@ title: Kanban
 module: apps.kanban.backend.server
 capabilities:
   - database
-  - monoform
 imports:
   - monotools.orchestration.management
   - monotools.runtime.appkit
   - monotools.runtime.application
   - monotools.runtime.http
-  - monotools.runtime.monoform
   - "monoui"
 testing:
   python: tests

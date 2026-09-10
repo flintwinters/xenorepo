@@ -133,72 +133,6 @@ frontend:
             (directory / "app.yaml").write_text(base.replace("index.tsx", "index.ts"), encoding="utf-8")
             with self.assertRaisesRegex(AppDefinitionError, "preact.*must end in .tsx"):
                 load_app(directory)
-    def test_monoform_metadata_forbids_source_and_requires_allowlist(self) -> None:
-        base = """name: fixture
-title: Fixture
-module: apps.fixture.backend.server
-capabilities: [monoform]
-testing: {python: tests, browser: {suite: tests/e2e/readiness.spec.ts, proofs: [acceptance]}}
-frontend:
-  artifacts:
-    forms:
-      format: monoform
-      output: forms.html
-      operations: [create_example]
-  routes:
-    /forms: forms
-"""
-        with TemporaryDirectory(dir=ROOT / "tests", prefix="monoform-metadata-") as temporary:
-            directory = Path(temporary) / "fixture"
-            (directory / "frontend").mkdir(parents=True)
-            (directory / "backend").mkdir()
-            (directory / "manage.py").touch()
-            (directory / "app.yaml").write_text(base, encoding="utf-8")
-            artifact = load_app(directory).artifacts[0]
-            self.assertEqual(artifact.operations, ("create_example",))
-            self.assertIsNone(artifact.source)
-            for mutation, message in (("      source: frontend/index.tsx\n", "forbids source"),
-                    ("      operations: []\n", "requires unique operations")):
-                contents = base.replace("      operations: [create_example]\n", mutation)
-                (directory / "app.yaml").write_text(contents, encoding="utf-8")
-                with self.assertRaisesRegex(AppDefinitionError, message):
-                    load_app(directory)
-
-    def test_monoform_build_is_allowlisted_self_contained_and_atomic(self) -> None:
-        with TemporaryDirectory(dir=ROOT / "tests", prefix="monoform-build-") as temporary:
-            directory = Path(temporary)
-            data = directory / "data"
-            data.mkdir()
-            manifest = {"schemaVersion": 1, "application": {"name": "fixture", "title": "Fixture"},
-                "operations": [{"operationId": "create_example", "kind": "create",
-                    "entity": "example", "title": "Create example", "submitLabel": "Save",
-                    "destructive": False, "method": "POST", "path": "/api/examples",
-                    "parameters": [], "bodySchema": {"type": "object", "properties": {
-                        "name": {"type": "string"}}, "required": ["name"]},
-                    "successStatuses": [200]}]}
-            (data / "monoform.json").write_text(json.dumps(manifest), encoding="utf-8")
-            definition = AppDefinition(name="fixture", title="Fixture", directory=directory,
-                module="fixture.server", artifacts=(FrontendArtifact("forms", "monoform", None,
-                    Path("forms.html"), ("create_example",)),), routes=(("/forms", "forms"),),
-                capabilities=frozenset({"monoform"}))
-            build_app(definition, ROOT)
-            output = directory / "dist" / "forms.html"
-            first = output.read_bytes()
-            self.assertIn(b"Create example", first)
-            self.assertIn(b"x-ui-rail", first)
-            self.assertIn(b"x-ui-command-control", first)
-            self.assertIn(b"x-ui-monoform-result", first)
-            self.assertNotIn(b'script src=', first)
-            build_app(definition, ROOT)
-            self.assertEqual(output.read_bytes(), first)
-            broken = AppDefinition(name="fixture", title="Fixture", directory=directory,
-                module="fixture.server", artifacts=(FrontendArtifact("forms", "monoform", None,
-                    Path("forms.html"), ("missing",)),), routes=(("/forms", "forms"),),
-                capabilities=frozenset({"monoform"}))
-            with self.assertRaises(LifecycleError):
-                build_app(broken, ROOT)
-            self.assertEqual(output.read_bytes(), first)
-
     def test_preact_diagnostics_preserve_the_existing_dist_artifact(self) -> None:
         with TemporaryDirectory(dir=ROOT / "tests", prefix="preact-error-") as temporary:
             directory = Path(temporary)
@@ -337,9 +271,9 @@ frontend:
             "authored-html": (base.replace("frontend/index.tsx", "frontend/index.html"),
                 r"preact frontend artifact source must end in .tsx"),
             "legacy-format": (base.replace("format: preact", "format: lit"),
-                "frontend format must be preact or monoform, got 'lit'"),
+                "frontend format must be preact, got 'lit'"),
             "document-format": (base.replace("format: preact", "format: document"),
-                "frontend format must be preact or monoform, got 'document'"),
+                "frontend format must be preact, got 'document'"),
         }
         with TemporaryDirectory(dir=ROOT / "tests", prefix="metadata-") as temporary:
             directory = Path(temporary) / "fixture"
@@ -492,17 +426,6 @@ frontend:
         )
         self.assertIn("line-height: var(--console-line-height, 1.2);", styles)
 
-    def test_monoform_composes_shared_form_components(self) -> None:
-        monoform = (MONOUI_SOURCE / "monoform.tsx").read_text(
-            encoding="utf-8")
-
-        for component in ("Form", "FormActions", "FormConfirmation", "FormField",
-                "FormInput", "FormSelect", "FormTextarea"):
-            self.assertIn(f"<{component}", monoform)
-        self.assertNotIn("<input", monoform)
-        self.assertNotIn("<select", monoform)
-        self.assertNotIn("<textarea", monoform)
-
     def test_content_height_panes_never_create_vertical_scrollports(self) -> None:
         styles = (MONOUI_SOURCE / "styles.css").read_text(
             encoding="utf-8")
@@ -541,30 +464,6 @@ frontend:
     def test_form_actions_preserve_shared_command_button_styling(self) -> None:
         styles = (MONOUI_SOURCE / "styles.css").read_text(encoding="utf-8")
         self.assertNotIn(".x-ui-form-actions .x-ui-command-control", styles)
-
-    def test_monoforms_render_contract_named_sections(self) -> None:
-        components = (MONOUI_SOURCE / "monoform.tsx").read_text(encoding="utf-8")
-        styles = (MONOUI_SOURCE / "styles.css").read_text(encoding="utf-8")
-
-        self.assertIn("title?: string", components)
-        self.assertIn('<section class="x-ui-monoform-section">', components)
-        self.assertIn("<h3>{title || operation.title}</h3>", components)
-        for declaration in (
-            "margin: 14px 0 0", "padding-bottom: 4px", "color: #83a598",
-            "border-bottom: 1px solid #504945", "font-size: 12px",
-        ):
-            self.assertIn(declaration, styles)
-
-    def test_monoform_color_fields_keep_text_input_and_show_a_live_preview(self) -> None:
-        components = (MONOUI_SOURCE / "monoform.tsx").read_text(encoding="utf-8")
-        styles = (MONOUI_SOURCE / "styles.css").read_text(encoding="utf-8")
-
-        self.assertIn('format?: "color" | "date" | "date-time"', components)
-        self.assertIn("pattern?: string", components)
-        self.assertIn('schema.format === "color" ? "text"', components)
-        self.assertIn('class="x-ui-color-preview"', components)
-        self.assertIn("matchesPattern(raw, schema.pattern)", components)
-        self.assertIn(".x-ui-color-preview[style] { background-image: none; }", styles)
 
     def test_chrome_command_buttons_share_their_chrome_color(self) -> None:
         styles = (MONOUI_SOURCE / "styles.css").read_text(

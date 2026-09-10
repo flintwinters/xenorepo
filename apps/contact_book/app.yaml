@@ -3,14 +3,12 @@ title: Contact Book
 module: apps.contact_book.backend.server
 capabilities:
   - database
-  - monoform
 imports:
   - monotools.orchestration.management
   - monotools.persistence.database
   - monotools.runtime.appkit
   - monotools.runtime.application
   - monotools.runtime.http
-  - monotools.runtime.monoform
   - "monoui"
 testing:
   python: tests

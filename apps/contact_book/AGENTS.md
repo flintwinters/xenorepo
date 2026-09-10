@@ -9,7 +9,7 @@ hidden state-management framework.
 ## Architecture
 
 Contact Book owns durable contacts, deterministic sample generation, CRUD, search, sorting, and
-pagination. It consumes MonoForm for scalar mutations and the view-only MonoUI `Table` for supplied
+pagination. It owns mutation forms composed from MonoUI controls and uses MonoUI `Table` for supplied
 columns and rows. FastAPI is the sole service and SQLite is the local durable default.
 
 Inventory shared UI primitives and tokens before writing presentation code. Reuse toolkit commands

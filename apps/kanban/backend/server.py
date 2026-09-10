@@ -17,7 +17,6 @@ from apps.kanban.backend.schemas import (
 from monotools.runtime.appkit import create_app_context
 from monotools.runtime.application import create_local_application
 from monotools.runtime.http import domain_error_handler, enforce_same_origin
-from monotools.runtime.monoform import monoform_operation
 
 
 DIRECTORY = Path(__file__).parent.parent
@@ -58,38 +57,31 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
         return board.import_board(value, replace=mode == "replace")
 
     @application.patch("/api/board/details", response_model=BoardView,
-        operation_id="edit_board_details", openapi_extra=monoform_operation(
-            kind="update", entity="board", title="Board settings", submit_label="SAVE"))
+        operation_id="edit_board_details")
     async def edit_board_details(value: BoardDetailsEdit, request: Request) -> BoardView:
         require_origin(request)
         return board.edit_board_details(value)
 
     @application.patch("/api/board/tag-colors/{tag}", response_model=BoardView,
-        operation_id="set_tag_color", openapi_extra=monoform_operation(
-            kind="update", entity="tag color", title="Tag color", submit_label="SAVE COLOR"))
+        operation_id="set_tag_color")
     async def set_tag_color(tag: str, value: TagColorEdit, request: Request) -> BoardView:
         require_origin(request)
         return board.set_tag_color(tag, value.color)
 
     @application.post("/api/tags", response_model=TagView,
-        status_code=status.HTTP_201_CREATED, operation_id="create_tag",
-        openapi_extra=monoform_operation(kind="create", entity="tag",
-            title="New tag", submit_label="CREATE"))
+        status_code=status.HTTP_201_CREATED, operation_id="create_tag")
     async def create_tag(value: TagCreate, request: Request) -> TagView:
         require_origin(request)
         return board.create_tag(value)
 
     @application.post("/api/columns", response_model=ColumnView,
-        status_code=status.HTTP_201_CREATED, operation_id="create_column",
-        openapi_extra=monoform_operation(kind="create", entity="column",
-            title="New column", submit_label="CREATE"))
+        status_code=status.HTTP_201_CREATED, operation_id="create_column")
     async def create_column(value: ColumnCreate, request: Request) -> ColumnView:
         require_origin(request)
         return board.create_column(value.name, value.color)
 
     @application.patch("/api/columns/{column_id}", response_model=ColumnView,
-        operation_id="edit_column", openapi_extra=monoform_operation(
-            kind="update", entity="column", title="Edit column", submit_label="SAVE"))
+        operation_id="edit_column")
     async def edit_column(column_id: str, value: ColumnEdit, request: Request) -> ColumnView:
         require_origin(request)
         return board.edit_column(column_id, value.name, value.color)
@@ -100,9 +92,7 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
         return board.move_column(column_id, value.position)
 
     @application.post("/api/columns/{column_id}/cards", response_model=CardView,
-        status_code=status.HTTP_201_CREATED, operation_id="create_card",
-        openapi_extra=monoform_operation(
-            kind="create", entity="card", title="Create card", submit_label="SAVE"))
+        status_code=status.HTTP_201_CREATED, operation_id="create_card")
     async def create_card(column_id: str, value: CardFields, request: Request) -> CardView:
         require_origin(request)
         return board.create_card(CardCreate(column_id=column_id, **value.model_dump()))
@@ -115,9 +105,7 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
         return board.create_card(value)
 
     @application.patch("/api/cards/{card_id}", response_model=CardView,
-        operation_id="edit_card",
-        openapi_extra=monoform_operation(kind="update", entity="card",
-            title="Edit card", submit_label="SAVE"))
+        operation_id="edit_card")
     async def edit_card(card_id: str, value: CardEdit, request: Request) -> CardView:
         require_origin(request)
         return board.edit_card(card_id, value)
@@ -163,8 +151,7 @@ def create_app(database_url: str | None = None, store: KanbanStore | None = None
             raise
 
     @application.patch("/api/attachments/{attachment_id}", response_model=AttachmentView,
-        operation_id="edit_attachment", openapi_extra=monoform_operation(
-            kind="update", entity="attachment", title="Edit attachment", submit_label="SAVE"))
+        operation_id="edit_attachment")
     async def edit_attachment(attachment_id: str, value: AttachmentEdit,
         request: Request) -> AttachmentView:
         require_origin(request)

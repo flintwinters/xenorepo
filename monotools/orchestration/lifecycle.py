@@ -9,7 +9,6 @@ import ast
 from html import escape
 from pathlib import Path
 import json
-import os
 import py_compile
 import re
 import shutil
@@ -24,7 +23,6 @@ from fastapi.routing import APIWebSocketRoute
 from monotools.orchestration.apps import AppDefinition, FrontendArtifact
 from monotools.runtime.application import AGENT_TOOLS_ROUTE, api_openapi_schema
 from monotools.runtime.openapi import OpenAPIContractError, validate_api_openapi_schema
-from monotools.runtime.monoform import MonoFormContractError, monoform_manifest
 
 
 class LifecycleError(RuntimeError):
@@ -95,9 +93,6 @@ def _validate_frontend(definition: AppDefinition, workspace: Path) -> None:
 
 
 def _build_frontend(definition: AppDefinition, artifact: FrontendArtifact, workspace: Path) -> None:
-    if artifact.format == "monoform":
-        _build_monoform(definition, artifact, workspace)
-        return
     npm = shutil.which("npm")
     if npm is None:
         raise LifecycleError("npm not found; run python manage.py bootstrap before building Preact pages")
@@ -113,29 +108,6 @@ def _build_frontend(definition: AppDefinition, artifact: FrontendArtifact, works
         bundle.unlink(missing_ok=True)
         stylesheet.unlink(missing_ok=True)
     _write_document(definition, artifact, script, styles)
-
-
-def _build_monoform(definition: AppDefinition, artifact: FrontendArtifact, workspace: Path) -> None:
-    node = shutil.which("node")
-    if node is None:
-        raise LifecycleError("node not found; run python manage.py bootstrap before building MonoForm pages")
-    staging = definition.directory / "data" / "monoform-build" / artifact.name
-    staging.mkdir(parents=True, exist_ok=True)
-    bundle = staging / "bundle.js"
-    stylesheet = staging / "bundle.css"
-    operations = staging / "operations.json"
-    operations.write_text(json.dumps(artifact.operations) + "\n", encoding="utf-8")
-    manifest = definition.directory / "data" / "monoform.json"
-    _run([node, "monotools/node/build-monoform.mjs", str(manifest.relative_to(workspace)),
-        str(operations.relative_to(workspace)), str(bundle.relative_to(workspace)),
-        str(stylesheet.relative_to(workspace))], workspace)
-    script = bundle.read_text(encoding="utf-8")
-    styles = stylesheet.read_text(encoding="utf-8")
-    staged_artifact = staging / "artifact.html"
-    _write_document(definition, artifact, script, styles, output=staged_artifact)
-    output = definition.dist_directory / artifact.output
-    output.parent.mkdir(parents=True, exist_ok=True)
-    os.replace(staged_artifact, output)
 
 
 def _write_document(definition: AppDefinition, artifact: FrontendArtifact,
@@ -227,12 +199,6 @@ def _generate_openapi_types(definition: AppDefinition, application: FastAPI,
         raise LifecycleError(f"{definition.name} {error}") from error
     data_directory = definition.directory / "data"
     data_directory.mkdir(exist_ok=True)
-    try:
-        manifest = monoform_manifest(schema, app=definition.name, title=definition.title)
-    except MonoFormContractError as error:
-        raise LifecycleError(f"{definition.name} MonoForm contract failed: {error}") from error
-    manifest_path = data_directory / "monoform.json"
-    manifest_path.write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     schema_path = data_directory / "openapi.json"
     declaration = data_directory / "openapi.d.ts"
     schema_path.write_text(json.dumps(schema, indent=2, sort_keys=True) + "\n", encoding="utf-8")

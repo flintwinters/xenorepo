@@ -241,13 +241,6 @@
   gap: 10px;
   padding: 12px;
 }
-.x-ui-monoform-section > h3 {
-  margin: 14px 0 0;
-  padding-bottom: 4px;
-  color: #83a598;
-  border-bottom: 1px solid #504945;
-  font-size: 12px;
-}
 .x-ui-form-field {
   display: grid;
   gap: 3px;
@@ -289,67 +282,6 @@
 .x-ui-array-transfer-group .x-ui-command:active { cursor: grabbing; }
 .x-ui-array-transfer > small[role="alert"] { color: #fb4934; }
 .x-ui-form-actions { display: flex; gap: 8px; }
-.x-ui-monoform-result:not(:empty) {
-  color: var(--console-fg, #ebdbb2);
-}
-.x-ui-monoform-page > main {
-  place-items: center;
-  padding: 24px 16px;
-}
-.x-ui-monoform-workspace {
-  display: grid;
-  width: min(100%, 520px);
-  gap: 16px;
-}
-.x-ui-monoform-workspace > .x-ui-pane {
-  border: 1px solid var(--console-divider, #111);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 24%);
-}
-.x-ui-monoform-result-surface {
-  display: grid;
-  min-height: 112px;
-  padding: 18px;
-  gap: 8px;
-  align-content: center;
-  background: var(--console-bg, #1d2021);
-  border-bottom: 1px solid var(--console-divider, #111);
-}
-.x-ui-monoform-result-surface > strong {
-  color: var(--console-muted, #a89984);
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.x-ui-monoform-result {
-  min-height: 1.3em;
-  font-size: 20px;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-.x-ui-monoform-result:empty::before {
-  color: var(--console-muted, #a89984);
-  content: "—";
-}
-.x-ui-monoform-page .x-ui-form {
-  gap: 16px;
-  padding: 20px 18px;
-}
-.x-ui-monoform-page .x-ui-form-control:not([type="checkbox"]) {
-  min-height: 38px;
-  padding-inline: 10px;
-}
-.x-ui-monoform-page .x-ui-form-actions {
-  padding-top: 8px;
-}
-.x-ui-monoform-page .x-ui-form-actions > .x-ui-command {
-  width: 100%;
-}
-.x-ui-monoform-page .x-ui-command-control {
-  --console-button-tint: #83a598;
-  min-height: 42px;
-  padding-inline: 16px;
-  font-weight: bold;
-}
 .x-ui-form-confirm { display: flex; align-items: center; gap: 6px; }
 .x-ui-table-scroll { display: block; width: 100%; max-width: 100%; min-width: 0; overflow: auto; }
 .x-ui-table { width: 100%; border-collapse: collapse; font: inherit; }
@@ -366,10 +298,6 @@
   .x-ui-command-control {
     min-width: 28px;
     min-height: 28px;
-  }
-  .x-ui-monoform-page > main {
-    place-items: start center;
-    padding: 12px 8px;
   }
   .x-ui-array-transfer-groups { grid-template-columns: 1fr; }
 }

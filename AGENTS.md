@@ -33,9 +33,9 @@ misplaced responsibility, invalid intermediate states, and lost recovery.
   a standalone-deployment README.
 - FastAPI is each app's only runtime service. App YAML maps server URLs to
   compiled, self-contained `dist/` HTML; HTML is never source. Monotools compiles
-  strict Preact TSX entries with external CSS or immutable allowlisted MonoForm
-  pages. Prefer MonoForm for conventional CRUD after a suitability review;
-  product-defining or unsupported interactions remain app-owned. Do not add
+  strict Preact TSX entries with external CSS. Forms are app-owned compositions
+  of MonoUI primitives using generated OpenAPI types; backend models, validation,
+  and authorization remain authoritative. Do not add
   frontend services, private Node projects, or build scripts.
 - Persist durable facts through SQLAlchemy ORM, defaulting locally to SQLite with
   PostgreSQL-compatible models and transactions. Preserve identifiers,
@@ -67,8 +67,6 @@ misplaced responsibility, invalid intermediate states, and lost recovery.
   without introducing deployment knowledge into apps or Monotools.
 - Preserve Preact-only gates and app-owned wide/narrow visual checks; generate
   baselines locally without versioning them.
-- Keep MonoForm a secure CRUD default, never authorization or a replacement for
-  app-owned workflows and server invariants.
 - Enforce the dependency direction `monoapp -> generic Monotools contract`,
   with no static monoapp identity or product policy in central code or tests.
 - Admit shared code only after independent consumers prove a generic boundary;
